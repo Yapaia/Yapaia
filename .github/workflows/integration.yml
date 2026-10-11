@@ -30,7 +30,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       # hassfest prüft eine Integration so, wie Home Assistant sie lädt:
-      # Manifest-Felder, Übersetzungen, Config-Flow-Angaben.
-      - uses: home-assistant/actions/hassfest@master
-        with:
-          path: integration/custom_components/yapaia
+      # Manifest-Felder, Übersetzungen, Config-Flow-Angaben. Dasselbe Image
+      # wie die Action `home-assistant/actions/hassfest` -- die sucht aber
+      # fest `custom_components/` an der Repo-Wurzel, unsere liegt in
+      # `integration/`.
+      - name: hassfest
+        working-directory: .
+        run: docker run --rm -v "${GITHUB_WORKSPACE}/integration:/github/workspace" ghcr.io/home-assistant/hassfest
