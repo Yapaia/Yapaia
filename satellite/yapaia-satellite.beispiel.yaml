@@ -1,0 +1,26 @@
+# Vorlage für die eigene Gerätedatei im ESPHome Device Builder.
+# Anleitung: README.md, Abschnitt „Einrichten".
+substitutions:
+  name: yapaia-satellite
+  friendly_name: Yapaia Satellite
+
+packages:
+  yapaia_satellite:
+    url: https://github.com/Apfelsafft/Yapaia-Satellite
+    files: [yapaia-satellite.yaml]
+    ref: main
+    refresh: 1d
+
+api:
+  encryption:
+    # Den Schlüssel, den der Device Builder beim Anlegen erzeugt hat, hier
+    # stehen lassen (oder in secrets.yaml ablegen).
+    key: !secret yapaia_satellite_api_key
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: Yapaia Satellite Setup
+
+captive_portal:

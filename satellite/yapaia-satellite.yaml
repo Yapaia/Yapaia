@@ -1,0 +1,425 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Yapaia Satellite – Home-Assistant-Sprachsatellit auf dem
+# AI-Thinker ESP32 Audio Kit V2.2 (A436): ESP32-A1S, Audio-Codec ES8388,
+# zwei Board-Mikrofone, Lautsprecher-Verstärker, sechs Tasten.
+#
+# Diese Datei ist das PAKET. Die eigene Gerätedatei (WLAN, API-Schlüssel)
+# bindet es ein – siehe `yapaia-satellite.beispiel.yaml` und README.
+# ─────────────────────────────────────────────────────────────────────────────
+
+substitutions:
+  name: yapaia-satellite
+  friendly_name: Yapaia Satellite
+  # Wohin der Ton geht: LINE1, LINE2 oder BOTH (Lautsprecher-Stecker und
+  # Kopfhörerbuchse hängen je nach Board-Revision an verschiedenen Ausgängen –
+  # BOTH trifft beide).
+  speaker_output: BOTH
+  # Woher das Mikrofon kommt: LINE1 = Board-Mikrofone, LINE2 = Line-In-Buchse
+  mic_input: LINE1
+  # Verstärkung der Mikrofone für Spracherkennung und Aktivierungswort
+  mic_gain: "4"
+  # Status-LED (D4 an GPIO22) leuchtet bei LOW
+  led_inverted: "true"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2025.5.0
+  project:
+    name: apfelsafft.yapaia-satellite
+    version: "0.1.0"
+  on_boot:
+    priority: -100
+    then:
+      - select.set:
+          id: dac_output
+          option: ${speaker_output}
+      - select.set:
+          id: mic_input_select
+          option: ${mic_input}
+      - script.execute: zuhoeren
+
+esp32:
+  board: esp32dev
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+
+# Der ESP32-A1S hat 8 MB PSRAM (4 MB nutzbar) – Puffer für Ton und
+# Aktivierungswort liegen dort.
+psram:
+  mode: quad
+  speed: 40MHz
+
+logger:
+  level: INFO
+
+api:
+  on_client_connected:
+    - script.execute: zuhoeren
+  on_client_disconnected:
+    - voice_assistant.stop:
+    - micro_wake_word.stop:
+
+ota:
+  - platform: esphome
+
+# ─── Audio-Codec ES8388 ──────────────────────────────────────────────────────
+i2c:
+  id: codec_i2c
+  sda: GPIO33
+  scl: GPIO32
+
+audio_dac:
+  - platform: es8388
+    id: es8388_dac
+
+# Ein I2S-Bus für Mikrofon UND Lautsprecher (der Codec macht beides). Deshalb
+# laufen beide mit 16 kHz; Musik und Ansagen werden darauf umgerechnet.
+i2s_audio:
+  - id: i2s_bus
+    i2s_lrclk_pin: GPIO25
+    i2s_bclk_pin: GPIO27
+    i2s_mclk_pin: GPIO0
+
+microphone:
+  - platform: i2s_audio
+    id: board_mic
+    i2s_audio_id: i2s_bus
+    i2s_din_pin: GPIO35
+    adc_type: external
+    pdm: false
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    channel: left
+
+speaker:
+  - platform: i2s_audio
+    id: i2s_spk
+    i2s_audio_id: i2s_bus
+    i2s_dout_pin: GPIO26
+    dac_type: external
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    channel: stereo
+    buffer_duration: 100ms
+    audio_dac: es8388_dac
+  # Ansagen und Musik mischen: eine Ansage (Antwort, Durchsage) wird über die
+  # laufende Musik gelegt statt sie abzubrechen.
+  - platform: mixer
+    id: mixer_spk
+    output_speaker: i2s_spk
+    num_channels: 2
+    source_speakers:
+      - id: announcement_mixer_input
+        timeout: never
+      - id: media_mixer_input
+        timeout: never
+  - platform: resampler
+    id: announcement_resampling_speaker
+    output_speaker: announcement_mixer_input
+  - platform: resampler
+    id: media_resampling_speaker
+    output_speaker: media_mixer_input
+
+media_player:
+  - platform: speaker
+    id: media_player_id
+    name: None
+    volume_increment: 0.05
+    volume_min: 0.4
+    volume_max: 0.95
+    announcement_pipeline:
+      speaker: announcement_resampling_speaker
+      format: FLAC
+      num_channels: 1
+      sample_rate: 16000
+    media_pipeline:
+      speaker: media_resampling_speaker
+      format: FLAC
+      num_channels: 2
+      sample_rate: 16000
+    on_announcement:
+      # Musik leiser, solange eine Ansage läuft
+      - mixer_speaker.apply_ducking:
+          id: media_mixer_input
+          decibel_reduction: 20
+          duration: 0.0s
+    on_state:
+      - if:
+          condition:
+            and:
+              - not:
+                  voice_assistant.is_running:
+              - not:
+                  media_player.is_announcing:
+          then:
+            - mixer_speaker.apply_ducking:
+                id: media_mixer_input
+                decibel_reduction: 0
+                duration: 1.0s
+
+# ─── Sprachassistent ─────────────────────────────────────────────────────────
+micro_wake_word:
+  id: mww
+  microphone:
+    microphone: board_mic
+    channels: 0
+    gain_factor: ${mic_gain}
+  stop_after_detection: false
+  models:
+    - model: okay_nabu
+      id: okay_nabu
+    - model: hey_jarvis
+      id: hey_jarvis
+  vad:
+  on_wake_word_detected:
+    - voice_assistant.start:
+        wake_word: !lambda return wake_word;
+
+voice_assistant:
+  id: va
+  microphone:
+    microphone: board_mic
+    channels: 0
+    gain_factor: ${mic_gain}
+  media_player: media_player_id
+  micro_wake_word: mww
+  use_wake_word: false
+  noise_suppression_level: 2
+  auto_gain: 31dBFS
+  volume_multiplier: 2.0
+  on_listening:
+    - light.turn_on:
+        id: status_led
+        effect: none
+    - mixer_speaker.apply_ducking:
+        id: media_mixer_input
+        decibel_reduction: 20
+        duration: 0.0s
+  on_stt_vad_end:
+    - light.turn_on:
+        id: status_led
+        effect: Langsam blinken
+  on_tts_start:
+    - light.turn_on:
+        id: status_led
+        effect: none
+  on_end:
+    - wait_until:
+        not:
+          media_player.is_announcing:
+    - light.turn_off: status_led
+    - mixer_speaker.apply_ducking:
+        id: media_mixer_input
+        decibel_reduction: 0
+        duration: 1.0s
+    - script.execute: zuhoeren
+  on_error:
+    - light.turn_on:
+        id: status_led
+        effect: Schnell blinken
+    - delay: 2s
+    - light.turn_off: status_led
+  on_client_connected:
+    - script.execute: zuhoeren
+  on_client_disconnected:
+    - voice_assistant.stop:
+
+script:
+  # Wartet aufs Aktivierungswort – je nach Einstellung auf dem Gerät oder in
+  # Home Assistant, nie bei stummem Mikrofon oder während einer Anfrage.
+  - id: zuhoeren
+    mode: restart
+    then:
+      - if:
+          condition:
+            or:
+              - switch.is_on: mikrofon_stumm
+              - not:
+                  api.connected:
+          then:
+            - voice_assistant.stop:
+            - micro_wake_word.stop:
+          else:
+            - if:
+                condition:
+                  lambda: return id(wake_word_ort).current_option() == std::string("In Home Assistant");
+                then:
+                  - micro_wake_word.stop:
+                  - lambda: id(va).set_use_wake_word(true);
+                  - if:
+                      condition:
+                        not:
+                          voice_assistant.is_running:
+                      then:
+                        - voice_assistant.start_continuous:
+                else:
+                  - lambda: id(va).set_use_wake_word(false);
+                  - if:
+                      condition:
+                        lambda: return id(wake_word_ort).current_option() == std::string("Auf dem Gerät");
+                      then:
+                        - if:
+                            condition:
+                              not:
+                                voice_assistant.is_running:
+                            then:
+                              - micro_wake_word.start:
+                      else:
+                        - micro_wake_word.stop:
+
+select:
+  - platform: es8388
+    dac_output:
+      id: dac_output
+      name: Tonausgang
+    adc_input_mic:
+      id: mic_input_select
+      name: Mikrofon-Eingang
+  - platform: template
+    id: wake_word_ort
+    name: Aktivierungswort-Erkennung
+    icon: mdi:account-voice
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    # „In Home Assistant": openWakeWord im Server – eigene Wörter wie „Yapaia“
+    # „Auf dem Gerät": microWakeWord („Okay Nabu“, „Hey Jarvis“)
+    # „Nur Taste": hört nur nach Druck auf KEY1
+    options:
+      - In Home Assistant
+      - Auf dem Gerät
+      - Nur Taste
+    initial_option: In Home Assistant
+    on_value:
+      - voice_assistant.stop:
+      - micro_wake_word.stop:
+      - delay: 300ms
+      - script.execute: zuhoeren
+
+switch:
+  - platform: template
+    id: mikrofon_stumm
+    name: Mikrofon stumm
+    icon: mdi:microphone-off
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - voice_assistant.stop:
+      - micro_wake_word.stop:
+    on_turn_off:
+      - script.execute: zuhoeren
+  # Lautsprecher-Verstärker (NS4150) an GPIO21
+  - platform: gpio
+    id: verstaerker
+    name: Lautsprecher-Verstärker
+    pin: GPIO21
+    restore_mode: ALWAYS_ON
+    entity_category: config
+
+output:
+  - platform: gpio
+    id: led_output
+    pin:
+      number: GPIO22
+      inverted: ${led_inverted}
+
+light:
+  - platform: binary
+    id: status_led
+    name: Status-LED
+    output: led_output
+    entity_category: config
+    effects:
+      - strobe:
+          name: Langsam blinken
+          colors:
+            - state: true
+              duration: 400ms
+            - state: false
+              duration: 400ms
+      - strobe:
+          name: Schnell blinken
+          colors:
+            - state: true
+              duration: 100ms
+            - state: false
+              duration: 100ms
+
+# ─── Tasten ──────────────────────────────────────────────────────────────────
+# KEY1 Sprechen · KEY3 Mikrofon stumm · KEY4 leiser · KEY5 lauter · KEY6 Stopp
+# KEY2 (GPIO13) teilt sich die Leitung mit der SD-Karte und bleibt frei.
+binary_sensor:
+  - platform: gpio
+    id: taste_sprechen
+    name: Taste Sprechen
+    pin:
+      number: GPIO36
+      inverted: true
+    filters:
+      - delayed_on: 20ms
+    on_press:
+      - if:
+          condition:
+            voice_assistant.is_running:
+          then:
+            - voice_assistant.stop:
+          else:
+            - media_player.stop:
+                announcement: true
+            - micro_wake_word.stop:
+            - voice_assistant.start:
+  - platform: gpio
+    id: taste_stumm
+    name: Taste Mikrofon stumm
+    pin:
+      number: GPIO19
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 20ms
+    on_press:
+      - switch.toggle: mikrofon_stumm
+  - platform: gpio
+    id: taste_leiser
+    name: Taste leiser
+    pin:
+      number: GPIO23
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 20ms
+    on_press:
+      - media_player.volume_down: media_player_id
+  - platform: gpio
+    id: taste_lauter
+    name: Taste lauter
+    pin:
+      number: GPIO18
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 20ms
+    on_press:
+      - media_player.volume_up: media_player_id
+  - platform: gpio
+    id: taste_stopp
+    name: Taste Stopp
+    pin:
+      number: GPIO5
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 20ms
+    on_press:
+      - voice_assistant.stop:
+      - media_player.stop:
