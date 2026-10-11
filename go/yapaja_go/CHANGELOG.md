@@ -18,6 +18,9 @@ steht die Meldung dabei, damit man sie wiedererkennt.
   Ansage-Aktion heißt dort `yapaia.beat_ansage`. Go nutzt jetzt diesen Namen.
   Mit einem Beat vor 1.14 fällt die Ansage im Radio weg (Go spricht dann wie
   ohne Beat über den gewählten Lautsprecher) – beide gemeinsam aktualisieren.
+- Erweiterungen, die während des Kartenladens (Start, Stilwechsel) eine Ebene
+  zeichnen, bekamen einen Fehler zurück („Style is not done loading“). Die
+  Ebene erscheint jetzt, sobald die Karte bereit ist.
 
 ---
 
