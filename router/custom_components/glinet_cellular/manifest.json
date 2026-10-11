@@ -1,0 +1,12 @@
+{
+  "domain": "glinet_cellular",
+  "name": "GL.iNet Cellular",
+  "codeowners": ["@Apfelsafft"],
+  "config_flow": true,
+  "documentation": "https://github.com/Apfelsafft/Yapaia-Router",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Apfelsafft/Yapaia-Router/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
