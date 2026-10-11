@@ -25,7 +25,9 @@ import { defaultHaFetch, type HaFetchLike } from './client.js';
 
 /** Die Entität und die Aktion der Yapaia-Beat-Integration. */
 export const BEAT_ENTITAET = 'media_player.yapaia_beat';
-export const BEAT_AKTION = { domain: 'yapaia_beat', service: 'announce' } as const;
+// Seit Beat 1.14 gehört Beat zur gemeinsamen Integration „Yapaia“; die
+// Aktion heißt dort `yapaia.beat_ansage` (vorher `yapaia_beat.announce`).
+export const BEAT_AKTION = { domain: 'yapaia', service: 'beat_ansage' } as const;
 
 /** Zustände, in denen Beat Ton macht (oder gleich machen wird). */
 const LAEUFT = new Set(['playing', 'buffering']);
@@ -45,7 +47,7 @@ export interface BeatAnsageDeps {
   stimme: () => { engine?: string; language?: string };
   leseZustaende: (v: HaConnection, ids: readonly string[]) => Promise<Map<string, string>>;
   rufe: (v: HaConnection, data: Record<string, unknown>) => Promise<RufErgebnis>;
-  /** Gibt es die Aktion `yapaia_beat.announce` (Beat ≥ 1.6, HA neu gestartet)? `null` = unbekannt. */
+  /** Gibt es die Aktion `yapaia.beat_ansage` (Beat ≥ 1.14, HA neu gestartet)? `null` = unbekannt. */
   aktionVorhanden?: (v: HaConnection) => Promise<boolean | null>;
 }
 
@@ -98,7 +100,7 @@ export class BeatAnsage implements AnsageZiel {
       if (genau && this.deps.aktionVorhanden && (await this.deps.aktionVorhanden(v)) === false) {
         return {
           ok: false,
-          grund: 'Die Aktion yapaia_beat.announce fehlt: Yapaia Beat auf 1.6 oder neuer aktualisieren und Home Assistant neu starten.',
+          grund: 'Die Aktion yapaia.beat_ansage fehlt: Yapaia Beat auf 1.14 oder neuer aktualisieren und Home Assistant neu starten.',
         };
       }
       const { engine, language } = this.deps.stimme();
@@ -117,7 +119,7 @@ export class BeatAnsage implements AnsageZiel {
       }
       if (r.fehler) return { ok: false, grund: `Yapaia Beat: ${r.fehler}` };
       if (r.status === 400) {
-        return { ok: false, grund: 'Home Assistant kennt die Aktion yapaia_beat.announce nicht: Home Assistant neu starten.' };
+        return { ok: false, grund: 'Home Assistant kennt die Aktion yapaia.beat_ansage nicht: Home Assistant neu starten.' };
       }
       return {
         ok: false,
@@ -155,7 +157,7 @@ async function haAnfrage(
   }
 }
 
-/** `yapaia_beat.announce` aufrufen. Wirft nie. */
+/** `yapaia.beat_ansage` aufrufen. Wirft nie. */
 export async function rufeBeat(
   v: HaConnection,
   data: Record<string, unknown>,
@@ -182,7 +184,7 @@ export async function rufeBeat(
   }
 }
 
-/** Steht `yapaia_beat.announce` in der Liste der Aktionen? Wirft nie. */
+/** Steht `yapaia.beat_ansage` in der Liste der Aktionen? Wirft nie. */
 export async function beatAktionVorhanden(
   v: HaConnection,
   deps: { fetch?: HaFetchLike; timeoutMs?: number } = {},

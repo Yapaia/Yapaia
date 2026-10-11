@@ -3,6 +3,10 @@ ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
 # --------------------------------------------------------------------------
 # Build stage: welle-cli (DAB/DAB+) and redsea (RDS decoder)
 # --------------------------------------------------------------------------
+# Leere Vorgabe für die Integration -- der Bau ersetzt sie per
+# `--build-context yapaia-integration=integration/custom_components`.
+FROM scratch AS yapaia-integration
+
 FROM ${BUILD_FROM} AS builder
 
 ARG WELLE_VERSION=v2.7
@@ -70,6 +74,11 @@ COPY --from=builder /usr/local/bin/welle-cli /usr/local/bin/redsea /usr/local/bi
 # fail early if a shared library is missing
 RUN if ldd /usr/local/bin/welle-cli /usr/local/bin/redsea | grep "not found"; then exit 1; fi
 COPY rootfs /
+# Die gemeinsame Integration „Yapaia“ (integration/custom_components/yapaia),
+# vom Bau als Kontext `yapaia-integration` mitgegeben; das Add-on installiert
+# sie in Home Assistant. Ohne den Kontext bleibt der Ordner leer und das
+# Add-on überspringt die Installation.
+COPY --from=yapaia-integration / /opt/yapaia/integration/
 
 ARG BUILD_VERSION=dev
 ENV YAPAIA_VERSION=${BUILD_VERSION} \
@@ -77,9 +86,7 @@ ENV YAPAIA_VERSION=${BUILD_VERSION} \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt/yapaia
 
-RUN chmod a+x /etc/s6-overlay/s6-rc.d/yapaia/run /etc/s6-overlay/s6-rc.d/yapaia/finish 2>/dev/null || true \
-    && sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${BUILD_VERSION}\"/" \
-        /opt/yapaia/integration/yapaia_beat/manifest.json
+RUN chmod a+x /etc/s6-overlay/s6-rc.d/yapaia/run /etc/s6-overlay/s6-rc.d/yapaia/finish 2>/dev/null || true
 
 LABEL \
     io.hass.name="Yapaia Beat" \

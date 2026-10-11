@@ -1,4 +1,15 @@
-"""Yapaia Beat – FM/DAB+ radio (RTL-SDR) as Home Assistant entities."""
+"""Yapaia Beat in der Yapaia-Integration (`spezial: beat`).
+
+Mediaplayer, Lautsprecher-Weiterleitung (Music Assistant u. a.), Senderlogos,
+DAB-Slideshow, Live-Stream, Dashboard-Karte und Ansagen lassen sich nicht
+allgemein beschreiben (docs/integration-protokoll.md, Abschnitt 5). Dieser Teil
+ist die bewährte Beat-Integration (bis 1.13 `yapaia_beat`), umgezogen: er
+spricht mit Beats eigener Schnittstelle (`/api/...`), das Gerät und die
+Anmeldung kommen aus der allgemeinen Integration.
+
+Aktionen heißen jetzt `yapaia.beat_ansage`, `beat_abspielen`, `beat_suchlauf`,
+`beat_favorit`, `beat_ausgabe` (vorher `yapaia_beat.announce` usw.).
+"""
 
 from __future__ import annotations
 
@@ -8,17 +19,14 @@ import re
 import time
 
 import aiohttp
-
 import voluptuous as vol
 from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CARD_PATH,
@@ -35,31 +43,38 @@ from .coordinator import YapaiaCoordinator
 from .speaker import SpeakerSync
 
 _LOGGER = logging.getLogger(__name__)
-
-PLATFORMS = [
-    Platform.MEDIA_PLAYER,
-    Platform.SELECT,
-    Platform.SENSOR,
-    Platform.SWITCH,
-    Platform.BUTTON,
-    Platform.IMAGE,
-]
-CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 _STATION_ID = re.compile(r"^[a-z0-9-]{1,40}$")
-
-YapaiaConfigEntry = ConfigEntry[YapaiaCoordinator]
+_KEY = "yapaia_beat_koordinatoren"
 
 # states of the add-on in which the radio is playing (and can be mixed into)
 AKTIV = ("playing", "tuning", "following")
 
 
 def _coordinators(hass: HomeAssistant) -> list[YapaiaCoordinator]:
-    return list(hass.data.get(DOMAIN, {}).values())
+    return list(hass.data.get(_KEY, {}).values())
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register the Lovelace card, image proxy views and services."""
-    hass.data.setdefault(DOMAIN, {})
+async def einrichten(hass: HomeAssistant, entry: ConfigEntry, kennung: str, base: str) -> YapaiaCoordinator:
+    """Eine Beat-Instanz: Koordinator, Live-Push, Lautsprecher-Weiterleitung."""
+    await _einmalig(hass)
+    coordinator = YapaiaCoordinator(hass, entry, base, kennung)
+    await coordinator.async_config_entry_first_refresh()
+    hass.data.setdefault(_KEY, {})[entry.entry_id] = coordinator
+    def abmelden() -> None:
+        hass.data.get(_KEY, {}).pop(entry.entry_id, None)
+
+    entry.async_on_unload(abmelden)
+    coordinator.start_push(entry)
+    coordinator.speaker = SpeakerSync(hass, coordinator)
+    coordinator.speaker.start(entry)
+    return coordinator
+
+
+async def _einmalig(hass: HomeAssistant) -> None:
+    """Karte, Bild-/Stream-Weiterleitung und Aktionen -- einmal je Home Assistant."""
+    if hass.data.get(f"{_KEY}_bereit"):
+        return
+    hass.data[f"{_KEY}_bereit"] = True
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(CARD_URL, str(CARD_PATH), False),
@@ -67,12 +82,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             StaticPathConfig(SENDSPIN_LICENSES_URL, str(SENDSPIN_LICENSES_PATH), True),
         ]
     )
+    # Die Karte beim Frontend anmelden -- ohne Frontend (Testumgebung, sehr
+    # reduzierte Installation) einfach nicht: Radio und Entitäten gehen trotzdem.
     try:
         from homeassistant.components.frontend import add_extra_js_url
 
         add_extra_js_url(hass, f"{CARD_URL}?v={VERSION}")
-    except ImportError:  # pragma: no cover
-        _LOGGER.warning("Could not register the Yapaia Beat card automatically")
+    except (ImportError, KeyError):
+        _LOGGER.warning("Could not register the Yapaia Beat card automatically (no frontend)")
     hass.http.register_view(YapaiaLogoView())
     hass.http.register_view(YapaiaSlideView())
     hass.http.register_view(YapaiaStreamView())
@@ -149,7 +166,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.services.async_register(
         DOMAIN,
-        "announce",
+        "beat_ansage",
         announce,
         schema=vol.Schema(
             {
@@ -162,11 +179,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
-        DOMAIN, "set_output", set_output, schema=vol.Schema({vol.Required("output"): cv.string})
+        DOMAIN, "beat_ausgabe", set_output, schema=vol.Schema({vol.Required("output"): cv.string})
     )
     hass.services.async_register(
         DOMAIN,
-        "play",
+        "beat_abspielen",
         play,
         schema=vol.Schema(
             {
@@ -177,15 +194,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ),
     )
     hass.services.async_register(
-        DOMAIN, "scan", scan, schema=vol.Schema({vol.Optional("band", default="all"): vol.In(["fm", "dab", "all"])})
+        DOMAIN, "beat_suchlauf", scan, schema=vol.Schema({vol.Optional("band", default="all"): vol.In(["fm", "dab", "all"])})
     )
     hass.services.async_register(
         DOMAIN,
-        "set_favorite",
+        "beat_favorit",
         favorite,
         schema=vol.Schema({vol.Optional("station_id"): cv.string, vol.Optional("favorite", default=True): cv.boolean}),
     )
-    return True
 
 
 async def tts_audio(hass: HomeAssistant, message: str, engine: str | None, language: str | None) -> tuple[bytes, str]:
@@ -280,24 +296,6 @@ def output_payload(output: str) -> dict:
     return {"local_output": False, "speaker": output}
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bool:
-    coordinator = YapaiaCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
-    entry.runtime_data = coordinator
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    coordinator.start_push(entry)
-    coordinator.speaker = SpeakerSync(hass, coordinator)
-    coordinator.speaker.start(entry)
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    return True
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bool:
-    ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
-    return ok
-
 
 class YapaiaLogoView(HomeAssistantView):
     """Serve station logos without auth so standard cards and <img> tags work.
@@ -305,8 +303,8 @@ class YapaiaLogoView(HomeAssistantView):
     Logos are public images, nothing sensitive is exposed.
     """
 
-    url = "/api/yapaia_beat/logo/{station_id}"
-    name = "api:yapaia_beat:logo"
+    url = "/api/yapaia/beat/logo/{station_id}"
+    name = "api:yapaia:beat:logo"
     requires_auth = False
 
     async def get(self, request: web.Request, station_id: str) -> web.Response:
@@ -322,8 +320,8 @@ class YapaiaLogoView(HomeAssistantView):
 class YapaiaSlideView(HomeAssistantView):
     """DAB+ slideshow image of the current station."""
 
-    url = "/api/yapaia_beat/slide"
-    name = "api:yapaia_beat:slide"
+    url = "/api/yapaia/beat/slide"
+    name = "api:yapaia:beat:slide"
     requires_auth = False
 
     async def get(self, request: web.Request) -> web.Response:
@@ -340,7 +338,7 @@ class YapaiaStreamView(HomeAssistantView):
     (``auth/sign_path``) because <audio> cannot send an auth header."""
 
     url = STREAM_URL
-    name = "api:yapaia_beat:stream"
+    name = "api:yapaia:beat:stream"
     requires_auth = True
 
     async def get(self, request: web.Request) -> web.StreamResponse:

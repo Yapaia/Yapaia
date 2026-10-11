@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import output_payload
 from .coordinator import YapaiaCoordinator
@@ -16,8 +15,8 @@ OUT_LOCAL = "Mini-PC"
 OUT_NONE = "Nur Browser / Stream"
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([YapaiaFavoriteSelect(entry.runtime_data), YapaiaOutputSelect(entry.runtime_data)])
+def entitaeten(hass: HomeAssistant, coordinator: YapaiaCoordinator) -> list:
+    return [YapaiaFavoriteSelect(coordinator), YapaiaOutputSelect(coordinator)]
 
 
 class YapaiaFavoriteSelect(YapaiaEntity, SelectEntity):

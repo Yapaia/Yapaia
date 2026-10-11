@@ -13,7 +13,13 @@ from .entity import YapaiaEntity, beschriebene
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add: AddEntitiesCallback) -> None:
-    add(YapaiaSwitch(entry.runtime_data, d) for d in beschriebene(entry.runtime_data, "switch"))
+    modul = entry.runtime_data
+    neu: list = [YapaiaSwitch(modul, d) for d in beschriebene(modul, "switch")]
+    if modul.beat is not None:
+        from .beat.switch import entitaeten
+
+        neu.extend(entitaeten(hass, modul.beat))
+    add(neu)
 
 
 class YapaiaSwitch(YapaiaEntity, SwitchEntity):

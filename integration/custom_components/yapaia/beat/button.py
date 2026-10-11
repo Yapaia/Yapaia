@@ -8,7 +8,6 @@ from typing import Any
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import YapaiaCoordinator
 from .entity import YapaiaEntity
@@ -32,8 +31,8 @@ BUTTONS = (
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities(YapaiaButton(entry.runtime_data, d) for d in BUTTONS)
+def entitaeten(hass: HomeAssistant, coordinator: YapaiaCoordinator) -> list:
+    return [YapaiaButton(coordinator, d) for d in BUTTONS]
 
 
 class YapaiaButton(YapaiaEntity, ButtonEntity):

@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 
 from homeassistant.components.image import ImageEntity
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from .coordinator import YapaiaCoordinator
 from .entity import YapaiaEntity
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
-    coord = entry.runtime_data
-    async_add_entities([YapaiaLogoImage(hass, coord), YapaiaSlideImage(hass, coord)])
+def entitaeten(hass: HomeAssistant, coord: YapaiaCoordinator) -> list:
+    return [YapaiaLogoImage(hass, coord), YapaiaSlideImage(hass, coord)]
 
 
 class _YapaiaImage(YapaiaEntity, ImageEntity):

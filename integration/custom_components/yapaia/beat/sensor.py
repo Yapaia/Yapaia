@@ -10,7 +10,6 @@ from homeassistant.components.sensor import SensorEntity, SensorEntityDescriptio
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import YapaiaCoordinator
 from .entity import YapaiaEntity
@@ -98,8 +97,8 @@ SENSORS: tuple[YapaiaSensorDescription, ...] = (
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities(YapaiaSensor(entry.runtime_data, d) for d in SENSORS)
+def entitaeten(hass: HomeAssistant, coordinator: YapaiaCoordinator) -> list:
+    return [YapaiaSensor(coordinator, d) for d in SENSORS]
 
 
 class YapaiaSensor(YapaiaEntity, SensorEntity):

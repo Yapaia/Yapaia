@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import aktionen, partner
 from .client import YapaiaClient, YapaiaFehler
-from .const import CONF_TOKEN, CONF_URL, PLATTFORMEN, PROTOKOLL
+from .const import ALLE_PLATTFORMEN, CONF_TOKEN, CONF_URL, PLATTFORMEN, PROTOKOLL, SPEZIAL
 from .modul import YapaiaModul
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +36,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bo
     modul = YapaiaModul(hass, entry, client, beschreibung)
     for e in modul.entitaeten():
         p = e.get("plattform")
+        if p == "spezial" and e.get("spezial") in SPEZIAL:
+            continue
         if p not in PLATTFORMEN:
             # `spezial` und Unbekanntes: weglassen, der Rest läuft (Abschnitt 5)
             _LOGGER.warning("%s: Entität %s (%s) wird von dieser Integration nicht unterstützt",
@@ -43,7 +45,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bo
     entry.runtime_data = modul
     modul.geraet_eintragen()
 
-    await hass.config_entries.async_forward_entry_setups(entry, list(PLATTFORMEN.values()))
+    if "beat" in modul.spezial():
+        from . import beat
+
+        try:
+            modul.beat = await beat.einrichten(hass, entry, modul.kennung, entry.data[CONF_URL])
+        except Exception as err:  # noqa: BLE001 – Beat nicht erreichbar: später erneut
+            raise ConfigEntryNotReady(f"{entry.title}: {err}") from err
+
+    await hass.config_entries.async_forward_entry_setups(entry, ALLE_PLATTFORMEN)
     aktionen.registrieren(hass, modul)
     modul.starten()
     partner.einrichten(hass)
@@ -52,7 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bo
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bool:
-    ok = await hass.config_entries.async_unload_platforms(entry, list(PLATTFORMEN.values()))
+    ok = await hass.config_entries.async_unload_platforms(entry, ALLE_PLATTFORMEN)
     if ok:
         await entry.runtime_data.stoppen()
         aktionen.aufraeumen(hass, entry)

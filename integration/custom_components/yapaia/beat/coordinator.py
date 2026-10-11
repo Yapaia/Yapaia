@@ -10,7 +10,6 @@ from typing import Any
 import aiohttp
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -24,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 class YapaiaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Holds the latest status of the radio."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, base: str, kennung: str) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -32,7 +31,9 @@ class YapaiaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=DOMAIN,
             update_interval=timedelta(seconds=30),
         )
-        self.base = f"http://{entry.data[CONF_HOST]}:{entry.data.get(CONF_PORT, 8099)}"
+        self.base = base.rstrip("/")
+        # Gerät dieser Instanz in der Yapaia-Integration (`beat_<instanz>`)
+        self.kennung = kennung
         self.session = async_get_clientsession(hass)
         self._ws_task: asyncio.Task | None = None
         self.speaker: Any = None  # SpeakerSync, set up in __init__

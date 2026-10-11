@@ -11,7 +11,13 @@ from .entity import YapaiaEntity, beschriebene
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add: AddEntitiesCallback) -> None:
-    add(YapaiaSelect(entry.runtime_data, d) for d in beschriebene(entry.runtime_data, "select"))
+    modul = entry.runtime_data
+    neu: list = [YapaiaSelect(modul, d) for d in beschriebene(modul, "select")]
+    if modul.beat is not None:
+        from .beat.select import entitaeten
+
+        neu.extend(entitaeten(hass, modul.beat))
+    add(neu)
 
 
 class YapaiaSelect(YapaiaEntity, SelectEntity):

@@ -4,22 +4,187 @@
     "step": {
       "hassio_confirm": {
         "title": "Yapaia",
-        "description": "{name} wurde gefunden. Einrichten?"
+        "description": "{name} was found. Set it up?"
       },
       "user": {
-        "title": "Yapaia-Modul von Hand einrichten",
-        "description": "Nur nötig ohne Home-Assistant-Supervisor. Adresse und Token stehen im Protokoll des Moduls.",
-        "data": {"url": "Adresse (z. B. http://192.168.1.20:8099)", "token": "Token"}
+        "title": "Set up a Yapaia module manually",
+        "description": "Only needed without the Home Assistant Supervisor. Address and token are shown in the module's log.",
+        "data": {
+          "url": "Address (e.g. http://192.168.1.20:8099)",
+          "token": "Token"
+        }
       }
     },
     "error": {
-      "nicht_erreichbar": "Das Modul ist unter dieser Adresse nicht erreichbar.",
-      "token": "Das Token wurde abgelehnt."
+      "nicht_erreichbar": "The module cannot be reached at this address.",
+      "token": "The token was rejected."
     },
     "abort": {
-      "already_configured": "Dieses Modul ist schon eingerichtet.",
-      "ungueltig": "Die Anmeldung des Moduls ist unvollständig.",
-      "zu_neu": "Das Modul ist neuer als diese Integration. Bitte die Yapaia-Integration aktualisieren."
+      "already_configured": "This module is already set up.",
+      "ungueltig": "The module's announcement is incomplete.",
+      "zu_neu": "The module is newer than this integration. Please update the Yapaia integration."
+    }
+  },
+  "entity": {
+    "media_player": {
+      "radio": {
+        "name": "Radio"
+      }
+    },
+    "select": {
+      "favorite": {
+        "name": "Favorite"
+      },
+      "output": {
+        "name": "Output"
+      }
+    },
+    "sensor": {
+      "station": {
+        "name": "Station"
+      },
+      "radiotext": {
+        "name": "Radio text"
+      },
+      "now_playing": {
+        "name": "Now playing"
+      },
+      "signal": {
+        "name": "Signal quality"
+      },
+      "frequency": {
+        "name": "Frequency / channel"
+      },
+      "program_type": {
+        "name": "Program type"
+      },
+      "scan": {
+        "name": "Scan"
+      },
+      "follow": {
+        "name": "Station following status"
+      }
+    },
+    "switch": {
+      "auto_follow": {
+        "name": "Station following"
+      },
+      "mute": {
+        "name": "Mute"
+      },
+      "local_output": {
+        "name": "Host speakers"
+      }
+    },
+    "button": {
+      "scan_fm": {
+        "name": "FM scan"
+      },
+      "scan_dab": {
+        "name": "DAB+ scan"
+      },
+      "scan_all": {
+        "name": "Scan FM + DAB+"
+      },
+      "next": {
+        "name": "Next favorite"
+      },
+      "previous": {
+        "name": "Previous favorite"
+      },
+      "seek_up": {
+        "name": "FM frequency +"
+      },
+      "seek_down": {
+        "name": "FM frequency −"
+      },
+      "favorite_current": {
+        "name": "Toggle current station favorite"
+      }
+    },
+    "image": {
+      "logo": {
+        "name": "Station logo"
+      },
+      "slideshow": {
+        "name": "DAB+ slideshow"
+      }
+    }
+  },
+  "services": {
+    "beat_abspielen": {
+      "name": "Play station",
+      "description": "Plays a station (name or id) or an FM frequency.",
+      "fields": {
+        "station": {
+          "name": "Station name",
+          "description": "Name of the station, e.g. SWR3."
+        },
+        "station_id": {
+          "name": "Station id",
+          "description": "Internal station id (attribute station_id)."
+        },
+        "frequency": {
+          "name": "Frequency",
+          "description": "FM frequency in MHz."
+        }
+      }
+    },
+    "beat_suchlauf": {
+      "name": "Start scan",
+      "description": "Starts a station scan.",
+      "fields": {
+        "band": {
+          "name": "Band",
+          "description": "fm, dab or all."
+        }
+      }
+    },
+    "beat_favorit": {
+      "name": "Set favorite",
+      "description": "Marks a station (default: current station) as favorite.",
+      "fields": {
+        "station_id": {
+          "name": "Station id",
+          "description": "Empty = current station."
+        },
+        "favorite": {
+          "name": "Favorite",
+          "description": "Add or remove."
+        }
+      }
+    },
+    "beat_ausgabe": {
+      "name": "Choose output",
+      "description": "Where the radio plays: local (host speakers), none (browsers only) or a media player.",
+      "fields": {
+        "output": {
+          "name": "Output",
+          "description": "local, none or the entity id of a media player (e.g. media_player.living_room)."
+        }
+      }
+    },
+    "beat_ansage": {
+      "name": "Mix in announcement",
+      "description": "Speaks a text into the playing radio: the music is turned down, the announcement mixed in, then the music comes back. For Yapaia Go and automations.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "What to say."
+        },
+        "engine": {
+          "name": "Text-to-speech",
+          "description": "TTS entity (empty = Home Assistant default)."
+        },
+        "language": {
+          "name": "Language",
+          "description": "e.g. en-US (empty = engine default)."
+        },
+        "priority": {
+          "name": "Priority",
+          "description": "navigation before hinweis before info."
+        }
+      }
     }
   }
 }
