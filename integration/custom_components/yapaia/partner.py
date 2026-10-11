@@ -27,7 +27,7 @@ def liste(hass: HomeAssistant) -> list[dict[str, Any]]:
             continue
         out.append({
             "modul": m.modul, "instanz": m.instanz, "name": m.name,
-            "url": e.data[CONF_URL], "token": e.data[CONF_TOKEN],
+            **({"url": e.data[CONF_URL], "token": e.data[CONF_TOKEN]} if CONF_URL in e.data else {}),
             "version": m.beschreibung.get("version"),
             "faehigkeiten": list(m.beschreibung.get("faehigkeiten") or []),
         })

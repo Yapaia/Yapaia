@@ -7,22 +7,48 @@
         "description": "{name} wurde gefunden. Einrichten?"
       },
       "user": {
+        "title": "Yapaia hinzufügen",
+        "menu_options": {
+          "router": "GL.iNet-Router (Mobilfunk, SIM-Umschaltung)",
+          "adresse": "Yapaia-Modul über Adresse (ohne Supervisor)"
+        }
+      },
+      "adresse": {
         "title": "Yapaia-Modul von Hand einrichten",
         "description": "Nur nötig ohne Home-Assistant-Supervisor. Adresse und Token stehen im Protokoll des Moduls.",
         "data": {
           "url": "Adresse (z. B. http://192.168.1.20:8099)",
           "token": "Token"
         }
+      },
+      "router": {
+        "title": "GL.iNet-Router",
+        "description": "Router mit Firmware 4.x (z. B. GL-X3000 Spitz AX). Dieselbe Anmeldung wie in der Router-Oberfläche.",
+        "data": {
+          "host": "Adresse",
+          "username": "Benutzername",
+          "password": "Admin-Passwort"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Anmeldung am Router",
+        "description": "Der Router hat das Passwort abgelehnt. Bitte das aktuelle Admin-Passwort eingeben.",
+        "data": {
+          "password": "Admin-Passwort"
+        }
       }
     },
     "error": {
       "nicht_erreichbar": "Das Modul ist unter dieser Adresse nicht erreichbar.",
-      "token": "Das Token wurde abgelehnt."
+      "token": "Das Token wurde abgelehnt.",
+      "router_anmeldung": "Der Router hat Benutzername oder Passwort abgelehnt.",
+      "router_erreichbar": "Der Router ist unter dieser Adresse nicht erreichbar."
     },
     "abort": {
       "already_configured": "Dieses Modul ist schon eingerichtet.",
       "ungueltig": "Die Anmeldung des Moduls ist unvollständig.",
-      "zu_neu": "Das Modul ist neuer als diese Integration. Bitte die Yapaia-Integration aktualisieren."
+      "zu_neu": "Das Modul ist neuer als diese Integration. Bitte die Yapaia-Integration aktualisieren.",
+      "reauth_successful": "Anmeldung aktualisiert."
     }
   },
   "entity": {
@@ -184,6 +210,42 @@
           "name": "Priorität",
           "description": "navigation vor hinweis vor info."
         }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Yapaia Router",
+        "description": "**SIM nach Land:** An der Grenze wählt der Router die SIM für das Land, in dem er gerade ist (aus dem Ländercode des Netzes). Länder als ISO-Kürzel, z. B. `DE` oder `AT, CH, IT`.",
+        "data": {
+          "automatik": "SIM nach Land",
+          "laender_sim1": "Länder für SIM 1",
+          "laender_sim2": "Länder für SIM 2",
+          "sonst": "Alle anderen Länder",
+          "wartezeit_min": "Wartezeit nach Landwechsel",
+          "intervall": "Abfrageintervall",
+          "umschalt_methode": "Umschaltbefehl (Fachleute)",
+          "umschalt_parameter": "Umschalt-Parameter als JSON (Fachleute)"
+        },
+        "data_description": {
+          "wartezeit_min": "In Grenznähe bucht sich das Modem manchmal ins Nachbarland ein. Gewechselt wird erst, wenn das neue Land so lange stabil ist.",
+          "umschalt_methode": "Leer lassen: die Integration probiert die bekannten Befehle und merkt sich den, der funktioniert. Sonst service.method, z. B. modem.set_slot_config.",
+          "umschalt_parameter": "Platzhalter: \"{sim}\" (1 oder 2) und \"{bus}\" (Modem-Adresse)."
+        }
+      }
+    },
+    "error": {
+      "methode": "Bitte als service.method, z. B. modem.set_slot_config",
+      "json": "Kein gültiges JSON"
+    }
+  },
+  "selector": {
+    "sonst": {
+      "options": {
+        "keine": "Nicht wechseln",
+        "1": "SIM 1",
+        "2": "SIM 2"
       }
     }
   }

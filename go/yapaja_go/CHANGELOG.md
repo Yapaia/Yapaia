@@ -10,6 +10,15 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.44.1
+
+- Bringt die Integration „Yapaia“ 0.4.0 mit: Darin ist jetzt auch der
+  **Yapaia Router** (GL.iNet-Mobilfunk mit SIM-Umschaltung nach Land). Nach dem
+  Update Home Assistant einmal neu starten (die Benachrichtigung sagt es).
+  An Go selbst ändert sich nichts.
+
+---
+
 ## 0.44.0
 
 **Yapaia Go als Gerät in der Integration „Yapaia“.**

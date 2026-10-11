@@ -6,7 +6,7 @@ import aiohttp
 import pytest
 from aiohttp import web
 
-from custom_components.glinet_cellular.api import (
+from custom_components.yapaia.router.api import (
     GLiNetAuthError,
     GLiNetClient,
     build_switch_params,
@@ -16,9 +16,9 @@ from custom_components.glinet_cellular.api import (
     render_template,
     signal_bars,
 )
-from custom_components.glinet_cellular.crypt import crypt_password
+from custom_components.yapaia.router.crypt import crypt_password
 
-from .conftest import BUS, FakeRouter, RpcError
+from .glinet import BUS, FakeRouter, RpcError
 
 
 @pytest.mark.parametrize(
@@ -188,3 +188,34 @@ async def test_switch_sim_auto_and_template(socket_enabled) -> None:
             )
     finally:
         await runner.cleanup()
+
+
+# ---- Land und Roaming (Yapaia Router) ----------------------------------------
+def test_mcc_aus_verschiedenen_formen() -> None:
+    from custom_components.yapaia.router.api import find_mcc
+
+    assert find_mcc({"modems": [{"network": {"mcc": "262"}}]}) == "262"
+    assert find_mcc({"modems": [{"network": {"mcc": 232}}]}) == "232"
+    assert find_mcc({"cells": [{"plmn": "26201"}]}) == "262"
+    assert find_mcc({"x": {"operator_numeric": "232-03"}}) == "232"
+    assert find_mcc({"mcc": "0"}) is None
+    assert find_mcc({"plmn": "12"}) is None
+    assert find_mcc(None) is None
+
+
+def test_roaming_aus_imsi_oder_feld() -> None:
+    status = {"modems": [{"bus": BUS, "simcard": {"imsi": "262011234567890"}, "network": {"mcc": "232"}}]}
+    z = parse_state(None, status, None, None)
+    assert (z.mcc, z.sim_mcc, z.roaming) == ("232", "262", True)
+    status["modems"][0]["network"]["mcc"] = "262"
+    assert parse_state(None, status, None, None).roaming is False
+    status["modems"][0]["roaming"] = "1"
+    assert parse_state(None, status, None, None).roaming is True
+
+
+def test_laender() -> None:
+    from custom_components.yapaia.router.laender import codes, land
+
+    assert land("232") == ("AT", "Österreich")
+    assert land("999") == (None, None)
+    assert codes("de, at;CH  it") == {"DE", "AT", "CH", "IT"}

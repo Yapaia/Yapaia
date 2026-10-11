@@ -7,22 +7,48 @@
         "description": "{name} was found. Set it up?"
       },
       "user": {
+        "title": "Add Yapaia",
+        "menu_options": {
+          "router": "GL.iNet router (cellular, SIM switching)",
+          "adresse": "Yapaia module by address (without Supervisor)"
+        }
+      },
+      "adresse": {
         "title": "Set up a Yapaia module manually",
         "description": "Only needed without the Home Assistant Supervisor. Address and token are shown in the module's log.",
         "data": {
           "url": "Address (e.g. http://192.168.1.20:8099)",
           "token": "Token"
         }
+      },
+      "router": {
+        "title": "GL.iNet router",
+        "description": "Router with firmware 4.x (e.g. GL-X3000 Spitz AX). Same login as the router's web interface.",
+        "data": {
+          "host": "Address",
+          "username": "User name",
+          "password": "Admin password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Router login",
+        "description": "The router rejected the password. Please enter the current admin password.",
+        "data": {
+          "password": "Admin password"
+        }
       }
     },
     "error": {
       "nicht_erreichbar": "The module cannot be reached at this address.",
-      "token": "The token was rejected."
+      "token": "The token was rejected.",
+      "router_anmeldung": "The router rejected user name or password.",
+      "router_erreichbar": "The router cannot be reached at this address."
     },
     "abort": {
       "already_configured": "This module is already set up.",
       "ungueltig": "The module's announcement is incomplete.",
-      "zu_neu": "The module is newer than this integration. Please update the Yapaia integration."
+      "zu_neu": "The module is newer than this integration. Please update the Yapaia integration.",
+      "reauth_successful": "Login updated."
     }
   },
   "entity": {
@@ -184,6 +210,42 @@
           "name": "Priority",
           "description": "navigation before hinweis before info."
         }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Yapaia Router",
+        "description": "**SIM by country:** at a border the router picks the SIM for the country it is in (from the network's country code). Countries as ISO codes, e.g. `DE` or `AT, CH, IT`.",
+        "data": {
+          "automatik": "SIM by country",
+          "laender_sim1": "Countries for SIM 1",
+          "laender_sim2": "Countries for SIM 2",
+          "sonst": "All other countries",
+          "wartezeit_min": "Wait after a country change",
+          "intervall": "Polling interval",
+          "umschalt_methode": "Switch command (experts)",
+          "umschalt_parameter": "Switch parameters as JSON (experts)"
+        },
+        "data_description": {
+          "wartezeit_min": "Near borders the phone sometimes catches the neighbouring country's network. Switch only once the new country has been stable this long.",
+          "umschalt_methode": "Leave empty: the integration tries the known commands and remembers the one that works. Otherwise service.method, e.g. modem.set_slot_config.",
+          "umschalt_parameter": "Placeholders: \"{sim}\" (1 or 2) and \"{bus}\" (modem address)."
+        }
+      }
+    },
+    "error": {
+      "methode": "Please as service.method, e.g. modem.set_slot_config",
+      "json": "Not valid JSON"
+    }
+  },
+  "selector": {
+    "sonst": {
+      "options": {
+        "keine": "Do not switch",
+        "1": "SIM 1",
+        "2": "SIM 2"
       }
     }
   }

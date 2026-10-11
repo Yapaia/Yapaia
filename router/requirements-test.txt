@@ -1,3 +1,0 @@
-pytest-homeassistant-custom-component
-# Gegenprobe für die eigene crypt-Umsetzung
-passlib

@@ -318,6 +318,7 @@ Modul die Liste der anderen:
 |---|---|---|
 | **Beat** | eigene Integration `yapaia_beat` | Gerät „Yapaia Beat“ in `yapaia`; Mediaplayer als `spezial: beat.player`; Einstellungen/Sensoren allgemein beschrieben. Die alte Integration wird beim Umstieg ersetzt. |
 | **Go** | Zustände per `POST /api/states` (oder MQTT), Bedienen über Helfer | Gerät „Yapaia Go“ mit echten, bedienbaren Entitäten, Aktionen (`ziel_setzen` …) und Auslösern (`ziel_erreicht`, `stau_voraus` …). MQTT bleibt als Option; der States-Weg und die Helfer entfallen. |
+| **Router** | eigene Integration `glinet_cellular` | Gerät „Yapaia Router“ in `yapaia`. Der Router spricht kein Protokoll; die Integration spricht es lokal für ihn (Beschreibung, Werte, Aktionen) und fragt ihn per JSON-RPC ab. Eingerichtet über *Integration hinzufügen → Yapaia → GL.iNet-Router*. |
 | **Satellite** | ESPHome-Gerät | bleibt ESPHome; die Integration erkennt jeden Satelliten an der Projektkennung `yapaia.satellite` und meldet ihn als Instanz und Partner (Abschnitt 3). Beliebig viele. |
 
 ## 12. Entscheidungen
