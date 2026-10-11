@@ -22,6 +22,13 @@ anmelden, beschreiben, was sie anbieten, und miteinander sprechen.
    bedienbar, nach einem HA-Neustart sofort wieder da. (Heute schreibt Go über
    `POST /api/states` – ohne Gerät, ohne Befehle, nach Neustart kurz weg.)
 
+### Namen
+
+Es heißt überall **Yapaia** – mit **i**. Die alte Schreibweise „Yapaja“ (in
+Ordnern, Add-on-Kennungen, Umgebungsvariablen, Entity-IDs, Dateinamen) wird mit
+der Umstellung vollständig entfernt; neue Kennungen entstehen nur noch mit
+`yapaia`.
+
 ## 2. Überblick
 
 ```
@@ -47,7 +54,46 @@ Alle Wege gehen **vom Modul aus nur über HTTP/WebSocket** im internen
 Home-Assistant-Netz. Kein MQTT nötig (Go behält MQTT als zusätzlichen Weg für
 Nutzer, die es wollen).
 
-## 3. Anmeldung
+## 3. Module und Instanzen
+
+Ein **Modul** ist eine Art Baustein (`go`, `beat`, `satellite` …). Von einem
+Modul kann es **mehrere Instanzen** geben – z. B. mehrere Satelliten, im
+Wohnmobil verteilt. Deshalb trägt jede Instanz:
+
+| Feld | Bedeutung |
+|---|---|
+| `modul` | Art des Bausteins, klein, ohne Leerzeichen: `go`, `beat`, `satellite`. |
+| `instanz` | **Dauerhafte**, eindeutige Kennung dieser Instanz, vom Modul selbst erzeugt und gespeichert (zufällig beim ersten Start, bei Geräten z. B. aus der MAC-Adresse). Ändert sich nie – auch nicht bei Umbenennung oder Update. |
+| `name` | Anzeigename, vom Nutzer änderbar: „Yapaia Satellite Küche“. |
+
+Daraus folgt:
+
+- In Home Assistant ist **jede Instanz ein eigenes Gerät** und ein eigener
+  Konfigurationseintrag (eindeutig über `modul` + `instanz`).
+- Unique-IDs der Entitäten: `yapaia_<modul>_<instanz>_<schluessel>` – stabil,
+  auch wenn der Nutzer Gerät oder Entität umbenennt.
+- Entity-IDs entstehen aus dem Gerätenamen: `sensor.yapaia_go_ankunft`, bei
+  mehreren Satelliten `media_player.yapaia_satellite_kueche`,
+  `media_player.yapaia_satellite_alkoven` usw.
+- **Aktionen nehmen ein Ziel-Gerät** (`target: device_id`) an. Gibt es nur
+  eine Instanz des Moduls, darf es fehlen.
+- Die **Partnerliste** (Abschnitt 8) nennt jede Instanz einzeln. Ein Modul
+  entscheidet selbst, ob es eine, mehrere oder alle nutzt (Go kann z. B. eine
+  Ansage auf allen Satelliten oder nur auf dem nächsten ausgeben).
+
+### Instanzen, die kein Add-on sind
+
+Satelliten sind ESPHome-Geräte; sie sprechen nicht dieses HTTP-Protokoll,
+sondern ESPHomes eigene Schnittstelle zu Home Assistant – und sind dort schon
+Geräte mit Mikrofon, Lautsprecher und Mediaplayer. Die Integration erkennt sie
+an der ESPHome-Projektkennung **`yapaia.satellite`** (in der Firmware unter
+`esphome: project: name:`), zählt jeden als Instanz des Moduls `satellite`
+und meldet ihn den anderen Modulen als Partner – mit den Fähigkeiten, die die
+Firmware angibt (`sprache.eingabe`, `sprache.ausgabe`). Instanz-Kennung ist
+die MAC-Adresse. So gelten dieselben Regeln, ohne dass ein Satellit selbst
+etwas vom Protokoll wissen muss.
+
+## 4. Anmeldung
 
 Beim Start meldet sich jedes Add-on beim Supervisor (`POST /discovery`, wie
 Beat heute):
@@ -57,6 +103,7 @@ Beat heute):
   "service": "yapaia",
   "config": {
     "modul": "go",
+    "instanz": "7f3c9a2e",
     "name": "Yapaia Go",
     "host": "a0d7b954-yapaia-go",
     "port": 8080,
@@ -68,7 +115,8 @@ Beat heute):
 ```
 
 - Home Assistant zeigt daraufhin **„Yapaia Go gefunden“**; ein Tipp richtet es
-  ein. Ein Konfigurationseintrag je Modul, eindeutig über `modul`.
+  ein. Ein Konfigurationseintrag je Instanz, eindeutig über `modul` +
+  `instanz`.
 - `token` erzeugt das Add-on einmal und speichert es in `/data`. Die
   Integration schickt es bei jedem Aufruf als `Authorization: Bearer <token>`.
   Ohne gültiges Token antwortet `/yapaia/v1/*` mit 401 – der Port kann ins
@@ -76,7 +124,7 @@ Beat heute):
 - Ohne Supervisor (Docker, Entwicklung): manuell Host, Port und Token
   eintragen.
 
-## 4. Beschreibung
+## 5. Beschreibung
 
 `GET /yapaia/v1/beschreibung` liefert, was das Modul anbietet:
 
@@ -84,6 +132,7 @@ Beat heute):
 {
   "protokoll": 1,
   "modul": "go",
+  "instanz": "7f3c9a2e",
   "name": "Yapaia Go",
   "version": "0.43.0",
   "hersteller": "Yapaia",
@@ -141,7 +190,7 @@ Beat heute):
 
 | Feld | Bedeutung |
 |---|---|
-| `schluessel` | Dauerhafte Kennung im Modul. **Nie umbenennen** – daraus wird die Unique-ID `yapaia_<modul>_<schluessel>`; Umbenennen erzeugt in HA eine neue Entität. |
+| `schluessel` | Dauerhafte Kennung im Modul. **Nie umbenennen** – daraus wird die Unique-ID `yapaia_<modul>_<instanz>_<schluessel>`; Umbenennen erzeugt in HA eine neue Entität. |
 | `plattform` | `sensor`, `binary_sensor`, `switch`, `select`, `number`, `button`, `text`, `device_tracker`, `image`, `event` – oder `spezial` (unten). |
 | `name` | Anzeigename je Sprache; die Integration nimmt die HA-Sprache, sonst `en`, sonst den ersten. |
 | `geraeteklasse`, `einheit`, `zustandsklasse`, `symbol` | wie in Home Assistant. |
@@ -161,7 +210,8 @@ lässt sie die Entität weg und meldet das im Protokoll – der Rest läuft.
 ### Aktionen
 
 Jede Aktion erscheint in Home Assistant als `yapaia.<modul>_<name>`, z. B.
-`yapaia.go_ziel_setzen`, mit Feldern und Beschreibung im Aktionen-Editor.
+`yapaia.go_ziel_setzen`, mit Feldern und Beschreibung im Aktionen-Editor –
+und mit einem Ziel-Gerät, wenn es mehrere Instanzen gibt.
 Feldtypen: `text`, `zahl`, `bool`, `auswahl` (mit `optionen`), `entitaet`,
 `ort` (Koordinaten).
 
@@ -169,11 +219,12 @@ Feldtypen: `text`, `zahl`, `bool`, `auswahl` (mit `optionen`), `entitaet`,
 
 Ereignisse kommen über die Live-Verbindung (unten). Die Integration
 
-- feuert sie als HA-Ereignis `yapaia_ereignis` mit `modul`, `name`, `daten`,
+- feuert sie als HA-Ereignis `yapaia_ereignis` mit `modul`, `instanz`,
+  `geraet_id`, `name`, `daten`,
 - bietet sie als **Geräte-Auslöser** an („Yapaia Go: Ziel erreicht“) – im
   Automationen-Editor ohne YAML auswählbar.
 
-## 5. Live-Verbindung
+## 6. Live-Verbindung
 
 `GET /yapaia/v1/live` (WebSocket). Das Modul schickt:
 
@@ -194,7 +245,7 @@ Ereignisse kommen über die Live-Verbindung (unten). Die Integration
 - Häufig wechselnde Werte (Tempo, Position) sendet das Modul höchstens
   einmal je Sekunde.
 
-## 6. Aktionen ausführen
+## 7. Aktionen ausführen
 
 `POST /yapaia/v1/aktion/<name>` mit den Feldern als JSON-Körper.
 
@@ -205,7 +256,7 @@ Ereignisse kommen über die Live-Verbindung (unten). Die Integration
   den neuen Zustand meldet das Modul über die Live-Verbindung (nicht über die
   Antwort), damit es nur **eine** Quelle für Zustände gibt.
 
-## 7. Module untereinander
+## 8. Module untereinander
 
 Damit Go weiß, dass Beat da ist (und umgekehrt), schickt die Integration jedem
 Modul die Liste der anderen:
@@ -214,13 +265,19 @@ Modul die Liste der anderen:
 
 ```json
 {"partner": [
-  {"modul": "beat", "url": "http://a0d7b954-yapaia-beat:8099", "token": "…",
-   "version": "1.14.0", "faehigkeiten": ["ansage.einmischen", "radio"]}
+  {"modul": "beat", "instanz": "c41b07d2", "name": "Yapaia Beat",
+   "url": "http://a0d7b954-yapaia-beat:8099", "token": "…",
+   "version": "1.14.0", "faehigkeiten": ["ansage.einmischen", "radio"]},
+  {"modul": "satellite", "instanz": "a4cf12b3e8d0", "name": "Yapaia Satellite Küche",
+   "media_player": "media_player.yapaia_satellite_kueche",
+   "faehigkeiten": ["sprache.eingabe", "sprache.ausgabe"]}
 ]}
 ```
 
-- Gesendet nach dem Einrichten und bei jeder Änderung (Modul kommt dazu, fällt
-  weg, Update). Leere Liste = allein.
+- Gesendet nach dem Einrichten und bei jeder Änderung (Instanz kommt dazu,
+  fällt weg, Update, Umbenennung). Leere Liste = allein.
+- Partner ohne eigene HTTP-Schnittstelle (Satelliten) tragen statt `url` die
+  Home-Assistant-Entitäten, über die man sie erreicht.
 - **Fähigkeiten** sind die Verträge zwischen Modulen: `ansage.einmischen`
   bedeutet „ich nehme `POST /yapaia/v1/aktion/ansage` mit Text/Audio an und
   mische es ins Programm“. Jede Fähigkeit ist in `docs/faehigkeiten.md`
@@ -229,7 +286,7 @@ Modul die Liste der anderen:
 - Ohne Integration gibt es keine Partnerliste; jedes Modul arbeitet dann für
   sich (heutiger Zustand).
 
-## 8. Installation der Integration
+## 9. Installation der Integration
 
 - Jedes Add-on bringt die Integration mit und legt sie unter
   `/config/custom_components/yapaia/` ab, **wenn sie fehlt oder älter ist** als
@@ -239,7 +296,7 @@ Modul die Liste der anderen:
   aktualisiert – Home Assistant neu starten“ mit Knopf.
 - Später zusätzlich über HACS.
 
-## 9. Versionen und Verträglichkeit
+## 10. Versionen und Verträglichkeit
 
 - `protokoll` ist eine ganze Zahl. **Neue Felder, Entitäten, Aktionen,
   Ereignisse, Fähigkeiten** ändern sie *nicht* – beide Seiten ignorieren, was
@@ -250,21 +307,22 @@ Modul die Liste der anderen:
 - Ein Modul mit einer Protokollversion, die die Integration nicht kennt, wird
   nicht eingerichtet, sondern als Reparatur gemeldet („Integration zu alt“).
 
-## 10. Was das für die bestehenden Module heißt
+## 11. Was das für die bestehenden Module heißt
 
 | | Heute | Mit dem Protokoll |
 |---|---|---|
 | **Beat** | eigene Integration `yapaia_beat` | Gerät „Yapaia Beat“ in `yapaia`; Mediaplayer als `spezial: beat.player`; Einstellungen/Sensoren allgemein beschrieben. Die alte Integration wird beim Umstieg ersetzt. |
 | **Go** | Zustände per `POST /api/states` (oder MQTT), Bedienen über Helfer | Gerät „Yapaia Go“ mit echten, bedienbaren Entitäten, Aktionen (`ziel_setzen` …) und Auslösern (`ziel_erreicht`, `stau_voraus` …). MQTT bleibt als Option; der States-Weg und die Helfer entfallen. |
-| **Satellite** | ESPHome-Gerät | bleibt ESPHome (hat schon ein Gerät in HA). Go erkennt Satelliten über Home Assistant, nicht über dieses Protokoll. |
+| **Satellite** | ESPHome-Gerät | bleibt ESPHome; die Integration erkennt jeden Satelliten an der Projektkennung `yapaia.satellite` und meldet ihn als Instanz und Partner (Abschnitt 3). Beliebig viele. |
 
-## 11. Offene Entscheidungen
+## 12. Entscheidungen
 
-1. **Entity-IDs:** Heute heißen Gos Entitäten `sensor.yapaja_*` (alter
-   Schreibfehler). Mit dem Protokoll entstehen saubere neue:
-   `sensor.yapaia_go_eta` usw. Bestehende Dashboards/Automationen müssten
-   einmal umgestellt werden – Yapaia Go kann das erzeugte Dashboard selbst
-   neu schreiben. **Vorschlag: saubere neue IDs.**
-2. **Ein Eintrag je Modul oder einer für alle?** Vorschlag: je Modul ein
-   Eintrag (so funktioniert die HA-Erkennung; jedes Modul lässt sich einzeln
-   entfernen) – alle unter der Integration „Yapaia“.
+1. **Entity-IDs:** Neue, saubere IDs nach dem Muster
+   `<plattform>.yapaia_<modul>[_<name>]_<schluessel>`, z. B.
+   `sensor.yapaia_go_ankunft`. Die alten `…yapaja_…` entfallen; Yapaia Go
+   schreibt sein erzeugtes Dashboard selbst um, eigene Automationen werden
+   einmal angepasst. *(entschieden)*
+2. **Ein Konfigurationseintrag je Instanz**, alle unter der Integration
+   „Yapaia“; jede Instanz einzeln entfernbar. *(entschieden)*
+3. **Mehrere Instanzen je Modul** sind von Anfang an vorgesehen (Abschnitt 3).
+   *(entschieden)*

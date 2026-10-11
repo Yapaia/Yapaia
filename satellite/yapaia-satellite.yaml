@@ -26,7 +26,7 @@ esphome:
   friendly_name: ${friendly_name}
   min_version: 2025.5.0
   project:
-    name: apfelsafft.yapaia-satellite
+    name: yapaia.satellite
     version: "0.1.0"
   on_boot:
     priority: -100
