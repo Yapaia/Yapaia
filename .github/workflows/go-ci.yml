@@ -107,16 +107,22 @@ jobs:
         run: npx eslint yapaja_go --ext .ts
 
   e2e:
-    name: E2E (Playwright ${{ matrix.shard }}/3)
+    name: E2E (Playwright ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    # ─── IN DREI TEILEN ─────────────────────────────────────────────────────
+    # ─── IN VIER TEILEN, JE EIN BROWSER ─────────────────────────────────────
     # Die Browser-Tests waren mit ~8 min der längste Job und bestimmten, wie
-    # lange ein PR auf sein Ergebnis wartet. Auf drei Runner verteilt läuft
-    # jeder Teil nur noch ein Drittel der Tests (`--shard`).
+    # lange ein PR auf sein Ergebnis wartet. Auf vier Runner verteilt läuft
+    # jeder Teil nur ein Viertel der Tests (`--shard`).
+    #
+    # `--workers=1`: Runner privater Repos haben 2 CPU-Kerne, die Karte wird
+    # in Software gezeichnet. Zwei Browser nebeneinander haben den W-19-Test
+    # („nach Neuladen in < 3 s weiterfahren“) auf 3,1-3,5 s gedrückt -- das
+    # misst dann die Enge des Runners, nicht die App. Ein Browser je Runner,
+    # dafür ein Runner mehr.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     # Startet sofort, nicht erst nach `quality`: die Laufzeit des PRs ist die
     # des längsten Jobs, nicht die Summe einer Kette.
     # ─── 30 STATT 20 MINUTEN, UND WARUM ────────────────────────────────────
@@ -176,7 +182,7 @@ jobs:
 
       # globalSetup builds web+core and starts the core; run the suite.
       - name: Run E2E tests
-        run: pnpm --filter @yapaia/web exec playwright test --shard=${{ matrix.shard }}/3
+        run: pnpm --filter @yapaia/web exec playwright test --shard=${{ matrix.shard }}/4 --workers=1
 
       - name: Upload Playwright traces on failure
         if: failure()
