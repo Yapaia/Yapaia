@@ -72,8 +72,9 @@ Daraus folgt:
   Konfigurationseintrag (eindeutig über `modul` + `instanz`).
 - Unique-IDs der Entitäten: `yapaia_<modul>_<instanz>_<schluessel>` – stabil,
   auch wenn der Nutzer Gerät oder Entität umbenennt.
-- Entity-IDs entstehen aus dem Gerätenamen: `sensor.yapaia_go_ankunft`, bei
-  mehreren Satelliten `media_player.yapaia_satellite_kueche`,
+- Entity-IDs entstehen aus Gerätename und **Schlüssel** (nicht aus dem
+  angezeigten Namen, der von der HA-Sprache abhängt): `sensor.yapaia_go_ankunft`, bei
+  mehreren Satelliten `media_player.yapaia_satellite_kuche`,
   `media_player.yapaia_satellite_alkoven` usw.
 - **Aktionen nehmen ein Ziel-Gerät** (`target: device_id`) an. Gibt es nur
   eine Instanz des Moduls, darf es fehlen.
@@ -269,7 +270,7 @@ Modul die Liste der anderen:
    "url": "http://a0d7b954-yapaia-beat:8099", "token": "…",
    "version": "1.14.0", "faehigkeiten": ["ansage.einmischen", "radio"]},
   {"modul": "satellite", "instanz": "a4cf12b3e8d0", "name": "Yapaia Satellite Küche",
-   "media_player": "media_player.yapaia_satellite_kueche",
+   "media_player": "media_player.yapaia_satellite_kuche",
    "faehigkeiten": ["sprache.eingabe", "sprache.ausgabe"]}
 ]}
 ```
