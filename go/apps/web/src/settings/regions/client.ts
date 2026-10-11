@@ -39,6 +39,28 @@ export interface CatalogRegion {
   /** Freitext-Hinweis aus dem Katalog (deutsch). */
   note?: string;
   installed: boolean;
+  /** `kartenserver`: ein fertiges Paket vom eigenen Kartenserver (Karte,
+   *  Suche und Routing in einem). Fehlt bei den mitgelieferten Einträgen. */
+  quelle?: 'kartenserver';
+  /** Wann der Kartenserver das Paket gebaut hat (ISO-Zeit). */
+  gebaut?: string;
+  suche?: { url: string; sizeBytes: number };
+  routing?: { url: string; sizeBytes: number };
+}
+
+/** Was der Kern über den Kartenserver weiss -- zum Katalog mitgeliefert. */
+export interface KartenserverStand {
+  eingerichtet: boolean;
+  /** Warum der Katalog nicht geholt werden konnte (deutsch). */
+  fehler?: string;
+  pakete?: number;
+}
+
+export interface KartenserverEinstellung {
+  url: string;
+  /** Das Token selbst kommt nie zurück -- nur, ob eines hinterlegt ist. */
+  token_gesetzt: boolean;
+  pakete?: number;
 }
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'error';
@@ -156,6 +178,51 @@ export async function fetchCatalog(): Promise<CatalogRegion[]> {
   } catch {
     return [];
   }
+}
+
+/** Katalog UND Stand des Kartenservers in einem Abruf. Wirft nie. */
+export async function fetchCatalogMitStand(): Promise<{ regionen: CatalogRegion[]; kartenserver: KartenserverStand | null }> {
+  try {
+    const response = await fetch(apiUrl('api/v1/map/regions/catalog'));
+    if (!response.ok) {
+      return { regionen: [], kartenserver: null };
+    }
+    const body = (await response.json()) as { data: CatalogRegion[]; kartenserver?: KartenserverStand };
+    return { regionen: Array.isArray(body?.data) ? body.data : [], kartenserver: body?.kartenserver ?? null };
+  } catch {
+    return { regionen: [], kartenserver: null };
+  }
+}
+
+/** Die hinterlegte Kartenserver-Adresse. `null` bei einem Netzfehler. */
+export async function fetchKartenserver(): Promise<KartenserverEinstellung | null> {
+  try {
+    const response = await fetch(apiUrl('api/v1/kartenserver'));
+    if (!response.ok) return null;
+    const body = (await response.json()) as { data: KartenserverEinstellung };
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Kartenserver hinterlegen. Der Kern prüft die Verbindung, bevor er speichert
+ * -- eine falsche Adresse oder ein falsches Token kommt als RegionApiError
+ * mit einem Satz zurück, den man zeigen kann. Leere Adresse = entfernen,
+ * leeres Token = das bisherige behalten.
+ */
+export async function saveKartenserver(url: string, token: string): Promise<KartenserverEinstellung> {
+  const response = await fetch(apiUrl('api/v1/kartenserver'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, token }),
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = (await response.json()) as { data: KartenserverEinstellung };
+  return body.data;
 }
 
 /** Starts a download job for `regionId`. Throws RegionApiError on any

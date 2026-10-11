@@ -222,3 +222,36 @@ describe('startGraphBuild', () => {
     });
   });
 });
+
+describe('Kartenserver', () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('liefert Katalog und Stand zusammen, wirft nie', async () => {
+    const { fetchCatalogMitStand } = await import('./client');
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      jsonResponse({ data: [{ id: 'alpen' }], kartenserver: { eingerichtet: true, fehler: 'Token abgelehnt' } }),
+    ) as unknown as typeof fetch;
+    expect(await fetchCatalogMitStand()).toEqual({
+      regionen: [{ id: 'alpen' }],
+      kartenserver: { eingerichtet: true, fehler: 'Token abgelehnt' },
+    });
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
+    expect(await fetchCatalogMitStand()).toEqual({ regionen: [], kartenserver: null });
+  });
+
+  it('speichern schickt Adresse und Token und reicht die Fehlermeldung durch', async () => {
+    const { saveKartenserver } = await import('./client');
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: { url: 'https://k', token_gesetzt: true, pakete: 2 } }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    expect(await saveKartenserver('https://k', 't')).toEqual({ url: 'https://k', token_gesetzt: true, pakete: 2 });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'PUT', body: JSON.stringify({ url: 'https://k', token: 't' }) });
+
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      jsonResponse({ error: { code: 'KARTENSERVER', message: 'Der Kartenserver hat das Token abgelehnt.' } }, false),
+    ) as unknown as typeof fetch;
+    await expect(saveKartenserver('https://k', 'x')).rejects.toThrow(/Token abgelehnt/);
+  });
+});

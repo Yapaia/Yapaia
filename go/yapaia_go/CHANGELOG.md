@@ -10,6 +10,24 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.46.0
+
+**Karten vom eigenen Kartenserver.** Ein eigener Yapaia-Kartenserver (Repo
+`Yapaia/map-server`, z. B. auf einem VPS) baut Karte, Suchindex und Routing
+aus beliebig zusammengefassten Geofabrik-Regionen. Go lädt das fertige Paket
+mit einem Tipp, statt stundenlang selbst zu bauen.
+
+- Unter **Karten verwalten → Kartenserver** Adresse und Download-Token
+  eintragen und auf „Verbinden" tippen. Go prüft die Verbindung sofort und
+  sagt, wenn Adresse oder Token nicht stimmen.
+- Die Pakete erscheinen danach in der Kartenliste mit „Installieren" bzw.
+  „Update". Karte, Suche und Routing werden zuerst vollständig geladen und
+  per Prüfsumme kontrolliert, erst dann eingewechselt. Bricht etwas ab,
+  bleibt alles wie vorher.
+- Das Routing aus dem Paket **ersetzt** den bisherigen Routinggraphen (es
+  gibt nur einen). Valhalla übernimmt ihn binnen 30 Sekunden von allein.
+- Das Token wird nie wieder angezeigt; ein leeres Feld behält es.
+
 ## 0.45.0
 
 **Neuanfang unter dem Namen Yapaia.** Für eine frische Installation gedacht –

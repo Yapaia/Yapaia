@@ -47,6 +47,9 @@ export type Kartenzustand = 'installiert' | 'fremd' | 'verfuegbar' | 'ohne_quell
 export type Kartenquelle =
   /** Fertige `.pmtiles` zum Herunterladen — Minuten. */
   | 'download'
+  /** Fertiges Paket vom eigenen Kartenserver: Karte, Suche und Routing in
+   *  einem Download. Wird über denselben Weg wie `download` gestartet. */
+  | 'kartenserver'
   /** Aus dem OSM-Extrakt bauen — Stunden bei einem grossen Land. */
   | 'bau'
   /** Gar nicht (weder Datei noch Extrakt hinterlegt). */
@@ -85,6 +88,7 @@ export function kannInstallieren(eintrag: Karteneintrag): boolean {
 }
 
 function quelleVon(eintrag: CatalogRegion): Kartenquelle {
+  if (eintrag.quelle === 'kartenserver' && eintrag.url) return 'kartenserver';
   if (eintrag.url) return 'download';
   if (eintrag.pbfUrl) return 'bau';
   return null;

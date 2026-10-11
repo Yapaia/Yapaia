@@ -78,7 +78,7 @@ function requestFn(url: string): typeof http.request {
   return url.startsWith('https:') ? https.request : http.request;
 }
 
-async function hashFile(path: string): Promise<string> {
+export async function hashFile(path: string): Promise<string> {
   return new Promise((resolveHash, rejectHash) => {
     const hash = createHash('sha256');
     const stream = createReadStream(path);
@@ -88,12 +88,20 @@ async function hashFile(path: string): Promise<string> {
   });
 }
 
-interface StreamToFileParams {
+export interface StreamToFileParams {
   url: string;
   dest: string;
   resumeFrom: number;
   jobId: string;
   jobs: JobRegistry;
+  /** Zusaetzliche Kopfzeilen, z. B. das Token des Kartenservers. */
+  headers?: Record<string, string>;
+  /**
+   * Mehrere Dateien in EINEM Auftrag (Kartenserver-Paket): bereits geladene
+   * Bytes davor und die Gesamtgroesse aller Dateien -- der Fortschritt laeuft
+   * dann einmal von 0 bis 100 %, nicht je Datei neu.
+   */
+  fortschritt?: { davor: number; gesamt: number };
 }
 
 /**
@@ -102,7 +110,7 @@ interface StreamToFileParams {
  * the file write is flushed to disk; rejects on network/timeout/HTTP-status
  * errors (the `.part` file is left as-is for a future resume attempt).
  */
-function streamToFile({ url, dest, resumeFrom, jobId, jobs }: StreamToFileParams): Promise<void> {
+export function streamToFile({ url, dest, resumeFrom, jobId, jobs, headers: zusatz, fortschritt }: StreamToFileParams): Promise<void> {
   return new Promise((resolvePromise, rejectPromise) => {
     let settled = false;
     /**
@@ -163,7 +171,7 @@ function streamToFile({ url, dest, resumeFrom, jobId, jobs }: StreamToFileParams
       stream.on('error', () => rejectPromise(err));
     };
 
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...(zusatz ?? {}) };
     const rangeHeader = buildRangeHeader(resumeFrom);
     if (rangeHeader) {
       headers.Range = rangeHeader;
@@ -200,11 +208,15 @@ function streamToFile({ url, dest, resumeFrom, jobId, jobs }: StreamToFileParams
         const totalBytes =
           contentLength !== null && !Number.isNaN(contentLength) ? writeStart + contentLength : null;
 
-        jobs.updateProgress(jobId, bytesWritten, totalBytes ?? undefined);
+        const melden = (): void =>
+          fortschritt
+            ? jobs.updateProgress(jobId, fortschritt.davor + bytesWritten, fortschritt.gesamt)
+            : jobs.updateProgress(jobId, bytesWritten, totalBytes ?? undefined);
+        melden();
 
         res.on('data', (chunk: Buffer) => {
           bytesWritten += chunk.length;
-          jobs.updateProgress(jobId, bytesWritten, totalBytes ?? undefined);
+          melden();
           if (jobs.isCancelled(jobId)) {
             res.unpipe(out);
             out.end();

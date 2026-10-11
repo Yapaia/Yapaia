@@ -405,6 +405,26 @@ type: custom:yapaia-map-card
 addon: abc12345_yapaia_go
 ```
 
+## Maps from your own map server
+
+Building routing for a large country on a Home Assistant box takes hours.
+A **Yapaia map server** (repository `Yapaia/map-server`, a Docker container
+for a VPS) downloads Geofabrik extracts, combines the ones you pick and
+builds map tiles, search index and routing graph exactly like Go does.
+
+1. Install the map server (see its README), build a package and copy the
+   **download token** shown in its web interface.
+2. In Go: **Manage maps → Kartenserver**, enter the address (e.g.
+   `https://maps.example.org`) and the token, tap **Verbinden**. Go checks
+   the connection right away.
+3. The packages appear in the map list. **Installieren** / **Update**
+   downloads map, search and routing, verifies the checksums and only then
+   swaps them in. If anything fails, your current data stays untouched.
+
+The routing graph from a package **replaces** the current one (there is
+only one graph). Valhalla picks it up within 30 seconds, no restart needed.
+The token is never shown again; leave the field empty to keep it.
+
 ## Data & updates (W-16)
 
 All map/routing/search/database data lives under `/share/yapaia/` on the

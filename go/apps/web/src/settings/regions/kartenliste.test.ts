@@ -46,6 +46,7 @@ function katalog(
     ...(opt.pbfUrl ? { pbfUrl: opt.pbfUrl } : {}),
     ...(opt.buildEffort ? { buildEffort: opt.buildEffort } : {}),
     ...(opt.note ? { note: opt.note } : {}),
+    ...(opt.quelle ? { quelle: opt.quelle } : {}),
   };
 }
 
@@ -241,5 +242,21 @@ describe('die Hinweise aus dem Katalog', () => {
       [katalog('germany', { pbfUrl: 'x', note: 'Dauert mehrere Stunden.' })],
     );
     expect(finde(liste, 'germany').hinweis).toBe('Dauert mehrere Stunden.');
+  });
+});
+
+describe('Pakete vom Kartenserver', () => {
+  it('sind installierbar und bleiben es auch installiert -- als Update', () => {
+    const paket = katalog('alpen', { name: 'Alpen', url: 'https://k/alpen.pmtiles', quelle: 'kartenserver', note: 'Vom Kartenserver' });
+    const [neu] = kartenliste([], [paket]);
+    expect(neu.quelle).toBe('kartenserver');
+    expect(kannInstallieren(neu)).toBe(true);
+    expect(installierenText(neu)).toBe('Installieren');
+    expect(neu.hinweis).toBe('Vom Kartenserver');
+
+    const [da] = kartenliste([installiert('alpen')], [{ ...paket, installed: true }]);
+    expect(da.zustand).toBe('installiert');
+    expect(da.quelle).toBe('kartenserver');
+    expect(installierenText(da)).toBe('Update');
   });
 });
