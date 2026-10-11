@@ -1,0 +1,582 @@
+/**
+ * Read-side access to an already-built `lite_search.db` (E05-T5, W-12).
+ * Opened lazily, read-only (`fileMustExist: true` -- a missing file is a
+ * clear "index not built yet" signal, not a silently-empty index), and kept
+ * open across calls (closed explicitly via `close()`, mirroring
+ * `apps/core/src/db/index.ts`'s singleton-with-explicit-close shape).
+ */
+import Database from 'better-sqlite3';
+import { LITE_KINDS, type LiteCandidate, type LiteKind } from './ranking.js';
+import { faltung } from './faltung.js';
+import { nummernSchluessel, strassenSchluessel } from './buildIndex.js';
+
+export interface HausnummerTreffer {
+  street: string;
+  number: string;
+  postcode: string | null;
+  city: string | null;
+  lat: number;
+  lon: number;
+}
+
+interface LiteSearchRow {
+  name: string;
+  kind: string;
+  lat: number;
+  lon: number;
+  ftsRank: number;
+  category: string | null;
+  address: string | null;
+  locality: string | null;
+  postcode: string | null;
+}
+
+export interface LiteAllRow {
+  name: string;
+  kind: string;
+  lat: number;
+  lon: number;
+  category: string | null;
+  address: string | null;
+  locality: string | null;
+}
+
+// Aus der EINEN Liste abgeleitet (ranking.ts), nicht abgeschrieben. Die
+// abgeschriebene Fassung hier hat beim Hinzufuegen von `poi` genau eine
+// Aenderung verpasst und damit alle Sonderziele lautlos aus jedem
+// Suchergebnis entfernt.
+const KNOWN_KINDS: ReadonlySet<string> = new Set<string>(LITE_KINDS);
+
+/** Arten, die als Ortsangabe in einer Suche taugen. */
+const ORTS_ARTEN: ReadonlySet<string> = new Set(['city', 'town', 'village', 'borough', 'suburb']);
+
+/** Ein Rechteck in Grad, für die Suche in der Umgebung eines Ortes. */
+export interface SuchKasten {
+  sued: number;
+  nord: number;
+  west: number;
+  ost: number;
+}
+
+function isLiteKind(kind: string): kind is LiteKind {
+  return KNOWN_KINDS.has(kind);
+}
+
+/**
+ * Ein einzelner Begriff als FTS5-Phrase.
+ *
+ * Die Anfuehrungszeichen sind das, was beliebige Nutzereingaben (`"`,
+ * `AND`/`OR`/`NOT`, `*`, `:`, `-`, ...) davor bewahrt, als FTS5-Abfragesprache
+ * gelesen zu werden -- es bleibt immer buchstaeblicher Text, in dem der
+ * Trigramm-Tokenizer Teilzeichenketten sucht, nie ein Operator.
+ */
+function escapeFtsTerm(term: string): string {
+  return `"${term.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Die ganze Eingabe als FTS5-Abfrage.
+ *
+ * ─── DER FEHLER, DEN DAS BEHEBT ─────────────────────────────────────────────
+ * Hier stand die GESAMTE Eingabe in einem einzigen Anfuehrungszeichen-Paar --
+ * also als EINE zusammenhaengende Zeichenfolge. Damit scheiterte jede Suche
+ * aus mehr als einem Wort, auch wenn beide Angaben stimmten:
+ *
+ *     „Eschenweg Germersheim"  ->  0 Treffer
+ *     „eschenweg 2"            ->  0 Treffer
+ *
+ * Denn „Eschenweg" enthaelt weder „g G" noch „g 2". Gemessen, nicht vermutet.
+ *
+ * Gemeldet wurde: „Ich habe beispielsweise den Eschenweg in Sondernheim
+ * (Germersheim) gesucht. Der wurde nicht gefunden. [...] Ich habe eschenweg 2
+ * eingegeben und das wurde auch nicht gefunden." Und der Wunsch dahinter:
+ * „eine smarte Suche, die ueber alle Aspekte einer Adresse Ergebnisse
+ * liefert."
+ *
+ * ─── WARUM UND UND NICHT ODER ───────────────────────────────────────────────
+ * Jeder Begriff muss vorkommen. Mit ODER waere „Eschenweg Germersheim" die
+ * Liste aller Eschenwege PLUS aller Germersheimer Eintraege -- mehr Treffer,
+ * aber keine besseren: die zweite Angabe soll ja EINGRENZEN.
+ *
+ * Wer eine Wortgruppe wirklich zusammenhaengend sucht, kann sie weiterhin
+ * selbst in Anfuehrungszeichen setzen -- die bleiben erhalten.
+ */
+export function escapeFtsQuery(query: string): string {
+  const terms = splitQueryTerms(query);
+  if (terms.length === 0) return escapeFtsTerm(query.trim());
+  return terms.map(termAlsFts).join(' AND ');
+}
+
+/** Ein Begriff mit seinen Schreibvarianten: `("a" OR "b")`. */
+function termAlsFts(term: string): string {
+  const varianten = termVarianten(term);
+  if (varianten.length === 1) return escapeFtsTerm(term);
+  return `(${varianten.map(escapeFtsTerm).join(' OR ')})`;
+}
+
+/**
+ * Schreibweisen, die dasselbe meinen.
+ *
+ * ─── DIE MELDUNG ────────────────────────────────────────────────────────────
+ * „Ich möchte die Ziolkowskistrasse 8 in Magdeburg ansteuern. Er erkennt die
+ * (falsche) Schreibweise mit ss anstatt ß nicht."
+ *
+ * Der Trigramm-Tokenizer vergleicht Zeichen, keine Sprache: „strasse" und
+ * „straße" haben kein einziges gemeinsames Trigramm am Ende. Auf einer
+ * Tastatur ohne ß, oder aus Gewohnheit, schreibt man aber genau so -- und
+ * ebenso „ae/oe/ue" für Umlaute („Muenchen").
+ *
+ * Gesucht wird deshalb mit ODER über die Varianten. Mehr Treffer sind hier
+ * richtig: jede Variante meint denselben Namen.
+ */
+export function termVarianten(term: string): string[] {
+  const t = term;
+  const kandidaten = [
+    t,
+    t.replace(/strasse/gi, 'straße'),
+    t.replace(/ss/g, 'ß'),
+    t.replace(/ß/g, 'ss'),
+    t.replace(/ae/g, 'ä').replace(/oe/g, 'ö').replace(/ue/g, 'ü'),
+    t.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue'),
+  ];
+  return [...new Set(kandidaten)].filter((v) => v.length >= MIN_QUERY_LENGTH);
+}
+
+
+/**
+ * Zerlegt die Eingabe in Begriffe.
+ *
+ * Was der Nutzer selbst in Anfuehrungszeichen setzt, bleibt ein Stueck --
+ * `"Sankt Martin" kirche` sind zwei Begriffe, nicht drei.
+ *
+ * Zu kurze Bruchstuecke fallen weg: der Trigramm-Tokenizer braucht drei
+ * Zeichen, ein zweibuchstabiges Wort koennte nie treffen und wuerde mit UND
+ * verknuepft die ganze Suche leer machen. „Weg 12" soll den Weg finden, nicht
+ * nichts.
+ */
+export function splitQueryTerms(query: string): string[] {
+  const terms: string[] = [];
+  const pattern = /"([^"]*)"|(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(query)) !== null) {
+    // „Ziolkowskistr. 8": der Punkt der Abkürzung steht in keinem Namen.
+    const term = (match[1] ?? match[2] ?? '').trim().replace(/[.,;]+$/, '');
+    // Eine Hausnummer (1 bis 4 Ziffern, ggf. mit Buchstabe) steht in keinem
+    // Namen; „Weg 128" darf daran nicht scheitern. Fünf Ziffern sind eine
+    // Postleitzahl -- die bleibt, sie steht im Index.
+    if (match[2] !== undefined && /^\d{1,4}[a-z]?$/i.test(term)) continue;
+    if (term.length >= MIN_QUERY_LENGTH) terms.push(term);
+  }
+  return terms;
+}
+
+/** SQLite FTS5's trigram tokenizer needs at least 3 characters to form a
+ *  single trigram; anything shorter can never match. Callers upstream
+ *  already gate on `SEARCH_MIN_CHARS` (3, see `apps/web/src/search/store.ts`)
+ *  before ever reaching a backend, but this is defense-in-depth so a direct
+ *  unit test / API call with a 1-2 char query gets a clean `[]` instead of
+ *  an SQLite error. */
+const MIN_QUERY_LENGTH = 3;
+
+/** Bis zu so vielen Treffern kommen ALLE (siehe `kandidaten`). */
+const ALLE_BIS = 25_000;
+/** Bei mehr Treffern: so viele je Teilabfrage. */
+const BREIT_JE_TEIL = 3_000;
+
+/** Ein Rechteck von `km` um einen Punkt. */
+function kastenUmPunkt(lat: number, lon: number, km: number): SuchKasten {
+  const dLat = km / 111;
+  const dLon = km / (111 * Math.max(0.1, Math.cos((lat * Math.PI) / 180)));
+  return { sued: lat - dLat, nord: lat + dLat, west: lon - dLon, ost: lon + dLon };
+}
+
+/**
+ * Spalten, die es in `places` erst seit einer bestimmten Version gibt.
+ *
+ * ─── WARUM HIER NACHGESEHEN WIRD, STATT SIE VORAUSZUSETZEN ──────────────────
+ * `category` kam mit 0.3.6, `address` und `locality` mit 0.3.9. Ein Index, der
+ * VORHER gebaut wurde, hat sie nicht -- und die Abfrage brach mit
+ *
+ *     no such column: p.category
+ *
+ * ab. Nach oben durchgereicht wurde daraus ein Backend-Fehler, und die
+ * Oberflaeche meldete „Nichts gefunden fuer …". Also: die Suche war nach dem
+ * Update vollstaendig tot, und zwar fuer JEDEN, der einen aelteren Index
+ * hatte -- ohne dass irgendwo stand, woran es lag.
+ *
+ * Einen Index neu zu bauen dauert bei einem grossen Extrakt Stunden. Ein
+ * Schema-Wechsel darf das nicht erzwingen: gelesen wird, was da ist, und was
+ * fehlt, ist eben `null`.
+ */
+const OPTIONAL_COLUMNS = ['category', 'address', 'locality', 'postcode'] as const;
+
+/**
+ * ─── WARUM HIER KEINE SPALTENGEWICHTE STEHEN ────────────────────────────────
+ * Mit der zweiten Suchspalte (Ort, Adresse, PLZ) lag der Gedanke nahe, den
+ * Namen per `bm25(lite_search, 10.0, 1.0)` staerker zu gewichten -- als
+ * Antwort auf die Sorge, die vor 0.6.0 zum Weglassen der Adressdaten gefuehrt
+ * hatte: „sonst faende 'Beethoven' jeden Laden in der Beethovenstrasse statt
+ * der Strasse selbst".
+ *
+ * Die Gewichte standen hier auch schon. Drei Versuche, ihren Nutzen zu
+ * belegen, blieben ergebnislos -- darunter einer, der eigens dafuer gebaut
+ * war (langer Strassenname gegen kurzen Ladennamen mit passender Adresse).
+ * In jedem Fall stand die Strasse ohnehin oben: bm25 bevorzugt kurze
+ * Dokumente, und die endgueltige Reihenfolge macht `ranking.ts` (Namensanfang,
+ * Art, Entfernung), nicht bm25.
+ *
+ * Eine Zahl, deren Wirkung sich nicht zeigen laesst, ist keine Einstellung,
+ * sondern Zierde -- und beim naechsten Umbau glaubt ihr jemand. Sie ist
+ * deshalb wieder draussen. Dass Strassen vor den Laeden darin stehen, halten
+ * die Tests in `multiAspectSearch.test.ts` fest; sollte das je kippen, sind
+ * Gewichte das erste Mittel.
+ */
+
+export class LiteIndexReader {
+  private db: Database.Database | null = null;
+  /** Welche der optionalen Spalten dieser Index wirklich hat. */
+  private available: Set<string> | null = null;
+  /** Hat dieser Index die Hausnummern-Tabelle (seit 0.39.0)? */
+  private hatAdressen: boolean | undefined;
+
+  constructor(private readonly dbPath: string) {}
+
+  private open(): Database.Database {
+    if (this.db) return this.db;
+    this.db = new Database(this.dbPath, { readonly: true, fileMustExist: true });
+    this.hatAdressen = undefined;
+    return this.db;
+  }
+
+  /** Einmal je geoeffneter Datei: welche optionalen Spalten gibt es? */
+  private columns(db: Database.Database): Set<string> {
+    if (this.available) return this.available;
+    const info = db.prepare('PRAGMA table_info(places)').all() as Array<{ name: string }>;
+    const present = new Set(info.map((row) => row.name));
+    this.available = new Set(OPTIONAL_COLUMNS.filter((column) => present.has(column)));
+    return this.available;
+  }
+
+  /** `p.<spalte> as <spalte>` fuer vorhandene Spalten, sonst `NULL as <spalte>`.
+   *  So bleibt die Zeilenform gleich, egal wie alt der Index ist. */
+  private selectList(db: Database.Database): string {
+    const have = this.columns(db);
+    return OPTIONAL_COLUMNS.map((column) =>
+      have.has(column) ? `p.${column} as ${column}` : `NULL as ${column}`,
+    ).join(', ');
+  }
+
+  /**
+   * Alle Kandidaten fuer eine Eingabe -- ohne die Datenbank nach Relevanz
+   * sortieren zu lassen (0.39.1).
+   *
+   * ─── GEMESSEN, BEVOR ES GEAENDERT WURDE ──────────────────────────────────
+   * Gemeldet: die Suche „braucht etwas länger. Ca 1, vielleicht 2 Sekunden"
+   * und zeigt „nicht immer das nächste an". An einem kuenstlichen Index mit
+   * 2,5 Mio. Eintraegen (Deutschland hat rund 7 Mio.):
+   *
+   *     Treffer zaehlen                    10 –  80 ms
+   *     alle Treffer holen, unsortiert     50 – 140 ms   (bis 25 000 Zeilen)
+   *     nach bm25 sortiert, beste 200     150 – 560 ms   je Abfrage
+   *
+   * und die Suche stellte drei solcher sortierten Abfragen je Index. Dazu
+   * kommt, dass bm25 kurze Namen bevorzugt: „REWE" 30 km weiter gewann
+   * gegen „REWE Familie Appel" um die Ecke.
+   *
+   * Deshalb: erst zaehlen. Sind es ueberschaubar viele, kommen ALLE -- dann
+   * entscheidet `ranking.ts` mit Namensanfang, Art und Entfernung, und der
+   * naechste Treffer kann gar nicht mehr herausfallen. Sind es sehr viele
+   * (drei Buchstaben, „Mar"), kommen die mit passendem Namensanfang, die in
+   * der Umgebung und ein Rest.
+   *
+   * `ftsRank` ist hier die Namenslaenge: ohne bm25 die naheliegende Naeherung
+   * („REWE" passt genauer auf „rewe" als „REWE Food Fulfillment Center").
+   */
+  kandidaten(query: string, nahe?: { lat: number; lon: number }): LiteCandidate[] {
+    if (query.trim().length < MIN_QUERY_LENGTH) return [];
+    const db = this.open();
+    const fts = escapeFtsQuery(query);
+    const basis = `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon, ${this.selectList(db)}
+         FROM lite_search JOIN places p ON p.id = lite_search.rowid
+         WHERE lite_search MATCH ?`;
+
+    const { n } = db.prepare('SELECT count(*) as n FROM lite_search WHERE lite_search MATCH ?').get(fts) as {
+      n: number;
+    };
+    let rows: LiteAllRow[];
+    if (n <= ALLE_BIS) {
+      rows = db.prepare(basis).all(fts) as LiteAllRow[];
+    } else {
+      rows = [];
+      const erster = splitQueryTerms(query)[0];
+      if (erster && !/["%_]/.test(erster)) {
+        rows.push(
+          ...(db
+            .prepare(`${basis} AND lite_search.search_text LIKE ? LIMIT ${BREIT_JE_TEIL}`)
+            .all(fts, `${erster}%`) as LiteAllRow[]),
+        );
+      }
+      if (nahe) {
+        const k = kastenUmPunkt(nahe.lat, nahe.lon, 30);
+        rows.push(
+          ...(db
+            .prepare(`${basis} AND p.lat BETWEEN ? AND ? AND p.lon BETWEEN ? AND ? LIMIT ${BREIT_JE_TEIL}`)
+            .all(fts, k.sued, k.nord, k.west, k.ost) as LiteAllRow[]),
+        );
+      }
+      rows.push(...(db.prepare(`${basis} LIMIT 500`).all(fts) as LiteAllRow[]));
+    }
+    return rows
+      .filter((r): r is LiteAllRow & { kind: LiteKind } => isLiteKind(r.kind))
+      .map((r) => ({ ...r, ftsRank: r.name.length }));
+  }
+
+  /** Returns candidates for `ranking.ts` to sort/trim -- deliberately
+   *  over-fetches so the ranking tiers (prefix, kind) have enough raw
+   *  material to reorder before the caller trims to the requested size.
+   *
+   *  Mit Ausschnitt (`box`) OHNE bm25-Sortierung: im Ausschnitt sind es
+   *  wenige, und die Reihenfolge macht `ranking.ts` (siehe `kandidaten`). */
+  searchByPrefix(query: string, limit: number, box?: SuchKasten): LiteCandidate[] {
+    if (query.trim().length < MIN_QUERY_LENGTH) return [];
+
+    const db = this.open();
+    if (box) {
+      const rows = db
+        .prepare(
+          `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon, ${this.selectList(db)}
+           FROM lite_search JOIN places p ON p.id = lite_search.rowid
+           WHERE lite_search MATCH ? AND p.lat BETWEEN ? AND ? AND p.lon BETWEEN ? AND ?
+           LIMIT ${BREIT_JE_TEIL}`,
+        )
+        .all(escapeFtsQuery(query), box.sued, box.nord, box.west, box.ost) as LiteAllRow[];
+      return rows
+        .filter((r): r is LiteAllRow & { kind: LiteKind } => isLiteKind(r.kind))
+        .map((r) => ({ ...r, ftsRank: r.name.length }));
+    }
+    const overfetch = Math.max(limit * 4, 200);
+    const rows = db
+      .prepare(
+        `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon,
+                ${this.selectList(db)}, bm25(lite_search) as ftsRank
+         FROM lite_search
+         JOIN places p ON p.id = lite_search.rowid
+         WHERE lite_search MATCH ?
+         ORDER BY ftsRank
+         LIMIT ?`,
+      )
+      .all(escapeFtsQuery(query), overfetch) as LiteSearchRow[];
+
+    return rows.filter((r): r is LiteSearchRow & { kind: LiteKind } => isLiteKind(r.kind));
+  }
+
+  /**
+   * Orte (Stadt, Gemeinde, Ortsteil), deren Name zu `begriff` passt.
+   *
+   * Für „Ziolkowskistraße Magdeburg": „Magdeburg" ist ein Ort, gesucht wird
+   * dann die Straße IN seiner Umgebung (`LiteBackend.search`). Über den
+   * Ortsbezug im Index allein geht das nicht -- Straßen tragen dort den
+   * NÄCHSTEN Ort, und in einer Großstadt ist das fast immer ein Stadtteil
+   * („Neue Neustadt"), nicht die Stadt.
+   */
+  orte(begriff: string): LiteCandidate[] {
+    if (begriff.trim().length < MIN_QUERY_LENGTH || /["%_]/.test(begriff)) return [];
+    const gesucht = faltung(begriff);
+    const db = this.open();
+    // Ueber den Namensanfang statt ueber bm25 (0.39.1): ein Ort heisst so,
+    // wie man ihn tippt, und die sortierte Abfrage kostete je Begriff
+    // mehrere hundert Millisekunden.
+    const rows = db
+      .prepare(
+        `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon, ${this.selectList(db)}
+         FROM lite_search JOIN places p ON p.id = lite_search.rowid
+         WHERE lite_search MATCH ? AND lite_search.search_text LIKE ? LIMIT 2000`,
+      )
+      .all(escapeFtsQuery(begriff), `${begriff.trim()}%`) as LiteAllRow[];
+    return rows
+      .filter((r): r is LiteAllRow & { kind: LiteKind } => isLiteKind(r.kind) && ORTS_ARTEN.has(r.kind))
+      .filter((r) => {
+        const name = faltung(r.name);
+        // „Frankfurt" passt zu „Frankfurt am Main", „Magdeburg" nicht zu „Magdeburger Platz".
+        return name === gesucht || name.startsWith(`${gesucht} `);
+      })
+      .map((r) => ({ ...r, ftsRank: r.name.length }));
+  }
+
+
+  /** Nearest-neighbor lookup for reverse geocoding. The index has no
+   *  spatial index (small LI/DE-scale datasets, see build-lite-index.sh's
+   *  <1min/<400MB budgets) -- a coarse bounding-box pre-filter in SQL keeps
+   *  the row count sane, then exact Haversine distance (via `ranking.ts`'s
+   *  same formula, duplicated here on purpose -- see that file's comment on
+   *  why this codebase copies the ~6-line Haversine per module rather than
+   *  sharing it) picks the closest rows in JS. */
+  nearest(lat: number, lon: number, limit: number): LiteCandidate[] {
+    const db = this.open();
+    // ~0.5 degrees is generously larger than any plausible LI/DE reverse-geocode
+    // radius; if nothing falls inside it there's nothing nearby to find anyway.
+    const boxDeg = 0.5;
+    const rows = db
+      .prepare(
+        `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon, ${this.selectList(db)}
+         FROM places p
+         WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`,
+      )
+      .all(lat - boxDeg, lat + boxDeg, lon - boxDeg, lon + boxDeg) as LiteAllRow[];
+
+    const withDistance = rows
+      .filter((r): r is LiteAllRow & { kind: LiteKind } => isLiteKind(r.kind))
+      .map((r) => ({ ...r, distanceKm: haversineKm(lat, lon, r.lat, r.lon) }))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, limit);
+
+    // ftsRank has no meaning for a reverse lookup (there was no text query);
+    // 0 keeps every candidate on equal footing for that ranking tier so
+    // `rankLiteCandidates` falls straight through to the distance-bias tier.
+    return withDistance.map((r) => ({
+      name: r.name,
+      kind: r.kind,
+      lat: r.lat,
+      lon: r.lon,
+      ftsRank: 0,
+      category: r.category,
+      address: r.address,
+      locality: r.locality,
+    }));
+  }
+
+  /**
+   * Alle Einträge dieser Kategorien — für die Karte, nicht für die Suche.
+   *
+   * ─── WOFÜR DAS DA IST ─────────────────────────────────────────────────────
+   * Ein paar Sonderziele kann das Kachelschema gar nicht führen; die
+   * Entsorgungsstation ist das wichtigste davon. Nachgemessen und begründet
+   * steht das in `map/sonderziele/fehlendeKlassen.ts`. Der Suchindex hat sie
+   * längst, weil `build-lite-index.sh` mit derselben Filterliste arbeitet —
+   * es fehlte nur der Weg von hier auf die Karte.
+   *
+   * ─── WARUM OHNE AUSSCHNITT UND OHNE SORTIERUNG ────────────────────────────
+   * Weil es wenige sind. Die Karte holt sie EINMAL und behält sie: sie ändern
+   * sich nur, wenn jemand den Index neu baut. Eine Abfrage je Kartenbewegung
+   * wäre mehr Aufwand für beide Seiten und brächte nichts.
+   *
+   * Deshalb ist `hoechstens` auch kein Feinschliff, sondern die Sicherung:
+   * `places` hat keinen Index auf `category`, die Abfrage liest also die
+   * Tabelle durch. Das ist für eine Handvoll Kategorien vertretbar und für
+   * eine versehentlich weit gefasste Liste nicht mehr. Wer die Grenze
+   * erreicht, bekommt eine gekappte Antwort — und erfährt es (siehe
+   * `sonderziele/ausIndex.ts`), statt eine stillschweigend halbe Karte zu
+   * sehen.
+   *
+   * ─── EIN INDEX OHNE `category` LIEFERT NICHTS, UND DAS IST RICHTIG ────────
+   * `category` gibt es erst seit 0.3.6. Ein älterer Index kennt die Spalte
+   * nicht; dann gibt es hier nichts zurückzugeben. Kein Fehler — die Daten
+   * sind wirklich nicht da, und erst ein Neubau ändert das.
+   */
+  byCategories(kategorien: readonly string[], hoechstens: number): LiteAllRow[] {
+    if (kategorien.length === 0 || hoechstens <= 0) return [];
+    const db = this.open();
+    if (!this.columns(db).has('category')) return [];
+
+    const platzhalter = kategorien.map(() => '?').join(', ');
+    return db
+      .prepare(
+        `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon, ${this.selectList(db)}
+         FROM places p
+         WHERE p.category IN (${platzhalter})
+         LIMIT ?`,
+      )
+      .all(...kategorien, hoechstens) as LiteAllRow[];
+  }
+
+  /**
+   * Die Hausnummer `nummer` in der Strasse `strasse`, nahe `nahe` -- oder
+   * `null`. Gleichnamige Strassen gibt es in jedem zweiten Ort; die naechste
+   * am gefundenen Strassenpunkt ist die gemeinte, und weiter als `maxKm` weg
+   * ist es keine mehr.
+   *
+   * Ein Index von vor 0.39.0 hat keine Adressen; dann `null`, kein Fehler.
+   */
+  hausnummer(
+    strasse: string,
+    nummer: string,
+    nahe: { lat: number; lon: number },
+    maxKm = 8,
+  ): HausnummerTreffer | null {
+    const db = this.open();
+    if (this.hatAdressen === undefined) {
+      this.hatAdressen =
+        db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'addresses'").get() !== undefined;
+    }
+    if (!this.hatAdressen) return null;
+    const rows = db
+      .prepare(
+        `SELECT street, number, postcode, city, lat, lon FROM addresses
+         WHERE street_key = ? AND number_key = ? LIMIT 200`,
+      )
+      .all(strassenSchluessel(strasse), nummernSchluessel(nummer)) as HausnummerTreffer[];
+    let best: HausnummerTreffer | null = null;
+    let bestKm = Infinity;
+    for (const r of rows) {
+      const km = haversineKm(nahe.lat, nahe.lon, r.lat, r.lon);
+      if (km < bestKm) {
+        best = r;
+        bestKm = km;
+      }
+    }
+    return bestKm <= maxKm ? best : null;
+  }
+
+  close(): void {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
+  }
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Liest die `meta`-Tabelle eines gebauten Index (Region, Bauzeitpunkt,
+ * Anzahl). Wirft nie: ein Index von vor 0.3.9 hat diese Tabelle nicht, und
+ * das ist kein Fehler, sondern schlicht „unbekannt". Die Übersicht meldet
+ * dann den Zeitstempel der Datei und keine Region -- statt eine zu raten.
+ */
+export function readLiteIndexMeta(dbPath: string): {
+  region?: string;
+  built_at?: string;
+  record_count?: number;
+  format?: number;
+} {
+  let db: Database.Database | null = null;
+  try {
+    db = new Database(dbPath, { readonly: true, fileMustExist: true });
+    const rows = db.prepare('SELECT key, value FROM meta').all() as Array<{
+      key: string;
+      value: string;
+    }>;
+    const map = new Map(rows.map((r) => [r.key, r.value]));
+    const count = map.get('record_count');
+    const parsedCount = count !== undefined ? Number.parseInt(count, 10) : NaN;
+    const format = Number.parseInt(map.get('format') ?? '', 10);
+    return {
+      ...(Number.isFinite(format) ? { format } : {}),
+      ...(map.get('region') ? { region: map.get('region') as string } : {}),
+      ...(map.get('built_at') ? { built_at: map.get('built_at') as string } : {}),
+      ...(Number.isFinite(parsedCount) ? { record_count: parsedCount } : {}),
+    };
+  } catch {
+    return {};
+  } finally {
+    db?.close();
+  }
+}

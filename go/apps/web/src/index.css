@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * ─── DIE SEITE SELBST SCROLLT NIE ────────────────────────────────────────────
+ * Gemeldet (iPad, Home-Assistant-Seitenleiste): „ich sehe die Suchzeile am
+ * oberen Rand nicht mehr". Auf den Bildschirmfotos war ALLES um rund 120
+ * Punkte nach oben verschoben -- Kopfzeile weg, Zoom-Knöpfe halb abgeschnitten,
+ * das Kartenmenü oben angeschnitten. Nicht die Kopfzeile fehlte, die Seite
+ * war gescrollt.
+ *
+ * Yapaia ist eine Vollbild-Anwendung: Scrollen gibt es nur IN Bereichen
+ * (Menü, Listen), nie auf der Seite. Bisher hatten `html` und `body` aber
+ * weder Höhe noch `overflow` -- und `100vh` ist in WebKit auf iPad/iPhone die
+ * GRÖSSTE denkbare Höhe, nicht die sichtbare. Ragt dann irgendetwas einen
+ * Hauch über den Rand, lässt sich das Dokument verschieben, und das tut
+ * WebKit beim Antippen eines Bedienelements auch von selbst.
+ *
+ * In Chromium nicht nachzustellen; dort ist `100vh` die sichtbare Höhe. Darum
+ * wird hier nicht der eine Auslöser gesucht, sondern die Möglichkeit
+ * beseitigt: die Seite ist exakt so hoch wie das Fenster und kann nicht
+ * scrollen.
+ */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/*
+ * ─── DIE OBERFLÄCHE NUR IM SICHTBAREN TEIL ────────────────────────────────────
+ * Gemeldet: „Die Ränder sind abgeschnitten. Kannst du die Anzeige so bauen,
+ * dass sie immer in den verfügbaren Platz passt?"
+ *
+ * Die Ränder misst `shell/sichtbarerBereich.ts` (was vom Rahmen in Home
+ * Assistant wirklich zu sehen ist). `transform` macht diesen Kasten zum
+ * Bezugsrahmen für JEDES `position: fixed` darin -- Kopfzeile, Knöpfe,
+ * Leisten und Dialoge richten sich damit nach dem sichtbaren Teil, ohne dass
+ * eines davon angefasst werden musste.
+ */
+#yapaia-sicht {
+  position: fixed;
+  top: var(--sicht-oben, 0px);
+  bottom: var(--sicht-unten, 0px);
+  left: var(--sicht-links, 0px);
+  right: var(--sicht-rechts, 0px);
+  transform: translateZ(0);
+}
+
+/*
+ * Design tokens (E07-T3, docs/06 §3): CSS custom properties for the two
+ * themes. Scoped to `:root` (light, the default) and `:root.dark` (dark) --
+ * the `dark` class is set/removed on `<html>` by the theme controller
+ * (`src/theme/applyThemeResolution.ts`), atomically with the map style, so
+ * these tokens and the map's light/dark style always agree.
+ *
+ * `color-scheme` follows the SAME class (not `light dark`, which would let
+ * the browser pick based on its own OS-driven guess) so native form
+ * controls / scrollbars match the resolved theme too, not just Tailwind's
+ * `dark:` utility classes.
+ */
+:root {
+  color-scheme: light;
+
+  --bg-surface: #ffffff;
+  --bg-map-ui: rgba(255, 255, 255, 0.92);
+  --text-primary: #1a1c1e;
+  --accent: #1a73e8;
+  --route-casing: #0b57d0;
+  --success: #188038;
+  --warn: #f29900;
+  --danger: #d93025;
+  --radius-panel: 12px;
+  --radius-fab: 999px;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --bg-surface: #111417;
+  --bg-map-ui: rgba(20, 24, 28, 0.92);
+  --text-primary: #e7eaed;
+  --accent: #8ab4f8;
+  --route-casing: #4c8df6;
+  /* AA-konform dark-mode tints of the light success/warn/danger hues
+     (docs/06 §3: "angepasst, AA-konform") -- Material Design's own dark-
+     theme equivalents for green/yellow/red, chosen for the same reason the
+     light tokens already use Google's blue (`--accent`/`--route-casing`):
+     consistent, well-tested WCAG AA contrast against `--bg-surface` dark. */
+  --success: #81c995;
+  --warn: #fdd663;
+  --danger: #f28b82;
+}
+
+/* Edit-mode visuals (E07-T2): a subtle "wobble" on placed widgets (a
+   long-established mobile-OS convention for "this can be moved/deleted
+   right now") and a visible grid backdrop behind each slot so the user can
+   see the layout structure they're editing. Both are purely decorative --
+   no test relies on the animation itself, only on the `data-edit-active`/
+   `data-drop-invalid` attributes `Shell.tsx` sets alongside them. */
+@keyframes edit-wobble {
+  0% {
+    transform: rotate(-1deg);
+  }
+  50% {
+    transform: rotate(1deg);
+  }
+  100% {
+    transform: rotate(-1deg);
+  }
+}
+
+.edit-wobble {
+  animation: edit-wobble 0.28s ease-in-out infinite;
+}
+
+.edit-slot-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.35) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+/* `prefers-reduced-motion` (E07-T4, docs/06 §4 "Animationen ... "prefers-
+   reduced-motion" respektieren"): the standard global reset -- collapses
+   every CSS animation/transition duration to effectively zero and disables
+   smooth scrolling, for ANY element (`*`), not just the ones this codebase
+   happens to animate today. Explicitly also kills `.edit-wobble`'s
+   `animation` outright (belt-and-suspenders on top of the universal
+   `animation-duration` collapse above -- an `infinite` iteration count
+   would otherwise still technically "run", just imperceptibly fast).
+   Scope note: this covers CSS-level animations/transitions only. The
+   compass/puck bearing needles (`map/CompassButton.tsx`,
+   `shell/widgets/compass.tsx`) rotate via a plain inline `transform` with NO
+   CSS transition applied (an instant per-render snap, not an animation) --
+   nothing there to disable. MapLibre's own internal paint-property
+   transitions on the position puck (`position/PositionPuck.tsx`'s
+   `circle-radius-transition` etc., a GL/canvas-level, non-CSS mechanism)
+   are consciously out of scope for this CSS-only rule -- respecting
+   reduced-motion there would need wiring `matchMedia` into the style spec
+   itself, tracked separately rather than folded into this task. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .edit-wobble {
+    animation: none !important;
+  }
+}

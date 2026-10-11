@@ -1,0 +1,158 @@
+/**
+ * Zustand store for vehicle profiles (E06-T2).
+ * Manages the profile list and the currently active profile.
+ */
+
+import { create } from 'zustand';
+import type { VehicleProfile } from '@yapaia/shared';
+import * as client from './client.js';
+
+export interface ProfileState {
+  profiles: VehicleProfile[];
+  activeProfile: VehicleProfile | null;
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  fetchProfiles: () => Promise<void>;
+  setProfiles: (profiles: VehicleProfile[]) => void;
+  setActiveProfile: (profile: VehicleProfile | null) => void;
+  createProfile: (data: Omit<VehicleProfile, 'id' | 'is_active'>) => Promise<VehicleProfile>;
+  updateProfile: (id: string, data: Partial<VehicleProfile>) => Promise<VehicleProfile>;
+  deleteProfile: (id: string) => Promise<void>;
+  activateProfile: (id: string) => Promise<VehicleProfile>;
+  /** Bestaetigt die Abmessungen -- siehe `UnconfirmedDimensionsBanner`. */
+  confirmDimensions: (id: string) => Promise<VehicleProfile>;
+  setError: (error: string | null) => void;
+}
+
+export const useProfileStore = create<ProfileState>((set) => ({
+  profiles: [],
+  activeProfile: null,
+  isLoading: false,
+  error: null,
+
+  fetchProfiles: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const profiles = await client.fetchProfiles();
+      const active = profiles.find((p) => p.is_active) || null;
+      set({ profiles, activeProfile: active, isLoading: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+    }
+  },
+
+  setProfiles: (profiles) => {
+    const active = profiles.find((p) => p.is_active) || null;
+    set({ profiles, activeProfile: active });
+  },
+
+  setActiveProfile: (profile) => {
+    set({ activeProfile: profile });
+  },
+
+  createProfile: async (data) => {
+    set({ error: null });
+    try {
+      const profile = await client.createProfile(data);
+      set((state) => ({
+        profiles: [...state.profiles, profile],
+      }));
+      return profile;
+    } catch (err) {
+      if (err instanceof client.ProfileApiError) {
+        set({ error: err.message });
+      }
+      throw err;
+    }
+  },
+
+  updateProfile: async (id, data) => {
+    set({ error: null });
+    try {
+      const profile = await client.updateProfile(id, data);
+      set((state) => ({
+        profiles: state.profiles.map((p) => (p.id === id ? profile : p)),
+      }));
+      return profile;
+    } catch (err) {
+      if (err instanceof client.ProfileApiError) {
+        set({ error: err.message });
+      }
+      throw err;
+    }
+  },
+
+  deleteProfile: async (id) => {
+    set({ error: null });
+    try {
+      await client.deleteProfile(id);
+      set((state) => ({
+        profiles: state.profiles.filter((p) => p.id !== id),
+      }));
+    } catch (err) {
+      if (err instanceof client.ProfileApiError) {
+        set({ error: err.message });
+      }
+      throw err;
+    }
+  },
+
+  confirmDimensions: async (id) => {
+    set({ error: null });
+    try {
+      const profile = await client.confirmProfileDimensions(id);
+      set((state) => ({
+        profiles: state.profiles.map((p) => (p.id === id ? profile : p)),
+        // Nur ersetzen, wenn es WIRKLICH das aktive Profil war -- sonst
+        // verschoebe ein Bestaetigen im Editor das aktive Profil.
+        activeProfile: state.activeProfile?.id === id ? profile : state.activeProfile,
+      }));
+      return profile;
+    } catch (err) {
+      if (err instanceof client.ProfileApiError) {
+        set({ error: err.message });
+      }
+      throw err;
+    }
+  },
+
+  activateProfile: async (id) => {
+    set({ error: null });
+    try {
+      const profile = await client.activateProfile(id);
+      set((state) => ({
+        profiles: state.profiles.map((p) => ({ ...p, is_active: p.id === id })),
+        activeProfile: profile,
+      }));
+      return profile;
+    } catch (err) {
+      if (err instanceof client.ProfileApiError) {
+        set({ error: err.message });
+      }
+      throw err;
+    }
+  },
+
+  setError: (error) => {
+    set({ error });
+  },
+}));
+
+declare global {
+  interface Window {
+    /**
+     * Debug/E2E hook (E05-T3), mirrors `window.__yapaiaRoutingStore` /
+     * `window.__yapaiaMapController`: exposes the profile store so
+     * Playwright can assert on/await `activeProfile` directly (e.g. proving
+     * the favorites active-profile invariant against a freshly-activated
+     * profile without waiting on an arbitrary UI poll interval).
+     */
+    __yapaiaProfileStore?: typeof useProfileStore;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__yapaiaProfileStore = useProfileStore;
+}

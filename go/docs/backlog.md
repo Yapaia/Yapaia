@@ -1,0 +1,434 @@
+# Backlog — bewusst zurückgestellte Arbeit
+
+Was hier steht, ist **nicht vergessen und nicht erledigt**, sondern bewusst
+verschoben. Jeder Eintrag nennt: was fehlt, warum es zurückgestellt wurde, was
+stattdessen gilt, und **woran man erkennt, dass es wieder aufgegriffen werden
+kann**.
+
+Der Zweck dieser Datei ist, dass „später" nachweisbar bleibt. Ein
+zurückgestellter Punkt, der nur in einem Kommentar in einer YAML-Datei steht,
+ist nach drei Monaten verschwunden.
+
+---
+
+## B-01 🔴 Golden-Routes DE verifizieren (Maßrestriktionen Deutschland)
+
+**Status:** zurückgestellt am 2026-08-05 durch Entscheidung des Betreibers.
+**Betrifft:** `e2e/golden-routes.json`, Job `golden-routes-de` in `nightly.yml`.
+
+### Was fehlt
+
+16 der 20 Golden-Route-Fälle sind `unverified: true`. Alle DE-Fälle:
+
+* die erwarteten Distanzen sind **Schätzwerte**, nie gegen einen echten
+  Deutschland-Graphen gefahren;
+* **jede** `restriction.osm_way_id` ist `null` — es wurde nie ein deutsches
+  OSM-Tag gelesen;
+* das betrifft ausdrücklich auch die sechs Restriktionsfälle
+  (Höhe ×3, Gewicht ×2, Breite ×1), also genau die Fälle, die ein
+  3,2-m-Wohnmobil vor einer zu niedrigen Brücke bewahren sollen.
+
+### Warum zurückgestellt
+
+Der Nachweis braucht einen echten Deutschland-Valhalla-Graphen. Auf einem
+Standard-GitHub-Runner ist der nicht baubar: der Schritt lief in **jedem**
+Lauf seit Wochen exakt 2 Stunden und wurde dann abgebrochen (z. B. Lauf
+`30980175183`, 06:05:37 → 08:05:55). In der Entwicklungs-Sandbox ebenfalls
+nicht: kein Docker-Daemon, und geofabrik/Overpass sind über den Proxy
+gesperrt (403).
+
+Ein Job, der strukturell nie grün werden kann, erzeugt jede Nacht eine rote
+Mail und stumpft die Aufmerksamkeit für **echte** Fehlschläge ab. Deshalb
+läuft er jetzt nur noch auf ausdrückliche Anforderung
+(`workflow_dispatch`) statt im Zeitplan.
+
+### Was stattdessen gilt — die Einschränkung für v1.0
+
+**Das per-PR-Safety-Gate deckt nur Liechtenstein ab.** Das ist eine echte
+inhaltliche Einschränkung und keine Formalie:
+
+* Der Merge-Blocker `Golden-Routes LI` prüft weiterhin bei jedem PR, dass die
+  Routing-Logik, die Profilzuordnung und die Restriktions-Auswertung als
+  **Mechanik** funktionieren.
+* Was er **nicht** prüft, ist, ob die deutschen Maßrestriktionen in den
+  ausgelieferten Kartendaten korrekt ausgewertet werden.
+* Diese Einschränkung gehört in die Release-Notes von v1.0 (siehe
+  `docs/07-testing-qa.md` §7, Ausnahme zu Punkt 2).
+
+Nicht betroffen und weiterhin scharf: die Struktur-Gates. `runner.test.ts`
+erzwingt bei jedem Lauf DE ≥ 15 Fälle und die Zusammensetzung
+Höhe ×3 / Gewicht ×2 / Breite ×1; `provenance.test.ts` fängt stille Vakuität
+(Profile, die den Grenzwert nicht umschließen) und den Widerspruch
+„`osm_way_id` gesetzt, aber `unverified`". Die Fälle können also nicht
+unbemerkt verwässern, solange sie unverifiziert sind.
+
+### Wie es wieder aufgegriffen wird
+
+Alles Werkzeug dafür liegt bereit:
+
+1. Auf einer Maschine mit genug Zeit/RAM `golden-routes-de` von Hand starten
+   (`workflow_dispatch`) — oder den Graphen lokal bauen.
+2. `scripts/osm-restriction-provenance.sh` liest die
+   `maxheight`/`maxweight`/`maxwidth`-Tags **offline aus derselben PBF**, auf
+   der auch geroutet wird, und gibt einen einfügefertigen
+   `restriction`-Block aus — nur bei echtem Fund. Nicht bestätigbare Fälle
+   ersetzt der `discover`-Modus, statt sie zu raten.
+3. Die 6-Punkte-Checkliste im Kopf des Jobs `golden-routes-de` abarbeiten;
+   sie endet mit **zwei grünen Nightlies in Folge**, weil ein einzelner Lauf
+   „richtig" und „zufällig" nicht unterscheiden kann.
+4. Erst dann `continue-on-error` entfernen und den Job wieder in den
+   Zeitplan nehmen.
+
+---
+
+## B-02 🟡 Photon-Live-Suche im Nightly
+
+**Status:** zurückgestellt am 2026-08-05.
+**Betrifft:** Job `photon-li-nightly` in `nightly.yml`.
+
+### Was fehlt
+
+Der Live-Suchlauf gegen einen **echten Photon-Index** (CH+LI) samt der
+RSS-unter-Last-Messung aus E05-T4.
+
+### Warum zurückgestellt
+
+Der Schritt „Wait for Photon /status" lief in jedem Lauf ins Timeout (25 min,
+z. B. Lauf `30980175183`): der JSONL-Import baut den Index **im Container**
+auf, und das läuft auf einem Standard-Runner nicht durch. Der Job war seit
+Wochen dauerhaft rot und damit als Signal wertlos.
+
+### Was stattdessen gilt
+
+Nicht betroffen, läuft weiter bei jedem PR:
+
+* `lite-search-li` baut und raucht den **Lite-Suchindex** — das ist der
+  dokumentierte W-12-Fallback für RAM-knappe Geräte und der Pfad, auf dem ein
+  Gerät ohne Photon trotzdem suchen kann.
+* `photon-setup` prüft die Skript-Fixtures und die `-Xmx`-Verdrahtung.
+
+Es fehlt also die Live-Suche gegen einen echten Index, nicht die Suche als
+solche.
+
+### Wie es wieder aufgegriffen wird
+
+Index **vorab** bauen und als Artefakt/Cache bereitstellen, statt ihn im Job
+zu importieren — oder den Job auf einen self-hosted Runner legen. Dann
+`workflow_dispatch` wieder auf den Zeitplan umstellen.
+
+---
+
+## B-03 🟠 Mehrere Browser-Clients: wer liefert die Position?
+
+**Status:** offen, aufgenommen am 2026-08-07.
+**Betrifft:** `apps/core/src/position/service.ts`, `POST /api/v1/position/browser`.
+
+### Was unklar ist
+
+Yapaia unterstützt die **Browser-Geolocation** als vollwertige Positionsquelle
+(`browserSource.ts` → `POST /position/browser`, Prioritätskette
+`gpsd > browser > simulator`, ADR-007). Das ist der Bedienweg, der real
+genutzt wird: Telefon, Tablet oder Android-Autoradio greifen per Browser auf
+das Gerät zu.
+
+Sind aber **mehrere Clients gleichzeitig** verbunden, schicken alle ihre
+Fixes an denselben Endpunkt, und die Quelle heißt für alle gleich
+(`browser`). Es gibt derzeit keine Unterscheidung nach Client. Wer „gewinnt",
+ist damit nicht definiert — faktisch der zuletzt eingetroffene Fix.
+
+### Warum das im Alltag auffallen kann
+
+Im selben Fahrzeug ist es folgenlos: zwei Geräte melden dieselbe Position.
+Unangenehm wird es, sobald ein Gerät **woanders** ist — das Telefon zu Hause,
+das Tablet im Wohnmobil, oder ein zweiter Browser-Tab auf einem Rechner in
+der Wohnung. Dann springt die angezeigte Position zwischen zwei Orten, und
+die Navigation kann eine Abweichung erkennen, die es nicht gibt.
+
+Das ist **kein** Sicherheitsproblem und kein Datenverlust, aber ein
+Verhalten, das ein Nutzer nicht erklären kann.
+
+### Denkbare Auflösungen (noch nicht entschieden)
+
+* Client-Kennung beim Ingest, und nur der *zuletzt aktive* bzw. ein
+  ausdrücklich gewählter Client zählt.
+* Plausibilitätsprüfung: ein Fix, der räumlich unmöglich weit vom vorherigen
+  entfernt ist, wird verworfen (der `PlausibilityGuard` aus E02-T3 macht
+  genau das bereits für Sprünge — die Frage ist, ob er hier greift).
+* Bewusst dokumentieren, dass gleichzeitige Clients an verschiedenen Orten
+  nicht unterstützt sind.
+
+### Nachtrag 2026-09-02 — die offene Frage ist beantwortet
+
+Hier stand: „Vor einer Entscheidung sollte geprüft werden, wie sich der
+bestehende `PlausibilityGuard` in diesem Fall tatsächlich verhält —
+möglicherweise fängt er den Sprung schon ab, und es bleibt nur eine
+Doku-Frage." Das ist geprüft, und die Antwort ist **nein**, aus einem
+einfacheren Grund als vermutet:
+
+**Der Guard ist auf diesem Weg gar nicht verdrahtet.** `PlausibilityGuard`
+wird ausschließlich in `apps/core/src/position/gpsd/index.ts` benutzt;
+`POST /position/browser` ruft `service.pushFix('browser', …)` direkt auf. Die
+einzige Prüfung dort ist `checkPosition()` (Wertebereiche), und die kennt
+keinen Vorgänger-Fix — sie kann einen Sprung gar nicht sehen.
+
+Es bleibt also **keine** reine Doku-Frage; es ist echte Arbeit.
+
+Und selbst mit Verdrahtung wäre es nur die halbe Lösung: nach
+`maxConsecutiveJumpRejects` (3) abgelehnten Sprüngen akzeptiert der Guard den
+nächsten Fix bewusst als neue Grundwahrheit (W-02, Fähre/Transport/Neustart).
+Zwei dauerhaft sendende Geräte an verschiedenen Orten würden damit nicht
+still stehen, sondern im Verhältnis 3:1 langsamer hin- und herspringen. Die
+andere Hälfte ist eine **Client-Kennung beim Ingest** — ohne sie lässt sich
+„derselbe Client, der sich bewegt hat" nicht von „ein anderer Client"
+unterscheiden.
+
+Ausführlich in `docs/gps-endgeraete.md` §5.
+
+---
+
+## B-06 🟡 Build-Server: Karten zentral bauen statt auf jedem Gerät
+
+**Status:** zurückgestellt am 2026-09-05 durch Entscheidung des Betreibers
+(„Behalte den Buildserver im Hinterkopf. Lass uns lieber erstmal weiter an der
+Navigation arbeiten.").
+**Betrifft:** noch nichts im Code — dies ist ein Entwurf, keine angefangene
+Arbeit.
+
+### Worum es geht
+
+Kacheln, Routinggraph und Suchindex einmal zentral bauen und als fertige
+Dateien bereitstellen, statt sie auf jedem Gerät stundenlang zu bauen.
+
+### Was bereits vorhanden ist
+
+Die **Verbraucherseite existiert vollständig und ist getestet**:
+
+* `customSources.ts` — der Betreiber trägt eine eigene `.pmtiles`-URL **aus
+  der GUI** ein, ohne SSH;
+* `download.ts` — Resume, sha256-Prüfung, Platzprüfung, Job-Fortschritt;
+* `catalog.ts` — `CatalogEntry` mit optionalem `url` + `sha256` + `sizeBytes`.
+
+Ein Build-Server muss also **kein neues Add-on-Feature erfinden**. Er muss
+Dateien erzeugen und erreichbar ablegen.
+
+### Die Lücke, die zuerst geschlossen werden müsste
+
+Einen Download-Weg gibt es **nur für Kacheln**. Routinggraph und Suchindex
+lassen sich ausschließlich auf dem Gerät bauen — es existiert keine Route
+dafür. Ein Build-Server nähme dem Betreiber also vorerst nur **einen von drei**
+langen Bauten ab, und der Graph-Bau ist der längste.
+
+### Zahlen, die die Maschinenwahl entscheiden
+
+| | Wert | Quelle |
+|---|---|---|
+| Deutschland-Extrakt | 4607 MB | Bildschirmfoto des Betreibers |
+| Platzbedarf Kachelbau | Faktor 8 + 2 GB ≈ **39 GB** | `PMTILES_DISK_FACTOR` in `build-pmtiles.sh` |
+| VPS des Betreibers | 8 GB RAM / 100 GB Platte | Angabe des Betreibers |
+| HAOS-VM (Mini-PC) | 16 GB RAM / 50 GB Platte | Angabe des Betreibers |
+
+Der **VPS** ist die richtige Maschine: der Platz entscheidet, und der Mini-PC
+soll fahren, nicht bauen.
+
+### Was dabei ausdrücklich NICHT gemacht werden soll
+
+**Keine Builds ins Git-Repository laden.** Git speichert jede Version für
+immer, GitHub weist Dateien > 100 MB ab, LFS hat Kontingente — und der
+Add-on-Image-Bau zieht das Repo selbst als Tarball von `codeload.github.com`,
+ein fettes Repo bremst also jedes Add-on-Update. Der VPS soll die Dateien
+stattdessen selbst per HTTPS ausliefern; GitHub-Releases (2 GB je Datei)
+bleibt ein optionaler zweiter Schritt, falls die Builds anderen Nutzern
+angeboten werden sollen.
+
+### Offene Unbekannte
+
+Ob planetiler Deutschland mit dem Heap eines 8-GB-VPS durchbaut, ist **nicht
+belegt**. `--nodemap-type=sortedtable` ist bereits gesetzt (die
+speicherschonende Variante), und auf einem reinen Build-VPS darf der Heap weit
+über die 40-%-Regel hinaus, die nur existiert, weil das Add-on sich die Kiste
+mit Home Assistant teilt. Das klärt ein Testlauf mit Rheinland-Pfalz, keine
+Schätzung.
+
+Ebenfalls offen: OSM-Daten stehen unter ODbL — abgeleitete Kacheln
+weiterzugeben verlangt Namensnennung und Share-alike. Für den Eigenbedarf
+belanglos, beim Anbieten an Dritte nicht.
+
+### Woran man erkennt, dass es wieder aufgegriffen werden kann
+
+Wenn der Betreiber es sagt — oder wenn der Bau auf dem Gerät zum Blocker wird
+(mehrere Länder, regelmäßige Aktualisierung).
+
+---
+
+## B-05 ✅ Position aus der Home-Assistant-App — ERLEDIGT 2026-09-03
+
+**Status:** offen, aufgenommen am 2026-09-02.
+**Betrifft:** `apps/core/src/position/service.ts`, `apps/core/src/ha/client.ts`,
+`packages/shared/src/{types.ts,schemas/position.ts}`, `yapaja_go/config.yaml`.
+
+### Was fehlt
+
+Eine vierte Positionsquelle `ha_tracker`, die die Position aus einer
+`device_tracker`-Entität von Home Assistant liest — also aus der **Companion
+App** auf Telefon, iPad oder Android-Autoradio.
+
+### Warum das aufgenommen wurde
+
+Aus der Frage des Betreibers, wie er das GPS seiner Endgeräte nutzen kann.
+Der gebaute Weg (Browser-Geolocation) ist auf seinem Gerät blockiert, und
+zwar nicht durch einen Fehler, sondern durch eine Browser-Regel: der
+GPS-Sensor wird nur in einem **secure context** freigegeben, und Home
+Assistant läuft dort über einfaches HTTP (`http://…:8123`). Ingress ändert
+daran nichts — es erbt das Protokoll von HA selbst.
+
+Die Companion App umgeht das vollständig: sie meldet an HA, nicht an den
+Browser, und das Add-on kann diese Zustände mit dem bereits vorhandenen
+`homeassistant_api: true` über `http://supervisor/core/api` lesen. Zusätzlich
+löst sie ein zweites, unabhängiges Problem: ein Browser-Tab wird bei
+gesperrtem Bildschirm von Safari eingefroren und von Chrome-Android
+gedrosselt — `watchPosition` liefert dann nichts mehr. Die App ist für genau
+diesen Fall gebaut.
+
+### Was das nicht ist
+
+**Kein Ersatz für den Browser-Weg.** Die Companion App meldet in Intervallen
+und ist träger; für eine Abbiegeanweisung in 200 m reicht das nicht. Die
+Quelle gehört deshalb **unter** den Browser:
+`gpsd > browser > ha_tracker > simulator`.
+
+### Wie es umgesetzt wird
+
+Die fünf Schritte stehen ausformuliert in `docs/gps-endgeraete.md` §4. Kurz:
+`'ha_tracker'` in `PositionSourceName` und das `source`-Enum des
+Positions-Schemas; ein GET-Helfer neben `callHaService` (das Modul kann heute
+nur POST) mit denselben Regeln — hartes Zeitlimit, Fehler wird geloggt und
+geschluckt; eine Option `ha_device_tracker`; und der `PlausibilityGuard`
+**davor** (siehe B-03), denn ein Tracker, der nach einem Ausfall 300 km
+weiter wieder auftaucht, ist genau sein Fall.
+
+### Was vorher gebraucht wird
+
+Eine Rückmeldung, welche `device_tracker`-Entität die App tatsächlich liefert
+und in welchem Intervall. Die Priorität gegenüber dem Browser lässt sich
+sonst nur raten, und eine geratene Zahl in einer Prioritätskette ist genau
+die Sorte Behauptung, die hier nichts zu suchen hat.
+
+</details>
+
+---
+
+## B-04 ✅ Kachelbau aus der Oberfläche auslösen — ERLEDIGT 2026-09-02
+
+**Status:** erledigt. Knopf „Kacheln bauen" im Regionen-Panel,
+`POST /api/v1/map/regions/:id/build`, Fortschritt über dieselbe
+Job-Maschinerie wie der Download.
+
+**Was den Ausschlag gab:** der dokumentierte Umweg über `docker exec` war
+für den Betreiber gar nicht gangbar — das Terminal-Add-on läuft im
+„Protection Mode", der den Docker-Socket ausblendet. Damit war der eine
+Schritt, ohne den es überhaupt keine Karte gibt, auf dem vorgesehenen
+Bedienweg unerreichbar. Der Core startet das Skript jetzt selbst — er läuft
+ohnehin in dem Container, in dem Java und das Skript liegen.
+
+**Bewusst nicht gebaut:** Überleben eines Add-on-Neustarts. Die Jobs liegen
+im Speicher. Das ist vertretbar, weil das Skript erst nach vollständiger
+Prüfung atomar einwechselt (W-17) — ein abgebrochener Lauf lässt die
+bisherige Kartendatei unangetastet, ein neuer Start beginnt sauber von vorn.
+
+**Ebenfalls bewusst:** kein Prozentwert. Planetilers Ausgabe lässt sich nicht
+versionsstabil in eine Zahl übersetzen; der Balken läuft unbestimmt und
+darunter steht die letzte Ausgabezeile. Eine erfundene Prozentzahl wäre
+genau die Sorte Behauptung, die diese Session über beseitigt wurde.
+
+<details>
+<summary>Ursprünglicher Eintrag vom 2026-09-01</summary>
+
+**Status:** offen, aufgenommen am 2026-09-01.
+**Betrifft:** `services/tiles/build-pmtiles.sh`, `apps/core/src/map/regions/`,
+`yapaja_go/` (Add-on-Image).
+
+### Was fehlt
+
+Der ausdrückliche Wunsch lautet: **alles aus der GUI, nichts über SSH.**
+Erreicht ist das für Installation (Add-on-Store), Konfiguration, Diagnose
+(🩺 Installationsprüfung) und den Download eigener `.pmtiles`-Quellen.
+
+**Nicht** erreicht ist es für den Kachelbau selbst. `build-pmtiles.sh` muss
+heute auf einer Kommandozeile gestartet werden. Da es keine fertigen Kacheln
+zum Herunterladen gibt (siehe `docs/installation.md` §C.1), heißt das: der
+eine Schritt, ohne den es überhaupt keine Karte gibt, ist der einzige, der
+noch eine Shell braucht.
+
+### Warum zurückgestellt
+
+Nicht, weil es unklar wäre, sondern weil es ein eigener Bau ist und nicht
+nebenbei ehrlich zu machen:
+
+* ein Job, der **Stunden** läuft und einen Neustart des Add-ons überleben
+  bzw. sauber wieder anlaufen muss (die bestehende `JobRegistry` ist auf
+  Downloads von Minuten ausgelegt);
+* eine RAM-/Platz-Vorprüfung **vor** dem Start, sonst holt der OOM-Killer
+  auf einer 8-GB-VM nicht unbedingt planetiler, sondern Home Assistant;
+* die ~100 MB `planetiler.jar` müssen ins Image oder beim ersten Bau geholt
+  werden (der JAR-Modus dafür existiert bereits, siehe `PLANETILER_JAR`);
+* Fortschritt und Abbruch in der Oberfläche, sonst ist ein mehrstündiger
+  Lauf von einem Hänger nicht unterscheidbar.
+
+Ein halb gebauter Auslöser wäre schlechter als gar keiner: er verspricht
+GUI-Bedienbarkeit und liefert einen Lauf, den niemand beobachten oder
+abbrechen kann.
+
+### Nachtrag 2026-09-02 — was der erste echte Betrieb gezeigt hat
+
+Die Installationsprüfung nannte als Abhilfe den „Knopf ‚Kacheln bauen'" und
+„‚Suchindex bauen'". **Beide gibt es nicht** — sie sind genau dieser
+Backlog-Punkt. Der Betreiber suchte in der Oberfläche nach Bedienelementen,
+die nie gebaut wurden. Das war dieselbe Fehlerklasse wie der Katalog, der auf
+404-URLs zeigte, und ist behoben: die Anweisungen beschreiben jetzt den Weg,
+den es wirklich gibt, und ein Test (`preflight.test.ts`) lässt keine
+Anweisung mehr durch, die ein Bedienelement nennt, das im Frontend nicht
+vorkommt.
+
+Zwei weitere Befunde aus demselben Anlass:
+
+* Das Bau-Skript lag **gar nicht im Add-on-Image**. Wer über den HA-Store
+  installiert, hat kein Repository — für ihn zeigten alle Anweisungen ins
+  Leere. `build-pmtiles.sh` liegt jetzt im Image, erreichbar als
+  `yapaja-build-pmtiles`.
+* Routinggraph und Lite-Suchindex lassen sich auf dem Gerät **überhaupt
+  nicht** bauen (Docker-Socket bzw. osmium fehlen). Das steht jetzt so in
+  §C.3a statt eines Verweises auf einen Automatismus, den es nicht gibt.
+
+### Was stattdessen gilt
+
+* `docs/installation.md` §C beschreibt den Bau vollständig, getrennt nach
+  kleiner Region (auf dem Gerät) und ganzem Land (woanders bauen), samt
+  JAR-Modus für den Add-on-Container ohne Docker-Socket.
+* Die Oberfläche **lügt nicht mehr**: Regionen ohne Download-Quelle zeigen
+  „Wird gebaut" statt eines Knopfes, der sicher scheitert.
+* Die 🩺 Installationsprüfung sagt, dass die Kacheln fehlen, und nennt den
+  Weg dorthin.
+* Für Weg (c) aus §C.5 — die fertige Datei woanders bauen und per „Samba
+  share"/„File editor" ablegen — ist tatsächlich **keine Shell auf der
+  HAOS-VM** nötig.
+
+### Wie es wieder aufgegriffen wird
+
+`POST /api/v1/map/regions/:id/build` auf Basis der bestehenden `JobRegistry`,
+mit Vorprüfung von RAM und Platz aus `system/preflight.ts`, Fortschritt über
+denselben Job-Polling-Weg wie der Download, und `planetiler.jar` im
+Add-on-Image. Der atomare Swap (W-17) und die PMTiles-Signaturprüfung sind im
+Skript bereits vorhanden und müssen nicht neu gebaut werden.
+
+</details>
+
+---
+
+## Wie diese Datei gepflegt wird
+
+* Ein Eintrag verschwindet erst, wenn die Arbeit **getan** ist — nicht, wenn
+  sie unangenehm wird.
+* Jeder zurückgestellte CI-Job verweist im Workflow-Kommentar auf seine
+  B-Nummer, damit man vom roten (bzw. abwesenden) Job zur Begründung findet.
+* Was hier als Einschränkung für ein Release steht, gehört in die
+  Release-Notes dieses Releases.

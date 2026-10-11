@@ -1,0 +1,1244 @@
+import type { Position as SharedPosition } from '@yapaia/shared';
+import { TempolimitDienst } from './routing/tempolimitDienst.js';
+import { ValhallaClient } from './routing/valhallaClient.js';
+import { VALHALLA_COSTING } from './routing/profileMapping.js';
+import Fastify, { FastifyInstance } from 'fastify';
+import fastifyStatic from '@fastify/static';
+import pino from 'pino';
+import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { profilesPlugin } from './profiles/routes.js';
+import { ProfileService } from './profiles/service.js';
+import { EventBus } from './bus/index.js';
+import { busWebsocketPlugin, WsClientRegistry } from './bus/ws.js';
+import { PositionService } from './position/service.js';
+import { positionPlugin } from './position/routes.js';
+import { DeadReckoningController } from './position/deadReckoning.js';
+import { SimulatorSource } from './position/simulator/index.js';
+import { simulatorPlugin } from './position/simulator/routes.js';
+import { GpsdSource } from './position/gpsd/index.js';
+import { HaTrackerSource, listGpsTrackers } from './position/haTracker/index.js';
+import { istCompanionAppQuelle } from './position/gpsSourceOption.js';
+import { resolveHaConfig, resolveHaConnection, resolveTrackerEntityId } from './ha/config.js';
+import { BEAT_ENTITAET, BeatAnsage, beatAktionVorhanden, beatAnsagenAn, rufeBeat } from './ha/beatAnsage.js';
+import {
+  AnsageKette,
+  LautsprecherAnsage,
+  ansageWeg,
+  ansageZiel as waehleAnsageZiel,
+  browserDarf,
+  findeStimme,
+  maModus,
+  ttsAudioPfad,
+  maEingerichtet,
+  maLautsprecher,
+  type Stimme,
+} from './ha/lautsprecherAnsage.js';
+import { mapPlugin } from './map/routes.js';
+import { routingPlugin, buildRoutingService } from './routing/routes.js';
+import { onlinePlugin } from './online/routes.js';
+import { navigationPlugin } from './navigation/routes.js';
+import { NavigationService } from './navigation/service.js';
+import { RouteAwareDeadReckoningProvider, MAX_DEAD_RECKONING_WINDOW_MS } from './navigation/deadreckoning.js';
+import { FileNavRecoveryStore } from './navigation/recoveryStore.js';
+import { searchPlugin, buildSearchService } from './search/routes.js';
+import { favoritesPlugin } from './favorites/routes.js';
+import { FavoriteService } from './favorites/service.js';
+import { settingsPlugin } from './settings/routes.js';
+import { SettingsService } from './settings/service.js';
+import { resolveMqttConfig, resolveDiscoveryConfig } from './mqtt/config.js';
+import { MqttBridge } from './mqtt/bridge.js';
+import { AuthGuard } from './auth/authGuard.js';
+import { authPlugin } from './auth/plugin.js';
+import { HaOutputChannel } from './ha/outputChannel.js';
+import { starteDashboardPflege } from './ha/dashboard.js';
+import { fetchHaStates, fetchHaStatesById, postHaState } from './ha/client.js';
+import { Sprachdialog } from './sprache/dialog.js';
+import { frageKi } from './ha/kiAgent.js';
+import { AUTOMATION_ID, HaSprachBruecke, SPRACH_EINGABE } from './ha/sprachBruecke.js';
+import { wsBefehlErgebnis } from './ha/wsBefehl.js';
+import { BrowserKanal } from './ha/browserKanal.js';
+import { registriereSprache, sprachDeps, type BrowserAnsage } from './sprache/kern.js';
+import { resolveDestinationAndRoute } from './navigation/destinationResolver.js';
+import { BordDienst, bordKonfigurationAusUmgebung } from './bord/dienst.js';
+import { leseSonderziele } from './map/sonderziele/ausIndex.js';
+import {
+  leseKandidaten,
+  sucheUnterwegs,
+  unterwegsKategorie,
+  UNTERWEGS_KATEGORIEN,
+} from './search/unterwegs.js';
+import { HaStatesBridge } from './ha/statesBridge.js';
+import { HaCommandWatcher } from './ha/commandWatcher.js';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { serveIndexHtml } from './static/ingressHtml.js';
+import { systemPlugin } from './system/routes.js';
+import { readAddonVersion, readPackageVersion } from './version.js';
+import { addonsPlugin } from './addons/routes.js';
+import { addonRegistryPlugin } from './addons/registryRoutes.js';
+import { addonUiHostPlugin } from './addons/ui-host.js';
+import { addonStoragePlugin } from './addons/storageRoutes.js';
+import { AddonAuthService, AddonTokenService } from './addons/tokens.js';
+import { AddonServiceHost } from './addons/service-host.js';
+import { addonServicePlugin } from './addons/serviceRoutes.js';
+import { addonProxyPlugin } from './addons/proxy.js';
+import { AddonRepository } from './addons/repository.js';
+import { securityPlugin } from './security/routes.js';
+import { securityEventLog } from './security/securityEvents.js';
+import { securityHeadersPlugin } from './security/headers.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+interface HealthResponse {
+  status: string;
+  version: string;
+  services: Record<string, string>;
+}
+
+export interface BuildServerOptions {
+  publicDir?: string;
+  /**
+   * E10-T5 (docs/07 §7, OpenAPI): fired via Fastify's built-in `onRoute`
+   * hook for every route registered anywhere in this server, including
+   * inside nested plugins (`onRoute` hooks are inherited by every
+   * encapsulation context created by `fastify.register()` AFTER the hook
+   * is added -- which is why this is wired as the very first statement in
+   * `buildServer()`, before any plugin registration).
+   *
+   * This is how `apps/core/src/openapi/generate.ts` derives the real,
+   * live REST route inventory (method + URL, prefixes included) for the
+   * published OpenAPI document -- introspection of the actually-running
+   * app, not a hand-maintained list that can drift. Optional and unused
+   * by every other caller (tests, `main()`), so this is purely additive:
+   * omitting it leaves `buildServer()`'s behavior byte-for-byte identical
+   * to before.
+   */
+  onRouteHook?: (route: { method: string | string[]; url: string }) => void;
+}
+
+/**
+ * `GPSD_ENABLED` gates whether the core actively tries to connect to gpsd
+ * at startup. Explicit `'true'`/`'1'`/`'false'`/`'0'` always win; with the
+ * var unset, default to enabled only when `NODE_ENV=production` (Compose/
+ * HA-add-on) -- mirrors the inverse-polarity pattern already used for
+ * `ENABLE_SIMULATOR` in position/simulator/routes.ts (env override + a
+ * NODE_ENV-based default), just flipped: gpsd should be on by default in
+ * production and off by default elsewhere, simulator is the other way
+ * round.
+ */
+function isGpsdEnabled(): boolean {
+  const raw = process.env.GPSD_ENABLED;
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  return process.env.NODE_ENV === 'production';
+}
+
+export async function buildServer(opts: BuildServerOptions = {}): Promise<FastifyInstance> {
+  const fastify = Fastify({
+    logger: true,
+  });
+
+  // E10-T5: must be the FIRST thing registered on `fastify` -- see the
+  // `onRouteHook` doc comment above for why ordering matters here.
+  if (opts.onRouteHook) {
+    fastify.addHook('onRoute', opts.onRouteHook);
+  }
+
+  // E10-T4 (docs/07 §7): baseline security response headers (CSP incl.
+  // `frame-ancestors`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`)
+  // for EVERY reply this server produces -- SPA shell, static assets and
+  // `/api/*` alike. Registered FIRST so no later plugin can be served without
+  // them; the add-on UI host's stricter own CSP is explicitly not overridden
+  // (see `security/headers.ts`).
+  await fastify.register(securityHeadersPlugin);
+
+  // ZWEI Versionen, absichtlich getrennt (siehe `version.ts`):
+  //   `version`     -- was der Betreiber laeuft (Add-on-Version aus
+  //                    `config.yaml`, vom Supervisor als BUILD_VERSION
+  //                    hereingereicht). Das meldet `/api/v1/health`, das
+  //                    steht als `sw_version` in der HA-Discovery.
+  //   `coreVersion` -- der Core-API-Vertrag fuer `core_api` von Fremd-
+  //                    Add-ons. Der darf sich nicht mitbewegen, nur weil eine
+  //                    Kartenfunktion eine neue Add-on-Version bekommt.
+  const version = await readAddonVersion();
+  const coreVersion = await readPackageVersion();
+
+  // Internal event bus (ADR-010) + WS-client presence tracker (E06-T3):
+  // created BEFORE the profile service below so its `onProfileChanged` hook
+  // can publish straight onto the bus.
+  const eventBus = new EventBus();
+  const wsClientRegistry = new WsClientRegistry();
+
+  // E09-T6 (W-10, docs/07 §7): wire the process-wide `security` event
+  // recorder to THIS server's bus + logger. Every enforcement point
+  // (scope matrix, egress proxy, storage namespace, tarball extractor,
+  // scoped tokens, service-process FS confinement, the frontend bridge via
+  // `POST /api/v1/security/events`) records into it the moment it refuses --
+  // see `security/securityEvents.ts`. Recording works even before this call,
+  // so nothing fired during startup is lost.
+  securityEventLog.configure({
+    bus: eventBus,
+    logger: { warn: (meta, msg) => fastify.log.warn(meta, msg) },
+  });
+
+  // E08-T3: settings store is created HERE (earlier than E07-T1 originally
+  // placed it) so the auth guard below can read the live `auth.token` and the
+  // HA output channel can read the live `ha` config. The SAME instance is
+  // shared with `settingsPlugin` (and the MQTT bridge) further down -- exactly
+  // the "build outside, inject via `service:`" pattern used for the routing/
+  // search/navigation services.
+  const settingsService = new SettingsService();
+
+  // E08-T3 token auth (docs/04 §2, SECURITY): a Bearer token guards `/api/*`
+  // (health + auth/status open). Auth is ENFORCED only when a token is
+  // configured (env `API_AUTH_TOKEN` wins, else Settings `auth.token`) and NOT
+  // in ingress mode -- a fresh, token-less install stays open so the bundled UI
+  // and `/ws/v1` work out of the box (see `auth/authGuard.ts` for the full
+  // rationale + trade-off). Registered BEFORE every API route plugin so its
+  // root `onRequest` hook applies to all of them.
+  const authGuard = new AuthGuard({ settings: settingsService });
+
+  // E09-T3 (docs/05 §1B/§2, W-14): the SECOND principal type. A bearer token
+  // may also be a per-add-on SCOPED token; such a request authenticates as
+  // that add-on and is then authorized against the server-side route->scope
+  // table (`addons/scopeMatrix.ts`), DEFAULT-DENY. This is additive -- the
+  // ordinary Core token and the token-less open posture behave exactly as
+  // before (E08-T3). The SAME instance is handed to the WS plugin below so
+  // REST and WebSocket enforce one identical scope matrix.
+  const addonTokenService = new AddonTokenService();
+  const addonAuth = new AddonAuthService(addonTokenService);
+  await fastify.register(authPlugin, {
+    guard: authGuard,
+    settings: settingsService,
+    addonAuth,
+  });
+
+  // E06-T1/T3: `onProfileChanged` (fired by `ProfileService#activate`) is
+  // published as `event/profile_changed` -- the ONLY way `NavigationService`
+  // (wired further below, sharing this SAME instance via `profilesPlugin`'s
+  // `service` option) learns a profile switch happened, so it can couple it
+  // to a reroute decision while navigating/paused.
+  const profileService = new ProfileService({
+    onProfileChanged: (profile) => {
+      eventBus.publish('event/profile_changed', { id: profile.id, name: profile.name });
+    },
+    // E08-T2: create/update/delete -> re-publish `select.yapaja_profile`'s
+    // HA discovery `options` (see `mqtt/bridge.ts`'s `event/profile_list_changed`
+    // subscription).
+    onProfileListChanged: () => {
+      eventBus.publish('event/profile_list_changed', {});
+    },
+  });
+
+  // Initialize profile service
+  await profileService.init();
+
+  // Register profiles plugin. `service: profileService` -- the SAME instance
+  // constructed above, not a second independent one -- is essential so
+  // activations made through THESE HTTP routes are the ones that carry the
+  // `onProfileChanged` hook (see comment above).
+  await fastify.register(profilesPlugin, { prefix: '/api/v1', service: profileService });
+
+  const positionService = new PositionService({ bus: eventBus });
+  // GPS simulator position source (E02-T4): registers as 'simulator' with
+  // the same PositionService registry the real gpsd/browser sources use.
+  const simulatorSource = new SimulatorSource(positionService);
+  positionService.registerSource(simulatorSource);
+
+  // gpsd position source (E02-T3, ADR-007): registers exactly like the
+  // simulator source above. Connecting is gated by GPSD_ENABLED so that
+  // dev/test runs of buildServer() don't spam background reconnect
+  // attempts against a gpsd daemon that (usually) isn't running locally;
+  // production/HA-add-on deployments (which always ship a gpsd service,
+  // docs/01 ADR-008) default to enabled. Either way, an unreachable gpsd
+  // never crashes the core -- the source just stays inactive and
+  // PositionService falls back to the next-priority source (ADR-007).
+  const gpsdSource = new GpsdSource({
+    positionService,
+    host: process.env.GPSD_HOST,
+    port: process.env.GPSD_PORT ? parseInt(process.env.GPSD_PORT, 10) : undefined,
+  });
+  positionService.registerSource(gpsdSource);
+  if (isGpsdEnabled()) {
+    gpsdSource.start();
+  }
+
+  // Position aus einer Home-Assistant-`device_tracker`-Entitaet (B-05).
+  // Der Weg fuer Telefon/Tablet/Autoradio, wenn der Browser den GPS-Sensor
+  // nicht freigibt -- ohne HTTPS tut er das naemlich nie. Aus genau demselben
+  // Grund wie bei gpsd gilt: eine nicht konfigurierte oder unerreichbare
+  // Quelle bleibt still inaktiv und laesst PositionService auf die naechste
+  // Prioritaet zurueckfallen.
+  const haTrackerSource = new HaTrackerSource({
+    positionService,
+    resolveConnection: () => resolveHaConnection({ settings: settingsService }),
+    // LIVE gelesen, nicht beim Start eingefroren: die Einstellung
+    // `ha.device_tracker` setzt die Yapaia-Oberflaeche (Installationspruefung
+    // -> „Positionsquelle"), und sie soll sofort gelten. Die Umgebung bleibt
+    // die Vorgabe fuer alle, die den Wert weiterhin in der
+    // Add-on-Konfiguration eintragen.
+    entityId: () => resolveTrackerEntityId(settingsService, process.env),
+    // `gps_source: ha_tracker` heisst „nimm die Companion App" -- und nicht
+    // „schlag die Entity-ID in Entwicklerwerkzeuge -> Zustaende nach und
+    // schreib sie ab". Gibt es genau einen Tracker mit Koordinaten, waehlt
+    // die Quelle ihn selbst; bei mehreren raet sie bewusst nicht.
+    autoSelect: istCompanionAppQuelle(process.env.GPS_SOURCE),
+    logger: {
+      info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+      error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+    },
+  });
+  positionService.registerSource(haTrackerSource);
+  if (haTrackerSource.isConfigured()) {
+    haTrackerSource.start();
+  }
+
+  await fastify.register(busWebsocketPlugin, {
+    bus: eventBus,
+    registry: wsClientRegistry,
+    // E08-T3: the `/ws/v1` upgrade authenticates via `?token=`/cookie, same
+    // "enforced only when a token is configured (and not in ingress)" rule.
+    authGuard,
+    // E09-T3: an add-on token is accepted here too, but every `subscribe`
+    // pattern is then checked against that add-on's scopes (same matrix as
+    // REST) -- e.g. `pos/*` needs `pos.read`, a bare `*` is never granted.
+    addonAuth,
+  });
+  await fastify.register(positionPlugin, { prefix: '/api/v1', service: positionService });
+  await fastify.register(simulatorPlugin, {
+    prefix: '/api/v1',
+    simulator: simulatorSource,
+    service: positionService,
+    // Traege ausgewertet: `routingService` entsteht erst weiter unten. Siehe
+    // die Begruendung an `SimulatorRoutesOptions.getRoute`.
+    getRoute: (id) => routingService.getCachedRoute(id),
+  });
+
+  // Register map/tiles plugin (E01-T1): additive, does not touch other plugins.
+  await fastify.register(mapPlugin);
+
+  // Routing plugin (E03-T2, 🔴 W-08): maps the active vehicle profile onto
+  // Valhalla truck costing. Additive; the Valhalla base URL comes from
+  // VALHALLA_URL (defaults to http://localhost:8002 inside the client).
+  // The RoutingService is built HERE (not inside the plugin) so the exact
+  // same instance -- and its route cache -- is shared with the navigation
+  // plugin below (E04-T1: `POST /navigation/start {route_id}` looks routes up
+  // in that cache).
+  const routingService = buildRoutingService(fastify, {
+    positionService,
+    profileService,
+    valhallaUrl: process.env.VALHALLA_URL,
+    // Live gelesen, damit ein Sprachwechsel ab der naechsten Route gilt.
+    sprache: () => {
+      const wert = settingsService.get('language');
+      return typeof wert === 'string' ? wert : null;
+    },
+    // Ebenso live: die gewaehlte Routenart gilt ab der naechsten Berechnung.
+    routeMode: () => {
+      const wert = settingsService.get('route_mode');
+      return wert === 'shortest' || wert === 'balanced' || wert === 'fastest' ? wert : null;
+    },
+  });
+  await fastify.register(routingPlugin, {
+    prefix: '/api/v1',
+    positionService,
+    profileService,
+    service: routingService,
+  });
+
+  // Search service (E05-T1, built here rather than inside `searchPlugin` --
+  // E04-T5 needs the SAME instance for `POST /navigation/destination`'s
+  // `query` -> geocode path, mirroring how `routingService` above is shared
+  // between the routing and navigation plugins). `online_fallback` defaults
+  // to false (docs/03 §2, E05-T1) -- online Nominatim lookups only run when
+  // explicitly opted in via env. E05-T5/W-12: `photon_enabled` defaults to
+  // true (env `PHOTON_ENABLED=false` to turn Photon off, e.g. to save RAM) --
+  // the offline `lite` fallback then takes over automatically (also used
+  // whenever Photon is merely down).
+  const searchService = buildSearchService(fastify, {
+    photonUrl: process.env.PHOTON_URL,
+    onlineFallback: process.env.SEARCH_ONLINE_FALLBACK === 'true',
+    photonEnabled: process.env.PHOTON_ENABLED !== 'false',
+    lang: process.env.SEARCH_LANG,
+  });
+
+  // Navigation service (E04-T1, 🔴 safety-critical): state machine +
+  // map-matching, driven off `pos/update`, publishing `nav/state` at ~1 Hz.
+  // Restart recovery (W-19) persists only the last active route reference to
+  // a small JSON file; navigation itself always boots `idle` (no ghost nav).
+  //
+  // Constructed HERE (not inside `navigationPlugin`, which otherwise builds
+  // its own) so E04-T6's `DeadReckoningController` below can hold a direct
+  // reference to it: `NavigationService` implements `DeadReckoningRouteSource`
+  // (its `getActiveForDeadReckoning()` is the DR provider's live route/
+  // progress/next-maneuver/speed source) -- same "build outside, inject via
+  // `service:`" pattern already used for `routingService`/`searchService` above.
+  const navigationLogger = {
+    info: (msg: string, meta?: Record<string, unknown>) => fastify.log.info(meta ?? {}, msg),
+    warn: (msg: string, meta?: Record<string, unknown>) => fastify.log.warn(meta ?? {}, msg),
+    error: (msg: string, meta?: Record<string, unknown>) => fastify.log.error(meta ?? {}, msg),
+  };
+  const navigationService = new NavigationService({
+    bus: eventBus,
+    routeProvider: routingService,
+    // E04-T4: automatic rerouting reuses the SAME shared RoutingService — its
+    // `createRoutes` is the reroute entry point (cache also shared with
+    // routeProvider above). E04-T5's `POST /navigation/destination` reuses
+    // the very same seam to compute the initial route to a `latlng`/`query`.
+    rerouteProvider: routingService,
+    // E04-T2: the ETA avg-speed floor reads the active profile directly off
+    // ProfileService (same instance the routing plugin above uses). E04-T5's
+    // destination endpoint also falls back to it when no `profile_id` is given.
+    profileProvider: profileService,
+    // E06-T3: "is a UI client connected?" -- decides confirmation-banner vs.
+    // headless auto-reroute when the active profile changes mid-navigation.
+    clientPresence: wsClientRegistry,
+    recoveryStore: new FileNavRecoveryStore(
+      process.env.NAV_RECOVERY_PATH ?? join(__dirname, '../.data/nav-recovery.json'),
+      {
+        fs: { existsSync, readFileSync, mkdirSync, writeFileSync, rmSync },
+        dirname,
+        logger: { warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg) },
+      },
+    ),
+    logger: navigationLogger,
+  });
+
+  // Dead-reckoning (E02-T5 scaffold, E04-T6 real math, Wargame W-01):
+  // extrapolates the puck ALONG THE ACTIVE ROUTE for up to 30s after GPS is
+  // lost, using `navigationService` as the live route/progress/speed source
+  // -- `RouteAwareDeadReckoningProvider` replaces the E02-T5 placeholder
+  // (`noopDeadReckoningProvider`, which always declined and left the puck
+  // frozen). `navigationService` itself also subscribes to the resulting
+  // `pos/extrapolated` fixes (its own `pos/extrapolated` bus subscription,
+  // see `navigation/service.ts`) to keep announcements/`nav/state` running
+  // through the outage and to pause navigation after the 30s cap.
+  const deadReckoningController = new DeadReckoningController({
+    bus: eventBus,
+    service: positionService,
+    provider: new RouteAwareDeadReckoningProvider(navigationService),
+    maxWindowMs: MAX_DEAD_RECKONING_WINDOW_MS,
+  });
+
+  fastify.addHook('onClose', async () => {
+    deadReckoningController.dispose();
+    navigationService.dispose();
+    simulatorSource.dispose();
+    gpsdSource.dispose();
+    positionService.dispose();
+  });
+
+  // Navigation plugin: REST routes only (`POST /navigation/*`, `GET
+  // /navigation/state`) -- `service: navigationService` makes it reuse the
+  // SAME instance constructed above rather than building a second one.
+  await fastify.register(navigationPlugin, {
+    prefix: '/api/v1',
+    bus: eventBus,
+    service: navigationService,
+    routeProvider: routingService,
+    rerouteProvider: routingService,
+    profileProvider: profileService,
+    // E04-T5: `POST /navigation/destination`'s `query` -> geocode path (the
+    // same shared SearchService instance registered below) -- used directly
+    // by the route handler even when `service` is injected.
+    searchProvider: searchService,
+    clientPresence: wsClientRegistry,
+  });
+
+  // Search plugin (E05-T1): Photon + Nominatim-Fallback geocoding, additive.
+  await fastify.register(searchPlugin, {
+    prefix: '/api/v1',
+    service: searchService,
+  });
+
+  // Favorites & history plugin (E05-T3, docs/03 §2): additive, does not
+  // touch other plugins.
+  await fastify.register(favoritesPlugin, { prefix: '/api/v1' });
+
+  // ─── ONLINE-DIENSTE ───────────────────────────────────────────────────────
+  // Der einzige Teil von Yapaia, der nach draussen ruft. Immer registriert,
+  // damit `GET /online/status` auch dann antworten kann, wenn die Dienste AUS
+  // sind -- die Oberflaeche soll sagen koennen „ausgeschaltet, hier ist der
+  // Schalter" statt gar nichts anzuzeigen. Gerufen wird nur bei `enabled`.
+  await fastify.register(onlinePlugin, {});
+
+  // General-purpose settings plugin (E07-T1): additive, does not touch other
+  // plugins. The widget-shell's `layouts` key is its first consumer (see
+  // `apps/web/src/shell/persistence.ts`); future settings (units, theme,
+  // online_fallback, ...) reuse the same key/value store. The SAME
+  // `settingsService` instance created at the top of `buildServer` (so the auth
+  // guard + HA output channel + MQTT bridge all read the SAME live settings) is
+  // injected here rather than letting the plugin build its own.
+  await fastify.register(settingsPlugin, {
+    prefix: '/api/v1',
+    service: settingsService,
+    // Die Vorgabe aus der Add-on-Option `display.theme` -- siehe
+    // `settings/routes.ts` dazu, warum sie NICHT in den Speicher geschrieben
+    // wird. Im Standalone-Betrieb ist die Variable ungesetzt: keine Vorgabe.
+    defaults: { themeMode: process.env.THEME_MODE },
+  });
+
+  // Add-on manifest/install/lifecycle plugin (E09-T1, docs/05 §2/§5):
+  // additive, does not touch other plugins. `coreVersion` is the CORE's own
+  // version (`readPackageVersion()`), NOT the add-on version `/api/v1/health`
+  // reports -- for the manifest `core_api` semver-range check (Wargame W-11), see
+  // `addons/installService.ts`. This task only covers manifest validation +
+  // install/lifecycle + DB + tarball-extraction hardening; it does not start
+  // any add-on service process or serve add-on UIs (E09-T2/T3).
+  //
+  // E09-T3: `lifecycle: addonServiceHost` ties the add-on SERVICE RUNTIME to
+  // the `enabled` flag -- enable spawns the child process + issues its scoped
+  // token, disable kills it + revokes the token, uninstall does both and then
+  // wipes the files. `InstallService` is the only place `enabled` is ever
+  // flipped, so there is no path that starts/stops an add-on without the
+  // matching token operation.
+  const addonServiceHost = new AddonServiceHost({
+    tokens: addonTokenService,
+    bus: eventBus,
+    logger: {
+      info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+      error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+    },
+    // Resolved lazily at SPAWN time -- the server is listening by then, so an
+    // add-on always gets the real bound port (0 => ephemeral in tests).
+    apiUrlProvider: () => {
+      const address = fastify.server.address();
+      if (address && typeof address === 'object') {
+        const host = address.address === '::' || address.address === '0.0.0.0' ? '127.0.0.1' : address.address;
+        return `http://${host.includes(':') ? `[${host}]` : host}:${address.port}`;
+      }
+      return process.env.YAPAJA_API_URL ?? `http://127.0.0.1:${process.env.PORT ?? '8080'}`;
+    },
+  });
+  fastify.decorate('addonServiceHost', addonServiceHost);
+  fastify.addHook('onClose', async () => {
+    // No add-on child process may ever outlive the Core.
+    addonServiceHost.stopAll();
+  });
+
+  await fastify.register(addonsPlugin, {
+    prefix: '/api/v1',
+    coreVersion,
+    lifecycle: addonServiceHost,
+  });
+
+  // Add-on REGISTRY plugin (E09-T7, docs/05 §5, W-11/W-13): `GET
+  // /addons/registry` (cached catalog + age, offline-safe) + `POST
+  // /addons/registry/sync` (fetch/validate/persist a fresh one). Additive --
+  // installing FROM a registry entry reuses `POST /addons/install
+  // {source:'url', ...}` above unchanged, so sha256/core_api enforcement
+  // stays in the ONE place it already lived (`installService.ts`).
+  await fastify.register(addonRegistryPlugin, { prefix: '/api/v1', coreVersion });
+
+  // E09-T2 (docs/05 §1A, Wargame W-10): serve an ENABLED add-on's UI assets
+  // under `/addons/{id}/ui/**` behind a strict CSP (no external hosts,
+  // `connect-src 'none'`, `frame-ancestors 'self'`), plus the host-side,
+  // namespace-enforced `storage.own` KV surface under `/api/v1/addons/:id/
+  // storage/:key`. The UI-host route is registered at the ROOT (no `/api`
+  // prefix) so a plain iframe navigation reaches it, and -- being a real
+  // registered route -- always wins over the SPA not-found fallback below,
+  // so an add-on UI is never served the main app's index.html. Only the
+  // FRONTEND runtime (iframe + bridge) lives in this task; add-on SERVICE
+  // processes are E09-T3.
+  await fastify.register(addonUiHostPlugin);
+  await fastify.register(addonStoragePlugin, { prefix: '/api/v1' });
+
+  // E09-T3 (docs/05 §1B/§2, W-14): the service-add-on surfaces --
+  // token issue/rotate (the `runtime: external` path), process + watchdog
+  // status, the namespace-forced `events.publish` endpoint, and `ha.notify`.
+  await fastify.register(addonServicePlugin, {
+    prefix: '/api/v1',
+    host: addonServiceHost,
+    bus: eventBus,
+  });
+  // Egress proxy: outbound HTTP only to hosts the add-on declared via
+  // `net.fetch:<host>`, exact-hostname matched, redirects re-validated.
+  await fastify.register(addonProxyPlugin, { prefix: '/api/v1' });
+
+  // E09-T6 (W-10): the `security` event channel -- `GET /api/v1/security/events`
+  // (operator/UI read of every BLOCKED sandbox-escape attempt) and
+  // `POST /api/v1/security/events` (the trusted web host forwarding its
+  // browser-side detections). BOTH are default-denied to add-on principals by
+  // the scope matrix; see `security/routes.ts` for the full rationale.
+  await fastify.register(securityPlugin, { prefix: '/api/v1' });
+
+  // System resources (E08-T5, W-12/W-18): real measured free/total disk (of
+  // the map-tiles data dir) + free/total RAM, for the onboarding wizard's
+  // region step to derive its "< 3 GB free -> recommend Photon off"
+  // recommendation from. Additive; does not touch other plugins.
+  await fastify.register(systemPlugin, {
+    // Die Installationspruefung muss DASSELBE lesen wie die laufende Quelle.
+    // Ohne das hier las sie nur die Add-on-Option, waehrend `HaTrackerSource`
+    // zuerst die Einstellung `ha.device_tracker` nimmt -- wer den Tracker in
+    // der Oberflaeche waehlte, bekam eine Pruefung, die davon nichts wusste
+    // und bei mehreren Trackern „Yapaia raet nicht" meldete, obwohl laengst
+    // einer benutzt wurde.
+    preflightDeps: {
+      resolveTrackerId: () => resolveTrackerEntityId(settingsService, process.env),
+    },
+    // B-05: die Auswahl der Positionsquelle aus der Companion App. Die Liste
+    // kommt aus Home Assistant, die Wahl landet in den Einstellungen -- und
+    // `HaTrackerSource` liest sie bei der naechsten Abfrage, ohne Neustart.
+    trackerDeps: {
+      listeTracker: async () => {
+        const verbindung = resolveHaConnection({ settings: settingsService });
+        if (!verbindung) return [];
+        const states = await fetchHaStates(verbindung, {
+          logger: {
+            info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+            warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+            error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+          },
+        });
+        return listGpsTrackers(states).map((entityId) => ({
+          entity_id: entityId,
+          friendly_name:
+            (states.find((z) => z.entity_id === entityId)?.attributes?.friendly_name as string) ??
+            entityId,
+        }));
+      },
+      gewaehlt: () => resolveTrackerEntityId(settingsService, process.env),
+      waehle: (entityId) => {
+        const vorher = (settingsService.get('ha') ?? {}) as Record<string, unknown>;
+        settingsService.patch({ ha: { ...vorher, device_tracker: entityId } });
+      },
+    },
+  });
+
+  // MQTT bridge (E08-T1, docs/03 §4): OPTIONAL -- only constructed when a
+  // broker is configured (Settings key `mqtt` and/or env `MQTT_BROKER_URL`,
+  // see `mqtt/config.ts`). Shares the SAME bus/navigationService/
+  // profileService/routingService/searchService instances wired above (no
+  // second bus, no duplicated business logic -- see `mqtt/bridge.ts` and
+  // `navigation/destinationResolver.ts`). `FavoriteService` is the one
+  // exception: it is entirely stateless (every call re-reads the shared DB
+  // singleton, see `favorites/service.ts`), so a second instance here is
+  // behaviourally identical to the one `favoritesPlugin` builds internally --
+  // no shared-instance requirement, unlike `profileService`/`navigationService`
+  // (which carry live state/hooks) or `eventBus` (a single in-memory router).
+  const mqttConfig = resolveMqttConfig({ settings: settingsService, env: process.env });
+  // E08-T2: discovery is resolved independent of `mqttConfig` (its own
+  // Setting-key fields, `mqtt.discovery`/`mqtt.discovery_prefix`/
+  // `mqtt.configuration_url`, default enabled) but only ever matters when a
+  // broker is ALSO configured -- no broker, no bridge, no discovery, same as
+  // every other MQTT behaviour (acceptance criterion 4).
+  const discoveryConfig = resolveDiscoveryConfig({ settings: settingsService, env: process.env });
+  const mqttLogger = {
+    info: (msg: string, meta?: Record<string, unknown>) => fastify.log.info(meta ?? {}, msg),
+    warn: (msg: string, meta?: Record<string, unknown>) => fastify.log.warn(meta ?? {}, msg),
+    error: (msg: string, meta?: Record<string, unknown>) => fastify.log.error(meta ?? {}, msg),
+  };
+  const mqttBridge = mqttConfig
+    ? new MqttBridge({
+        bus: eventBus,
+        brokerUrl: mqttConfig.brokerUrl,
+        username: mqttConfig.username,
+        password: mqttConfig.password,
+        prefix: mqttConfig.prefix,
+        navigationService,
+        profileService,
+        favoriteService: new FavoriteService(),
+        routeProvider: routingService,
+        rerouteProvider: routingService,
+        profileProvider: profileService,
+        searchProvider: searchService,
+        // E09-T8: the "In Home Assistant verfügbar" toggle -- `AddonRepository`
+        // is stateless (re-reads the shared DB singleton on every call, same
+        // as `favoriteService` above), so a fresh instance here is
+        // behaviourally identical to the one `addonsPlugin`/`addonServicePlugin`
+        // use internally; no shared-instance requirement.
+        addonMqttToggle: new AddonRepository(),
+        logger: mqttLogger,
+        discovery: {
+          enabled: discoveryConfig.enabled,
+          discoveryPrefix: discoveryConfig.discoveryPrefix,
+          device: {
+            identifiers: ['yapaja_go'],
+            name: 'Yapaia Go',
+            // SAME version `/api/v1/health` reports (`readAddonVersion()` above).
+            sw_version: version,
+            configuration_url: discoveryConfig.configurationUrl,
+          },
+        },
+      })
+    : null;
+  if (mqttConfig) {
+    fastify.log.info({ prefix: mqttConfig.prefix }, 'MQTT bridge configured, connecting…');
+  }
+  fastify.addHook('onClose', async () => {
+    mqttBridge?.dispose();
+  });
+
+  // HA output channel (E08-T3, docs/04 §2): OPTIONAL Yapaia -> HA direction --
+  // an "HA-TTS" announcement sink (W-23: mutually exclusive with browser TTS,
+  // selected by Settings `ha.announce_sink`) plus arrival / GPS-lost HA
+  // notifications. Always constructed (it's just a bus subscriber); it does
+  // NOTHING until HA is configured in Settings (or via env `SUPERVISOR_TOKEN`
+  // as an add-on) -- see `ha/config.ts`. Every HA REST call has a 5 s timeout
+  // and swallows errors, so a down/misconfigured HA never affects navigation.
+  // Ansagen ins laufende Radio einmischen (Yapaia Beat 1.6): Musik leiser,
+  // Ansage darüber, Musik wieder lauter. Sonst spricht Go wie bisher.
+  // Siehe `ha/beatAnsage.ts`.
+  const ansageLogger = {
+    info: (msg: string, meta?: Record<string, unknown>) => fastify.log.info(meta ?? {}, msg),
+    warn: (msg: string, meta?: Record<string, unknown>) => fastify.log.warn(meta ?? {}, msg),
+    error: (msg: string, meta?: Record<string, unknown>) => fastify.log.error(meta ?? {}, msg),
+  };
+  const beatAnsage = new BeatAnsage({
+    verbindung: () => resolveHaConnection({ settings: settingsService }),
+    eingeschaltet: () => beatAnsagenAn(settingsService.get('ansagen_beat')),
+    stimme: () => {
+      const tts = resolveHaConfig({ settings: settingsService })?.tts;
+      // Beat nimmt nur eine Stimme als Entität (`tts.…`); ein alter
+      // Plattform-Name („google_translate") scheitert dort an der Prüfung --
+      // dann nimmt Beat die Standardstimme von Home Assistant.
+      const engine = tts?.ttsEntityId?.startsWith('tts.') ? tts.ttsEntityId : undefined;
+      return { engine, language: tts?.language };
+    },
+    leseZustaende: (v, ids) => fetchHaStatesById(v, ids, { logger: ansageLogger, timeoutMs: 2_000 }),
+    rufe: (v, data) => rufeBeat(v, data),
+    aktionVorhanden: (v) => beatAktionVorhanden(v),
+  });
+  // Ansagen über Music Assistant (Stufe 3) bzw. den gewählten Lautsprecher;
+  // sonst Beat (Stufe 2/4), sonst Go selbst (Stufe 1). `ha/lautsprecherAnsage.ts`.
+  let stimmeCache: { bis: number; stimme: Stimme | null } | null = null;
+  const stimmeFuer = async (v: Parameters<typeof fetchHaStates>[0]): Promise<Stimme | null> => {
+    if (stimmeCache && stimmeCache.bis > Date.now()) return stimmeCache.stimme;
+    const tts = resolveHaConfig({ settings: settingsService })?.tts;
+    const stimme = await findeStimme(v, { engine: tts?.ttsEntityId, language: tts?.language });
+    stimmeCache = { bis: Date.now() + 10 * 60_000, stimme };
+    return stimme;
+  };
+  // Der Browser mischt selbst ein, wenn er der Player ist, auf dem Beat
+  // gerade spielt (`ha/lautsprecherAnsage.ts#browserDarf`).
+  const browserDarfJetzt = async (): Promise<boolean> => {
+    const v = resolveHaConnection({ settings: settingsService });
+    if (!v) return false;
+    const liste = await fetchHaStates(v, { logger: ansageLogger }).catch(() => []);
+    return browserDarf(
+      Array.isArray(liste) ? liste : [],
+      beatAnsagenAn(settingsService.get('ansagen_beat')),
+      maModus(settingsService.get('ansage_ma_weg')),
+    );
+  };
+  const sprachPfad = async (text: string): Promise<string | null> => {
+    const v = resolveHaConnection({ settings: settingsService });
+    const stimme = v ? await stimmeFuer(v) : null;
+    if (!v || !stimme) return null;
+    const r = await ttsAudioPfad(v, stimme, text);
+    return 'pfad' in r ? r.pfad : null;
+  };
+  const browserAnsage: BrowserAnsage = async (text) => {
+    if (!(await browserDarfJetzt())) return null;
+    const pfad = await sprachPfad(text);
+    return pfad ? { pfad } : null;
+  };
+  // Alle übrigen Ansagen (Antworten über Assist, HA-Kanal): an den Browser,
+  // auf dem das Radio spielt, über den Bus (`ha/browserKanal.ts`).
+  const browserKanal = new BrowserKanal({
+    darf: browserDarfJetzt,
+    pfad: sprachPfad,
+    sende: (n) => eventBus.publish('ansage/browser', n),
+  });
+  const lautsprecherAnsage = new LautsprecherAnsage({
+    verbindung: () => resolveHaConnection({ settings: settingsService }),
+    // Spielt Beat gerade auf genau diesem Player, mischt Beat (die Kette
+    // fragt dann Beat) -- darum frisch nachgesehen, mit Attributen.
+    ziel: async (v) => {
+      const liste = await fetchHaStates(v, { logger: ansageLogger }).catch(() => []);
+      return waehleAnsageZiel(
+        settingsService.get('ansage_lautsprecher'),
+        Array.isArray(liste) ? liste : [],
+        beatAnsagenAn(settingsService.get('ansagen_beat')),
+        maModus(settingsService.get('ansage_ma_weg')),
+      );
+    },
+    gong: () => settingsService.get('ansage_gong') !== false,
+    stimme: (v) => stimmeFuer(v),
+    // Über WebSocket statt REST: so nennt Home Assistant den Grund, wenn es
+    // nicht geht. Die Aktion endet erst, wenn die Ansage gesprochen ist --
+    // keine Antwort nach 4 s heißt darum „läuft", nicht „Fehler".
+    rufe: async (v, data) => {
+      const { entity_id: ziel, ...rest } = data;
+      const befehl = { type: 'call_service', domain: 'media_player', service: 'play_media', service_data: rest, target: { entity_id: ziel } };
+      const e = await wsBefehlErgebnis(v, befehl, { timeoutMs: 4_000 });
+      return e.ok || e.zeitUm ? { ok: true } : { ok: false, ...(e.fehler ? { fehler: e.fehler } : {}) };
+    },
+  });
+  const ansageZiel = new AnsageKette(lautsprecherAnsage, beatAnsage, browserKanal);
+
+  const haOutputChannel = new HaOutputChannel({
+    bus: eventBus,
+    settings: settingsService,
+    ansageZiel,
+    logger: {
+      info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+      error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+    },
+  });
+  fastify.addHook('onClose', async () => {
+    haOutputChannel.dispose();
+  });
+
+  // ─── DER ZWEITE WEG ZU HOME ASSISTANT: OHNE MQTT ─────────────────────────
+  // Schreibt dieselben Entitaeten direkt ueber die HA-API. Eingeschaltet mit
+  // der Add-on-Option `ha_internal` (Init-Skript setzt `HA_INTERNAL=1`).
+  // Solange MQTT verbunden ist, haelt er sich von selbst zurueck -- warum,
+  // steht in `ha/statesBridge.ts`.
+  // ─── DAS TEMPOLIMIT OHNE ROUTE ──────────────────────────────────────────
+  // Eigener Valhalla-Client statt eines geliehenen: der von `routingService`
+  // ist privat, und ein zweiter kostet nichts -- er haelt keine Verbindung,
+  // sondern baut sie je Anfrage auf. Dieselbe URL, dieselbe Umgebung.
+  const tempolimitDienst = new TempolimitDienst({
+    traceAttributes: (body) =>
+      new ValhallaClient({
+        baseUrl: process.env.VALHALLA_URL,
+        logger: {
+          info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+          warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+          error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+        },
+      }).traceAttributes(body),
+    costing: () => VALHALLA_COSTING,
+  });
+  // Der Positionsstrom fuellt die Spur. `melde` wartet nie und wirft nie --
+  // eine Tempolimit-Abfrage darf den Positionsstrom nicht aufhalten.
+  eventBus.subscribe('pos/update', (pos) => {
+    tempolimitDienst.melde(pos as SharedPosition);
+  });
+
+  const haStatesBridge =
+    process.env.HA_INTERNAL === '1'
+      ? new HaStatesBridge({
+          bus: eventBus,
+          // Ohne Route kommt das Tempolimit von hier -- siehe
+          // `routing/tempolimitDienst.ts`.
+          tempoHier: () => tempolimitDienst.aktuell(),
+          fahrzeug: () => {
+            const p = profileService.getActive();
+            return p ? { weight_t: p.weight_t, tempo_100: p.tempo_100 === true } : null;
+          },
+          verbindung: () => resolveHaConnection({ settings: settingsService }),
+          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok',
+          schreibe: (verbindung, write) =>
+            postHaState(
+              verbindung,
+              write.entityId,
+              { state: write.state, attributes: write.attributes },
+              {
+                logger: {
+                  info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+                  warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+                  error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+                },
+              },
+            ),
+          logger: {
+            info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+            warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+          },
+        })
+      : null;
+  if (haStatesBridge) {
+    fastify.log.info('HA-interner Kanal aktiv (Entitaeten auch ohne MQTT-Broker).');
+  }
+  fastify.addHook('onClose', async () => {
+    haStatesBridge?.dispose();
+  });
+
+  // ─── UND BEDIENEN OHNE MQTT ───────────────────────────────────────────────
+  // Legt in Home Assistant Helfer an (`input_button.yapaia_pause` und
+  // Geschwister) und fuehrt aus, was gedrueckt wird. Ohne das waeren die
+  // Entitaeten aus dem internen Kanal reine Anzeige -- siehe
+  // `ha/commandHelpers.ts`.
+  const haCommandWatcher =
+    process.env.HA_INTERNAL === '1'
+      ? new HaCommandWatcher({
+          verbindung: () => resolveHaConnection({ settings: settingsService }),
+          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok',
+          leseZustaende: (verbindung, ids) =>
+            fetchHaStatesById(verbindung, ids, {
+              logger: {
+                info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+                warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+                error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+              },
+            }),
+          navigation: {
+            pause: () => navigationService.pause(),
+            resume: () => navigationService.resume(),
+            stop: () => navigationService.stop(),
+          },
+          profile: profileService,
+          logger: {
+            info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+            warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+          },
+          ws: {
+            logger: {
+              info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+              warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+            },
+          },
+        })
+      : null;
+  fastify.addHook('onClose', async () => {
+    haCommandWatcher?.dispose();
+  });
+
+  // ─── BORDSENSOREN (Idee 4, Stufe 1) ─────────────────────────────────────
+  // Liest eingerichtete HA-Entitaeten (Grau-/Frischwasser, Batterie,
+  // Aussentemperatur) und meldet, wenn eine Schwelle erreicht ist -- mit der
+  // naechsten passenden Station voraus. Ohne eingerichtete Entitaet oder ohne
+  // HA-Verbindung tut der Dienst nichts. Siehe `bord/dienst.ts`.
+  const bordKonfiguration = bordKonfigurationAusUmgebung(process.env);
+  let stationsCache: { bis: number; ziele: ReturnType<typeof leseSonderziele>['ziele'] } | null = null;
+  const bordDienst = new BordDienst({
+    konfiguration: bordKonfiguration,
+    leseZustaende: async (ids) => {
+      const verbindung = resolveHaConnection({ settings: settingsService });
+      if (!verbindung) return new Map();
+      return fetchHaStatesById(verbindung, ids, {
+        logger: {
+          info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+          warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+          error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+        },
+      });
+    },
+    stationen: (kategorie) => {
+      // Die Sonderziele aendern sich nur beim Neubau des Suchindex; einmal
+      // alle zehn Minuten lesen genuegt.
+      const jetzt = Date.now();
+      if (!stationsCache || stationsCache.bis < jetzt) {
+        stationsCache = { bis: jetzt + 10 * 60_000, ziele: leseSonderziele().ziele };
+      }
+      return stationsCache.ziele.filter((z) => z.kategorie === kategorie);
+    },
+    ort: () => {
+      const p = positionService.getLast();
+      return {
+        route: navigationService.getFortschritt(),
+        position: p ? { lat: p.lat, lon: p.lon } : null,
+      };
+    },
+    logger: { warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg) },
+  });
+  bordDienst.start();
+  fastify.addHook('onClose', async () => {
+    bordDienst.dispose();
+  });
+  // ─── UNTERWEGS FINDEN (Copilot, Stufe 1) ─────────────────────────────────
+  // GET /api/v1/unterwegs?kategorie=fuel[&anzahl=3] -- die naechsten Treffer
+  // voraus auf der Route (ohne Route: im Umkreis). Siehe `search/unterwegs.ts`.
+  const unterwegsCache = new Map<string, { bis: number; kandidaten: ReturnType<typeof leseKandidaten> }>();
+  fastify.get<{ Querystring: { kategorie?: string; anzahl?: string } }>('/api/v1/unterwegs', async (request, reply) => {
+    const kategorie = unterwegsKategorie(String(request.query.kategorie ?? ''));
+    if (!kategorie) {
+      return reply.code(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `kategorie muss eine von ${UNTERWEGS_KATEGORIEN.map((k) => k.id).join(', ')} sein`,
+        },
+      });
+    }
+    const anzahl = Math.min(10, Math.max(1, Number.parseInt(String(request.query.anzahl ?? '3'), 10) || 3));
+    const jetzt = Date.now();
+    let eintrag = unterwegsCache.get(kategorie.id);
+    if (!eintrag || eintrag.bis < jetzt) {
+      // Der Suchindex aendert sich nur beim Neubau; zehn Minuten sind reichlich.
+      eintrag = { bis: jetzt + 10 * 60_000, kandidaten: leseKandidaten(kategorie) };
+      unterwegsCache.set(kategorie.id, eintrag);
+    }
+    const p = positionService.getLast();
+    const ergebnis = sucheUnterwegs(
+      kategorie,
+      eintrag.kandidaten,
+      { route: navigationService.getFortschritt(), position: p ? { lat: p.lat, lon: p.lon } : null },
+      anzahl,
+    );
+    return reply.code(200).send({ data: ergebnis });
+  });
+  // ─── SPRACHBEFEHLE (0.29) ────────────────────────────────────────────────
+  // POST /api/v1/sprache {text} -- „Fahre mich nach Magdeburg", „Wo ist die
+  // naechste Tankstelle?", „Stoppe die Navigation" … Siehe `sprache/`.
+  // EINE Dialog-Instanz fuer App und Home Assistant: eine offene Rueckfrage
+  // („Soll ich losfahren?") gilt fuer beide Wege.
+  const haLogger = {
+    info: (msg: string, meta?: Record<string, unknown>) => fastify.log.info(meta ?? {}, msg),
+    warn: (msg: string, meta?: Record<string, unknown>) => fastify.log.warn(meta ?? {}, msg),
+    error: (msg: string, meta?: Record<string, unknown>) => fastify.log.error(meta ?? {}, msg),
+  };
+  // Die KI von Home Assistant, falls in ⚙ → Sprache ein Gespraechsagent
+  // gewaehlt ist (`ha/kiAgent.ts`). Nur fuer Saetze, die die Regeln nicht
+  // verstehen.
+  const sprachKi = async (text: string) => {
+    const agent = settingsService.get('sprache_agent');
+    const v = resolveHaConnection({ settings: settingsService });
+    if (typeof agent !== 'string' || !agent.startsWith('conversation.') || !v) return null;
+    return frageKi(v, agent, text);
+  };
+  const sprachdialog = new Sprachdialog({
+    ...sprachDeps({
+      sucheOrte: (q, nahe, umkreisKm) =>
+        searchService.search({
+          q,
+          limit: umkreisKm ? 30 : 5,
+          ...(nahe ? { lat: nahe.lat, lon: nahe.lon } : {}),
+          ...(umkreisKm ? { umkreisKm } : {}),
+        }),
+      routeZu: async (ziel) =>
+        (
+          await resolveDestinationAndRoute(
+            {
+              navigationService,
+              rerouteProvider: routingService,
+              profileProvider: profileService,
+              searchProvider: searchService,
+              logger: navigationLogger,
+            },
+            { latlng: ziel, autostart: false },
+          )
+        ).route,
+      starte: (route, ziel) => {
+        navigationService.start({ route, destination: ziel });
+      },
+      navigation: navigationService,
+      position: () => {
+        const p = positionService.getLast();
+        return p ? { lat: p.lat, lon: p.lon } : null;
+      },
+      zeitzone: process.env.TZ || undefined,
+    }),
+    ki: sprachKi,
+  });
+  registriereSprache(fastify, sprachdialog, ansageZiel, browserAnsage, browserKanal);
+
+  // ─── … UND UEBER HOME ASSISTANT ASSIST (0.30) ───────────────────────────
+  // Satelliten und der Assist-Knopf der HA-App -- ohne HTTPS. Siehe
+  // `ha/sprachBruecke.ts`. Nur im Add-on (interner Kanal).
+  const sprachBruecke =
+    process.env.HA_INTERNAL === '1'
+      ? new HaSprachBruecke({
+          verbindung: () => resolveHaConnection({ settings: settingsService }),
+          leseZustaende: (v, ids) => fetchHaStatesById(v, ids, { logger: haLogger }),
+          schreibeZustand: (v, entityId, body) => postHaState(v, entityId, body, { logger: haLogger }),
+          verarbeite: (text) => sprachdialog.verarbeite(text),
+          ws: { logger: haLogger },
+          logger: haLogger,
+        })
+      : null;
+  fastify.addHook('onClose', async () => sprachBruecke?.dispose());
+
+  // GET /api/v1/sprache/ha -- Stand der Anbindung und die waehlbaren KI-Agenten.
+  fastify.get('/api/v1/sprache/ha', async (_request, reply) => {
+    const v = resolveHaConnection({ settings: settingsService });
+    const agent = settingsService.get('sprache_agent');
+    if (!sprachBruecke || !v) {
+      return reply.code(200).send({
+        data: {
+          verfuegbar: false,
+          helfer: false,
+          automation: false,
+          agent: typeof agent === 'string' ? agent : null,
+          agenten: [],
+          ansagenBeat: beatAnsagenAn(settingsService.get('ansagen_beat')),
+          radio: false,
+          lautsprecher: [],
+          lautsprecherWahl: '',
+          musicAssistant: null,
+          ansageGong: settingsService.get('ansage_gong') !== false,
+          ansageMaWeg: maModus(settingsService.get('ansage_ma_weg')),
+          ansageWeg: { art: 'selbst' },
+        },
+      });
+    }
+    const [zustaende, musicAssistant] = await Promise.all([
+      fetchHaStates(v, { logger: haLogger }).catch(() => [] as Awaited<ReturnType<typeof fetchHaStates>>),
+      maEingerichtet(v),
+    ]);
+    const liste = Array.isArray(zustaende) ? zustaende : [];
+    const agenten = liste
+      .filter((z) => z.entity_id.startsWith('conversation.'))
+      .map((z) => ({ id: z.entity_id, name: String(z.attributes?.friendly_name ?? z.entity_id) }));
+    return reply.code(200).send({
+      data: {
+        verfuegbar: true,
+        helfer: liste.some((z) => z.entity_id === SPRACH_EINGABE),
+        automation: liste.some((z) => z.entity_id.startsWith('automation.') && z.attributes?.id === AUTOMATION_ID),
+        agent: typeof agent === 'string' ? agent : null,
+        agenten,
+        // Ansagen ins Radio einmischen (`ha/beatAnsage.ts`) -- und ob es
+        // Yapaia Beat in dieser Anlage überhaupt gibt.
+        ansagenBeat: beatAnsagenAn(settingsService.get('ansagen_beat')),
+        radio: liste.some((z) => z.entity_id === BEAT_ENTITAET),
+        // Music Assistant: wählbare Lautsprecher für Ansagen und die Wahl.
+        lautsprecher: maLautsprecher(liste),
+        lautsprecherWahl: typeof settingsService.get('ansage_lautsprecher') === 'string' ? settingsService.get('ansage_lautsprecher') : '',
+        // Gewünscht: sehen, ob Ansagen über Music Assistant gehen -- und
+        // wenn nicht, warum.
+        musicAssistant,
+        ansageGong: settingsService.get('ansage_gong') !== false,
+        ansageMaWeg: maModus(settingsService.get('ansage_ma_weg')),
+        ansageWeg: ansageWeg(
+          settingsService.get('ansage_lautsprecher'),
+          liste,
+          beatAnsagenAn(settingsService.get('ansagen_beat')),
+          maModus(settingsService.get('ansage_ma_weg')),
+        ),
+      },
+    });
+  });
+  // POST /api/v1/sprache/ha/einrichten -- Helfer + Automation anlegen.
+  fastify.post('/api/v1/sprache/ha/einrichten', async (_request, reply) => {
+    if (!sprachBruecke) {
+      return reply.code(409).send({
+        error: { code: 'HA_NICHT_VERFUEGBAR', message: 'Nur im Home-Assistant-Add-on verfügbar.' },
+      });
+    }
+    return reply.code(200).send({ data: await sprachBruecke.einrichten() });
+  });
+
+  // GET /api/v1/unterwegs/kategorien -- was es zu suchen gibt, fuer die Knoepfe.
+  fastify.get('/api/v1/unterwegs/kategorien', async (_request, reply) =>
+    reply.code(200).send({ data: UNTERWEGS_KATEGORIEN }),
+  );
+
+  // GET /api/v1/bord -- was die Bordsensoren gerade sagen, samt Hinweisen.
+  fastify.get('/api/v1/bord', async (_request, reply) => reply.code(200).send({ data: bordDienst.zustand() }));
+
+  // Fertiges Lovelace-Dashboard (`/local/yapaja/dashboard.yaml`).
+  //
+  // Nur im Add-on: `YAPAIA_HA_WWW_DIR` setzt das Init-Skript auf
+  // `<ha-config>/www/yapaja` -- denselben Ordner, in den es die Dashboard-Karte
+  // legt. Eigenstaendig laufende Cores haben kein HA-Verzeichnis, und dort
+  // passiert dann auch nichts (siehe `ha/dashboard.ts`).
+  const dashboardPflegeBeenden = starteDashboardPflege({
+    wwwDir: process.env.YAPAIA_HA_WWW_DIR ?? null,
+    verbindung: () => resolveHaConnection({ settings: settingsService }),
+    ladeZustaende: (verbindung) =>
+      fetchHaStates(verbindung, {
+        logger: {
+          info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+          warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+          error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+        },
+      }),
+    datei: {
+      mkdir,
+      writeFile,
+      logger: {
+        info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+        warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+      },
+    },
+  });
+  fastify.addHook('onClose', async () => {
+    dashboardPflegeBeenden();
+  });
+
+  fastify.get<{ Reply: HealthResponse }>('/api/v1/health', async (_request, _reply) => {
+    const dbHealth = await profileService.checkHealth();
+    return {
+      status: 'ok',
+      version,
+      services: {
+        db: dbHealth ? 'ok' : 'down',
+        mqtt: mqttBridge ? mqttBridge.getHealthStatus() : 'disabled',
+      },
+    };
+  });
+
+  // Register static file serving for the web application.
+  // The server must still start when the public/ directory does not exist (local dev).
+  const publicDir = opts.publicDir ?? join(__dirname, '../public');
+  if (existsSync(publicDir)) {
+    await fastify.register(fastifyStatic, {
+      root: publicDir,
+      prefix: '/',
+    });
+
+    // GET / -- explicit route (rather than relying on @fastify/static's
+    // default index-file serving via its `/*` wildcard) so we can inject the
+    // HA-Ingress `<base href>` (E08-T4, docs/04 §3, W-15; see
+    // `static/ingressHtml.ts`). An exact route always wins over the static
+    // plugin's `/*` wildcard in fastify's router regardless of registration
+    // order, so this does not change how any other asset path is served.
+    fastify.get('/', async (request, reply) => {
+      await serveIndexHtml(publicDir, request, reply);
+    });
+
+    // Add a catch-all route for SPA fallback to index.html for non-API routes.
+    // Goes through the same `serveIndexHtml` helper as `GET /` above so the
+    // ingress base-href injection applies to deep-linked SPA routes too.
+    fastify.setNotFoundHandler(async (request, reply) => {
+      if (!request.url.startsWith('/api')) {
+        return serveIndexHtml(publicDir, request, reply);
+      }
+      reply.code(404).send({ error: 'Not Found' });
+    });
+  }
+
+  return fastify;
+}
+
+/**
+ * Resolves the bind host. An explicit `HOST` always wins. Otherwise, in HA
+ * ingress mode (`INGRESS_MODE=1`) HA proxies requests to the add-on over the
+ * container's internal interface and the port is NOT published externally, so
+ * we still bind `0.0.0.0` (the interface HA's ingress reaches) but auth is
+ * already handled by ingress (see `AuthGuard`); operators who publish the port
+ * directly instead set `HOST`/`API_AUTH_TOKEN` explicitly. Outside ingress the
+ * default is `0.0.0.0` (LAN device).
+ */
+function resolveBindHost(env: Record<string, string | undefined>): string {
+  if (typeof env.HOST === 'string' && env.HOST.length > 0) return env.HOST;
+  return '0.0.0.0';
+}
+
+async function main(): Promise<void> {
+  const port = parseInt(process.env.PORT || '8080', 10);
+  const host = resolveBindHost(process.env);
+
+  // Create structured logger using pino
+  const logger = pino({
+    level: process.env.LOG_LEVEL || 'info',
+  });
+
+  const fastify = await buildServer();
+
+  const gracefulShutdown = async (): Promise<void> => {
+    logger.info('Received SIGTERM, shutting down gracefully...');
+    await fastify.close();
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', gracefulShutdown);
+  process.on('SIGINT', gracefulShutdown);
+
+  try {
+    await fastify.listen({ port, host });
+    logger.info(`Server running at http://${host}:${port}`);
+    // E09-T3: start every ENABLED add-on service AFTER the server is
+    // listening, so each child gets a `YAPAJA_API_URL` that already works.
+    (fastify as unknown as { addonServiceHost: { startAll(): void } }).addonServiceHost.startAll();
+  } catch (err) {
+    logger.error(err);
+    process.exit(1);
+  }
+}
+
+// Only start the server when this module is executed directly (not when imported, e.g. in tests)
+const isDirectExecution =
+  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1];
+
+if (isDirectExecution) {
+  main().catch((err) => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}

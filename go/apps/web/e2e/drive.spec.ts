@@ -1,0 +1,702 @@
+/**
+ * Drive basics E2E flow (E04-T3, docs/07 §5 Flow 2's turn-by-turn portion):
+ * a simulated drive along a synthetic route with two closely-spaced maneuvers
+ * and a speed-limit segment gap, asserting:
+ *  1. The maneuver panel steps through maneuvers correctly as progress
+ *     advances, distance counts down.
+ *  2. Announcements (`nav/instruction`) fire while approaching, exactly once
+ *     per threshold, and the "Jetzt"/immediate one is reached right before
+ *     the turn.
+ *  3. The following-maneuver preview shows for a densely-spaced turn (< 300 m
+ *     gap) and hides once the gap is >= 300 m.
+ *  4. The speed-limit sign is hidden while the limit is unknown (null, a
+ *     genuine gap in `speed_limits`) and appears/updates at the segment
+ *     boundary -- never shows "0".
+ *  5. Everything disappears again once the drive ends (arrival).
+ *
+ * No real Valhalla/geocoder is available in this harness (same constraint
+ * `routing.spec.ts`/`search.spec.ts` document), so the route is POSTed
+ * directly to `POST /api/v1/navigation/start` (which accepts a full `route`
+ * object, no cache lookup needed) and progress is driven with exact
+ * `Position` fixes to `/api/v1/position/browser` -- the same "drive the Core
+ * directly with synthetic fixes" approach `search.spec.ts`'s speed-lock test
+ * and `gps-loss.spec.ts` already establish for this codebase's nav-ish e2e.
+ *
+ * Runs against its own dedicated core (DRIVE_CORE_BASE_URL, see
+ * constants.ts) so an unrelated parallel spec's browser fix can never land
+ * in the middle of this test's exact position sequence.
+ */
+
+import { test, expect, type Page } from '@playwright/test';
+import type { Route } from '@yapaia/shared';
+import { encodePolyline6, type LatLon } from '../../core/src/routing/polyline.js';
+import { DRIVE_CORE_BASE_URL } from './support/constants.js';
+import { oeffneFahrtMenue } from './support/fahrtMenue.js';
+import { collectPageErrors, trackRequests } from './support/network.js';
+
+const BASE_LAT = 47.2;
+const BASE_LON = 9.6;
+/** WGS84 average meters-per-degree-latitude -- good enough for a due-north test route. */
+const M_PER_DEG_LAT = 111_195;
+
+function latForProgressM(progressM: number): number {
+  return BASE_LAT + progressM / M_PER_DEG_LAT;
+}
+
+// 11 vertices, ~111.2 m apart -> ~1112 m total, straight due north.
+const ROUTE_POINTS: LatLon[] = Array.from({ length: 11 }, (_, i) => ({
+  lat: latForProgressM(i * (M_PER_DEG_LAT * 0.001)),
+  lon: BASE_LON,
+}));
+const TOTAL_LENGTH_M = 10 * (M_PER_DEG_LAT * 0.001); // ~1111.95 m
+
+const ROUTE: Route = {
+  id: 'drive-e2e-route',
+  distance_m: TOTAL_LENGTH_M,
+  duration_s: 120,
+  geometry: encodePolyline6(ROUTE_POINTS),
+  legs: [{ index: 0, distance_m: TOTAL_LENGTH_M, duration_s: 120 }],
+  maneuvers: [
+    {
+      index: 0,
+      type: 'continue',
+      instruction: 'Der Hauptstraße folgen',
+      street_names: ['Hauptstraße'],
+      distance_m: 5 * (M_PER_DEG_LAT * 0.001), // ~556 m to maneuver 1
+      begin_shape_index: 0,
+    },
+    {
+      index: 1,
+      type: 'turn_left',
+      instruction: 'Links abbiegen auf die Seestraße',
+      street_names: ['Seestraße'],
+      distance_m: 1 * (M_PER_DEG_LAT * 0.001), // ~111 m to maneuver 2 -- dense turn (< 300 m)
+      begin_shape_index: 5,
+    },
+    {
+      index: 2,
+      type: 'turn_right',
+      instruction: 'Rechts abbiegen auf den Bergweg',
+      street_names: ['Bergweg'],
+      distance_m: 4 * (M_PER_DEG_LAT * 0.001), // ~445 m to the route end -- NOT dense (>= 300 m)
+      begin_shape_index: 6,
+    },
+  ],
+  // Deliberately only covers the SECOND half -- the first half is a genuine
+  // gap (speed_limit_kmh must read null/hidden there, never fabricate 0).
+  speed_limits: [{ begin_shape_index: 5, end_shape_index: 10, kmh: 80 }],
+  warnings: [],
+};
+
+function browserFixBody(progressM: number, speedMs: number): Record<string, unknown> {
+  return {
+    lat: latForProgressM(progressM),
+    lon: BASE_LON,
+    alt: null,
+    speed: speedMs,
+    heading: 0,
+    accuracy: 5,
+    fix: '3d',
+    ts: new Date().toISOString(),
+  };
+}
+
+/** Posts one exact fix and waits out the Core's 1 Hz publish throttle so it's never coalesced away. */
+async function driveTo(page: Page, progressM: number, speedMs = 3): Promise<void> {
+  const response = await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/position/browser`, {
+    data: browserFixBody(progressM, speedMs),
+  });
+  expect(response.ok()).toBe(true);
+  await page.waitForTimeout(1100); // clears the 1 Hz throttle window before the NEXT post
+}
+
+async function waitForMapReady(page: Page): Promise<void> {
+  await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 15_000 });
+  await page.waitForFunction(() => Boolean(window.__yapaiaMapController?.getMap?.()), undefined, {
+    timeout: 15_000,
+  });
+}
+
+async function getManeuverDistanceM(page: Page): Promise<number> {
+  const text = await page.getByTestId('maneuver-distance').textContent();
+  expect(text).not.toBeNull();
+  const match = /([\d.,]+)\s*(km|m)/.exec(text ?? '');
+  expect(match).not.toBeNull();
+  const [, numStr, unit] = match!;
+  const num = Number(numStr.replace(',', '.'));
+  return unit === 'km' ? num * 1000 : num;
+}
+
+/** „12,3 km" / „850 m" -> Meter, damit sich zwei Anzeigen vergleichen lassen. */
+function parseDistanceM(text: string | null): number {
+  const match = /([\d.,]+)\s*(km|m)/.exec(text ?? '');
+  expect(match).not.toBeNull();
+  const [, numStr, unit] = match!;
+  const num = Number(numStr.replace(',', '.'));
+  return unit === 'km' ? num * 1000 : num;
+}
+
+async function instructionSeq(page: Page): Promise<number> {
+  return page.evaluate(() => window.__yapaiaNavStore?.getState().instructionSeq ?? 0);
+}
+
+// ─── DIE GANZE DATEI SERIELL, NICHT NUR JEDER BLOCK ─────────────────────────
+// Alle Tests hier teilen sich EINEN Fahr-Kern (`DRIVE_CORE_BASE_URL`) und
+// damit eine Navigationssitzung. `fullyParallel: true` in der Konfiguration
+// verteilt aber verschiedene `describe`-Bloecke derselben Datei auf
+// verschiedene Worker.
+//
+// Solange es nur einen Block gab, reichte dessen eigenes `serial`. Mit dem
+// zweiten (Schild und Spuren, 0.17.3) liefen zwei Fahrten gleichzeitig gegen
+// denselben Kern: die eine startete, die andere stoppte sie im `afterEach`,
+// und es fielen Tests aus BEIDEN Bloecken aus -- scheinbar zufaellig, je
+// nachdem, welcher Worker schneller war.
+test.describe.configure({ mode: 'serial' });
+
+test.describe('Drive basics (E04-T3, Flow 2)', () => {
+  test.describe.configure({ mode: 'serial' }); // one shared drive core, one navigation session at a time
+
+  test.afterEach(async ({ page }) => {
+    await page
+      .evaluate(async (baseUrl: string) => {
+        await fetch(`${baseUrl}/api/v1/navigation/stop`, { method: 'POST' });
+      }, DRIVE_CORE_BASE_URL)
+      .catch(() => {
+        // Best-effort cleanup.
+      });
+  });
+
+  test('maneuver panel steps through maneuvers, distance counts down, announcements fire, speed sign updates/hides', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const tracker = await trackRequests(page, DRIVE_CORE_BASE_URL);
+    const pageErrors = collectPageErrors(page);
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+
+    await page.goto(DRIVE_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+
+    // Start navigation directly against the Core (no live Valhalla/geocoder
+    // in this harness -- see file-level comment).
+    const startResponse = await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/navigation/start`, {
+      data: { route: ROUTE, destination: { latlng: ROUTE_POINTS[10], name: 'Ziel' } },
+    });
+    expect(startResponse.ok()).toBe(true);
+
+    // The web app started this navigation via a raw REST call (no live
+    // Valhalla/geocoder to drive the normal "Route hierhin" flow through --
+    // see the file-level comment), so its OWN routing store never learned
+    // this route. `ManeuverPanel`'s "following maneuver" preview needs the
+    // full route (to look up maneuver `index + 1`), the same way it would if
+    // this navigation had instead been started the normal way (E04-T5) with
+    // the routing store already populated from "Route hierhin" -- seed it
+    // directly so this test exercises that lookup for real.
+    await page.evaluate((route: Route) => {
+      window.__yapaiaRoutingStore?.setState({ routes: [route], activeRouteId: route.id });
+    }, ROUTE);
+
+    // -- W1 (~111 m): approaching maneuver 1 (Seestraße), first threshold(s) fire.
+    await driveTo(page, 111);
+    await expect(page.getByTestId('maneuver-panel')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('maneuver-street')).toHaveText('Seestraße');
+    await expect(page.getByTestId('maneuver-arrow').first()).toHaveAttribute('data-arrow-key', 'turn_left');
+    // Dense turn (111 m to the next one, < 300 m): following-maneuver preview shown.
+    await expect(page.getByTestId('maneuver-following')).toBeVisible();
+    await expect(page.getByTestId('maneuver-following')).toContainText('Bergweg');
+    // Speed limit: first half of the route has no covering segment -> hidden, never "0".
+    await expect(page.getByTestId('speed-limit-sign')).toHaveCount(0);
+    await expect
+      .poll(() => instructionSeq(page), { timeout: 5_000 })
+      .toBeGreaterThanOrEqual(1);
+    const distanceAtW1 = await getManeuverDistanceM(page);
+
+    // -- W2 (~445 m): distance to maneuver 1 has counted down; another threshold fires.
+    const seqBeforeW2 = await instructionSeq(page);
+    await driveTo(page, 445);
+    const distanceAtW2 = await getManeuverDistanceM(page);
+    expect(distanceAtW2).toBeLessThan(distanceAtW1);
+    await expect.poll(() => instructionSeq(page), { timeout: 5_000 }).toBeGreaterThan(seqBeforeW2);
+    await expect(page.getByTestId('speed-limit-sign')).toHaveCount(0); // still in the gap (< 556 m)
+
+    // -- W3 (~545 m): right before the turn -- the immediate ("Jetzt") announcement.
+    const seqBeforeW3 = await instructionSeq(page);
+    await driveTo(page, 545);
+    const distanceAtW3 = await getManeuverDistanceM(page);
+    expect(distanceAtW3).toBeLessThan(distanceAtW2);
+    await expect.poll(() => instructionSeq(page), { timeout: 5_000 }).toBeGreaterThan(seqBeforeW3);
+    const sayAtW3 = await page.evaluate(() => window.__yapaiaNavStore?.getState().lastInstruction?.say ?? '');
+    expect(sayAtW3.startsWith('Jetzt')).toBe(true);
+    expect(sayAtW3).toContain('Seestraße');
+
+    // -- W4 (~600 m): past maneuver 1 -> maneuver 2 (Bergweg) is now active.
+    // Not a dense turn (445 m to the route end) -> no following-maneuver preview.
+    // Past the 556 m boundary -> speed-limit sign appears at 80.
+    const seqBeforeW4 = await instructionSeq(page);
+    await driveTo(page, 600);
+    await expect(page.getByTestId('maneuver-street')).toHaveText('Bergweg', { timeout: 5_000 });
+    await expect(page.getByTestId('maneuver-arrow').first()).toHaveAttribute('data-arrow-key', 'turn_right');
+    await expect(page.getByTestId('maneuver-following')).toHaveCount(0);
+    await expect(page.getByTestId('speed-limit-sign')).toBeVisible();
+    await expect(page.getByTestId('speed-limit-value')).toHaveText('80');
+    await expect.poll(() => instructionSeq(page), { timeout: 5_000 }).toBeGreaterThan(seqBeforeW4);
+    const newInstructionManeuverIndex = await page.evaluate(
+      () => window.__yapaiaNavStore?.getState().lastInstruction?.maneuver.index ?? null,
+    );
+    expect(newInstructionManeuverIndex).toBe(2); // maneuver 1 never announces again after being passed
+
+    // -- W5: arrival -- everything disappears again.
+    await driveTo(page, TOTAL_LENGTH_M - 5, 0);
+    await expect(page.getByTestId('maneuver-panel')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByTestId('speed-limit-sign')).toHaveCount(0);
+    const finalStatus = await page.evaluate(() => window.__yapaiaNavStore?.getState().navState?.status ?? null);
+    expect(finalStatus).toBe('arrived');
+
+    // TTS toggle exists and is togglable while a drive was active (checked
+    // before arrival hid the overlay would also work, but re-verifying the
+    // control itself never crashed the page is the point here).
+    expect(pageErrors).toEqual([]);
+    expect(consoleErrors).toEqual([]);
+    expect(tracker.getForeignUrls()).toEqual([]);
+  });
+
+  test('TTS toggle flips state and never throws (Web Speech availability-guarded, gong fallback otherwise)', async ({
+    page,
+  }) => {
+    test.setTimeout(30_000);
+    const pageErrors = collectPageErrors(page);
+
+    await page.goto(DRIVE_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+
+    const startResponse = await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/navigation/start`, {
+      data: { route: ROUTE, destination: { latlng: ROUTE_POINTS[10], name: 'Ziel' } },
+    });
+    expect(startResponse.ok()).toBe(true);
+    await driveTo(page, 50);
+
+    // Die Ansagen-Taste liegt seit 0.18.0 im Fahrtmenue.
+    await expect(page.getByTestId('trip-info-panel')).toBeVisible({ timeout: 5_000 });
+    await oeffneFahrtMenue(page);
+    const toggle = page.getByTestId('tts-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+    // Whichever path this browser takes (real speech synthesis vs. the
+    // WebAudio gong fallback), it must never throw -- the availability check
+    // itself is exposed for direct inspection.
+    const speechAvailable = await page.evaluate(() => window.__yapaiaSpeechAvailable?.() ?? null);
+    expect(typeof speechAvailable).toBe('boolean');
+
+    expect(pageErrors).toEqual([]);
+  });
+  /**
+   * ─── EIN KARTENTIPPER DARF DIE LAUFENDE ROUTE NICHT VERWERFEN ────────────
+   * Gemeldet: „Wenn die Navigation aktiv ist und man auf die Karte klickt,
+   * dann wird in den Zielsetzen-Modus gewechselt. Die Route verschwindet und
+   * man sieht den roten Zielpunkt auf der Stelle."
+   *
+   * `DestinationSelector.handlePick` endete bedingungslos mit
+   * `setDestination` -- jeder Tipper waehrend der Fahrt, auch ein
+   * verrutschter Schwenk, ersetzte die Route durch einen Zielpunkt.
+   *
+   * Die REGEL steht in `mapTapIntent.test.ts`. Hier wird die VERDRAHTUNG
+   * geprueft: dass der Kartenlistener den Navigationszustand ueberhaupt
+   * liest. Genau das kann ein Unit-Test nicht zeigen -- und genau solche
+   * Luecken sind in diesem Projekt schon mehrfach durchgerutscht.
+   */
+  test('ein Kartentipper waehrend der Fahrt laesst Route und Ziel unangetastet', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.goto(DRIVE_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+
+    const startResponse = await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/navigation/start`, {
+      data: { route: ROUTE, destination: { latlng: ROUTE_POINTS[10], name: 'Ziel' } },
+    });
+    expect(startResponse.ok()).toBe(true);
+
+    await page.evaluate((route: Route) => {
+      window.__yapaiaRoutingStore?.setState({ routes: [route], activeRouteId: route.id });
+    }, ROUTE);
+
+    await driveTo(page, 111);
+    await expect(page.getByTestId('maneuver-panel')).toBeVisible({ timeout: 5_000 });
+
+    const before = await page.evaluate(() => {
+      const s = window.__yapaiaRoutingStore?.getState();
+      return { routes: s?.routes?.length ?? 0, activeRouteId: s?.activeRouteId ?? null };
+    });
+    expect(before.routes).toBe(1);
+
+    // Mitten auf die Karte tippen -- weit weg von der Routenlinie, genau die
+    // Geste aus der Meldung.
+    const canvas = page.locator('canvas.maplibregl-canvas');
+    const box = await canvas.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.click(box!.x + box!.width * 0.25, box!.y + box!.height * 0.75);
+    // Kurz warten: waere der Fehler noch da, braeuchte er nur einen Tick.
+    await page.waitForTimeout(500);
+
+    const after = await page.evaluate(() => {
+      const s = window.__yapaiaRoutingStore?.getState();
+      return {
+        routes: s?.routes?.length ?? 0,
+        activeRouteId: s?.activeRouteId ?? null,
+        destination: s?.destination ?? null,
+      };
+    });
+
+    // Die Route steht noch, und es wurde KEIN Ziel gesetzt.
+    expect(after.routes).toBe(1);
+    expect(after.activeRouteId).toBe(before.activeRouteId);
+    expect(after.destination).toBeNull();
+    // Und die Fahrt laeuft weiter -- das Panel ist noch da.
+    await expect(page.getByTestId('maneuver-panel')).toBeVisible();
+  });
+
+  /**
+   * ─── ENTFERNUNG, DAUER UND ANKUNFT WAEHREND DER FAHRT ────────────────────
+   * Gemeldet: „Bitte füge bei aktiver Navigation weitere Infos ein.
+   * Entfernung, geschätzte Dauer, geschätzte Ankunftszeit."
+   *
+   * Der Core lieferte alle drei Werte seit jeher in `nav/state`. Sie standen
+   * nur ausschliesslich in Dashboard-Bausteinen, die ohne eigenes Dashboard
+   * nie jemand zu sehen bekam -- dieselbe Luecke wie beim Tempolimitschild.
+   * Die REGEL (was bei fehlenden Werten passiert) steht in
+   * `src/drive/tripInfo.test.ts`; hier wird geprueft, dass echte Zahlen aus
+   * einer echten Fahrt tatsaechlich auf dem Bildschirm ankommen -- und dass
+   * sie sich beim Fahren auch bewegen.
+   *
+   * Der automatische Zoom (dieselbe Meldung, Punkt 3) haengt an derselben
+   * Fahrt und wird gleich mitgeprueft: die Regel in `src/map/autoZoom.test.ts`,
+   * die Verdrahtung in `src/map/followMeAutoZoom.test.ts`, und hier die
+   * Karte selbst.
+   */
+  test('Entfernung, Restzeit und Ankunftszeit stehen waehrend der Fahrt auf der Karte', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const pageErrors = collectPageErrors(page);
+
+    await page.goto(DRIVE_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+
+    const startResponse = await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/navigation/start`, {
+      data: { route: ROUTE, destination: { latlng: ROUTE_POINTS[10], name: 'Ziel' } },
+    });
+    expect(startResponse.ok()).toBe(true);
+
+    await driveTo(page, 111);
+    await expect(page.getByTestId('trip-info-panel')).toBeVisible({ timeout: 5_000 });
+
+    // Echte Werte, kein Gedankenstrich und keine erfundene Null.
+    const entfernungFrueh = await page.getByTestId('trip-info-distance').textContent();
+    const restzeitFrueh = await page.getByTestId('trip-info-duration').textContent();
+    const ankunft = await page.getByTestId('trip-info-eta').textContent();
+    expect(entfernungFrueh).toMatch(/\d/);
+    expect(restzeitFrueh).toMatch(/\d/);
+    // Ankunft als Uhrzeit -- nicht irgendeine Zahl.
+    expect(ankunft).toMatch(/^\d{2}:\d{2}$/);
+
+    // ─── DER AUTO-ZOOM HAT DIE KARTE WIRKLICH ANGEFASST ────────────────────
+    // Bei ~11 km/h ist die naechste Stufe die dichteste (17). Ohne
+    // Verdrahtung bliebe die Karte auf ihrem Anfangszoom stehen.
+    await expect
+      .poll(() => page.evaluate(() => window.__yapaiaMapController?.getMap?.()?.getZoom() ?? null), {
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(16);
+
+    // ─── DIE ZAHLEN BEWEGEN SICH ───────────────────────────────────────────
+    // Eine feststehende Restentfernung waere schlimmer als gar keine: man
+    // wuerde ihr glauben. 445 m weiter muss weniger uebrig sein.
+    await driveTo(page, 600);
+    await expect
+      .poll(
+        async () => parseDistanceM(await page.getByTestId('trip-info-distance').textContent()),
+        { timeout: 10_000 },
+      )
+      .toBeLessThan(parseDistanceM(entfernungFrueh));
+
+    // ─── UND AM ZIEL IST DIE ANZEIGE WIEDER WEG ────────────────────────────
+    await driveTo(page, TOTAL_LENGTH_M - 5, 0);
+    await expect(page.getByTestId('trip-info-panel')).toHaveCount(0, { timeout: 10_000 });
+
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('der blaue Punkt schneidet eine rechtwinklige Ecke nicht ab', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto(DRIVE_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+
+    const start = await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/navigation/start`, {
+      data: { route: ECK_ROUTE, destination: { latlng: ECK_PUNKTE[2], name: 'Ecke' } },
+    });
+    expect(start.ok()).toBe(true);
+
+    // Die Route in den Routenspeicher des Browsers legen -- im Betrieb tut das
+    // `RouteRestorer` ueber `GET /routes/:id`. Hier ist die Route per
+    // `navigation/start` direkt uebergeben worden und liegt nicht im
+    // Zwischenspeicher; ohne diesen Schritt haette der Browser gar keine
+    // Linie, der der Punkt folgen koennte (und auf dem Bildschirmfoto des
+    // Betreibers ist die Linie zu sehen -- der Fall, um den es geht).
+    await page.evaluate((route) => {
+      window.__yapaiaRoutingStore?.setState({
+        routes: [route],
+        activeRouteId: route.id,
+        status: 'success',
+        error: null,
+      } as never);
+    }, ECK_ROUTE as unknown as Record<string, unknown>);
+    await page.waitForTimeout(200);
+
+    const fix = (lat: number, lon: number): Record<string, unknown> => ({
+      lat,
+      lon,
+      alt: null,
+      speed: 25,
+      heading: 0,
+      accuracy: 5,
+      fix: '3d',
+      ts: new Date().toISOString(),
+    });
+
+    // Erste Meldung: 200 m VOR der Ecke. Sie setzt den Takt, aus dem sich die
+    // Dauer der Bewegung ergibt.
+    await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/position/browser`, {
+      data: fix(ECK_LAT + ECK_NORD * 0.8, ECK_LON),
+    });
+    await page.waitForTimeout(1200);
+
+    // Zweite Meldung: 200 m HINTER der Ecke -- der Sprung, den der Zeitraffer
+    // erzeugt. Dazwischen wird gezeichnet.
+    await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/position/browser`, {
+      data: fix(ECK_LAT + ECK_NORD, ECK_LON + ECK_OST * 0.2),
+    });
+
+    const proben = await page.evaluate(() => {
+      return new Promise<Array<{ lat: number; lon: number }>>((fertig) => {
+        const werte: Array<{ lat: number; lon: number }> = [];
+        const startMs = performance.now();
+        const schritt = (): void => {
+          const p = window.__yapaiaPuckPosition;
+          if (p && typeof p.lat === 'number') werte.push({ lat: p.lat, lon: p.lon });
+          if (performance.now() - startMs < 1400) requestAnimationFrame(schritt);
+          else fertig(werte);
+        };
+        schritt();
+      });
+    });
+
+    // ─── DIE ABSICHERUNG: ES WURDE WIRKLICH UNTERWEGS GEMESSEN ─────────────
+    // Frueher stand hier `proben.length > 10` -- eine Zaehlung von BILDERN.
+    // Das haengt an der Bildrate, und die bricht ein, wenn die ganze Test-
+    // Mappe parallel laeuft: im vollen Lauf kamen genau 10 Proben an, allein
+    // laufend ueber 80. Der Test schlug damit fehl, ohne dass sich an der
+    // Sache etwas geaendert haette.
+    //
+    // Gezaehlt wird stattdessen, was der Test wirklich braucht: Stellen
+    // ZWISCHEN den beiden Meldungen. Ohne Bewegung (harter Sprung) gibt es
+    // davon keine einzige -- das ist der Fehler, um den es geht -- und die
+    // Zahl haengt nicht daran, wie oft der Browser gerade zeichnet.
+    const AM_PUNKT_GRAD = 0.00005; // ~5 m
+    const nahe = (p: { lat: number; lon: number }, lat: number, lon: number): boolean =>
+      Math.abs(p.lat - lat) < AM_PUNKT_GRAD && Math.abs(p.lon - lon) < AM_PUNKT_GRAD;
+    const unterwegs = proben.filter(
+      (p) =>
+        !nahe(p, ECK_LAT + ECK_NORD * 0.8, ECK_LON) &&
+        !nahe(p, ECK_LAT + ECK_NORD, ECK_LON + ECK_OST * 0.2),
+    );
+    expect(
+      unterwegs.length,
+      `Proben: ${proben.length}, davon unterwegs: ${unterwegs.length}`,
+    ).toBeGreaterThan(2);
+
+    // Rund 15 m Toleranz -- deutlich enger als die Ecke (200 m je Schenkel),
+    // aber weit genug fuer Rundungen im Kartenabgleich.
+    const TOLERANZ_GRAD = 0.00015;
+    const daneben = proben.filter(
+      (p) =>
+        Math.abs(p.lon - ECK_LON) > TOLERANZ_GRAD &&
+        Math.abs(p.lat - (ECK_LAT + ECK_NORD)) > TOLERANZ_GRAD,
+    );
+    expect(
+      daneben,
+      `Stellen neben der Strasse (Sehne ueber die Ecke): ${JSON.stringify(daneben.slice(0, 3))}`,
+    ).toEqual([]);
+
+    await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/navigation/stop`);
+  });
+});
+
+// ─── DER PUNKT FOLGT DER STRASSE, NICHT DER LUFTLINIE ──────────────────────
+// Gemeldet: „Es sieht so aus als ob die aktuelle Position bei scharfen
+// Abbiegungen so was wie eine sanfte Kurve wählt. Sie folgt nicht exakt der
+// Straße sondern mittelt irgendwie."
+//
+// Die Glaettung (0.6.6) zog eine Gerade von Meldung zu Meldung. Auf einer
+// rechtwinkligen Ecke liegt diese Gerade INNERHALB der Ecke -- im Feld quer
+// ueber die Kreuzung. Im Zeitraffer, wo zwei Meldungen hunderte Meter
+// auseinanderliegen, ist das gut sichtbar.
+//
+// Geprueft wird nicht „sieht glatt aus", sondern die harte Eigenschaft: auf
+// einem L liegt JEDE gezeichnete Stelle entweder auf dem einen oder auf dem
+// anderen Schenkel. Eine Sehne ueber die Ecke erfuellt das nicht.
+const ECK_LAT = 47.3;
+const ECK_LON = 9.6;
+const ECK_NORD = 0.009; // ~1000 m
+const ECK_OST = 0.0132; // ~1000 m auf dieser Breite
+
+const ECK_PUNKTE: LatLon[] = [
+  { lat: ECK_LAT, lon: ECK_LON },
+  { lat: ECK_LAT + ECK_NORD, lon: ECK_LON },
+  { lat: ECK_LAT + ECK_NORD, lon: ECK_LON + ECK_OST },
+];
+
+const ECK_ROUTE: Route = {
+  id: 'ecken-route',
+  distance_m: 2000,
+  duration_s: 120,
+  geometry: encodePolyline6(ECK_PUNKTE),
+  legs: [{ index: 0, distance_m: 2000, duration_s: 120 }],
+  maneuvers: [
+    {
+      index: 0,
+      type: 'continue',
+      instruction: 'Der Strasse folgen',
+      street_names: ['Nordstrasse'],
+      distance_m: 1000,
+      begin_shape_index: 0,
+    },
+    {
+      index: 1,
+      type: 'turn_right',
+      instruction: 'Rechts abbiegen',
+      street_names: ['Oststrasse'],
+      distance_m: 1000,
+      begin_shape_index: 1,
+    },
+  ],
+  speed_limits: [],
+  warnings: [],
+};
+
+/**
+ * Schildertext und Spurführung — durch den ECHTEN Kern.
+ *
+ * ─── WARUM NICHT EINFACH DEN ZUSTAND IM BROWSER SETZEN ──────────────────────
+ * Das prüfte nur die halbe Kette. Die Route geht hier über
+ * `POST /api/v1/navigation/start`, also durch die Schemaprüfung
+ * (`maneuverSchema`, `additionalProperties: false`) und die Zusammensetzung
+ * des Navigationszustands im Kern. Fehlte `sign` im Schema, würde die Route
+ * abgelehnt; reichte der Kern `next_maneuver` nicht vollständig durch, käme
+ * nichts an. Beides wäre bei einem direkt gesetzten Zustand unsichtbar
+ * geblieben.
+ */
+test.describe('Schild und Spuren im Manöver-Panel', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.afterEach(async ({ page }) => {
+    await page
+      .evaluate(async (baseUrl: string) => {
+        await fetch(`${baseUrl}/api/v1/navigation/stop`, { method: 'POST' });
+      }, DRIVE_CORE_BASE_URL)
+      .catch(() => {});
+  });
+
+  // Dieselbe Strecke wie oben; nur der Linksabbieger bei ~556 m trägt ein
+  // Schild und drei Spuren, von denen die linke die richtige ist.
+  const MIT_SCHILD: Route = {
+    ...ROUTE,
+    id: 'drive-e2e-schild',
+    maneuvers: ROUTE.maneuvers.map((m) =>
+      m.index === 1
+        ? {
+            ...m,
+            sign: {
+              exit_number: [{ text: '26' }],
+              exit_branch: [{ text: 'A 61' }],
+              exit_toward: [{ text: 'Ludwigshafen', consecutive_count: 3 }],
+            },
+            lanes: [
+              { directions: 8, active: 8 }, // nur links -- die richtige
+              { directions: 10, valid: 8 }, // links+geradeaus -- geht, aber nicht ideal
+              { directions: 2 }, // nur geradeaus
+            ],
+          }
+        : m,
+    ),
+  };
+
+  async function starten(page: Page): Promise<void> {
+    await page.goto(DRIVE_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+    const antwort = await page.request.post(`${DRIVE_CORE_BASE_URL}/api/v1/navigation/start`, {
+      data: { route: MIT_SCHILD, destination: { latlng: ROUTE_POINTS[10], name: 'Ziel' } },
+    });
+    // Die erste Zusicherung: der Kern NIMMT die Route mit Schild und Spuren
+    // an. Fehlte `sign` im Schema, schlüge genau das hier fehl.
+    expect(antwort.ok(), await antwort.text()).toBe(true);
+    await page.evaluate((route: Route) => {
+      window.__yapaiaRoutingStore?.setState({ routes: [route], activeRouteId: route.id });
+    }, MIT_SCHILD);
+  }
+
+  test('das Schild erscheint mit Nummer, Straße und Ziel', async ({ page }) => {
+    test.setTimeout(60_000);
+    await starten(page);
+    await driveTo(page, 100); // ~456 m vor dem Linksabbieger
+
+    await expect(page.getByTestId('maneuver-panel')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('maneuver-sign-number')).toHaveText('26');
+    await expect(page.getByTestId('maneuver-sign-text')).toHaveText('A 61 · Ludwigshafen');
+  });
+
+  test('die Spuren erscheinen erst in der Nähe, und nur die richtige ist hervorgehoben', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await starten(page);
+
+    // ~556 m vor dem Abbieger: über `SPUREN_AB_M` (500) -- noch keine Spuren.
+    await driveTo(page, 0);
+    await expect(page.getByTestId('maneuver-panel')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('maneuver-lanes')).toHaveCount(0);
+
+    // ~256 m davor: jetzt.
+    await driveTo(page, 300);
+    await expect(page.getByTestId('maneuver-lanes')).toBeVisible({ timeout: 5_000 });
+    const spuren = page.getByTestId('maneuver-lane');
+    await expect(spuren).toHaveCount(3);
+
+    // ─── NUR `active`, NICHT `valid` ──────────────────────────────────────
+    // Die zweite Spur ist `valid` für links -- man KANN von dort abbiegen,
+    // muss sich aber evtl. noch einfädeln. Hervorgehoben wird nur die erste.
+    await expect(spuren.nth(0)).toHaveAttribute('data-aktiv', 'ja');
+    await expect(spuren.nth(1)).toHaveAttribute('data-aktiv', 'nein');
+    await expect(spuren.nth(2)).toHaveAttribute('data-aktiv', 'nein');
+  });
+
+  test('am nächsten Manöver ohne Schild verschwindet es wieder', async ({ page }) => {
+    // Die Gegenprobe: ein Schild, das stehen bliebe, gehörte nach dem
+    // Abbiegen zur falschen Kreuzung -- und das ist schlimmer als keins.
+    test.setTimeout(60_000);
+    await starten(page);
+    await driveTo(page, 300);
+    await expect(page.getByTestId('maneuver-sign')).toBeVisible({ timeout: 5_000 });
+
+    await driveTo(page, 600); // hinter dem Linksabbieger, vor dem Rechtsabbieger
+    await expect(page.getByTestId('maneuver-sign')).toHaveCount(0, { timeout: 5_000 });
+    await expect(page.getByTestId('maneuver-lanes')).toHaveCount(0);
+  });
+});

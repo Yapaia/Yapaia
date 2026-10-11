@@ -1,0 +1,331 @@
+/**
+ * Fetch helpers for the region manager (E01-T5): installed regions, the
+ * downloadable-regions catalog, starting/polling a download job, and
+ * deleting an installed region.
+ *
+ * Like `apps/web/src/map/regions.ts` and `apps/web/src/map/styleClient.ts`,
+ * every URL is built from `import.meta.env.BASE_URL` (never a hardcoded
+ * `/api/...` path) so this keeps working under an ingress sub-path (W-15).
+ */
+
+export interface InstalledRegion {
+  region: string;
+  size_bytes: number;
+  bounds: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
+  minzoom: number;
+  maxzoom: number;
+  tile_type: string;
+  compression: string;
+}
+
+/** Wie aufwändig der Kachelbau ist — steuert nur die Formulierung. */
+export type BuildEffort = 'small' | 'large';
+
+export interface CatalogRegion {
+  id: string;
+  name: string;
+  /** Fertige `.pmtiles`-Datei zum Herunterladen. OPTIONAL: die
+   *  mitgelieferten Einträge haben KEINE (siehe
+   *  `apps/core/src/map/regions/catalog.ts`). Fehlt sie, wird die Region
+   *  aus dem OSM-Extrakt gebaut statt geladen — und dann darf die
+   *  Oberfläche keinen „Herunterladen"-Knopf anbieten. */
+  url?: string;
+  /** OSM-Extrakt, aus dem gebaut wird. */
+  pbfUrl?: string;
+  sizeBytes: number;
+  bounds: [number, number, number, number];
+  sha256?: string;
+  buildEffort?: BuildEffort;
+  /** Freitext-Hinweis aus dem Katalog (deutsch). */
+  note?: string;
+  installed: boolean;
+}
+
+export type JobStatus = 'queued' | 'running' | 'done' | 'error';
+
+export interface JobErrorInfo {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface JobSnapshot {
+  id: string;
+  status: JobStatus;
+  progress: number;
+  bytes: number;
+  totalBytes: number | null;
+  error: JobErrorInfo | null;
+  /** Statuszeile für Jobs ohne messbaren Fortschritt (Kachelbau, B-04).
+   *  Ein Prozentwert wäre dort erfunden — planetilers Ausgabe lässt sich
+   *  nicht versionsstabil in eine Zahl übersetzen. */
+  note?: string;
+  /** Woran gearbeitet wird. Damit findet die Anzeige nach einem Neuladen
+   *  wieder die Region, unter der sie den Fortschritt zeigen muss. */
+  region?: string;
+  /** `kacheln` | `routing` | `suche` | `gesamt`. */
+  bauart?: string;
+  /** Nur beim Gesamtbau: wo er steht und wie lange es noch dauert. */
+  gesamt?: Gesamtstand;
+}
+
+/**
+ * Wo ein Gesamtbau steht.
+ *
+ * ─── WARUM `restGrund` MITKOMMT UND NICHT NUR DIE ZAHL ──────────────────────
+ * Eine Restzeit kann eine Schätzung sein oder eine Untergrenze, und für
+ * jemanden, der neben dem Wohnmobil steht und entscheidet, ob sich das Warten
+ * lohnt, sind das zwei sehr verschiedene Auskünfte. Der Kern rechnet beides
+ * aus (`apps/core/src/map/regions/bauzeit.ts`) und liefert mit `restText`
+ * schon den fertigen Satz — die Oberfläche soll die Unterscheidung nicht
+ * nachbauen und dabei verlieren.
+ */
+export interface Gesamtstand {
+  /** Der laufende Schritt, 1-basiert. */
+  schritt: number;
+  schritte: number;
+  /** Was gerade gebaut wird, in Worten. */
+  schrittText: string;
+  /** Verbleibende Sekunden, oder `null`, wenn nichts zu sagen ist. */
+  restSekunden: number | null;
+  /** `geschaetzt` | `mindestens` | `ueberfaellig` | `unbekannt`. */
+  restGrund: string;
+  /** Der fertige Satz, oder `null`. */
+  restText: string | null;
+}
+
+interface ApiErrorBody {
+  error: { code: string; message: string; details?: Record<string, unknown> };
+}
+
+/** Thrown by the mutating calls (startDownload/deleteRegion) below, carrying
+ *  the core's unified `{error:{code,message,details?}}` shape so callers
+ *  can render a specific message for e.g. INSUFFICIENT_SPACE / LAST_REGION. */
+export class RegionApiError extends Error {
+  code: string;
+  details?: Record<string, unknown>;
+
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
+    super(message);
+    this.name = 'RegionApiError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+function apiUrl(path: string): string {
+  return `${import.meta.env.BASE_URL}${path}`;
+}
+
+async function toApiError(response: Response): Promise<RegionApiError> {
+  try {
+    const body = (await response.json()) as ApiErrorBody;
+    if (body?.error?.code && body.error.message) {
+      return new RegionApiError(body.error.code, body.error.message, body.error.details);
+    }
+  } catch {
+    // Body wasn't the expected error shape; fall through to a generic error.
+  }
+  return new RegionApiError('UNKNOWN', `Request failed with status ${response.status}`);
+}
+
+/** Installed regions. Returns [] (never throws) on network/parse failure. */
+export async function fetchInstalledRegions(): Promise<InstalledRegion[]> {
+  try {
+    const response = await fetch(apiUrl('api/v1/map/regions'));
+    if (!response.ok) {
+      return [];
+    }
+    const body = (await response.json()) as { data: InstalledRegion[] };
+    return Array.isArray(body?.data) ? body.data : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Downloadable-regions catalog (+ `installed` flag per entry). Returns []
+ *  (never throws) on network/parse failure. */
+export async function fetchCatalog(): Promise<CatalogRegion[]> {
+  try {
+    const response = await fetch(apiUrl('api/v1/map/regions/catalog'));
+    if (!response.ok) {
+      return [];
+    }
+    const body = (await response.json()) as { data: CatalogRegion[] };
+    return Array.isArray(body?.data) ? body.data : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Starts a download job for `regionId`. Throws RegionApiError on any
+ *  non-2xx response (e.g. 409 INSUFFICIENT_SPACE / ALREADY_INSTALLED, 404
+ *  unknown region), or a plain Error on a network failure. */
+export async function startDownload(regionId: string): Promise<string> {
+  const response = await fetch(apiUrl('api/v1/map/regions'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ region_id: regionId }),
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = (await response.json()) as { job_id: string };
+  return body.job_id;
+}
+
+/** Startet einen KACHELBAU für `regionId` (B-04) — der Gegenpart zu
+ *  `startDownload` für Regionen, für die es keine fertige Datei gibt.
+ *  Wirft RegionApiError bei 409 (INSUFFICIENT_SPACE / INSUFFICIENT_MEMORY /
+ *  ALREADY_INSTALLED / NO_BUILD_SOURCE) oder 404. */
+export async function startBuild(regionId: string): Promise<string> {
+  const response = await fetch(
+    apiUrl(`api/v1/map/regions/${encodeURIComponent(regionId)}/build`),
+    { method: 'POST' },
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = (await response.json()) as { job_id: string };
+  return body.job_id;
+}
+
+/** Startet den Bau des ROUTINGGRAPHEN für `regionId`. Gegenpart zu
+ *  `startBuild`: dieselbe Job-Maschinerie, anderes Erzeugnis. Ohne Graph
+ *  zeigt die App zwar die Karte und die Position, kann aber keine Route
+ *  berechnen. Wirft RegionApiError bei 409 (BUILD_IN_PROGRESS /
+ *  INSUFFICIENT_MEMORY / NO_BUILD_SOURCE) oder 404. */
+export async function startGraphBuild(
+  regionId: string,
+  /**
+   * „Ja, ich weiß, dass eine installierte Karte ohne Routing bleibt."
+   *
+   * Der Kern lehnt einen Bau mit 409 `COVERAGE_LOSS` ab, wenn danach eine
+   * installierte Karte ohne Straßendaten dastünde. Seit 0.10.2 kommt das nur
+   * noch vor, wenn es für sie WEDER Extrakt NOCH Quelle gibt — etwa eine von
+   * Hand nach /share gelegte `.pmtiles`.
+   *
+   * Ohne dieses Feld war die Warnung eine Sackgasse: sie stand da, und der
+   * Betreiber hatte keinen Weg an ihr vorbei. Eine Meldung, die einen Zustand
+   * beschreibt, den man nicht verlassen kann, ist keine Hilfe.
+   */
+  abdeckungBestaetigt = false,
+): Promise<string> {
+  const response = await fetch(
+    apiUrl(`api/v1/map/regions/${encodeURIComponent(regionId)}/build-graph`),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ abdeckung_bestaetigt: abdeckungBestaetigt }),
+    },
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = (await response.json()) as { job_id: string };
+  return body.job_id;
+}
+
+/** Startet den Bau des OFFLINE-SUCHINDEX für `regionId`. Dritter Gegenpart
+ *  zu `startBuild`/`startGraphBuild`, dieselbe Job-Maschinerie. Ohne Index
+ *  bleibt die Adresssuche leer — Navigieren zu einem angetippten Punkt und
+ *  zu Favoriten funktioniert auch ohne. Wirft RegionApiError bei 409
+ *  (BUILD_IN_PROGRESS / INSUFFICIENT_MEMORY / NO_BUILD_SOURCE) oder 404. */
+export async function startSearchIndexBuild(regionId: string): Promise<string> {
+  const response = await fetch(
+    apiUrl(`api/v1/map/regions/${encodeURIComponent(regionId)}/build-search-index`),
+    { method: 'POST' },
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = (await response.json()) as { job_id: string };
+  return body.job_id;
+}
+
+/**
+ * Startet den GESAMTBAU: Routinggraph einmal, danach je Karte der Suchindex.
+ *
+ * ─── DER EINE KNOPF ─────────────────────────────────────────────────────────
+ * Gewünscht: „Dann gibt es noch einen gemeinsamen Knopf der nach einer neuen
+ * Installation oder Update alles wieder neu baut für eine gemeinsame
+ * Anzeige."
+ *
+ * Alles in EINEM Job — damit sich die Anzeige nach einem Seitenwechsel wieder
+ * anhängen kann. Eine Kette aus fünf Jobs wäre von aussen nicht als ein
+ * Vorgang zu erkennen.
+ *
+ * Wirft RegionApiError bei 409 (NO_REGIONS / BUILD_IN_PROGRESS /
+ * INSUFFICIENT_MEMORY).
+ */
+export async function startGesamtbau(alles = false): Promise<string> {
+  // Ohne `alles` baut der Kern nur, was fehlt oder veraltet ist (0.40.0).
+  const response = await fetch(apiUrl('api/v1/map/gesamtbau'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ alles }),
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = (await response.json()) as { job_id: string };
+  return body.job_id;
+}
+
+/** Fetches one job's current status. Returns null (never throws) on
+ *  network/parse failure or an unknown job id, so pollers can just skip a
+ *  beat rather than crash. */
+export async function fetchJob(jobId: string): Promise<JobSnapshot | null> {
+  try {
+    const response = await fetch(apiUrl(`api/v1/jobs/${encodeURIComponent(jobId)}`));
+    if (!response.ok) {
+      return null;
+    }
+    const body = (await response.json()) as { data: JobSnapshot };
+    return body.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Deletes an installed region. Throws RegionApiError on any non-2xx
+ *  response (e.g. 409 LAST_REGION, 404 unknown region). */
+export async function deleteRegion(regionId: string): Promise<void> {
+  const response = await fetch(apiUrl(`api/v1/map/regions/${encodeURIComponent(regionId)}`), {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+}
+
+/**
+ * Der gerade laufende schwere Bau — oder `null`.
+ *
+ * ─── WOFÜR ──────────────────────────────────────────────────────────────────
+ * Gemeldet: „Wenn man von Yapaia woandershin wechselt und dann wieder aufruft
+ * sind die aktuellen Fortschrittsinformationen vom Bau nicht mehr sichtbar."
+ * Und beim nächsten Druck auf „bauen": „Es läuft bereits ein Bau."
+ *
+ * Beides stimmte. Der Bau lief im Kern ungestört weiter — diese Oberfläche
+ * merkte sich nur im Speicher des Browsers, welcher Job zu welcher Region
+ * gehört, und der ist beim Verlassen der Seite weg. Danach wusste der Kern
+ * alles und zeigte nichts.
+ *
+ * Mit dieser Abfrage hängt sich die Anzeige beim Öffnen wieder an: der Job
+ * trägt seine Region selbst, also weiß sie auch wieder, WO sie den Fortschritt
+ * zeigen muss.
+ *
+ * Wirft nie: keine Antwort heißt „ich weiß es nicht", und das darf die
+ * Regionsliste nicht am Erscheinen hindern.
+ */
+export async function fetchLaufenderBau(): Promise<JobSnapshot | null> {
+  try {
+    const response = await fetch(apiUrl('api/v1/map/regions/laufender-bau'));
+    if (!response.ok) return null;
+    const body = (await response.json()) as { data: JobSnapshot | null };
+    return body?.data ?? null;
+  } catch {
+    return null;
+  }
+}

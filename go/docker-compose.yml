@@ -1,0 +1,87 @@
+services:
+  core:
+    build:
+      context: .
+      dockerfile: apps/core/Dockerfile
+    container_name: yapaja-core
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/db:/app/data/db
+      - ./data/tiles:/app/data/tiles
+      - ./data/addons:/app/data/addons
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PORT=8080
+
+  valhalla:
+    # ADR-014: gis-ops Auto-Build-Image statt des offiziellen
+    # ghcr.io/valhalla/valhalla — baut/serviert den Graphen ueber simple
+    # env-Var-Flags statt manueller valhalla_build_config/_tiles-Schritte.
+    # Details + Begruendung: services/valhalla/README.md.
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    container_name: yapaja-valhalla
+    volumes:
+      # /custom_files zeigt direkt auf den LIVE-Tiles-Pfad, den
+      # services/valhalla/build-tiles.sh per atomischem Swap befuellt
+      # (W-17). NICHT auf ./data/valhalla mounten — tiles.new/tiles.old
+      # sind Build-Staging-Verzeichnisse, die der Container nie sehen soll.
+      - ./data/valhalla/tiles:/custom_files
+    ports:
+      - "8002:8002"
+    environment:
+      # Normalbetrieb: nur bereits gebaute Tiles servieren, KEIN
+      # automatischer Download/Rebuild beim Start. Der Graph-(Neu-)Bau
+      # laeuft separat und kontrolliert ueber build-tiles.sh (atomischer
+      # Swap, kein Downtime waehrend des Builds).
+      - tile_urls=
+      - serve_tiles=True
+      - force_rebuild=False
+      - build_elevation=False
+      - build_admins=True
+      - build_time_zones=False
+    # Solange noch keine Tiles gebaut wurden (./data/valhalla/tiles ist
+    # leer bzw. existiert noch nicht), kann der Container-Prozess ohne
+    # Graphen nicht sinnvoll hochkommen. `on-failure:3` begrenzt die
+    # Neustartversuche (kein endloses Crash-Loopen) statt `unless-stopped`,
+    # das den Container bei fehlenden Tiles unbegrenzt neu starten wuerde.
+    # Nach `services/valhalla/build-tiles.sh <pbf>` (siehe README) einfach
+    # `docker compose up -d valhalla` erneut ausfuehren.
+    restart: on-failure:3
+    profiles:
+      - routing
+
+  photon:
+    image: rtuszik/photon-docker:latest
+    container_name: yapaja-photon
+    volumes:
+      # /photon/photon_data ist der Live-Datenpfad, den
+      # services/photon/download-index.sh per atomischem Swap befuellt
+      # (analog zu Valhalla's /custom_files, siehe oben). Initial leer bis
+      # der Skript einmal gelaufen ist -- Photon meldet dann degraded/keinen
+      # Index (services/photon/README.md).
+      - ./data/photon/photon_data:/photon/photon_data
+    ports:
+      - "2322:2322"
+    environment:
+      # RAM-Deckel fuer die JVM (docs/01 §4 Ressourcen-Budget: Photon ≤ 1 GB;
+      # ADR-005: DE-Index ~600 MB-1 GB RSS mit JVM-Tuning; W-12: auf kleineren
+      # Geraeten via .env PHOTON_XMX nach unten korrigierbar, z.B. 512m/256m).
+      # Wird vom rtuszik/photon-docker-Image unveraendert an den `java`-Prozess
+      # durchgereicht, der Photon startet (JAVA_PARAMS-Mechanismus des Images).
+      - JAVA_PARAMS=-Xmx${PHOTON_XMX:-1g}
+    healthcheck:
+      # Photon selbst beantwortet /status mit dem Index-Stand (siehe
+      # apps/core/src/search/photonBackend.ts, das denselben Host:Port nutzt).
+      # curl ist im Image vorhanden (das Upstream-Compose-Beispiel nutzt
+      # denselben Healthcheck-Aufruf).
+      test: ["CMD", "curl", "-f", "http://localhost:2322/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    profiles:
+      - search

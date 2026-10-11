@@ -1,0 +1,253 @@
+# 03 – API-Spezifikation (REST · WebSocket · MQTT)
+
+> **Einordnung:** Fachreferenz, laufend gepflegt — hier stehen die Details.
+> Wer einen Einstieg oder das Gesamtbild sucht, fängt besser im
+> [Entwicklerhandbuch](developers.md) an; die Bedienung steht im
+> [Handbuch](manual.md).
+
+
+**Single Source of Truth:** Alle Payload-Schemata werden als JSON-Schema in
+`packages/shared/schemas/` gepflegt und generieren daraus TypeScript-Typen,
+Fastify-Validierung, OpenAPI-Doku und die MQTT-Payload-Doku. Dieses Dokument
+definiert die Verträge; bei Konflikt gewinnt `packages/shared`.
+
+Versionierung: URL-Prefix `/api/v1`. Breaking Changes ⇒ `/api/v2`, v1 bleibt
+mindestens eine Major-Version lang erhalten (wichtig für Add-ons!).
+
+Auth: `Authorization: Bearer <token>` (standalone) bzw. HA-Ingress-Session.
+Add-ons nutzen scoped Tokens (siehe `docs/05-addon-system.md`).
+
+---
+
+## 1. Kern-Datentypen (Auszug)
+
+```ts
+type LatLng = { lat: number; lon: number };            // WGS84, EPSG:4326
+
+interface Position {
+  lat: number; lon: number;
+  alt: number | null;          // Meter über MSL (aktuelle Höhe!)
+  speed: number | null;        // m/s über Grund
+  heading: number | null;      // Grad, 0 = Nord
+  accuracy: number | null;     // Meter (HDOP-basiert bei gpsd)
+  source: 'gpsd' | 'browser' | 'simulator';
+  fix: 'none' | '2d' | '3d';
+  ts: string;                  // ISO 8601 UTC
+}
+
+interface VehicleProfile {
+  id: string;                  // uuid
+  name: string;                // "Kastenwagen", "Alkoven 7.5t" ...
+  height_m: number;            // 1.0–4.5
+  width_m: number;             // 1.5–3.0
+  length_m: number;            // 3.0–20.0
+  weight_t: number;            // 1.0–40.0
+  avg_speed_kmh: number;       // 40–130, für ETA-Berechnung
+  hazmat: boolean;             // default false
+  avoid: { motorway: boolean; toll: boolean; ferry: boolean; unpaved: boolean };
+  is_active: boolean;
+}
+
+interface RouteRequest {
+  origin: LatLng | 'current';
+  destination: LatLng;
+  waypoints: LatLng[];         // max 25
+  profile_id: string;
+  alternatives: number;        // 0–3
+}
+
+interface Route {
+  id: string;
+  distance_m: number;
+  duration_s: number;          // Valhalla-Zeit, kalibriert mit avg_speed_kmh
+  geometry: string;            // polyline6
+  legs: RouteLeg[];            // je Wegpunkt-Abschnitt
+  maneuvers: Maneuver[];
+  speed_limits: SpeedSegment[];// [{begin_shape_index, end_shape_index, kmh|null}]
+  warnings: RouteWarning[];    // z.B. "restriction data missing on 2 edges"
+}
+
+interface Maneuver {
+  index: number;
+  type: ManeuverType;          // enum nach Valhalla (turn_left, roundabout_enter, ...)
+  instruction: string;         // lokalisiert, z.B. "Links abbiegen auf B27"
+  street_names: string[];
+  distance_m: number;          // Länge dieses Manöver-Abschnitts
+  begin_shape_index: number;
+  lanes?: LaneInfo[];
+  sign?: ManeuverSign;           // Schildertexte (0.17.3)
+  roundabout_exit_count?: number; // nur Kreisel: die wievielte Ausfahrt (0.18.0)
+  roundabout_turn_deg?: number;   // nur Kreisel: Drehung Ein→Ausfahrt, rechts positiv (0.18.0)
+}
+
+interface NavState {
+  status: 'idle' | 'routing' | 'navigating' | 'paused' | 'arrived' | 'off_route';
+  route_id: string | null;
+  next_maneuver: Maneuver | null;
+  distance_to_maneuver_m: number | null;
+  distance_remaining_m: number | null;
+  duration_remaining_s: number | null;
+  eta: string | null;                    // ISO 8601 in UTC ('...Z'); Core UTC-only (W-22), Client formatiert lokal (formatEta)
+  speed_kmh: number | null;              // aktuelle Geschwindigkeit
+  speed_limit_kmh: number | null;        // AUSGESCHILDERT lt. Kartendaten, null = unbekannt/unbegrenzt
+  speed_limit_vehicle_kmh: number | null; // was DIESES Fahrzeug hier darf (Gewicht + Tempo-100), null = keine eigene Grenze
+  altitude_m: number | null;
+  destination: { latlng: LatLng; name: string | null } | null;
+}
+```
+
+---
+
+## 2. REST-API (Core)
+
+### System
+| Methode & Pfad | Zweck |
+|---|---|
+| `GET /api/v1/health` | Liveness: `{status, version, services:{valhalla, photon, gpsd, mqtt}}` je `ok|degraded|down` |
+| `GET /api/v1/system/info` | Versionen, Kartenregion(en), Datenstand (OSM-Timestamp), Disk-Frei |
+| `GET/PATCH /api/v1/settings` | App-Einstellungen (Einheiten, Sprache, Tag/Nacht-Auto, GPS-Priorität, MQTT-Config …) |
+
+### Karten & Tiles
+| Methode & Pfad | Zweck |
+|---|---|
+| `GET /tiles/{region}.pmtiles` | PMTiles mit HTTP-Range-Support |
+| `GET /api/v1/map/styles` | verfügbare Styles (id, name, preview) |
+| `GET /api/v1/map/styles/{id}` | MapLibre-Style-JSON (URLs auf lokale Tiles umgeschrieben) |
+| `GET/POST/DELETE /api/v1/map/regions` | installierte Regionen; POST startet Download-Job (`202` + job_id) |
+| `GET /api/v1/jobs/{id}` | Download-/Import-Job-Status (progress, eta, error) |
+
+### Position
+| Methode & Pfad | Zweck |
+|---|---|
+| `GET /api/v1/position` | letzte bekannte Position (`Position`) |
+| `POST /api/v1/position/browser` | Browser meldet Geolocation-Fix (wird nur genutzt, wenn Quelle 'browser' aktiv) |
+| `GET /api/v1/position/sources` | verfügbare Quellen + Status + aktive Quelle |
+| `PUT /api/v1/position/source` | Quelle erzwingen (`gpsd|browser|auto|simulator`) |
+
+### Fahrzeugprofile
+| Methode & Pfad | Zweck |
+|---|---|
+| `GET/POST /api/v1/profiles` | Liste / Anlegen (Validierung: Wertebereiche s. o.) |
+| `GET/PUT/DELETE /api/v1/profiles/{id}` | Details / Ändern / Löschen (aktives Profil nicht löschbar) |
+| `PUT /api/v1/profiles/{id}/activate` | Profil aktivieren; laufende Navigation ⇒ Reroute mit neuem Profil + Warnhinweis |
+
+### Routing & Navigation
+| Methode & Pfad | Zweck |
+|---|---|
+| `POST /api/v1/routes` | Route(n) berechnen (`RouteRequest` → `Route[]`, erste = empfohlen). `mode` wählt `fastest`/`shortest`/`balanced`; fehlt es, gilt die Einstellung `route_mode` (0.8.0) |
+| `GET /api/v1/routes/{id}` | Route abrufen (Cache, TTL 1 h) |
+| `POST /api/v1/routes/optimize` | Günstigste Reihenfolge der Zwischenziele (`RouteRequest` → `{order: number[]}`, Stellen in der übergebenen Liste). Rechnet über Valhallas `/optimized_route`; eine unbrauchbare Antwort ergibt die unveränderte Reihenfolge (0.8.0) |
+| `POST /api/v1/navigation/start` | `{route_id}` → Navigation starten |
+| `POST /api/v1/navigation/pause` \| `resume` \| `stop` | Steuerung |
+| `GET /api/v1/navigation/state` | aktueller `NavState` |
+| `POST /api/v1/navigation/destination` | Convenience für HA/Add-ons: `{query | latlng, profile_id?, autostart?: bool}` – geocodet, routet, startet optional |
+
+### Suche & Favoriten
+| Methode & Pfad | Zweck |
+|---|---|
+| `GET /api/v1/search?q=&limit=&lat=&lon=` | Geocoding (Photon → Fallback Nominatim); bias auf Position |
+| `GET /api/v1/search/reverse?lat=&lon=` | Reverse-Geocoding |
+| `GET/POST /api/v1/favorites` | Favoriten (name, latlng, icon, category: home|campsite|poi|custom, sort_order) |
+| `PUT/DELETE /api/v1/favorites/{id}` | Ändern/Löschen |
+| `GET/DELETE /api/v1/history` | Suchverlauf/Zielverlauf (löschen: alles oder einzeln) |
+
+### Add-ons (Details in docs/05)
+| Methode & Pfad | Zweck |
+|---|---|
+| `GET /api/v1/addons` | installierte Add-ons + Status |
+| `POST /api/v1/addons/install` | `{registry_id | url}` → Installation (Job) |
+| `POST /api/v1/addons/{id}/enable|disable` · `DELETE .../{id}` | Lifecycle |
+| `GET /api/v1/addons/registry` | Store-Katalog (lokaler Cache der Registry) |
+| `POST /api/v1/addons/registry/sync` | Katalog aktualisieren (braucht Internet) |
+
+### Sicherheit / Sandbox-Audit (E09-T6, W-10; Details in `e2e/security/README.md`)
+| Methode & Pfad | Zweck |
+|---|---|
+| `GET /api/v1/security/events` | aufgezeichnete, GEBLOCKTE Sandbox-Escape-Versuche (`{vector, addonId, detail, at}`) + die Liste aller bekannten `vector`-Ids. Filter: `?vector=&addon_id=&limit=` |
+| `POST /api/v1/security/events` | die vertrauenswuerdige Web-UI meldet einen browserseitig erkannten Verstoss (`{vector, addon_id, detail}`) |
+
+Beide Routen sind **Core-Token-geschuetzt und fuer Add-on-Principals
+default-denied** (sie stehen nicht in `ADDON_ROUTE_RULES`) -- ein Add-on kann
+das Audit-Log weder lesen noch beschreiben. `detail` enthaelt nie ein Token
+oder ein anderes Geheimnis.
+
+Fehlerformat einheitlich: `{error: {code: string, message: string, details?: object}}`,
+HTTP-Statuscodes semantisch korrekt (400 Validierung, 404, 409 Konflikt, 503 Service down).
+
+---
+
+## 3. WebSocket (`/ws/v1`, JSON-Nachrichten)
+
+Client → Server: `{type: 'subscribe', topics: ['pos/*','nav/*']}`, `{type:'ping'}`.
+Server → Client: `{topic, payload, ts}`. Topics == interne Event-Bus-Topics:
+
+| Topic | Payload | Frequenz |
+|---|---|---|
+| `pos/update` | `Position` | 1 Hz (konfigurierbar bis 5 Hz) |
+| `nav/state` | `NavState` (komplett) | 1 Hz während Navigation |
+| `nav/instruction` | `{maneuver, distance_m, say: string}` | bei Wechsel/Ansage-Schwelle — **ein Ereignis, kein Zustand**: `distance_m` ist die Entfernung im Augenblick der Ansage |
+| `route/updated` | `{route: Route, reason: 'initial'|'reroute'|'profile_change'}` | bei Änderung |
+| `route/deviation` | `{distance_from_route_m}` | bei Erkennung |
+| `system/health` | wie REST-health | bei Änderung + alle 30 s |
+| `addon/{addon_id}/*` | Add-on-eigene Events | Add-on-definiert |
+| `event/security_violation` | `{vector, addonId, detail, at}` -- ein GEBLOCKTER Add-on-Sandbox-Escape-Versuch (E09-T6, W-10) | bei jedem Refusal |
+
+---
+
+## 4. MQTT-Topics (Bridge zu Home Assistant)
+
+Basis-Prefix konfigurierbar, Default `yapaia`. QoS 1, `retain` für Zustands-Topics.
+Alle Payloads JSON. HA-Auto-Discovery unter `homeassistant/...` (siehe docs/04).
+
+### Publiziert von Yapaia Go (Status)
+| Topic | Inhalt | Retain |
+|---|---|---|
+| `yapaja/status` | `online|offline` (LWT!) | ✔ |
+| `yapaja/position` | `Position` (1 Hz während Fahrt, 0,1 Hz im Stand) | ✔ |
+| `yapaja/nav/state` | `NavState.status` | ✔ |
+| `yapaja/nav/instruction` | `{type, instruction, street_names, distance_m, icon, roundabout}` – `icon` = mdi-Name für Richtungspfeil (z. B. `mdi:arrow-left-top`); `roundabout` = `"<Ausfahrt>\|<Drehung°>"` (z. B. `"2\|90"`), sonst `""` | ✔ |
+| `yapaja/nav/maneuver` | dieselben Felder, aber als **Zustand**: aus `nav/state`, also im Sekundentakt. `null`, wenn kein Manöver ansteht. **Hieran hängen die Anzeige-Sensoren** (`sensor.yapaja_instruction`, `…_instruction_distance`) — an `nav/instruction` stünde die Entfernung zwischen zwei Ansagen still (0.7.2) | ✔ |
+| `yapaja/nav/eta` | `{eta, duration_remaining_s, distance_remaining_m}` | ✔ |
+| `yapaja/nav/speed` | `{speed_kmh, speed_limit_kmh, speed_limit_vehicle_kmh, speed_limit_effective_kmh, speed_limit_source, speeding: bool}` | ✔ |
+| `yapaja/nav/altitude` | `{altitude_m}` | ✔ |
+| `yapaja/nav/destination` | `{lat, lon, name}` oder `null` | ✔ |
+| `yapaja/route/summary` | `{distance_m, duration_s, via: string[]}` bei neuer Route | ✔ |
+| `yapaja/event/#` | flüchtige Events (deviation, arrived, gps_lost, reroute) | ✘ |
+| `yapaja/addon/{id}/*` | Add-on-Events (E09-T8): 1:1-Republish von `events.publish` (`addon/{id}/*` auf dem internen Bus, docs/05 §2) unter demselben, um `{id}` erweiterten Namensraum. Rate-Limit 5 msg/s pro Add-on (Drossel-Log bei Überschreitung), Payload ≤ 16 KB, pro Add-on abschaltbar ("In Home Assistant verfügbar", Store-Detailseite). Details/Sicherheitsbetrachtung: `apps/core/src/mqtt/addonTopic.ts`. | ✘ |
+
+### Kommandos an Yapaia Go (HA → App)
+| Topic | Payload | Wirkung |
+|---|---|---|
+| `yapaja/cmd/destination` | `{query?: string, lat?: number, lon?: number, autostart?: bool}` | Ziel setzen (wie REST `/navigation/destination`) |
+| `yapaja/cmd/navigation` | `"start" \| "pause" \| "resume" \| "stop"` | Steuerung |
+| `yapaja/cmd/profile` | `{id}` oder `{name}` | Fahrzeugprofil aktivieren |
+| `yapaja/cmd/favorite` | `{name}` | Route zu benanntem Favoriten starten |
+
+Jedes Kommando wird mit `yapaja/cmd/result` beantwortet:
+`{cmd, ok: bool, error?: string, request_id?}` (`request_id` wird durchgereicht,
+wenn im Kommando enthalten).
+
+---
+
+## 5. Plausibilitäts-Invarianten (von Tests erzwungen, siehe docs/07)
+
+- `0 ≤ speed_kmh < 250`; `-450 < altitude_m < 4900` (Europa-Grenzen + Marge).
+- `distance_to_maneuver_m` monoton fallend zwischen Manövern (Toleranz GPS-Rauschen 15 m).
+- `eta` nie in der Vergangenheit; `duration_remaining_s` fällt bei konstanter Fahrt.
+- Route-Distanz ≥ Luftlinie und ≤ 4 × Luftlinie (sonst `RouteWarning` + Log).
+- `speed_limit_kmh ∈ {5..130} ∪ null` (DE); Wert `null` heißt „unbekannt", niemals 0.
+- **Seit 0.14.0** trägt `nav/speed` drei weitere Felder. Die Erweiterung ist
+  rückwärtskompatibel — bestehende Automationen, die `speed_kmh`,
+  `speed_limit_kmh` oder `speeding` lesen, bleiben unverändert gültig:
+  - `speed_limit_vehicle_kmh` — was DIESES Fahrzeug hier darf. Ein Wohnmobil
+    über 3,5 t darf weniger als das Schild erlaubt, und auf einer unbegrenzten
+    Autobahn gibt es gar kein Schild. Steht deshalb NEBEN `speed_limit_kmh`
+    und ersetzt es nicht.
+  - `speed_limit_effective_kmh` — die niedrigere der beiden bekannten Zahlen.
+    **Danach richtet sich `speeding`.**
+  - `speed_limit_source ∈ {'schild', 'fahrzeug', 'keine'}` — woher diese Zahl
+    kommt. Ohne sie wäre am Wert nicht abzulesen, ob gerade das Schild oder
+    das Fahrzeuggewicht entscheidet.
+- `speeding` ist nur `true`, wenn Tempo UND Grenze bekannt sind. Eine
+  unbekannte Grenze ist keine Übertretung.
+- Bei `fix: 'none'` werden keine `pos/update` publiziert, stattdessen `event/gps_lost`.

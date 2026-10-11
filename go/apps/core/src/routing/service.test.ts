@@ -1,0 +1,535 @@
+/**
+ * RoutingService behaviour with a mocked Valhalla transport.
+ *
+ * Covers: the profile-mapping intercept (outgoing costing_options.truck),
+ * checkRoute enforcement (500, route NOT delivered), the fatal-vs-warning
+ * split for too-long routes, all error paths (503 / 400 / 409), and
+ * origin:'current' resolution.
+ */
+
+import { describe, it, expect } from 'vitest';
+import type { LatLng, Position, RouteRequest, VehicleProfile } from '@yapaia/shared';
+import { RoutingService, type PositionLookup, type ProfileLookup } from './service.js';
+import { RoutingError } from './errors.js';
+import { type InstalledRegionsProvider } from './coverageCheck.js';
+import { ValhallaClient, type FetchLike, type FetchResponseLike } from './valhallaClient.js';
+import { encodePolyline6 } from './polyline.js';
+import type { ValhallaRouteResponse, ValhallaTrip } from './types.js';
+
+// --- fixtures ------------------------------------------------------------
+
+function camper(overrides: Partial<VehicleProfile> = {}): VehicleProfile {
+  return {
+    id: 'p1',
+    name: 'Camper',
+    height_m: 3.0,
+    width_m: 2.2,
+    length_m: 6.5,
+    weight_t: 3.5,
+    avg_speed_kmh: 85,
+    hazmat: false,
+    avoid: { motorway: false, toll: false, ferry: false, unpaved: false },
+    is_active: true,
+    dimensions_confirmed_at: null,
+    ...overrides,
+  };
+}
+
+function profileService(profile: VehicleProfile | null): ProfileLookup {
+  return { getById: (id) => (profile && profile.id === id ? profile : null) };
+}
+
+function positionService(pos: Position | null): PositionLookup {
+  return { getLast: () => pos };
+}
+
+/**
+ * Mock regions provider that accepts all points (fail-open for existing tests).
+ * E03-T6: Tests for coverage checking use a custom provider; these tests
+ * pre-date the coverage check and should not be affected by it.
+ */
+function allAcceptingRegionsProvider(): InstalledRegionsProvider {
+  return {
+    async getInstalledRegions() {
+      // Return a world-spanning region so all points are accepted
+      return [
+        {
+          id: 'world',
+          name: 'World',
+          bounds: [-180, -90, 180, 90],
+        },
+      ];
+    },
+    async getCatalogRegions() {
+      return [];
+    },
+  };
+}
+
+const ORIGIN: LatLng = { lat: 0, lon: 0 };
+const DEST: LatLng = { lat: 0, lon: 0.1 }; // ~11132 m straight line
+
+function tripWithLengthKm(lengthKm: number, timeS: number): ValhallaTrip {
+  return {
+    summary: { length: lengthKm, time: timeS },
+    legs: [
+      {
+        shape: encodePolyline6([
+          { lat: 0, lon: 0 },
+          { lat: 0, lon: 0.1 },
+        ]),
+        summary: { length: lengthKm, time: timeS },
+        maneuvers: [{ type: 1, instruction: 'go', street_names: [], length: lengthKm, begin_shape_index: 0 }],
+      },
+    ],
+  };
+}
+
+const OK_RESPONSE: ValhallaRouteResponse = { trip: tripWithLengthKm(12.5, 900) };
+
+interface Captured {
+  url?: string;
+  body?: Record<string, unknown>;
+}
+
+function jsonResponse(json: unknown, status = 200): FetchResponseLike {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => json,
+    text: async () => JSON.stringify(json),
+  };
+}
+
+/**
+ * fetch mock that records the outgoing request and returns a fixed response.
+ *
+ * ─── NUR DER `/route`-AUFRUF WIRD FESTGEHALTEN ────────────────────────────
+ * Seit 0.5.0 fragt der Dienst nach der Route zusaetzlich `/trace_attributes`
+ * fuer die Tempolimits. Wuerde hier weiter der LETZTE Aufruf festgehalten,
+ * pruefte jeder Test unten den falschen Rumpf -- genau so sind diese Tests
+ * beim Einbau umgefallen (`expected '…/trace_attributes' to be '…/route'`).
+ *
+ * Die Tempolimit-Abfrage bekommt eine leere Antwort: sie ist hier nicht das
+ * Thema, und sie darf ein Routing-Ergebnis nicht veraendern.
+ */
+function recordingFetch(captured: Captured, response: FetchResponseLike): FetchLike {
+  return async (url, init) => {
+    if (url.endsWith('/trace_attributes')) {
+      return jsonResponse({ edges: [] });
+    }
+    captured.url = url;
+    captured.body = JSON.parse(init.body) as Record<string, unknown>;
+    return response;
+  };
+}
+
+function serviceWith(
+  fetchImpl: FetchLike,
+  profile: VehicleProfile | null = camper(),
+  pos: Position | null = null,
+): RoutingService {
+  const client = new ValhallaClient({ baseUrl: 'http://valhalla.test', fetchImpl });
+  return new RoutingService({
+    client,
+    profileService: profileService(profile),
+    positionService: positionService(pos),
+    regionsProvider: allAcceptingRegionsProvider(),
+  });
+}
+
+function request(overrides: Partial<RouteRequest> = {}): RouteRequest {
+  return {
+    origin: ORIGIN,
+    destination: DEST,
+    waypoints: [],
+    profile_id: 'p1',
+    alternatives: 0,
+    ...overrides,
+  };
+}
+
+// --- tests ---------------------------------------------------------------
+
+describe('Tempolimits (0.5.0)', () => {
+  /**
+   * ─── EINE ROUTE DARF NIE AN DEN LIMITS SCHEITERN ─────────────────────────
+   * Die Tempolimits sind ein Zusatz. Antwortet Valhalla darauf nicht, ist das
+   * ein fehlendes Schild -- keine fehlende Fahrt. Der umgekehrte Fall waere
+   * die schlechteste Abwaegung, die dieses Projekt treffen koennte.
+   */
+  it('liefert die Route auch dann, wenn die Tempolimit-Abfrage scheitert', async () => {
+    const service = serviceWith(async (url) => {
+      if (url.endsWith('/trace_attributes')) throw new Error('Valhalla antwortet nicht');
+      return jsonResponse(OK_RESPONSE);
+    });
+
+    const routes = await service.createRoutes(request());
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].speed_limits).toEqual([]);
+  });
+
+  it('traegt gelieferte Tempolimits in die Route ein', async () => {
+    const service = serviceWith(async (url) => {
+      if (url.endsWith('/trace_attributes')) {
+        return jsonResponse({
+          edges: [{ begin_shape_index: 0, end_shape_index: 2, speed_limit: 50 }],
+        });
+      }
+      return jsonResponse(OK_RESPONSE);
+    });
+
+    const routes = await service.createRoutes(request());
+    expect(routes[0].speed_limits).toEqual([{ begin_shape_index: 0, end_shape_index: 2, kmh: 50, road_class: null }]);
+  });
+});
+
+describe('RoutingService profile-mapping intercept', () => {
+  it('sends the active profile as costing_options.truck (all fields, avoid=false omits use_*)', async () => {
+    const captured: Captured = {};
+    const svc = serviceWith(recordingFetch(captured, jsonResponse(OK_RESPONSE)), camper());
+
+    await svc.createRoutes(request());
+
+    expect(captured.url).toBe('http://valhalla.test/route');
+    const truck = (captured.body as { costing_options: { truck: Record<string, unknown> } })
+      .costing_options.truck;
+    expect(truck).toMatchObject({
+      height: 3.0,
+      width: 2.2,
+      length: 6.5,
+      weight: 3.5,
+      hazmat: false,
+    });
+    // `toMatchObject` prueft nur, was dasteht -- ein wieder eingebautes
+    // `top_speed` fiele ihm nicht auf. Die Abwesenheit muss also eigens
+    // zugesichert werden, und zwar hier am ECHTEN Anfragekoerper, nicht nur
+    // an der reinen Funktion.
+    expect('top_speed' in truck).toBe(false);
+    expect('use_highways' in truck).toBe(false);
+    expect('use_tolls' in truck).toBe(false);
+    expect('use_ferry' in truck).toBe(false);
+    expect('use_tracks' in truck).toBe(false);
+    expect((captured.body as { costing: string }).costing).toBe('truck');
+  });
+
+  it('lowers use_* flags when the active profile avoids classes', async () => {
+    const captured: Captured = {};
+    const svc = serviceWith(
+      recordingFetch(captured, jsonResponse(OK_RESPONSE)),
+      camper({ avoid: { motorway: true, toll: true, ferry: true, unpaved: true } }),
+    );
+
+    await svc.createRoutes(request());
+
+    const truck = (captured.body as { costing_options: { truck: Record<string, unknown> } })
+      .costing_options.truck;
+    expect(truck.use_highways).toBe(0);
+    expect(truck.use_tolls).toBe(0);
+    expect(truck.use_ferry).toBe(0);
+    expect(truck.use_tracks).toBe(0);
+  });
+});
+
+describe('RoutingService E03-T4 temporary avoidances (exclude_locations/exclude_polygons/avoid_overrides)', () => {
+  it('forwards RouteRequest.exclude_locations to Valhalla unchanged, and omits the field when absent', async () => {
+    const captured: Captured = {};
+    const svc = serviceWith(recordingFetch(captured, jsonResponse(OK_RESPONSE)), camper());
+
+    await svc.createRoutes(request({ exclude_locations: [{ lat: 0.05, lon: 0.05 }] }));
+
+    expect((captured.body as { exclude_locations?: unknown[] }).exclude_locations).toEqual([
+      { lat: 0.05, lon: 0.05 },
+    ]);
+  });
+
+  it('forwards RouteRequest.exclude_polygons to Valhalla with rings converted to [lon, lat] tuples', async () => {
+    const captured: Captured = {};
+    const svc = serviceWith(recordingFetch(captured, jsonResponse(OK_RESPONSE)), camper());
+
+    await svc.createRoutes(
+      request({
+        exclude_polygons: [
+          [
+            { lat: 0.01, lon: 0.02 },
+            { lat: 0.02, lon: 0.02 },
+            { lat: 0.02, lon: 0.03 },
+          ],
+        ],
+      }),
+    );
+
+    expect((captured.body as { exclude_polygons?: unknown }).exclude_polygons).toEqual([
+      [
+        [0.02, 0.01],
+        [0.02, 0.02],
+        [0.03, 0.02],
+      ],
+    ]);
+  });
+
+  it('omits exclude_locations/exclude_polygons from the Valhalla body when the request has neither', async () => {
+    const captured: Captured = {};
+    const svc = serviceWith(recordingFetch(captured, jsonResponse(OK_RESPONSE)), camper());
+
+    await svc.createRoutes(request());
+
+    expect('exclude_locations' in (captured.body as object)).toBe(false);
+    expect('exclude_polygons' in (captured.body as object)).toBe(false);
+  });
+
+  it('avoid_overrides overrides the active profile avoid flags for this request only', async () => {
+    const captured: Captured = {};
+    const svc = serviceWith(
+      recordingFetch(captured, jsonResponse(OK_RESPONSE)),
+      camper({ avoid: { motorway: false, toll: false, ferry: false, unpaved: false } }),
+    );
+
+    await svc.createRoutes(request({ avoid_overrides: { toll: true } }));
+
+    const truck = (captured.body as { costing_options: { truck: Record<string, unknown> } }).costing_options
+      .truck;
+    expect(truck.use_tolls).toBe(0);
+    expect('use_highways' in truck).toBe(false);
+  });
+});
+
+describe('RoutingService origin resolution', () => {
+  it('uses the current device position as the first Valhalla location', async () => {
+    const captured: Captured = {};
+    // Position sits near ORIGIN so the fixed 12.5 km fixture stays plausible
+    // against DEST (~11 km straight line); the assertion is about location[0].
+    const pos: Position = {
+      lat: 0.001,
+      lon: 0.001,
+      alt: null,
+      speed: null,
+      heading: null,
+      accuracy: null,
+      source: 'gpsd',
+      fix: '3d',
+      ts: new Date().toISOString(),
+    };
+    const svc = serviceWith(recordingFetch(captured, jsonResponse(OK_RESPONSE)), camper(), pos);
+
+    await svc.createRoutes(request({ origin: 'current' }));
+
+    const locations = (captured.body as { locations: LatLng[] }).locations;
+    expect(locations[0]).toEqual({ lat: 0.001, lon: 0.001, type: 'break' });
+  });
+
+  it('rejects origin:"current" with 409 NO_POSITION when no position is known', async () => {
+    const svc = serviceWith(recordingFetch({}, jsonResponse(OK_RESPONSE)), camper(), null);
+    await expect(svc.createRoutes(request({ origin: 'current' }))).rejects.toMatchObject({
+      httpStatus: 409,
+      code: 'NO_POSITION',
+    });
+  });
+});
+
+describe('RoutingService plausibility enforcement (checkRoute)', () => {
+  it('throws 500 IMPLAUSIBLE_ROUTE and does NOT deliver a too-short route', async () => {
+    // 1.0 km << 11132 m straight line -> route_distance_too_short (fatal).
+    const svc = serviceWith(
+      recordingFetch({}, jsonResponse({ trip: tripWithLengthKm(1.0, 120) })),
+      camper(),
+    );
+    await expect(svc.createRoutes(request())).rejects.toMatchObject({
+      httpStatus: 500,
+      code: 'IMPLAUSIBLE_ROUTE',
+    });
+  });
+
+  it('does not cache a route that failed the plausibility gate', async () => {
+    const svc = serviceWith(
+      recordingFetch({}, jsonResponse({ trip: tripWithLengthKm(1.0, 120) })),
+      camper(),
+    );
+    await expect(svc.createRoutes(request())).rejects.toBeInstanceOf(RoutingError);
+    // Nothing plausible was produced, so the cache stays empty (spot-check a
+    // fresh service: no id to look up, but the invariant is "never delivered").
+  });
+});
+
+describe('RoutingService error paths', () => {
+  it('maps a network failure to 503 ROUTING_UNAVAILABLE', async () => {
+    const failing: FetchLike = async () => {
+      throw new Error('ECONNREFUSED');
+    };
+    await expect(serviceWith(failing).createRoutes(request())).rejects.toMatchObject({
+      httpStatus: 503,
+      code: 'ROUTING_UNAVAILABLE',
+    });
+  });
+
+  it('maps a timeout (AbortError) to 503 ROUTING_UNAVAILABLE', async () => {
+    const aborting: FetchLike = async () => {
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      throw err;
+    };
+    await expect(serviceWith(aborting).createRoutes(request())).rejects.toMatchObject({
+      httpStatus: 503,
+      code: 'ROUTING_UNAVAILABLE',
+    });
+  });
+
+  it('maps a Valhalla 5xx to 503 ROUTING_UNAVAILABLE', async () => {
+    const svc = serviceWith(recordingFetch({}, jsonResponse({}, 503)));
+    await expect(svc.createRoutes(request())).rejects.toMatchObject({
+      httpStatus: 503,
+      code: 'ROUTING_UNAVAILABLE',
+    });
+  });
+
+  it('maps a Valhalla "no path" error to 400 NO_ROUTE', async () => {
+    const svc = serviceWith(
+      recordingFetch(
+        {},
+        jsonResponse({ error_code: 442, error: 'No path could be found for input' }, 400),
+      ),
+    );
+    await expect(svc.createRoutes(request())).rejects.toMatchObject({
+      httpStatus: 400,
+      code: 'NO_ROUTE',
+    });
+  });
+
+  it('maps a Valhalla "no suitable edges" error to 400 POINT_UNREACHABLE', async () => {
+    const svc = serviceWith(
+      recordingFetch(
+        {},
+        jsonResponse({ error_code: 171, error: 'No suitable edges near location' }, 400),
+      ),
+    );
+    await expect(svc.createRoutes(request())).rejects.toMatchObject({
+      httpStatus: 400,
+      code: 'POINT_UNREACHABLE',
+    });
+  });
+
+  it('rejects an unknown profile_id with 404 PROFILE_NOT_FOUND', async () => {
+    const svc = serviceWith(recordingFetch({}, jsonResponse(OK_RESPONSE)), null);
+    await expect(svc.createRoutes(request())).rejects.toMatchObject({
+      httpStatus: 404,
+      code: 'PROFILE_NOT_FOUND',
+    });
+  });
+});
+
+describe('RoutingService success + cache', () => {
+  it('returns schema-valid routes and caches them by id', async () => {
+    const svc = serviceWith(recordingFetch({}, jsonResponse(OK_RESPONSE)), camper());
+    const routes = await svc.createRoutes(request());
+    expect(routes).toHaveLength(1);
+    const id = routes[0].id;
+    expect(svc.getCachedRoute(id)?.id).toBe(id);
+    expect(svc.getCachedRoute('unknown')).toBeNull();
+  });
+});
+
+describe('die guenstigste Reihenfolge der Zwischenziele', () => {
+  const WP: LatLng[] = [
+    { lat: 0, lon: 0.02 },
+    { lat: 0, lon: 0.04 },
+    { lat: 0, lon: 0.06 },
+  ];
+
+  function anfrage(waypoints: LatLng[] = WP): RouteRequest {
+    return {
+      origin: ORIGIN,
+      destination: DEST,
+      waypoints,
+      profile_id: 'p1',
+      alternatives: 0,
+    };
+  }
+
+  /** Ein Client, der nur auf `/optimized_route` antwortet -- und mitschreibt. */
+  function client(orte: unknown, gerufen: string[] = []): {
+    client: { route: (b: unknown, p?: string) => Promise<ValhallaRouteResponse> };
+    gerufen: string[];
+  } {
+    return {
+      client: {
+        route: async (_b: unknown, p = '/route') => {
+          gerufen.push(p);
+          return {
+            trip: { ...tripWithLengthKm(11, 600), locations: orte },
+          } as unknown as ValhallaRouteResponse;
+        },
+      },
+      gerufen,
+    };
+  }
+
+  function dienst(c: { route: (b: unknown, p?: string) => Promise<ValhallaRouteResponse> }): RoutingService {
+    return new RoutingService({
+      client: c as never,
+      profileService: profileService(camper()),
+      positionService: positionService(null),
+      regionsProvider: allAcceptingRegionsProvider(),
+    });
+  }
+
+  it('fragt den Optimierungs-Endpunkt, nicht den normalen', async () => {
+    // Sonst bekaeme man eine Route zurueck und nennte sie eine Reihenfolge.
+    const gerufen: string[] = [];
+    const c = client(
+      [{ original_index: 0 }, { original_index: 3 }, { original_index: 1 }, { original_index: 2 }, { original_index: 4 }],
+      gerufen,
+    );
+    await dienst(c.client).optimiereReihenfolge(anfrage());
+    expect(gerufen).toEqual(['/optimized_route']);
+  });
+
+  it('rechnet Valhallas Stellen auf die Zwischenziele um', async () => {
+    // Valhalla zaehlt Start (0), Zwischenziele (1..n) und Ziel mit. Die
+    // Antwort hier heisst: erst das dritte, dann das erste, dann das zweite.
+    const c = client([
+      { original_index: 0 },
+      { original_index: 3 },
+      { original_index: 1 },
+      { original_index: 2 },
+      { original_index: 4 },
+    ]);
+    await expect(dienst(c.client).optimiereReihenfolge(anfrage())).resolves.toEqual([2, 0, 1]);
+  });
+
+  it('laesst die Reihenfolge, wie sie war, wenn Valhalla Unsinn liefert', async () => {
+    // Eine geratene Sortierung waere schlimmer als keine: der Fahrer faehrt
+    // sie ab.
+    for (const kaputt of [
+      undefined,
+      [],
+      [{ original_index: 0 }, { original_index: 1 }], // zu kurz
+      [{ original_index: 0 }, { original_index: 1 }, { original_index: 1 }, { original_index: 2 }, { original_index: 4 }], // doppelt
+      [{ original_index: 0 }, {}, { original_index: 2 }, { original_index: 3 }, { original_index: 4 }], // ohne Zahl
+    ]) {
+      const c = client(kaputt);
+      await expect(
+        dienst(c.client).optimiereReihenfolge(anfrage()),
+        JSON.stringify(kaputt),
+      ).resolves.toEqual([0, 1, 2]);
+    }
+  });
+
+  it('fragt bei weniger als zwei Halten gar nicht erst', async () => {
+    const gerufen: string[] = [];
+    const c = client([], gerufen);
+    await expect(dienst(c.client).optimiereReihenfolge(anfrage([WP[0]]))).resolves.toEqual([0]);
+    await expect(dienst(c.client).optimiereReihenfolge(anfrage([]))).resolves.toEqual([]);
+    expect(gerufen, 'kein Netzaufruf ohne etwas zu sortieren').toEqual([]);
+  });
+
+  it('meldet ein unbekanntes Profil wie jede andere Routenberechnung', async () => {
+    const c = client([]);
+    const ohneProfil = new RoutingService({
+      client: c.client as never,
+      profileService: profileService(null),
+      positionService: positionService(null),
+      regionsProvider: allAcceptingRegionsProvider(),
+    });
+    await expect(ohneProfil.optimiereReihenfolge(anfrage())).rejects.toBeInstanceOf(RoutingError);
+  });
+});

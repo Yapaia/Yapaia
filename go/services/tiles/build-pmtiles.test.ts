@@ -1,0 +1,733 @@
+/**
+ * Tests fuer `services/tiles/build-pmtiles.sh`.
+ *
+ * WAS HIER BEWIESEN WIRD UND WAS NICHT: planetiler selbst laeuft hier nie —
+ * diese Umgebung hat keinen Docker-Daemon und keinen Netzzugriff auf
+ * ghcr.io. Stattdessen wird `docker` durch ein STUB-Programm im PATH
+ * ersetzt, das sich genau so verhaelt, wie der echte Aufruf sich verhalten
+ * wuerde (schreibt eine Datei mit PMTiles-Signatur / schreibt nichts /
+ * schreibt Muell / faellt mit Exit != 0 um). Damit ist die gesamte Logik
+ * DRUMHERUM echt durchgespielt: Argumentbehandlung, Ableitung der
+ * Regions-ID, Zielpfad, Signaturpruefung, atomarer Swap und jeder
+ * Fehlerpfad — inklusive der Zusicherung, dass eine bereits installierte
+ * Karte bei einem Fehlschlag unangetastet bleibt (W-17).
+ *
+ * Als Vitest-Test (statt eines eigenen `.test.sh` wie bei
+ * `services/photon/download-index.test.sh`), damit er im ohnehin
+ * existierenden `npx vitest run` mitlaeuft und KEIN zusaetzlicher CI-Job
+ * noetig wird.
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, chmodSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Buffer } from 'node:buffer';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SCRIPT = join(__dirname, 'build-pmtiles.sh');
+
+interface RunResult {
+  status: number;
+  stdout: string;
+  stderr: string;
+}
+
+let work: string;
+let tilesDir: string;
+let stubBin: string;
+
+/**
+ * Writes a `docker` stub onto a private PATH directory. `body` is the shell
+ * body it runs; it receives the real argv, so a stub can inspect the
+ * planetiler arguments the script built.
+ */
+function installDockerStub(body: string): void {
+  const path = join(stubBin, 'docker');
+  writeFileSync(path, `#!/usr/bin/env bash\nset -euo pipefail\n${body}\n`, 'utf-8');
+  chmodSync(path, 0o755);
+}
+
+/**
+ * Writes a `java` stub. Im JAR-Modus ruft das Skript `java -Xmx... -jar
+ * <jar> <args>` auf; der Stub schreibt seine argv nach `java-argv.txt` und
+ * legt eine gueltige PMTiles-Datei an der `--output=`-Stelle ab -- diesmal
+ * ein ECHTER Pfad, kein Container-Pfad, was der Test genau pruefen soll.
+ */
+function installJavaStub(): void {
+  const path = join(stubBin, 'java');
+  writeFileSync(
+    path,
+    `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "$@" > "\${STUB_LOG_JAVA}"
+out=""
+for arg in "$@"; do
+  case "$arg" in
+    --output=*) out="\${arg#--output=}";;
+  esac
+done
+[ -n "$out" ] || { echo "java-stub: kein --output gefunden" >&2; exit 91; }
+printf 'PMTiles' > "$out"
+head -c 120 /dev/zero >> "$out"
+`,
+    'utf-8',
+  );
+  chmodSync(path, 0o755);
+}
+
+/** A stub that behaves like a successful planetiler run: it finds `-v
+ *  <host>:/data` in its own argv and writes a valid PMTiles file to the
+ *  `--output=` path inside that mount. */
+const SUCCESSFUL_DOCKER_STUB = `
+host_dir=""
+out_rel=""
+prev=""
+for arg in "$@"; do
+  # Es gibt MEHRERE -v Mounts (Arbeitsverzeichnis als /data, die gemeinsamen
+  # planetiler-Basisdaten als /sources). Frueher nahm dieses Stub schlicht das
+  # zuletzt gesehene -- und schrieb die Ausgabe damit ins falsche Verzeichnis,
+  # sobald ein zweiter Mount dazukam. Es zaehlt der Mount NACH /data.
+  if [ "$prev" = "-v" ] && [ "\${arg##*:}" = "/data" ]; then host_dir="\${arg%%:*}"; fi
+  case "$arg" in
+    --output=*) out_rel="\${arg#--output=}";;
+  esac
+  prev="$arg"
+done
+[ -n "$host_dir" ] || { echo "stub: kein -v mount gefunden" >&2; exit 90; }
+[ -n "$out_rel" ] || { echo "stub: kein --output gefunden" >&2; exit 91; }
+# /data/out.pmtiles -> <host_dir>/out.pmtiles
+target="$host_dir/\${out_rel#/data/}"
+printf 'PM' > "$target"
+head -c 200 /dev/zero >> "$target"
+# Argumente mitprotokollieren, damit der Test sie pruefen kann.
+printf '%s\\n' "$@" > "\${STUB_LOG:?}"
+`;
+
+const BASH = existsSync('/bin/bash') ? '/bin/bash' : '/usr/bin/bash';
+
+/**
+ * A PATH directory holding ONLY the external commands the script itself
+ * uses -- deliberately WITHOUT `docker`. Emptying PATH entirely would not
+ * work (the script needs `mktemp`/`cp`/… and this host has a real
+ * `/usr/bin/docker` that any normal PATH would find).
+ */
+function makeDockerlessBin(options: { withJava?: boolean } = {}): string {
+  const dir = join(work, options.withJava ? 'nodocker-java-bin' : 'nodocker-bin');
+  mkdirSync(dir, { recursive: true });
+  // `bash` gehoert dazu, weil die Stubs selbst `#!/usr/bin/env bash` nutzen --
+  // `env` sucht den Interpreter im PATH, nicht im PATH des Aufrufers.
+  // `tail` und `readlink` kamen mit der Kopfpruefung des Extrakts dazu
+  // (0.10.2). Fehlten sie hier, liefe der Test in einen Fehler, den es im
+  // Add-on-Container nicht gibt — beide sind dort selbstverstaendlich da.
+  for (const tool of ['bash', 'dirname', 'basename', 'mktemp', 'rm', 'mkdir', 'cp', 'mv', 'head', 'tail', 'readlink', 'wc', 'tr', 'cat', 'stat', 'sync']) {
+    const resolved = execFileSync(BASH, ['-c', `command -v ${tool} || true`], { encoding: 'utf-8' }).trim();
+    if (resolved) {
+      symlinkSync(resolved, join(dir, tool));
+    }
+  }
+  // Der Add-on-Container hat KEIN docker, aber SEHR WOHL eine JRE (das Image
+  // installiert `default-jre-headless` für Photon). Genau diese Kombination
+  // liess sich vorher nicht nachstellen -- und genau in ihr lag der Fehler.
+  if (options.withJava) {
+    installJavaStub();
+    symlinkSync(join(stubBin, 'java'), join(dir, 'java'));
+  }
+  return dir;
+}
+
+function run(args: string[], env: Record<string, string> = {}): RunResult {
+  try {
+    const stdout = execFileSync(BASH, [SCRIPT, ...args], {
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PATH: `${stubBin}:${process.env.PATH ?? ''}`,
+        TILES_DIR: tilesDir,
+        STUB_LOG: join(work, 'docker-argv.txt'),
+        STUB_LOG_JAVA: join(work, 'java-argv.txt'),
+        ...env,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { status: 0, stdout, stderr: '' };
+  } catch (err) {
+    const e = err as { status?: number; stdout?: string; stderr?: string };
+    return { status: e.status ?? 1, stdout: e.stdout ?? '', stderr: e.stderr ?? '' };
+  }
+}
+
+beforeEach(() => {
+  work = mkdtempSync(join(tmpdir(), 'pmtiles-build-test-'));
+  tilesDir = join(work, 'tiles');
+  stubBin = join(work, 'bin');
+  mkdirSync(tilesDir, { recursive: true });
+  mkdirSync(stubBin, { recursive: true });
+  installDockerStub(SUCCESSFUL_DOCKER_STUB);
+});
+
+afterEach(() => {
+  rmSync(work, { recursive: true, force: true });
+});
+
+/**
+ * Der Dateikopf einer OSM-PBF, echt nachgebaut.
+ *
+ * Bis 0.10.1 stand hier `Buffer.alloc(1024, 7)` mit dem Vermerk „the stub
+ * never parses it". Das Stub nicht — das SKRIPT jetzt schon: es verwirft seit
+ * 0.10.2 eine Datei ohne diese Kennung, weil ein halb geladener Extrakt im
+ * gemeinsamen Zwischenlager sonst jeden spaeteren Routingbau vergiftet, ohne
+ * eine einzige Fehlermeldung.
+ *
+ * Aufbau laut PBF-Format: 4 Bytes Laenge des BlobHeader (big endian), dann
+ * der BlobHeader als Protobuf — Feld 1 (`type`, Zeichenkette) ergibt 0x0a,
+ * die Laenge 0x09 und die neun Zeichen "OSMHeader".
+ */
+function osmPbfKopf(): Buffer {
+  return Buffer.concat([
+    Buffer.from([0x00, 0x00, 0x00, 0x0d]),
+    Buffer.from([0x0a, 0x09]),
+    Buffer.from('OSMHeader', 'ascii'),
+  ]);
+}
+
+/** A minimal stand-in for an OSM extract; the stub never parses it, aber das
+ *  Skript prueft den Kopf. */
+function writeFakePbf(name = 'liechtenstein-latest.osm.pbf'): string {
+  const path = join(work, name);
+  writeFileSync(path, Buffer.concat([osmPbfKopf(), Buffer.alloc(1024, 7)]));
+  return path;
+}
+
+describe('build-pmtiles.sh — Argumentbehandlung', () => {
+  it('ohne Argumente: Usage auf stderr, Exit 1', () => {
+    const result = run([]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Usage: services/tiles/build-pmtiles.sh');
+  });
+
+  it('mit drei Argumenten: Usage auf stderr, Exit 1', () => {
+    const result = run(['a', 'b', 'c']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Usage:');
+  });
+
+  it('fehlende lokale PBF: klare deutsche Fehlermeldung, Exit 1, nichts installiert', () => {
+    const result = run([join(work, 'gibtsnicht.osm.pbf')]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('lokale PBF-Datei nicht gefunden');
+    // Der Hinweis muss sagen, WAS erwartet wird -- nicht nur, dass etwas fehlt.
+    expect(result.stderr).toContain('.osm.pbf');
+    expect(existsSync(join(tilesDir, 'gibtsnicht.pmtiles'))).toBe(false);
+  });
+
+  it('ungueltige Regions-ID wird abgelehnt, bevor irgendetwas gebaut wird', () => {
+    const pbf = writeFakePbf();
+    const result = run([pbf, 'nicht/erlaubt']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('ungueltige Regions-ID');
+    expect(result.stderr).toContain('paths.ts');
+  });
+});
+
+describe('build-pmtiles.sh — Ableitung der Regions-ID und des Zielpfads', () => {
+  it('leitet "liechtenstein" aus "liechtenstein-latest.osm.pbf" ab', () => {
+    const pbf = writeFakePbf('liechtenstein-latest.osm.pbf');
+    const result = run([pbf]);
+    expect(result.status).toBe(0);
+    expect(existsSync(join(tilesDir, 'liechtenstein.pmtiles'))).toBe(true);
+  });
+
+  it('leitet "bayern" aus "bayern.osm.pbf" ab (ohne -latest-Suffix)', () => {
+    const pbf = writeFakePbf('bayern.osm.pbf');
+    const result = run([pbf]);
+    expect(result.status).toBe(0);
+    expect(existsSync(join(tilesDir, 'bayern.pmtiles'))).toBe(true);
+  });
+
+  it('eine explizit uebergebene Regions-ID gewinnt gegen den Dateinamen', () => {
+    const pbf = writeFakePbf('irgendwas-latest.osm.pbf');
+    const result = run([pbf, 'meine_region']);
+    expect(result.status).toBe(0);
+    expect(existsSync(join(tilesDir, 'meine_region.pmtiles'))).toBe(true);
+    expect(existsSync(join(tilesDir, 'irgendwas.pmtiles'))).toBe(false);
+  });
+
+  it('legt TILES_DIR an, wenn es noch nicht existiert', () => {
+    const fresh = join(work, 'noch-nicht-da');
+    const pbf = writeFakePbf();
+    const result = run([pbf], { TILES_DIR: fresh });
+    expect(result.status).toBe(0);
+    expect(existsSync(join(fresh, 'liechtenstein.pmtiles'))).toBe(true);
+  });
+});
+
+/**
+ * ─── DER EXTRAKT BLEIBT LIEGEN (0.10.2) ─────────────────────────────────────
+ *
+ * Die gemeldete Wirkung: „Das routing funktioniert nicht mehr. Es erscheint
+ * eine Fehlermeldung ‚no edges found near location'."
+ *
+ * Die Ursache lag hier. Der Kachelbau lud seinen Extrakt in ein temporaeres
+ * Verzeichnis und loeschte ihn per `trap cleanup EXIT` wieder. Der
+ * ROUTINGGRAPH wird aber aus dem gemeinsamen Zwischenlager gebaut -- eine
+ * installierte Karte hinterliess dort nichts. Wer drei Laender installierte
+ * und „Routing bauen" drueckte, bekam Routing fuer genau eines.
+ *
+ * Diese Tests halten die neue Zusicherung fest: nach einem Kachelbau LIEGT
+ * der Extrakt im Zwischenlager, und zwar unter dem Namen der Region.
+ */
+describe('build-pmtiles.sh — der OSM-Extrakt bleibt fuer das Routing liegen', () => {
+  /** Das Zwischenlager, so wie das Skript es ohne Env-Vorgabe ableitet. */
+  function lager(): string {
+    return join(dirname(tilesDir), 'planetiler-sources');
+  }
+
+  it('legt den Extrakt nach dem Bau als <region>.osm.pbf ab', () => {
+    const pbf = writeFakePbf('liechtenstein-latest.osm.pbf');
+    expect(run([pbf]).status).toBe(0);
+    expect(existsSync(join(lager(), 'liechtenstein.osm.pbf'))).toBe(true);
+  });
+
+  it('benennt ihn nach der REGION, nicht nach der Quelldatei', () => {
+    // Sonst laege im geteilten Verzeichnis fuer jede Region dieselbe Datei,
+    // und der Graphbau saehe genau ein Land — egal wie viele gebaut wurden.
+    const pbf = writeFakePbf('irgendwas-latest.osm.pbf');
+    expect(run([pbf, 'schweiz']).status).toBe(0);
+    expect(existsSync(join(lager(), 'schweiz.osm.pbf'))).toBe(true);
+    expect(existsSync(join(lager(), 'irgendwas.osm.pbf'))).toBe(false);
+  });
+
+  it('zwei Regionen hinterlassen ZWEI Extrakte', () => {
+    // Das ist der eigentliche Punkt der ganzen Aenderung: der Graph wird
+    // ueber alles gebaut, was hier liegt.
+    expect(run([writeFakePbf('liechtenstein-latest.osm.pbf')]).status).toBe(0);
+    expect(run([writeFakePbf('switzerland-latest.osm.pbf')]).status).toBe(0);
+    expect(existsSync(join(lager(), 'liechtenstein.osm.pbf'))).toBe(true);
+    expect(existsSync(join(lager(), 'switzerland.osm.pbf'))).toBe(true);
+  });
+
+  it('nutzt einen vorhandenen Extrakt und laedt nicht erneut', () => {
+    // Ohne diese Zusicherung kostete ein zweiter Bau derselben Region 4 GB
+    // Download — auf einem Mobilfunkanschluss teuer erkauft.
+    const pbf = writeFakePbf('liechtenstein-latest.osm.pbf');
+    expect(run([pbf]).status).toBe(0);
+    // Jetzt eine URL uebergeben, die es gar nicht gibt: der Bau muss trotzdem
+    // durchlaufen, weil der Extrakt schon da ist.
+    const zweiter = run(['https://example.invalid/gibts-nicht.osm.pbf', 'liechtenstein']);
+    expect(zweiter.status).toBe(0);
+    expect(zweiter.stdout).toContain('bereits vorhandenen OSM-Extrakt');
+  });
+
+  it('verwirft einen unvollstaendigen Extrakt, statt ihn zu benutzen', () => {
+    // Die gefaehrlichste Datei im Verzeichnis: sie existiert, ist nicht leer,
+    // und jeder spaetere Graphbau nimmt sie — mit einem halben Land und ohne
+    // eine einzige Fehlermeldung.
+    mkdirSync(lager(), { recursive: true });
+    writeFileSync(join(lager(), 'liechtenstein.osm.pbf'), Buffer.alloc(4096, 7));
+    const pbf = writeFakePbf('liechtenstein-latest.osm.pbf');
+    const result = run([pbf]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('unvollstaendig und wird verworfen');
+    // Und danach liegt dort der GUTE Extrakt.
+    const wieder = readFileSync(join(lager(), 'liechtenstein.osm.pbf'));
+    expect(wieder.subarray(6, 15).toString('ascii')).toBe('OSMHeader');
+  });
+
+  it('lehnt eine lokale Datei ab, die keine OSM-PBF ist', () => {
+    // Sie wuerde ins gemeinsame Lager wandern und von dort jeden Routingbau
+    // vergiften. Lieber hier abbrechen.
+    const kaputt = join(work, 'keine-pbf-latest.osm.pbf');
+    writeFileSync(kaputt, Buffer.from('<html>404</html>'));
+    const result = run([kaputt]);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('keine OSM-PBF');
+    expect(existsSync(join(lager(), 'keine-pbf.osm.pbf'))).toBe(false);
+  });
+
+  it('hinterlaesst keine .part-Datei, wenn die Quelle fehlt', () => {
+    // Eine liegengebliebene `.part` waere harmlos — eine liegengebliebene
+    // `.osm.pbf` waere es nicht. Geprueft wird deshalb beides.
+    const result = run(['https://example.invalid/gibts-nicht-latest.osm.pbf']);
+    expect(result.status).not.toBe(0);
+    expect(existsSync(join(lager(), 'gibts-nicht.osm.pbf'))).toBe(false);
+    expect(existsSync(join(lager(), 'gibts-nicht.osm.pbf.part'))).toBe(false);
+  });
+});
+
+describe('build-pmtiles.sh — planetiler-Aufruf', () => {
+  it('uebergibt --osm-path/--output und den Xmx-Heap an den Container', () => {
+    const pbf = writeFakePbf();
+    const result = run([pbf], { PLANETILER_XMX: '3g' });
+    expect(result.status).toBe(0);
+    const argv = readFileSync(join(work, 'docker-argv.txt'), 'utf-8');
+    // Der Extrakt liegt seit 0.10.2 im gemeinsamen Zwischenlager (im
+    // Container als /sources eingehaengt) und nicht mehr im Arbeits-
+    // verzeichnis. Er heisst dort nach der REGION, nicht `input.osm.pbf` --
+    // sonst laege in einem Verzeichnis, das alle Regionen teilen, fuer jede
+    // dieselbe Datei.
+    expect(argv).toContain('--osm-path=/sources/liechtenstein.osm.pbf');
+    expect(argv).toContain('--output=/data/out.pmtiles');
+    expect(argv).toContain('-Xmx3g');
+    // Auf eine VERSION gepinnt, nicht `:latest` -- gleiche Regel wie ueberall
+    // sonst im Repo (pnpm 10.33.0, node 22). v0.10.2 ist die Version, deren
+    // Release-Artefakt belegt existiert (vom Betreiber im Browser geprueft).
+    expect(argv).toContain('ghcr.io/onthegomap/planetiler:v0.10.2');
+    expect(argv).not.toContain(':latest');
+  });
+
+  /**
+   * Der JAR-Modus ist nicht bloss Bequemlichkeit: INNERHALB eines
+   * HA-Add-on-Containers gibt es keinen Docker-Socket, dort ist `java -jar`
+   * der einzig moegliche Weg. Der Test belegt, dass dann WEDER `docker`
+   * aufgerufen wird NOCH Container-Pfade (`/data/...`) durchrutschen.
+   */
+  it('PLANETILER_JAR laeuft ueber java statt docker und biegt die Pfade um', () => {
+    const pbf = writeFakePbf();
+    const jar = join(work, 'planetiler.jar');
+    writeFileSync(jar, 'nicht wirklich ein jar');
+    installJavaStub();
+    const result = run([pbf], { PLANETILER_JAR: jar });
+    expect(result.status).toBe(0);
+    // docker darf gar nicht erst angefasst worden sein
+    expect(existsSync(join(work, 'docker-argv.txt'))).toBe(false);
+    const argv = readFileSync(join(work, 'java-argv.txt'), 'utf-8');
+    expect(argv).toContain('-jar');
+    expect(argv).toContain(jar);
+    // Pfade zeigen auf das echte Arbeitsverzeichnis, nicht auf /data
+    expect(argv).not.toContain('/data/');
+  });
+
+  it('PLANETILER_JAR ohne vorhandene Datei bricht mit klarer Meldung ab', () => {
+    const pbf = writeFakePbf();
+    const result = run([pbf], { PLANETILER_JAR: join(work, 'fehlt.jar') });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/existiert nicht/);
+    expect(result.stderr).toContain('planetiler/releases/download/v0.10.2');
+  });
+
+  it('PLANETILER_IMAGE und PLANETILER_ARGS ueberschreiben Image und Argumente', () => {
+    const pbf = writeFakePbf();
+    const result = run([pbf], {
+      PLANETILER_IMAGE: 'example.invalid/planetiler:pinned',
+      PLANETILER_ARGS: '--input=%INPUT% --output=%OUTPUT% --eigenes-flag',
+    });
+    expect(result.status).toBe(0);
+    const argv = readFileSync(join(work, 'docker-argv.txt'), 'utf-8');
+    expect(argv).toContain('example.invalid/planetiler:pinned');
+    expect(argv).toContain('--input=/sources/liechtenstein.osm.pbf');
+    expect(argv).toContain('--output=/data/out.pmtiles');
+    expect(argv).toContain('--eigenes-flag');
+    // Die Default-Argumente duerfen dann NICHT zusaetzlich mitlaufen.
+    expect(argv).not.toContain('--nodemap-type=sortedtable');
+  });
+
+  it('ohne docker im PATH: Fehlermeldung nennt beide Alternativen', () => {
+    const pbf = writeFakePbf();
+    // `docker` wird durch ein Stub ersetzt, das so tut, als gaebe es das
+    // Kommando nicht -- ein leerer PATH ginge nicht, weil das Skript selbst
+    // `basename`/`mktemp`/`cp` braucht (und auf diesem Host ein echtes
+    // /usr/bin/docker liegt, das sonst gefunden wuerde).
+    const result = run([pbf], { PATH: makeDockerlessBin() });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('docker nicht im PATH');
+    expect(result.stderr).toContain('JAR');
+    expect(result.stderr).toContain('kopieren');
+  });
+
+  /**
+   * DER FALL DES ADD-ONS -- und der, der hier gefehlt hat.
+   *
+   * Im HA-Add-on-Container gibt es kein docker, aber eine JRE, und der
+   * Wrapper setzt PLANETILER_JAR. Genau diese Kombination kam in keinem
+   * Test vor: der JAR-Test oben laeuft mit docker-Stub im PATH, der
+   * Dockerless-Test oben ohne PLANETILER_JAR. In der Luecke dazwischen
+   * stand eine ungeschuetzte `command -v docker`-Pruefung VOR der
+   * Auswertung von PLANETILER_JAR -- der JAR-Modus war also unerreichbar,
+   * und der Knopf „Kacheln bauen" brach mit dem Rat ab, die Kacheln „auf
+   * einem anderen Rechner" zu bauen.
+   */
+  /**
+   * DER FEHLSCHLAG AUS 0.1.7, IN BEIDEN LAUFARTEN.
+   *
+   * Das OpenMapTiles-Profil braucht neben dem OSM-Extrakt drei nicht
+   * regionsspezifische Quellen (Seen-Mittellinien, Wasserflaechen, Natural
+   * Earth). Fehlt `--download`, bricht planetiler ab, BEVOR eine Kachel
+   * entsteht:
+   *
+   *   java.lang.IllegalArgumentException: data/sources/lake_centerline.shp.zip
+   *   does not exist. Run with --download to fetch it
+   *
+   * Der Aufruf war damit in KEINER Umgebung lauffaehig -- auch nicht per
+   * Docker. Sichtbar wurde es nie, weil planetiler in diesen Tests ein Stub
+   * ist, das sich um fehlende Quellen nicht schert: es kann nur die ARGUMENTE
+   * pruefen. Also prueft es die jetzt.
+   */
+  it('uebergibt --download und ein DAUERHAFTES Quellenverzeichnis (Docker)', () => {
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+    expect(result.status).toBe(0);
+    const argv = readFileSync(join(work, 'docker-argv.txt'), 'utf-8').split('\n');
+    expect(argv).toContain('--download');
+    expect(argv).toContain('--download_dir=/sources');
+    // Das Quellenverzeichnis muss als eigener Mount hereinkommen, sonst zeigt
+    // /sources im Container ins Leere und alles wird bei JEDEM Lauf neu
+    // geladen.
+    const sourcesMount = argv.find((a) => a.endsWith(':/sources'));
+    expect(sourcesMount).toBeDefined();
+    // ... und es darf NICHT im Arbeitsverzeichnis liegen, das nach dem Lauf
+    // geloescht wird -- sonst waeren es mehrere hundert MB pro Region.
+    expect(sourcesMount).toContain('planetiler-sources');
+    expect(sourcesMount).not.toContain('yapaja-pmtiles-');
+  });
+
+  it('loest %SOURCES% im JAR-Modus zum echten Pfad auf, ohne ihn zu zerlegen', () => {
+    // Der Platzhalter wird erst nach der /data-Ersetzung aufgeloest. Andernfalls
+    // zerlegt die /data-Ersetzung den eingesetzten Pfad, sobald dieser selbst
+    // „/data" enthaelt -- im Repo-Fall (<repo>/data/planetiler-sources) ist das
+    // der Normalfall, nicht der Ausnahmefall.
+    const pbf = writeFakePbf();
+    const jar = join(work, 'planetiler.jar');
+    writeFileSync(jar, 'nicht wirklich ein jar');
+    installJavaStub();
+    const sources = join(work, 'data', 'planetiler-sources');
+    const result = run([pbf], { PLANETILER_JAR: jar, PLANETILER_SOURCES_DIR: sources });
+    expect(result.status).toBe(0);
+    const argv = readFileSync(join(work, 'java-argv.txt'), 'utf-8').split('\n');
+    expect(argv).toContain('--download');
+    expect(argv).toContain(`--download_dir=${sources}`);
+    expect(argv.join('\n')).not.toContain('%SOURCES%');
+  });
+
+  it('ohne docker, aber mit PLANETILER_JAR und java: baut trotzdem (Add-on-Fall)', () => {
+    const pbf = writeFakePbf();
+    const jar = join(work, 'planetiler.jar');
+    writeFileSync(jar, 'nicht wirklich ein jar');
+    const result = run([pbf], {
+      PATH: makeDockerlessBin({ withJava: true }),
+      PLANETILER_JAR: jar,
+    });
+    expect(result.stderr).not.toContain('docker nicht im PATH');
+    expect(result.status).toBe(0);
+    expect(existsSync(join(work, 'docker-argv.txt'))).toBe(false);
+    const argv = readFileSync(join(work, 'java-argv.txt'), 'utf-8');
+    expect(argv).toContain('-jar');
+    expect(argv).toContain(jar);
+  });
+});
+
+describe('build-pmtiles.sh — Pruefung des Erzeugnisses', () => {
+  it('planetiler-Fehlschlag: Exit 1, verwertbarer Hinweis, nichts installiert', () => {
+    installDockerStub('echo "planetiler: OutOfMemoryError" >&2; exit 137');
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('planetiler-Lauf fehlgeschlagen');
+    expect(result.stderr).toContain('PLANETILER_XMX');
+    expect(existsSync(join(tilesDir, 'liechtenstein.pmtiles'))).toBe(false);
+  });
+
+  it('planetiler meldet Erfolg, erzeugt aber nichts: Exit 1 mit passendem Hinweis', () => {
+    installDockerStub('exit 0');
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('wurde nicht erzeugt');
+    expect(existsSync(join(tilesDir, 'liechtenstein.pmtiles'))).toBe(false);
+  });
+
+  it('erzeugte Datei ohne PMTiles-Signatur wird NICHT eingetauscht', () => {
+    installDockerStub(`
+host_dir=""
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "-v" ] && [ "\${arg##*:}" = "/data" ]; then host_dir="\${arg%%:*}"; fi
+  prev="$arg"
+done
+printf '<html>404 Not Found</html>' > "$host_dir/out.pmtiles"
+`);
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('keine PMTiles-Datei');
+    expect(result.stderr).toContain('NICHTS eingetauscht');
+    expect(existsSync(join(tilesDir, 'liechtenstein.pmtiles'))).toBe(false);
+  });
+
+  it('leere Ausgabedatei wird abgelehnt', () => {
+    installDockerStub(`
+host_dir=""
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "-v" ] && [ "\${arg##*:}" = "/data" ]; then host_dir="\${arg%%:*}"; fi
+  prev="$arg"
+done
+: > "$host_dir/out.pmtiles"
+`);
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('leer');
+  });
+});
+
+describe('build-pmtiles.sh — atomarer Swap (W-17)', () => {
+  it('ersetzt eine vorhandene Karte erst nach erfolgreichem Build', () => {
+    const target = join(tilesDir, 'liechtenstein.pmtiles');
+    writeFileSync(target, Buffer.concat([Buffer.from('PM'), Buffer.alloc(50, 1)]));
+    const before = readFileSync(target);
+
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+
+    expect(result.status).toBe(0);
+    const after = readFileSync(target);
+    expect(after.equals(before)).toBe(false);
+    expect(after.subarray(0, 2).toString()).toBe('PM');
+  });
+
+  it('laesst eine vorhandene Karte bei einem Build-Fehler unveraendert', () => {
+    const target = join(tilesDir, 'liechtenstein.pmtiles');
+    const original = Buffer.concat([Buffer.from('PM'), Buffer.alloc(50, 1)]);
+    writeFileSync(target, original);
+
+    installDockerStub('echo "boom" >&2; exit 1');
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+
+    expect(result.status).toBe(1);
+    expect(readFileSync(target).equals(original)).toBe(true);
+  });
+
+  it('hinterlaesst keine .new-Staging-Datei nach einem erfolgreichen Lauf', () => {
+    const pbf = writeFakePbf();
+    expect(run([pbf]).status).toBe(0);
+    expect(existsSync(join(tilesDir, '.liechtenstein.pmtiles.new'))).toBe(false);
+  });
+
+  it('meldet am Ende den Zielpfad und dass kein Neustart noetig ist', () => {
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+    expect(result.stdout).toContain('liechtenstein.pmtiles');
+    expect(result.stdout).toContain('kein Neustart noetig');
+  });
+
+  /**
+   * ─── PLATZPRUEFUNG VOR EINEM BAU, DER STUNDEN LAEUFT ──────────────────────
+   * Der Betreiber baut Deutschland (~4,5 GB Extrakt). Geht dabei der Platz
+   * aus, ist die Zeit weg -- und die Meldung kommt aus planetilers Innerem
+   * und sagt nicht, dass schlicht die Platte voll war.
+   *
+   * Der freie Platz wird ueber `df` ermittelt; hier wird `df` deshalb durch
+   * einen Stub ersetzt, der eine feste Zahl meldet. Anders liesse sich eine
+   * volle Platte nicht nachstellen, ohne eine zu erzeugen.
+   */
+  describe('Platzpruefung', () => {
+    let dfBinCounter = 0;
+
+    /** Ein PATH-Verzeichnis mit einem `df`, das immer `freeMb` meldet.
+     *
+     *  Eigener, EINDEUTIGER Ordner je Aufruf: ein Test, der zwei verschiedene
+     *  Platzsituationen vergleicht, ruft diesen Helfer zweimal auf -- mit
+     *  einem festen Ordnernamen scheiterte der zweite Aufruf an bereits
+     *  vorhandenen Symlinks (EEXIST), und zwar bevor die eigentliche Pruefung
+     *  ueberhaupt dran war. */
+    function makeBinWithDf(freeMb: number): string {
+      dfBinCounter += 1;
+      const dir = join(work, `df-bin-${dfBinCounter}`);
+      mkdirSync(dir, { recursive: true });
+      for (const tool of ['bash', 'dirname', 'basename', 'mktemp', 'rm', 'mkdir', 'cp', 'mv', 'head', 'tail', 'readlink', 'wc', 'tr', 'cat', 'stat', 'sync', 'awk']) {
+        const resolved = execFileSync(BASH, ['-c', `command -v ${tool} || true`], {
+          encoding: 'utf-8',
+        }).trim();
+        if (resolved) symlinkSync(resolved, join(dir, tool));
+      }
+      installJavaStub();
+      symlinkSync(join(stubBin, 'java'), join(dir, 'java'));
+      const df = join(dir, 'df');
+      writeFileSync(
+        df,
+        `#!/usr/bin/env bash\n` +
+          `echo "Filesystem 1M-blocks Used Available Use% Mounted on"\n` +
+          `echo "/dev/stub 100000 1 ${freeMb} 1% /"\n`,
+      );
+      chmodSync(df, 0o755);
+      return dir;
+    }
+
+    it('laesst den Bau laufen, wenn genug Platz frei ist', () => {
+      const pbf = writeFakePbf();
+      const jar = join(work, 'planetiler.jar');
+      writeFileSync(jar, 'nicht wirklich ein jar');
+      const result = run([pbf], { PATH: makeBinWithDf(500_000), PLANETILER_JAR: jar });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Platzpruefung bestanden');
+    });
+
+    it('bricht VOR dem Bau ab, wenn es nicht reicht -- und nennt die Zahlen', () => {
+      const pbf = writeFakePbf();
+      const jar = join(work, 'planetiler.jar');
+      writeFileSync(jar, 'nicht wirklich ein jar');
+      const result = run([pbf], { PATH: makeBinWithDf(10), PLANETILER_JAR: jar });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('zu wenig freier Speicherplatz');
+      // Zahlen, nicht nur "zu wenig Platz": ohne sie weiss niemand, wie viel
+      // fehlt und ob Aufraeumen ueberhaupt reichen wuerde.
+      expect(result.stderr).toMatch(/frei:\s+10 MB/);
+      expect(result.stderr).toMatch(/geschaetzt noetig:\s+\d+ MB/);
+      // Und der Bau darf gar nicht erst gestartet worden sein.
+      expect(existsSync(join(work, 'java-argv.txt'))).toBe(false);
+    });
+
+    /**
+     * Die Schaetzung ist bewusst grosszuegig und NICHT gemessen. Wer es besser
+     * weiss, muss sie ueberschreiben koennen -- sonst wird aus einer Hilfe
+     * eine Sperre.
+     *
+     * ── WARUM HIER EINE GROSSE DATEI STEHT ────────────────────────────────
+     * Der Faktor multipliziert die GROESSE des Extrakts. Mit der sonst
+     * ueblichen 1-KB-Testdatei ist die gerundet 0 MB -- dann ist der Faktor
+     * wirkungslos, und dieser Test bestand auch dann noch, wenn man ihn fest
+     * verdrahtete. Er prueft jetzt genau den Faktor: 20 MB Eingabe, 100 MB
+     * frei. Mit dem Standardfaktor 8 waeren 160 MB noetig (zu wenig), mit
+     * Faktor 1 nur 20 MB (reicht).
+     */
+    it('laesst den Faktor ueberschreiben', () => {
+      const pbf = join(work, 'gross-latest.osm.pbf');
+      writeFileSync(pbf, Buffer.concat([osmPbfKopf(), Buffer.alloc(20 * 1024 * 1024, 7)]));
+      const jar = join(work, 'planetiler.jar');
+      writeFileSync(jar, 'nicht wirklich ein jar');
+
+      const strict = run([pbf], {
+        PATH: makeBinWithDf(100),
+        PLANETILER_JAR: jar,
+        PMTILES_DISK_MARGIN_MB: '0',
+      });
+      expect(strict.status, 'mit dem Standardfaktor muesste es abbrechen').not.toBe(0);
+
+      const relaxed = run([pbf], {
+        PATH: makeBinWithDf(100),
+        PLANETILER_JAR: jar,
+        PMTILES_DISK_FACTOR: '1',
+        PMTILES_DISK_MARGIN_MB: '0',
+      });
+      expect(relaxed.status, 'mit Faktor 1 muesste es durchlaufen').toBe(0);
+    });
+
+    /** Eine Pruefung, die nicht messen KANN, darf keinen Bau verhindern. */
+    it('wird uebersprungen, wenn df fehlt -- statt den Bau abzubrechen', () => {
+      const pbf = writeFakePbf();
+      const jar = join(work, 'planetiler.jar');
+      writeFileSync(jar, 'nicht wirklich ein jar');
+      const result = run([pbf], {
+        PATH: makeDockerlessBin({ withJava: true }),
+        PLANETILER_JAR: jar,
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Platzpruefung wird uebersprungen');
+    });
+  });
+});

@@ -1,0 +1,460 @@
+/**
+ * Position Puck Component (E02-T2, extended E02-T5 for W-01 GPS-loss UX)
+ *
+ * Displays the current position on the map as a GeoJSON layer with:
+ * - Blue dot at the center (or gray if accuracy > 100m, stale, extrapolated,
+ *   or the GPS signal is lost)
+ * - Accuracy ring (radius = accuracy in meters), which grows over time while
+ *   the signal is lost to visualize increasing positional uncertainty
+ * - Heading wedge when heading is available
+ *
+ * Implements W-01 and W-02 requirements:
+ * - Gray puck if accuracy > 100m with "inaccurate" hint
+ * - Gray puck if last fix is older than 5 seconds
+ * - Gray puck + growing accuracy ring while the GPS signal is lost (W-01)
+ * - Smooth (not hard-snapping) color/ring transitions on recovery, via
+ *   MapLibre paint-property transitions -- never a "teleport flicker"
+ */
+
+import { useMemo, useEffect, useRef, useState } from 'react';
+import { usePosition, usePositionConnected, usePositionExtrapolated, usePositionStore } from './positionStore';
+import { useGpsSignalState } from './gpsSignal';
+import { useMapStore } from '../state/mapStore';
+import { runWhenStyleReady } from '../map/styleReady';
+import { followAnimationMs } from '../map/followMe';
+import { interpolateFix, type SmoothFix } from './smoothing.js';
+import { useNavStore } from '../drive/navStore.js';
+import { useRoutingStore, selectActiveRoute } from '../routing/store.js';
+import { decodePolyline6 } from '../routing/polyline.js';
+import {
+  cumulativeMeters,
+  progressFromRemaining,
+  punktBeiProgress,
+  type Coord,
+} from '../routing/traveledSplit.js';
+import { isDriveActive } from '../drive/driveActive.js';
+import { headingArrowRing } from './headingArrow.js';
+import { metersPerPixel as mapMetersPerPixel } from '../map/scale.js';
+
+const STALE_POSITION_MS = 5000; // 5 seconds
+const INACCURACY_THRESHOLD_M = 100; // 100 meters
+
+const LIVE_COLOR = '#3B82F6'; // blue
+const LOST_COLOR = '#9CA3AF'; // gray
+
+// MapLibre paint-property transitions (`<property>-transition`): color/ring
+// changes (e.g. gray -> blue on GPS recovery) animate instead of snapping,
+// so returning fixes never read as a hard "teleport flicker" (W-01 AC2).
+const PAINT_TRANSITION = { duration: 600, delay: 0 };
+
+// While the signal is lost, the accuracy ring grows over (wall-clock) time
+// to visualize increasing positional uncertainty (W-01: "wachsender
+// Genauigkeitsring"). This is a purely visual growth, independent of
+// DeadReckoningController's provider -- with the noop provider (default
+// until E04-T6 ships route-based extrapolation) the puck's *position* stays
+// frozen; only the ring grows.
+const RING_GROWTH_M_PER_S = 5;
+const MAX_DISPLAY_ACCURACY_M = 500;
+
+// Re-render tick so time-based state (staleness, ring growth) updates even
+// without a new position arriving.
+const RERENDER_TICK_MS = 1000;
+
+interface PuckState {
+  sourceId: 'position-puck-source';
+  layerId: 'position-puck-layer';
+}
+
+const PUCK_STATE: PuckState = {
+  sourceId: 'position-puck-source',
+  layerId: 'position-puck-layer',
+};
+
+export default function PositionPuck(): null {
+  const position = usePosition();
+  // Wo der Puck GERADE gezeichnet ist -- Ausgangspunkt der naechsten
+  // Bewegung. Bewusst eine Referenz und kein Zustand: sie aendert sich je
+  // Einzelbild und darf deshalb kein Neuzeichnen des Baums ausloesen.
+  const angezeigt = useRef<SmoothFix | null>(null);
+  /** Das zuletzt angesteuerte Ziel -- unterscheidet „neue Meldung" von „nur neu gezeichnet". */
+  const letztesZiel = useRef<SmoothFix | null>(null);
+  /** Wann die letzte NEUE Meldung kam -- daraus ergibt sich die Dauer. */
+  const letzteMeldungMs = useRef<number | null>(null);
+  /** Die laufende Bewegung. Ueberlebt ein erneutes Auswerten der Wirkung. */
+  const lauf = useRef<{
+    von: SmoothFix;
+    ziel: SmoothFix;
+    startMs: number;
+    dauerMs: number;
+    /** Fortschritt auf der Route, wenn eine gefahren wird -- siehe
+     *  `traveledSplit.ts#punktBeiProgress`. Ohne Route bleibt es bei der
+     *  Luftlinie zwischen zwei Meldungen. */
+    vonProgressM?: number;
+    zielProgressM?: number;
+  } | null>(null);
+  /** Der zuletzt GEZEICHNETE Fortschritt -- Gegenstueck zu `angezeigt`. */
+  const angezeigtProgressM = useRef<number | null>(null);
+  // ─── DER PUNKT FOLGT DER STRASSE, NICHT DER LUFTLINIE ────────────────────
+  // Gemeldet: „bei scharfen Abbiegungen … eine sanfte Kurve … folgt nicht
+  // exakt der Straße sondern mittelt irgendwie." Dieselbe Herleitung wie in
+  // `RouteLayer` -- Geometrie einmal je Route, Fortschritt aus der
+  // Restentfernung des Cores. Warum nicht selbst gerechnet:
+  // `traveledSplit.ts`, Kopfkommentar.
+  const routes = useRoutingStore((state) => state.routes);
+  const activeRouteId = useRoutingStore((state) => state.activeRouteId);
+  const navState = useNavStore((state) => state.navState);
+  const activeRoute = useMemo(
+    () => selectActiveRoute({ routes, activeRouteId }),
+    [routes, activeRouteId],
+  );
+  const routenGeom = useMemo((): { coords: Coord[]; cumulative: number[] } => {
+    if (!activeRoute) return { coords: [], cumulative: [] };
+    const coords = decodePolyline6(activeRoute.geometry) as Coord[];
+    return { coords, cumulative: cumulativeMeters(coords) };
+  }, [activeRoute]);
+  const progressM = useMemo(() => {
+    if (!activeRoute || !isDriveActive(navState?.status)) return null;
+    // Gehoert die Zahl zu DIESER Linie? Direkt nach einer Neuberechnung
+    // fuehrt der Core schon die neue Route, waehrend im Browser noch die
+    // alte Geometrie liegt -- der Fortschritt der einen auf der anderen
+    // ergaebe einen Punkt im Nirgendwo.
+    if (navState?.route_id !== activeRoute.id) return null;
+    const totalM = routenGeom.cumulative[routenGeom.cumulative.length - 1];
+    if (totalM === undefined) return null;
+    return progressFromRemaining(totalM, navState.distance_remaining_m);
+  }, [activeRoute, routenGeom, navState]);
+
+  const isConnected = usePositionConnected();
+  const extrapolated = usePositionExtrapolated();
+  const signalState = useGpsSignalState();
+  const lastRealUpdateTime = usePositionStore((state) => state.lastRealUpdateTime);
+  // Reactive to the live Map instance (not `mapController.getMap()` with `[]`
+  // deps) -- the map may not be registered yet at mount time, see the
+  // E01-T3 map-ready trap called out in E02-T5's task notes.
+  const map = useMapStore((state) => state.map);
+  const [tick, setTick] = useState(0);
+  // Incremented whenever the puck source/layers are (re)created, so the
+  // geometry effect below repaints the current position right away.
+  const [styleEpoch, setStyleEpoch] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setTick((t) => t + 1), RERENDER_TICK_MS);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  // Setup GeoJSON source and layers once the map is ready.
+  useEffect(() => {
+    if (!map) return;
+
+    // `MapView` registers the Map in the store right after `new
+    // maplibregl.Map(...)` -- i.e. BEFORE the style has finished loading. So
+    // this reactive `[map]` effect can fire while the style is still loading,
+    // and calling `addSource`/`addLayer` then throws "Style is not done
+    // loading" (which, uncaught in render-effect scope, crashes the whole
+    // React tree -> blank page).
+    //
+    // E10-T1: readiness is delegated to `runWhenStyleReady` -- the previous
+    // `isStyleLoaded() ? setup() : map.once('load', setup)` guard silently
+    // lost the race when this passive effect first ran AFTER `load` had
+    // already fired, leaving the puck permanently absent. See
+    // `map/styleReady.ts` for the full root-cause write-up. `setup` is
+    // idempotent (the `getSource` early-return below), as that helper requires.
+    const setup = (): void => {
+      if (map.getSource(PUCK_STATE.sourceId)) return;
+
+      map.addSource(PUCK_STATE.sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [],
+        },
+      });
+
+      // Accuracy ring layer (semi-transparent circle). Added FIRST (no
+      // beforeId) so it sits *below* the puck dot added next -- appending it
+      // with `beforeId: 'position-puck-layer'` (as before) silently failed
+      // with "Cannot add layer ... before non-existing layer" because the dot
+      // layer doesn't exist yet at this point, so the ring never rendered.
+      map.addLayer({
+        id: `${PUCK_STATE.layerId}-ring`,
+        type: 'circle',
+        source: PUCK_STATE.sourceId,
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-radius': ['get', 'accuracy-pixels'],
+          'circle-color': ['get', 'ring-color'],
+          'circle-opacity': 0.2,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': ['get', 'ring-color'],
+          'circle-stroke-opacity': 0.4,
+          'circle-radius-transition': PAINT_TRANSITION,
+          'circle-color-transition': PAINT_TRANSITION,
+          'circle-stroke-color-transition': PAINT_TRANSITION,
+        },
+      });
+
+      // Main puck circle (dot), on top of the ring.
+      map.addLayer({
+        id: PUCK_STATE.layerId,
+        type: 'circle',
+        source: PUCK_STATE.sourceId,
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-radius': 8,
+          'circle-color': ['get', 'puck-color'],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#fff',
+          'circle-stroke-opacity': 1,
+          'circle-color-transition': PAINT_TRANSITION,
+        },
+      });
+
+      // ─── RICHTUNGSPFEIL ───────────────────────────────────────────────
+      // Gemeldet: „hat oft eine schmale blaue Linie die wahrscheinlich das
+      // aktuelle heading anzeigt. Koennen wir das aendern?" Hier stand eine
+      // 20 px lange Linie der Staerke 2 -- fadenduenn und im Augenwinkel
+      // waehrend der Fahrt kaum als Richtung zu lesen. Jetzt eine gefuellte
+      // Flaeche; Form und Masse stehen in `headingArrow.ts`.
+      //
+      // Der Filter geht ueber die GEOMETRIE, nicht ueber `heading`: die
+      // Punkt-Objekte tragen dieselbe Eigenschaft, und eine Flaechenebene
+      // wuerde sie zwar ignorieren -- aber dann stuende im Filter etwas
+      // anderes, als er wirklich meint.
+      map.addLayer({
+        id: `${PUCK_STATE.layerId}-heading`,
+        type: 'fill',
+        source: PUCK_STATE.sourceId,
+        filter: ['==', ['geometry-type'], 'Polygon'],
+        paint: {
+          'fill-color': ['get', 'puck-color'],
+          'fill-opacity': 0.9,
+          'fill-color-transition': PAINT_TRANSITION,
+        },
+      });
+
+      // The layers were just (re)created empty. Bump the epoch so the
+      // geometry effect below re-runs and paints the CURRENT position
+      // immediately, instead of waiting for the next incoming fix.
+      setStyleEpoch((epoch) => epoch + 1);
+    };
+
+    return runWhenStyleReady(map, setup);
+  }, [map]);
+
+  // Update puck geometry and appearance when position or signal state changes.
+  useEffect(() => {
+    if (!map || !position) return;
+    // `tick`/`styleEpoch` are intentionally unused in the body -- they're
+    // dependency-only triggers so this effect recomputes staleness/ring-growth
+    // on the periodic tick above (not just when `position` changes), and
+    // repaints immediately after the layers are (re)created.
+    void tick;
+    void styleEpoch;
+
+    const now = Date.now();
+    const isStale = now - (position.ts ? new Date(position.ts).getTime() : 0) > STALE_POSITION_MS;
+    const isInaccurate = position.accuracy !== null && position.accuracy > INACCURACY_THRESHOLD_M;
+    const isLost = signalState === 'lost' || extrapolated;
+    const shouldBeGray = isLost || isStale || isInaccurate || !isConnected;
+
+    const puckColor = shouldBeGray ? LOST_COLOR : LIVE_COLOR;
+    const ringColor = shouldBeGray ? LOST_COLOR : LIVE_COLOR;
+
+    const elapsedLostS =
+      isLost && lastRealUpdateTime !== null ? Math.max(0, now - lastRealUpdateTime) / 1000 : 0;
+    const ringGrowthM = Math.min(MAX_DISPLAY_ACCURACY_M, elapsedLostS * RING_GROWTH_M_PER_S);
+    const displayAccuracyM = (position.accuracy ?? 0) + (isLost ? ringGrowthM : 0);
+
+    // ─── METER JE BILDPUNKT ─────────────────────────────────────────────────
+    // Die Umrechnung stand frueher als Einzeiler hier, mit dem Vermerk
+    // „Rough approximation" -- und war um das 2,95-fache daneben. Warum und
+    // was das angerichtet hat, steht in `map/scale.ts`. Sie hat jetzt eine
+    // Stelle, an der sie geprueft wird.
+    //
+    // Die Breite kommt aus der MELDUNG, nicht aus dem Zwischenschritt der
+    // Bewegung: innerhalb einer Sekunde Fahrt aendert sie sich um Bruchteile
+    // eines Meters, und so wird der Wert einmal je Meldung gerechnet statt
+    // einmal je Einzelbild.
+    const metersPerPixel = mapMetersPerPixel(map.getZoom(), position.lat);
+    // Ohne brauchbaren Massstab wird nichts gezeichnet, was von ihm abhaengt
+    // -- ein geratener Ring waere eine Aussage ueber die Genauigkeit, die
+    // niemand gepruefet hat.
+    if (metersPerPixel === null) return;
+    const accuracyPixels = displayAccuracyM / metersPerPixel;
+
+    interface GeoJSONFeature {
+      type: 'Feature';
+      geometry: {
+        type: 'Point' | 'Polygon';
+        coordinates: Array<number | number[]>;
+      };
+      properties: Record<string, unknown>;
+    }
+
+    const source = map.getSource(PUCK_STATE.sourceId) as unknown as
+      | { setData(data: unknown): void }
+      | undefined;
+
+    /** Zeichnet den Puck an EINER bestimmten Stelle -- der Rest bleibt gleich. */
+    const zeichne = (an: SmoothFix): void => {
+      // Der Pfeil in Fahrtrichtung -- `null`, wenn kein Kurs gemeldet wird.
+      const pfeilRing = headingArrowRing(an.lon, an.lat, an.heading, metersPerPixel);
+
+      const features: GeoJSONFeature[] = [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [an.lon, an.lat],
+          },
+          properties: {
+            'puck-color': puckColor,
+            'ring-color': ringColor,
+            'accuracy-pixels': accuracyPixels,
+            heading: an.heading,
+          },
+        },
+      ];
+
+      if (pfeilRing) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [pfeilRing] as unknown as Array<number[]>,
+          },
+          properties: {
+            'puck-color': puckColor,
+            heading: an.heading,
+          },
+        });
+      }
+
+      source?.setData({ type: 'FeatureCollection', features });
+      // Debug-/E2E-Haken, wie `__yapaiaMapController` und
+      // `__yapaiaFollowMeStore`: die GEZEICHNETE Stelle, synchron lesbar.
+      // Ueber die Kartenquelle geht das nicht brauchbar -- `getData()` laeuft
+      // ueber den Worker und brauchte gemessen rund 300 ms je Abfrage, womit
+      // sich eine Bewegung von gut einer Sekunde nicht abtasten laesst.
+      if (typeof window !== 'undefined') window.__yapaiaPuckPosition = an;
+    };
+
+    // ─── VON DER LETZTEN STELLE ZUR NEUEN WANDERN ───────────────────────────
+    // Gemeldet: „Der blaue Punkt springt immer von Punkt zu Punkt anstelle
+    // sich fluessig zu bewegen." Die Begruendung, die gemessenen Melderaten
+    // und der Preis dafuer stehen in `smoothing.ts`.
+    //
+    // Die Bewegung laeuft ueber `requestAnimationFrame` und NICHT ueber den
+    // Zustand von React: ein Neuzeichnen des Baums je Einzelbild waere im
+    // Fahrzeug genau die Last, die man sich nicht leisten kann. Diese
+    // Wirkung laeuft ohnehin schon einmal je Meldung.
+    const ziel: SmoothFix = { lat: position.lat, lon: position.lon, heading: position.heading };
+    const zielGewechselt =
+      letztesZiel.current === null ||
+      letztesZiel.current.lat !== ziel.lat ||
+      letztesZiel.current.lon !== ziel.lon ||
+      letztesZiel.current.heading !== ziel.heading;
+
+    if (zielGewechselt) {
+      // Der Takt der Meldungen -- dieselbe Regel, nach der sich die Kamera
+      // bewegt (`map/followMe.ts`). Beide MUESSEN gleich lang brauchen, sonst
+      // wandert der Punkt waehrend der Fahrt im Bild umher, statt stehen zu
+      // bleiben.
+      const seitLetzter = letzteMeldungMs.current === null ? null : now - letzteMeldungMs.current;
+      const dauer = followAnimationMs(seitLetzter);
+      letzteMeldungMs.current = now;
+      letztesZiel.current = ziel;
+
+      lauf.current =
+        dauer === null || angezeigt.current === null
+          ? // Erste Meldung oder Zeitraffer: ohne Takt gibt es nichts zu
+            // glaetten, und eine Animation ueber wenige Millisekunden kostet
+            // mehr, als sie bringt.
+            null
+          : {
+              von: angezeigt.current,
+              ziel,
+              startMs: performance.now(),
+              dauerMs: dauer,
+              // Beides oder keines: fehlt einer der zwei Fortschritte, wird
+              // wie bisher die Luftlinie gezogen. Ein halb gefuellter Lauf
+              // waere schlimmer als der alte Zustand.
+              vonProgressM: angezeigtProgressM.current ?? undefined,
+              zielProgressM: progressM ?? undefined,
+            };
+      angezeigtProgressM.current = progressM;
+    }
+
+    // ─── WARUM DIE BEWEGUNG DIESE WIRKUNG UEBERLEBEN MUSS ───────────────────
+    // Diese Wirkung laeuft NICHT nur bei einer neuen Meldung: `tick` treibt
+    // sie im Sekundentakt an, damit Alterung und Genauigkeitsring
+    // weiterlaufen. Der erste Entwurf setzte den Punkt dann hart aufs Ziel --
+    // gemessen kamen so statt einer Bewegung nur zwei Zwischenstaende
+    // heraus, der Rest war wieder ein Sprung. Der Lauf liegt deshalb in einer
+    // Referenz und wird hier nur FORTGESETZT, mit seiner urspruenglichen
+    // Startzeit.
+    /**
+     * Ein Zwischenschritt der Bewegung.
+     *
+     * ─── AUF DER STRASSE STATT AUF DER LUFTLINIE ──────────────────────────
+     * Gemeldet: „bei scharfen Abbiegungen … eine sanfte Kurve … mittelt
+     * irgendwie." Gemittelt hat genau diese Stelle: zwischen zwei Meldungen
+     * wurde geradlinig gerechnet, und eine Gerade ueber eine Ecke schneidet
+     * sie ab. Im Zeitraffer liegen zwei Meldungen einige hundert Meter
+     * auseinander -- dann schneidet die Sehne ganze Kreuzungen.
+     *
+     * Liegt eine Route an, wird deshalb der FORTSCHRITT geglaettet und der
+     * Punkt auf der Linie nachgeschlagen. Sonst bleibt es bei der Luftlinie:
+     * ohne Route gibt es nichts, dem man folgen koennte.
+     */
+    const zwischenschritt = (
+      l: NonNullable<typeof lauf.current>,
+      t: number,
+    ): SmoothFix => {
+      const anteil = t <= 0 ? 0 : t >= 1 ? 1 : t;
+      if (l.vonProgressM !== undefined && l.zielProgressM !== undefined) {
+        const p = l.vonProgressM + (l.zielProgressM - l.vonProgressM) * anteil;
+        const auf = punktBeiProgress(routenGeom.coords, routenGeom.cumulative, p);
+        if (auf) {
+          // Der Kurs kommt weiter aus den Meldungen: er dreht dort weich
+          // ueber den Kreis (`smoothing.ts`), waehrend der Abschnittskurs an
+          // der Ecke um 90 Grad springen wuerde.
+          return { lat: auf.lat, lon: auf.lon, heading: interpolateFix(l.von, l.ziel, anteil).heading };
+        }
+      }
+      return interpolateFix(l.von, l.ziel, anteil);
+    };
+
+    let bild = 0;
+    const schritt = (): void => {
+      const lauffend = lauf.current;
+      if (!lauffend) {
+        angezeigt.current = ziel;
+        zeichne(ziel);
+        return;
+      }
+      const t = (performance.now() - lauffend.startMs) / lauffend.dauerMs;
+      const jetzt = zwischenschritt(lauffend, t);
+      angezeigt.current = jetzt;
+      zeichne(jetzt);
+      if (t >= 1) {
+        lauf.current = null;
+        return;
+      }
+      bild = requestAnimationFrame(schritt);
+    };
+    schritt();
+
+    return () => cancelAnimationFrame(bild);
+  }, [map, position, isConnected, extrapolated, signalState, lastRealUpdateTime, tick, styleEpoch, routenGeom, progressM]);
+
+  return null;
+}
+
+
+declare global {
+  interface Window {
+    /** Debug/E2E: wo der Puck gerade GEZEICHNET ist (nicht die letzte Meldung). */
+    __yapaiaPuckPosition?: SmoothFix;
+  }
+}

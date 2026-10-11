@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+
+# Build & Dist
+dist/
+build/
+*.tsbuildinfo
+# addons-examples/*/build.mjs's esbuild output (E09-T5) -- generated, not
+# checked in; `dist/` above already covers the tarball, this covers the
+# intermediate ui/bundle.js esbuild writes alongside the checked-in ui/index.html.
+addons-examples/*/ui/bundle.js
+addons-examples/*/.tsc-out/
+
+# Development
+.turbo/
+.turborun/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Coverage
+coverage/
+
+# Playwright (apps/web/e2e)
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/e2e/.tmp/
+# E09-T6 security suite: its dedicated core's tiles/add-ons/add-on-storage
+# dirs plus Playwright's per-run traces (see e2e/security/playwright.config.ts).
+e2e/security/.tmp/
+# E10-T2 perf suite: its dedicated core's PID/RSS scratch, the raw
+# per-metric measurement JSONs, the generated report/trend/soak artefacts
+# and Playwright's traces (see e2e/perf/playwright.config.ts). The COMMITTED
+# baseline for the trend comparison lives outside .tmp/ on purpose.
+e2e/perf/.tmp/
+# Playwright/Vitest also drop a root-level test-results/ when run from the
+# monorepo root (e.g. `npx vitest run`); ignore it anywhere in the tree.
+test-results/
+# Staged by the e2e global setup, mirrors apps/core/Dockerfile's
+# `COPY apps/web/dist apps/core/public` build step.
+apps/core/public/
+# apps/core's default SQLite path (data/db/yapaja.db) is CWD-relative; the
+# e2e-spawned core processes (and any local `pnpm --filter @yapaia/core start`)
+# create this next to the source tree.
+apps/core/data/
+
+# Misc
+.cache/
+temp/
+
+# Runtime data (SQLite DB, tiles, valhalla/photon graphs) — never commit
+/data/
+
+# E10-T3 Golden-Routes provenance/runbook-smoke scratch (osmium extract,
+# machine-readable provenance report, stub-router logs).
+e2e/golden-routes/.tmp/
+
+# Laufzeitdaten des Cores (Wiederaufnahme-Punkt der Navigation u. a.).
+# Entsteht bei jedem lokalen Lauf und gehoert niemandem ausser dieser Maschine.
+apps/core/.data/

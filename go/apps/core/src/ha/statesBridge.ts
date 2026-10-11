@@ -1,0 +1,436 @@
+/* eslint-disable no-undef -- `setInterval`/`clearInterval` sind Standard-Globale
+ * in Node 22 (typisiert ueber @types/node); dieselbe Begruendung wie in
+ * ha/client.ts. */
+
+/**
+ * Der zweite Weg zu Home Assistant: ohne MQTT-Broker.
+ *
+ * ─── WOFUER ─────────────────────────────────────────────────────────────────
+ * Gefragt: „Kannst du bitte die Möglichkeit ha interne Kommunikation
+ * hinzufügen? Ohne Mqtt." -- mit dem Ziel, spaeter „per esphome über die ha
+ * api oder auch Mqtt auf die Daten zugreifen" zu koennen.
+ *
+ * Der Anlass war handfest: das fertige Dashboard zeigte in jeder Kachel
+ * „Entitaet nicht gefunden", weil es ohne Broker ueberhaupt keine
+ * Yapaia-Entitaeten in Home Assistant gab. Der Broker war damit eine
+ * Voraussetzung, die nirgends stand.
+ *
+ * ─── WIE ────────────────────────────────────────────────────────────────────
+ * `POST /api/states/<entity_id>` schreibt einen Zustand direkt in Home
+ * Assistants Zustandsmaschine -- ueber denselben Supervisor-Zugang, den das
+ * Add-on fuer Ansagen und Benachrichtigungen ohnehin hat. Es entstehen
+ * dieselben Entity-IDs wie ueber MQTT (`sensor.yapaja_speed` und so fort),
+ * lesbar von Automationen, Vorlagen, ESPHome und jedem Dashboard.
+ *
+ * ─── WAS DIESER WEG NICHT KANN, UND DAS GEHOERT DAZU ────────────────────────
+ *  1. KEINE BEFEHLE AUF DIESEN ENTITAETEN. Eine so geschriebene Entitaet nimmt
+ *     nichts entgegen; `button.yapaja_stop` und `select.yapaja_profile` gibt
+ *     es nur mit MQTT. BEDIENEN geht seit 0.7.1 trotzdem, nur ueber andere
+ *     Entitaeten: Yapaia legt dafuer Helfer an und hoert auf sie
+ *     (`commandHelpers.ts`, `commandWatcher.ts`). Das erzeugte Dashboard
+ *     nimmt, was es findet (`dashboard.ts#steuerungsKacheln`) -- und zeigt
+ *     lieber gar keinen Knopf als einen toten.
+ *  2. KEIN GERAET, KEINE REGISTRIERUNG. Die Entitaeten tauchen nicht unter
+ *     „Geraete" auf und lassen sich in der Oberflaeche nicht umbenennen.
+ *  3. SIE VERSCHWINDEN BEIM NEUSTART von Home Assistant -- bis zum naechsten
+ *     Schreiben. Genau dagegen schreibt {@link HaStatesBridge} in Ruhe auch
+ *     unveraenderte Werte turnusmaessig noch einmal; ohne das waere eine
+ *     Entitaet, die sich selten aendert (das Ziel, der Fahrzustand), nach
+ *     jedem HA-Neustart auf unbestimmte Zeit weg.
+ *
+ * ─── WARUM ER SICH ZURUECKHAELT, WENN MQTT LAEUFT ───────────────────────────
+ * Beide Wege schreiben dieselben Entity-IDs. Liefen sie gleichzeitig, ueber-
+ * schrieben sie sich gegenseitig, und niemand koennte mehr sagen, welcher
+ * Wert gilt -- eine Anzeige, die flackert, ist schlimmer als eine, die fehlt.
+ * Solange die MQTT-Bruecke verbunden ist, schreibt dieser Kanal deshalb
+ * nichts. Faellt der Broker aus, uebernimmt er, und die Werte laufen weiter.
+ */
+
+import type { NavState, Position } from '@yapaia/shared';
+import type { EventBus } from '../bus/index.js';
+import type { HaConnection } from './config.js';
+import { EIGENER_FAHRZEUG_TRACKER } from './eigeneEntitaeten.js';
+import { buildSpeedPayload, kreiselAttribut, maneuverIcon } from '../mqtt/mapping.js';
+import { tempoAusPosition, hoeheAusPosition } from './ausPosition.js';
+import {
+  fahrzeugGrenze,
+  massgeblichesTempo,
+  faehrtZuSchnell,
+  type FahrzeugAngaben,
+  type Strassenklasse,
+} from '../routing/fahrzeugTempo.js';
+import type { Tempoauskunft } from '../routing/tempolimitDienst.js';
+
+/** Ein Zustand, wie ihn Home Assistant entgegennimmt. */
+export interface HaStateWrite {
+  entityId: string;
+  state: string;
+  attributes: Record<string, unknown>;
+}
+
+/** Was der Core gerade weiss. */
+export interface YapaiaZustand {
+  navState: NavState | null;
+  position: Position | null;
+  /**
+   * Das Tempolimit an der aktuellen Stelle, OHNE laufende Route.
+   *
+   * Es fuellt genau die Luecke, die `navState` laesst: ohne Ziel gibt es
+   * keine Route, aber sehr wohl eine Strasse. Siehe
+   * `routing/tempolimitDienst.ts`.
+   */
+  tempoHier?: Tempoauskunft | null;
+  /** Das aktive Fahrzeug -- fuer die Fahrzeuggrenze ohne Route. */
+  fahrzeug?: FahrzeugAngaben | null;
+}
+
+/** Der Anzeigename des Geraets -- dieselbe Schreibweise wie bei der Discovery. */
+const GERAET = 'Yapaia Go';
+
+/** Home Assistant kennt fuer „weiss ich nicht" genau dieses Wort. */
+export const UNBEKANNT = 'unknown';
+
+function zahl(wert: number | null | undefined, stellen = 0): string {
+  if (wert === null || wert === undefined || !Number.isFinite(wert)) return UNBEKANNT;
+  return wert.toFixed(stellen);
+}
+
+/**
+ * Alle Zustaende, die dieser Kanal schreibt -- rein aus dem, was der Core
+ * weiss. Keine Netzwerkzugriffe, damit sich jeder einzelne Wert pruefen
+ * laesst.
+ */
+export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
+  const { navState, position } = zustand;
+  const tempo = navState ? buildSpeedPayload(navState) : null;
+  const schreibt: HaStateWrite[] = [];
+
+  // ─── DAS TEMPOLIMIT OHNE ROUTE ──────────────────────────────────────────
+  // `navState` gibt es nur waehrend einer Fahrt mit Ziel. Eine STRASSE gibt
+  // es immer -- und damit ein Tempolimit. Von den zehn Yapaia-Entitaeten war
+  // `speed_limit` die einzige, die ohne Route zu Unrecht leer blieb: ETA und
+  // Anweisung gibt es ohne Ziel wirklich nicht, ein Tempolimit schon.
+  //
+  // Die Reihenfolge ist wie ueberall: die Route zuerst, weil ihr Wert auf
+  // die gefahrene Strecke bezogen ist. Der Ortswert springt nur ein, wo
+  // bisher `unknown` stand.
+  const hier = zustand.tempoHier ?? null;
+  // Nur ein FRISCHER Ortswert zaehlt. Ein veralteter kann von der Strasse
+  // von vorhin stammen, und ein Schild, das die vorige Strasse zeigt, ist
+  // die unangenehmste Sorte Fehler: es stimmt beinahe.
+  const hierGilt = hier !== null && hier.stand === 'frisch';
+  const schildHier = hierGilt ? hier.kmh : null;
+  const fahrzeugHier =
+    hierGilt && zustand.fahrzeug
+      ? fahrzeugGrenze(zustand.fahrzeug, (hier.road_class ?? null) as Strassenklasse | null)
+      : null;
+
+  const schild = tempo?.speed_limit_kmh ?? schildHier;
+  const fahrzeugGrenzeJetzt = tempo?.speed_limit_vehicle_kmh ?? fahrzeugHier;
+  const massgeblich = massgeblichesTempo(schild, fahrzeugGrenzeJetzt);
+
+  const dazu = (
+    entityId: string,
+    state: string,
+    name: string,
+    attribute: Record<string, unknown> = {},
+  ): void => {
+    schreibt.push({
+      entityId,
+      state,
+      attributes: { friendly_name: `${GERAET} ${name}`, ...attribute },
+    });
+  };
+
+  // ─── TEMPO: ROUTE ZUERST, SONST DAS GPS ─────────────────────────────────
+  // Gemeldet aus den Entwicklerwerkzeugen: `device_tracker.yapaja_vehicle`
+  // fuehrte eine Position auf zehn Nachkommastellen, und `sensor.yapaja_speed`
+  // stand im selben Augenblick auf `unknown`. Der Grund war, dass hier
+  // ausschliesslich `navState` gelesen wurde -- und den gibt es nur, solange
+  // eine Route laeuft. Die GPS-Position liegt dagegen immer an und bringt
+  // `speed` als PFLICHTFELD mit. Die Angabe war da und wurde nicht abgeholt.
+  //
+  // Die Reihenfolge ist Absicht: waehrend der Navigation gilt weiterhin der
+  // Wert aus `navState`, weil er auf die Route bezogen ist (und dieselbe
+  // Quelle speist wie `speeding`). Das GPS springt nur ein, wo bisher
+  // `unknown` stand.
+  dazu('sensor.yapaja_speed', zahl(tempo?.speed_kmh ?? tempoAusPosition(position)), 'Speed', {
+    unit_of_measurement: 'km/h',
+    device_class: 'speed',
+    state_class: 'measurement',
+    icon: 'mdi:speedometer',
+  });
+  dazu('sensor.yapaja_speed_limit', zahl(schild), 'Speed Limit', {
+    unit_of_measurement: 'km/h',
+    device_class: 'speed',
+    state_class: 'measurement',
+    icon: 'mdi:speedometer-medium',
+  });
+  // ─── WAS DIESES FAHRZEUG DARF, NEBEN DEM SCHILD ────────────────────────
+  // Getrennt und nicht zusammengelegt: auf einer unbegrenzten Autobahn ist
+  // das Schild `unknown` und die Fahrzeuggrenze 80. Eine einzige Zahl liesse
+  // offen, welche davon man draussen wiederfindet.
+  dazu(
+    'sensor.yapaja_speed_limit_vehicle',
+    zahl(fahrzeugGrenzeJetzt),
+    'Speed Limit Vehicle',
+    {
+      unit_of_measurement: 'km/h',
+      device_class: 'speed',
+      state_class: 'measurement',
+      icon: 'mdi:truck-alert',
+    },
+  );
+  // Das Tempo kommt seit 0.13.1 auch aus dem GPS, die Grenze seit 0.14.1
+  // auch ohne Route -- also kann jetzt auch OHNE Fahrt gewarnt werden.
+  dazu(
+    'binary_sensor.yapaja_speeding',
+    faehrtZuSchnell(tempo?.speed_kmh ?? tempoAusPosition(position), massgeblich.grenze)
+      ? 'on'
+      : 'off',
+    'Speeding',
+    {
+    device_class: 'safety',
+    // Damit am Sensor selbst ablesbar ist, WORAN die Warnung haengt. Ohne das
+    // bliebe unklar, ob gerade das Schild oder das Fahrzeuggewicht
+    // entscheidet -- und genau diese Frage stellt sich am Strassenrand.
+    grenze_kmh: massgeblich.grenze,
+    quelle: massgeblich.quelle,
+    // Woher der Ortswert kommt, wenn keine Route laeuft -- oder warum es
+    // keinen gibt. Ohne das saehe „Valhalla antwortet nicht" genauso aus wie
+    // „hier ist nichts ausgeschildert".
+    stand_ohne_route: hier?.stand ?? 'unbekannt',
+    },
+  );
+  dazu('sensor.yapaja_eta', navState?.eta ?? UNBEKANNT, 'ETA', {
+    device_class: 'timestamp',
+    icon: 'mdi:clock-outline',
+  });
+  dazu(
+    'sensor.yapaja_distance_remaining',
+    navState?.distance_remaining_m === null || navState?.distance_remaining_m === undefined
+      ? UNBEKANNT
+      : (navState.distance_remaining_m / 1000).toFixed(2),
+    'Distance Remaining',
+    {
+      unit_of_measurement: 'km',
+      device_class: 'distance',
+      state_class: 'measurement',
+      icon: 'mdi:map-marker-distance',
+    },
+  );
+  // ─── ANWEISUNG UND ENTFERNUNG KOMMEN AUS DEM ZUSTAND ──────────────────────
+  // Nicht aus `nav/instruction`. Das ist die ANSAGE: sie entsteht nur, wenn
+  // eine Ansage-Schwelle faellt, und ihre `distance_m` ist die Entfernung in
+  // genau diesem Augenblick. Gemeldet wurde: „Die Strecke bis zur naechsten
+  // Abbiegung wird nicht geupdated. Die anderen Werte wohl schon" -- die
+  // anderen kommen alle aus `navState`, im Sekundentakt.
+  //
+  // Der Text stand aus demselben Grund still: nach einer Abbiegung blieb die
+  // eben absolvierte Anweisung stehen, bis fuer die naechste eine Schwelle
+  // fiel. `next_maneuver` und `distance_to_maneuver_m` werden dagegen bei
+  // jedem Takt neu gebildet.
+  const manoever = navState?.next_maneuver ?? null;
+  dazu(
+    'sensor.yapaja_instruction',
+    manoever?.instruction ?? UNBEKANNT,
+    'Instruction',
+    manoever
+      ? {
+          // Dieselben Zusatzangaben wie ueber MQTT -- die Vorlage des
+          // Dashboards liest `icon` fuer den Richtungspfeil.
+          type: manoever.type,
+          street_names: manoever.street_names,
+          distance_m: navState?.distance_to_maneuver_m ?? null,
+          icon: maneuverIcon(manoever.type),
+          // Fuer den Kreisel auf dem Display -- IMMER gesetzt, auch leer.
+          // Warum, steht an `kreiselAttribut`.
+          roundabout: kreiselAttribut(manoever),
+        }
+      : { icon: 'mdi:navigation' },
+  );
+  dazu(
+    'sensor.yapaja_instruction_distance',
+    zahl(manoever ? (navState?.distance_to_maneuver_m ?? null) : null),
+    'Instruction Distance',
+    {
+      unit_of_measurement: 'm',
+      device_class: 'distance',
+      state_class: 'measurement',
+    },
+  );
+  // Die Hoehe ebenso -- aber nur bei einem 3D-Fix, siehe `ausPosition.ts`.
+  dazu('sensor.yapaja_altitude', zahl(navState?.altitude_m ?? hoeheAusPosition(position)), 'Altitude', {
+    unit_of_measurement: 'm',
+    device_class: 'distance',
+    state_class: 'measurement',
+    icon: 'mdi:altimeter',
+  });
+  dazu('sensor.yapaja_nav_state', navState?.status ?? 'idle', 'Nav State', {
+    icon: 'mdi:navigation-variant',
+  });
+  dazu(
+    'sensor.yapaja_destination',
+    navState?.destination?.name ?? UNBEKANNT,
+    'Destination',
+    navState?.destination
+      ? {
+          lat: navState.destination.latlng.lat,
+          lon: navState.destination.latlng.lon,
+          icon: 'mdi:flag-checkered',
+        }
+      : { icon: 'mdi:flag-checkered' },
+  );
+
+  if (position) {
+    // `device_tracker` traegt die Position in den Attributen; der Zustand ist
+    // die Zone. „not_home" ist die ehrliche Vorgabe -- ob das Fahrzeug in
+    // einer Zone steht, entscheidet Home Assistant selbst nicht fuer
+    // fremdgeschriebene Tracker, und „home" zu behaupten waere geraten.
+    schreibt.push({
+      entityId: EIGENER_FAHRZEUG_TRACKER,
+      state: 'not_home',
+      attributes: {
+        friendly_name: `${GERAET} Vehicle`,
+        source_type: 'gps',
+        latitude: position.lat,
+        longitude: position.lon,
+        gps_accuracy: position.accuracy ?? 0,
+      },
+    });
+  }
+
+  return schreibt;
+}
+
+/** Ob sich ein Zustand gegenueber dem zuletzt geschriebenen geaendert hat. */
+export function hatSichGeaendert(neu: HaStateWrite, alt: HaStateWrite | undefined): boolean {
+  if (!alt) return true;
+  if (neu.state !== alt.state) return true;
+  return JSON.stringify(neu.attributes) !== JSON.stringify(alt.attributes);
+}
+
+/**
+ * Wie oft geschrieben wird. Nicht bei jeder Meldung: der Fahrzustand kommt im
+ * Sekundentakt, und jede Entitaet einzeln waere ein Dutzend Aufrufe pro
+ * Sekunde fuer eine Anzeige, die niemand schneller liest.
+ */
+export const SCHREIB_INTERVALL_MS = 1_000;
+
+/**
+ * Wie oft ALLES noch einmal geschrieben wird, auch unveraendert.
+ *
+ * Gegen den Neustart von Home Assistant: dabei verliert die Zustandsmaschine
+ * jede von aussen geschriebene Entitaet. Ohne diese Wiederholung waere das
+ * Ziel oder der Fahrzustand danach so lange weg, bis sich der Wert zufaellig
+ * einmal aendert -- bei stehendem Fahrzeug also nie.
+ */
+export const AUFFRISCH_INTERVALL_MS = 5 * 60_000;
+
+export interface HaStatesBridgeDeps {
+  bus: EventBus;
+  /** Die HA-Verbindung, oder `null`, solange keine konfiguriert ist. */
+  verbindung: () => HaConnection | null;
+  /** Ob die MQTT-Bruecke die Entitaeten gerade selbst liefert. */
+  mqttLiefert: () => boolean;
+  /** Schreibt EINEN Zustand. Gibt zurueck, ob es geklappt hat. */
+  schreibe: (verbindung: HaConnection, write: HaStateWrite) => Promise<boolean>;
+  logger: { info: (msg: string, meta?: Record<string, unknown>) => void; warn: (msg: string, meta?: Record<string, unknown>) => void };
+  /**
+   * Das Tempolimit an der aktuellen Stelle, ohne Route.
+   *
+   * Optional: ohne diese Angabe verhaelt sich die Bruecke wie vor 0.14.1 --
+   * `speed_limit` bleibt ohne Route leer. Damit bleiben die bestehenden
+   * Pruefungen gueltig, die sie ohne diesen Dienst bauen.
+   */
+  tempoHier?: () => Tempoauskunft | null;
+  /** Das aktive Fahrzeug -- fuer die Fahrzeuggrenze ohne Route. */
+  fahrzeug?: () => FahrzeugAngaben | null;
+  intervallMs?: number;
+  auffrischMs?: number;
+  setIntervalImpl?: (fn: () => void, ms: number) => unknown;
+  clearIntervalImpl?: (handle: unknown) => void;
+}
+
+export class HaStatesBridge {
+  private readonly deps: HaStatesBridgeDeps;
+  private readonly unsubscribers: Array<() => void> = [];
+  private zustand: YapaiaZustand = { navState: null, position: null };
+  private zuletzt = new Map<string, HaStateWrite>();
+  private timer: unknown = null;
+  private naechsteAuffrischung = 0;
+  private mqttGemeldet = false;
+  private entsorgt = false;
+
+  constructor(deps: HaStatesBridgeDeps) {
+    this.deps = deps;
+    this.unsubscribers.push(
+      deps.bus.subscribe('nav/state', (state) => {
+        this.zustand.navState = state as NavState;
+      }),
+      deps.bus.subscribe('pos/update', (pos) => {
+        const p = pos as Position;
+        if (typeof p?.lat === 'number' && typeof p?.lon === 'number') this.zustand.position = p;
+      }),
+    );
+
+    const setIntervalFn = deps.setIntervalImpl ?? ((fn, ms) => setInterval(fn, ms));
+    this.timer = setIntervalFn(() => {
+      void this.takt();
+    }, deps.intervallMs ?? SCHREIB_INTERVALL_MS);
+  }
+
+  /** Ein Schreibtakt. Wirft nie -- eine stille Anzeige ist besser als ein
+   *  Kanal, der die Navigation mitreisst. */
+  async takt(jetzt: number = Date.now()): Promise<void> {
+    // Eine abgehaengte Bruecke schreibt nichts mehr. Ohne diese Zeile koennte
+    // ein Takt, der beim Herunterfahren gerade unterwegs ist, noch Zustaende
+    // in ein Home Assistant schreiben, von dem sich der Core schon
+    // verabschiedet hat.
+    if (this.entsorgt) return;
+    const verbindung = this.deps.verbindung();
+    if (!verbindung) return;
+
+    if (this.deps.mqttLiefert()) {
+      // Einmal sagen, nicht jede Sekunde.
+      if (!this.mqttGemeldet) {
+        this.mqttGemeldet = true;
+        this.deps.logger.info(
+          'HA-interner Kanal: MQTT liefert die Entitaeten -- der interne Kanal haelt sich zurueck.',
+        );
+      }
+      return;
+    }
+    if (this.mqttGemeldet) {
+      this.mqttGemeldet = false;
+      this.deps.logger.info('HA-interner Kanal: MQTT liefert nicht mehr -- der interne Kanal uebernimmt.');
+    }
+
+    const alleNeu = jetzt >= this.naechsteAuffrischung;
+    if (alleNeu) this.naechsteAuffrischung = jetzt + (this.deps.auffrischMs ?? AUFFRISCH_INTERVALL_MS);
+
+    for (const write of buildHaStates({
+      ...this.zustand,
+      tempoHier: this.deps.tempoHier?.() ?? null,
+      fahrzeug: this.deps.fahrzeug?.() ?? null,
+    })) {
+      if (!alleNeu && !hatSichGeaendert(write, this.zuletzt.get(write.entityId))) continue;
+      const ok = await this.deps.schreibe(verbindung, write);
+      // Nur merken, was wirklich angekommen ist -- sonst gilt ein
+      // fehlgeschlagener Schreibvorgang als erledigt und der Wert fehlt in
+      // Home Assistant, bis er sich das naechste Mal aendert.
+      if (ok) this.zuletzt.set(write.entityId, write);
+    }
+  }
+
+  dispose(): void {
+    this.entsorgt = true;
+    for (const unsub of this.unsubscribers) unsub();
+    this.unsubscribers.length = 0;
+    if (this.timer !== null) {
+      const clearIntervalFn = this.deps.clearIntervalImpl ?? ((h) => clearInterval(h as never));
+      clearIntervalFn(this.timer);
+      this.timer = null;
+    }
+  }
+}

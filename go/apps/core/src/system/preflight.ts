@@ -1,0 +1,1064 @@
+/* eslint-disable no-undef -- `AbortController`, `setTimeout`/`clearTimeout`
+ * und `fetch` sind Standard-Globals unter Node 22 (typisiert über
+ * @types/node); die gemeinsame eslint-`globals`-Liste ist älter als diese
+ * Backend-Module und kennt nur console/process/DOM. Gleiche Begründung wie
+ * in `addons/proxy.ts` und `routing/valhallaClient.ts`. */
+
+/**
+ * Installationsprüfung („Preflight") — `feat/gui-install-path`.
+ *
+ * WOZU
+ * ----
+ * Yapaia Go besteht nicht nur aus dem Core-Prozess. Damit navigiert werden
+ * kann, müssen daneben Dinge existieren, die NICHT im Add-on-Image stecken,
+ * weil sie gerätespezifisch und gigabytegroß sind: die Kartenkacheln
+ * (`*.pmtiles`), der Valhalla-Routinggraph, ein Suchindex (Photon ODER der
+ * Lite-Index aus W-12) und eine Positionsquelle.
+ *
+ * Fehlt eines davon, verhält sich die App bisher zwar korrekt (kein Absturz,
+ * saubere Fehlermeldungen an der jeweiligen Stelle) — aber der Betreiber
+ * erfährt es erst, wenn er die betroffene Funktion benutzt, und dann pro
+ * Funktion einzeln. Wer das Add-on über die Home-Assistant-GUI installiert
+ * hat und ausdrücklich NICHT über SSH arbeiten will, hat sonst keinen Weg,
+ * den Zustand seiner Installation überhaupt zu sehen.
+ *
+ * Diese Prüfung beantwortet in EINEM Aufruf: was fehlt, wie schlimm es ist,
+ * und was konkret dagegen zu tun ist.
+ *
+ * WAS SIE AUSDRÜCKLICH NICHT IST
+ * ------------------------------
+ * Kein Ersatz für `GET /api/v1/health`. Health ist eine Liveness-Sonde:
+ * billig, ohne Netzzugriff, geeignet für einen Supervisor-Watchdog.
+ * Preflight darf teuer sein — sie öffnet TCP-Verbindungen zu Valhalla,
+ * Photon und gpsd und liest das Dateisystem. Sie wird von der GUI auf
+ * Anforderung aufgerufen, nicht im Sekundentakt.
+ *
+ * AUFBAU
+ * ------
+ * Jede Prüfung liefert dieselbe Struktur, damit die GUI sie generisch
+ * darstellen kann und eine neue Prüfung kein Frontend-Update braucht.
+ * `severity` trennt „geht gar nicht" von „geht, aber eingeschränkt":
+ *
+ *   - `required`  fehlt → die Kernfunktion (Karte + Route) ist unbenutzbar
+ *   - `recommended` fehlt → Yapaia läuft, eine Teilfunktion fehlt
+ *   - `optional`  fehlt → reine Zusatzfunktion, kein Mangel
+ *
+ * `remedy` ist der eigentliche Zweck der Datei: eine Anweisung in ganzen
+ * Sätzen, die auf einen Weg in der GUI zeigt, wo es einen gibt. Ein
+ * Prüfergebnis ohne Handlungsanweisung ist für den Adressaten wertlos —
+ * genau deshalb ist `remedy` bei allem außer `ok` verpflichtend (und
+ * `preflight.test.ts` erzwingt das).
+ *
+ * TESTBARKEIT
+ * -----------
+ * Sämtliche Außenkontakte (Verzeichnis lesen, Datei statten, TCP öffnen,
+ * HTTP holen, RAM abfragen) kommen über `PreflightDeps` herein. Kein Test
+ * greift auf einen echten Host oder ein echtes Verzeichnis zu, und
+ * umgekehrt kann kein Test „grün" sein, weil ein Ergebnis fest verdrahtet
+ * wurde — die Tests belegen, dass die Werte wirklich aus den (gefälschten)
+ * Sonden stammen.
+ */
+
+import { readdir, readFile, stat } from 'fs/promises';
+import { istCompanionAppQuelle } from '../position/gpsSourceOption.js';
+import { totalmem } from 'os';
+import { createConnection } from 'net';
+import { resolveTilesDir } from '../map/paths.js';
+import { listLiteSearchDbFiles, resolveLiteSearchDir } from '../search/lite/paths.js';
+import { resolveHaConnection } from '../ha/config.js';
+import { fetchHaStates } from '../ha/client.js';
+import { listGpsTrackers } from '../position/haTracker/index.js';
+import { istEigeneEntitaet } from '../ha/eigeneEntitaeten.js';
+
+/** Kennung einer Prüfung. Stabil — die GUI und die Doku verweisen darauf. */
+export type PreflightCheckId =
+  | 'tiles'
+  | 'routing'
+  | 'search'
+  | 'position'
+  | 'memory'
+  | 'disk'
+  | 'mqtt';
+
+export type PreflightStatus = 'ok' | 'warn' | 'fail';
+
+export type PreflightSeverity = 'required' | 'recommended' | 'optional';
+
+export interface PreflightCheck {
+  id: PreflightCheckId;
+  /** Kurzer Titel für die GUI (deutsch). */
+  label: string;
+  status: PreflightStatus;
+  severity: PreflightSeverity;
+  /** Was tatsächlich vorgefunden wurde — mit Zahlen/Pfaden, nicht nur „ok". */
+  detail: string;
+  /** Was dagegen zu tun ist. Bei `status !== 'ok'` immer gesetzt. */
+  remedy?: string;
+}
+
+export interface PreflightReport {
+  /** `fail`, wenn eine `required`-Prüfung fehlschlägt; sonst `warn`, wenn
+   *  irgendetwas nicht `ok` ist; sonst `ok`. */
+  status: PreflightStatus;
+  /** Ein Satz, der den Gesamtzustand beschreibt (deutsch). */
+  summary: string;
+  checks: PreflightCheck[];
+  /** Wann gemessen wurde (ISO-8601) — die GUI zeigt sonst beliebig alte
+   *  Ergebnisse ohne Hinweis darauf an. */
+  checkedAt: string;
+}
+
+// ───────────────────────── Sonden (injizierbar) ─────────────────────────
+
+/** Verzeichnisinhalt; wirft, wenn es das Verzeichnis nicht gibt. */
+export type ListDirFn = (path: string) => Promise<string[]>;
+/** Dateigröße in Bytes, oder `null`, wenn es die Datei nicht gibt. */
+export type FileSizeFn = (path: string) => Promise<number | null>;
+/** Ist an `host:port` etwas erreichbar? Nur TCP, kein Protokoll. */
+export type TcpProbeFn = (host: string, port: number, timeoutMs: number) => Promise<boolean>;
+/** Antwortet `url` mit einem HTTP-Status < 500? */
+export type HttpProbeFn = (url: string, timeoutMs: number) => Promise<boolean>;
+/**
+ * Alle `device_tracker.*`-Entitaeten in Home Assistant, die Koordinaten
+ * tragen. `null` heisst „konnte nicht nachsehen" (Home Assistant nicht
+ * konfiguriert oder nicht erreichbar) und ist ausdruecklich etwas anderes als
+ * `[]` („nachgesehen, keiner da") -- die Prueftexte unterscheiden das, weil
+ * die Handlungsanweisung eine voellig andere ist.
+ */
+export type ListHaTrackersFn = () => Promise<string[] | null>;
+
+export interface PreflightDeps {
+  listDir?: ListDirFn;
+  fileSize?: FileSizeFn;
+  /** Die vorhandenen Suchindizes (seit 0.5.0 einer je Region).
+   *
+   *  Eigene Naht, damit die Pruefung testbar bleibt: sie las die Platte
+   *  vorher ausschliesslich ueber `fileSize`. Ein direkter Verzeichnis-
+   *  zugriff daneben haette jeden Test still an der echten Platte messen
+   *  lassen -- und genau das ist beim Einbau passiert. */
+  listSearchIndexes?: (dir: string) => string[];
+  tcpProbe?: TcpProbeFn;
+  httpProbe?: HttpProbeFn;
+  listHaTrackers?: ListHaTrackersFn;
+  /**
+   * Welche Tracker-Entitaet tatsaechlich gilt.
+   *
+   * MUSS dieselbe Aufloesung benutzen wie `HaTrackerSource` (Einstellung
+   * `ha.device_tracker` zuerst, dann die Add-on-Option) -- sonst prueft diese
+   * Datei etwas anderes, als das laufende System tut. Genau das war der
+   * Fehler: seit 0.7.1 waehlt man den Tracker in Yapaia, und die Pruefung las
+   * weiterhin nur die Umgebung.
+   *
+   * Vorgabe ohne Angabe: nur die Umgebung -- fuer Tests und fuer jeden
+   * Aufrufer, der keine Einstellungen hat.
+   */
+  resolveTrackerId?: () => string;
+  /**
+   * Was der gpsd-Dienst zuletzt ueber die Geraetewahl hinterlegt hat.
+   *
+   * `null`, wenn es nichts gibt -- im Standalone-Betrieb ohne Add-on, oder
+   * bevor der Dienst das erste Mal durchgelaufen ist. Die Pruefung faellt
+   * dann auf die allgemeinen Hinweise zurueck.
+   */
+  readGpsStatus?: () => Promise<string | null>;
+  /**
+   * Loest sich der Pfad wirklich auf? FOLGT Symlinks -- das ist der Punkt.
+   *
+   * `/dev/serial/by-id/` besteht aus Symlinks auf `../../ttyACM0`. Wird der
+   * Link durchgereicht, der Knoten dahinter aber nicht, LISTET `readdir` den
+   * Namen weiterhin: die Pruefung meldete „Gefunden wurden: …" fuer ein
+   * Geraet, das gpsd nicht oeffnen kann. `gpsd/run` prueft mit `[ -e ]`, das
+   * dem Link folgt, und sagt „dort liegt nichts". Beide hatten recht, und der
+   * Betreiber stand zwischen zwei Aussagen, die sich widersprachen.
+   */
+  pathResolves?: (pfad: string) => Promise<boolean>;
+  totalMem?: () => number;
+  /** Freier Plattenplatz im Datenverzeichnis, in Bytes. */
+  diskFree?: (path: string) => Promise<number>;
+  /** Ersetzt `process.env` — so kann ein Test eine ganze Konfiguration
+   *  durchspielen, ohne globale Variablen zu verändern (parallele Tests). */
+  env?: Record<string, string | undefined>;
+  now?: () => Date;
+}
+
+/** Zeitbudget je Netzsonde. Bewusst knapp: die Prüfung läuft auf Anforderung
+ *  in der GUI, und ein nicht laufender Dienst soll als „fehlt" erscheinen,
+ *  nicht als Hänger. Fünf Sonden × 1,5 s ist auch im schlimmsten Fall eine
+ *  Antwortzeit, die ein Bedienelement noch aushält. */
+export const PROBE_TIMEOUT_MS = 1500;
+
+/** Ab wann die Vollausstattung (Photon + Valhalla + Core) auf einem Gerät
+ *  eng wird. 8 GB ist der real vermessene Fall (HAOS-VM unter Proxmox):
+ *  Photon will allein ~2 GB Heap, Valhalla je nach Region ähnlich viel, und
+ *  Home Assistant selbst läuft daneben weiter. Das ist keine harte Grenze,
+ *  sondern der Punkt, ab dem der Lite-Index (W-12) die verlässlichere Wahl
+ *  ist — deshalb `warn` und nicht `fail`. */
+export const PHOTON_COMFORTABLE_RAM_BYTES = 10 * 1024 * 1024 * 1024;
+
+async function defaultListDir(path: string): Promise<string[]> {
+  return readdir(path);
+}
+
+/** Wo die stabilen Gerätenamen liegen. Im Container dasselbe `/dev` wie für
+ *  gpsd — der Kern läuft daneben, nicht woanders. */
+export const SERIAL_BY_ID_DIR = '/dev/serial/by-id';
+
+/** Wo der gpsd-Dienst hinterlegt, warum er läuft oder nicht.
+ *  Denselben Pfad exportiert `init-yapaja-config.sh` als `GPS_STATUS_DATEI`. */
+export const GPS_STATUS_DATEI = '/run/yapaja/gps-status';
+
+/**
+ * Die Begründung des gpsd-Dienstes, oder `null`.
+ *
+ * Die Datei hat zwei Teile: erste Zeile der Zustand (`suchend`/`bereit`),
+ * danach der Klartext. Zurückgegeben wird nur der Klartext — der Zustand ist
+ * für den Aufrufer bereits dadurch beantwortet, dass gpsd nicht antwortet.
+ *
+ * Fehlt die Datei, ist das KEIN Fehler: im Standalone-Betrieb gibt es keinen
+ * Add-on-Dienst, der etwas hinterlegen könnte, und beim allerersten Start
+ * kommt die Prüfung dem Dienst womöglich zuvor.
+ */
+export function parseGpsStatus(inhalt: string): string | null {
+  const zeilen = inhalt.split('\n');
+  const text = zeilen.slice(1).join('\n').trim();
+  return text.length > 0 ? text : null;
+}
+
+function defaultReadGpsStatus(env: Record<string, string | undefined>) {
+  return async (): Promise<string | null> => {
+    try {
+      return parseGpsStatus(await readFile(env.GPS_STATUS_DATEI || GPS_STATUS_DATEI, 'utf-8'));
+    } catch {
+      return null;
+    }
+  };
+}
+
+/**
+ * Welche seriellen Geräte im Container sichtbar sind.
+ *
+ * ─── WARUM DAS IN DIE INSTALLATIONSPRUEFUNG GEHOERT ─────────────────────────
+ * Der Hilfetext weiter unten sagt seit 0.3.1 „tragen Sie das Gerät unter
+ * `gps_device` ein". Wo man den Pfad HERBEKOMMT, stand nirgends — und ohne
+ * SSH kommt man im Add-on gar nicht an ein `ls`. Der Betreiber hat
+ * ausdrücklich gesagt, dass er alles aus der Oberfläche erledigen möchte.
+ *
+ * `by-id` zuerst, weil genau diese Pfade in die Konfiguration gehören: die
+ * Nummer in `ttyACM0` verschiebt sich, sobald ein anderer USB-Stick dazukommt
+ * oder wegfällt. Die rohen Knoten kommen nur, wenn es kein `by-id` gibt --
+ * dann sind sie das Einzige, was man eintragen KANN.
+ */
+export async function listSerialDevices(listDir: ListDirFn): Promise<string[]> {
+  try {
+    const eintraege = await listDir(SERIAL_BY_ID_DIR);
+    if (eintraege.length > 0) {
+      return eintraege.sort().map((name) => `${SERIAL_BY_ID_DIR}/${name}`);
+    }
+  } catch {
+    // Kein `by-id`-Verzeichnis (udev nicht durchgereicht, älteres System).
+    // Kein Fehler, nur ein Grund, die rohen Knoten zu nehmen.
+  }
+  try {
+    const eintraege = await listDir('/dev');
+    return eintraege
+      .filter((name) => /^tty(ACM|USB)\d+$/.test(name))
+      .sort()
+      .map((name) => `/dev/${name}`);
+  } catch {
+    return [];
+  }
+}
+
+/** Folgt Symlinks; `false` fuer einen Link, dessen Ziel fehlt. */
+async function defaultPathResolves(pfad: string): Promise<boolean> {
+  try {
+    await stat(pfad);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Die Geraeteliste fuer die Meldung — mit dem Vermerk, welcher Eintrag ins
+ * Leere zeigt. Ohne den Vermerk ist die Liste im schlimmsten Fall irrefuehrend:
+ * sie nennt genau das Geraet, das der Betreiber eintragen soll, und das
+ * Eintragen hilft dann nicht.
+ */
+export async function beschrifteGeraete(
+  geraete: string[],
+  pathResolves: (pfad: string) => Promise<boolean>,
+): Promise<string[]> {
+  return Promise.all(
+    geraete.map(async (pfad) =>
+      (await pathResolves(pfad)) ? pfad : `${pfad} (Verweis zeigt ins Leere)`,
+    ),
+  );
+}
+
+async function defaultFileSize(path: string): Promise<number | null> {
+  try {
+    const info = await stat(path);
+    return info.isFile() ? info.size : null;
+  } catch {
+    return null;
+  }
+}
+
+function defaultTcpProbe(host: string, port: number, timeoutMs: number): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    let settled = false;
+    const finish = (result: boolean): void => {
+      if (!settled) {
+        settled = true;
+        socket.destroy();
+        resolvePromise(result);
+      }
+    };
+    const socket = createConnection({ host, port });
+    socket.setTimeout(timeoutMs);
+    socket.on('connect', () => finish(true));
+    socket.on('timeout', () => finish(false));
+    socket.on('error', () => finish(false));
+  });
+}
+
+async function defaultHttpProbe(url: string, timeoutMs: number): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    // Ein 404 heißt „Dienst da, Pfad anders" — für die Frage „läuft der
+    // Dienst überhaupt" ist das ein JA. Nur 5xx und Verbindungsfehler
+    // zählen als nicht erreichbar.
+    return res.status < 500;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Fragt Home Assistant selbst, welche Tracker es gibt.
+ *
+ * Bis 2026-09-03 stand in `yapaja_go/config.yaml`, diese Pruefung liste die
+ * in Frage kommenden Entitaeten auf. Sie tat es nicht -- der Satz war eine
+ * Zusage an den Betreiber, die niemand eingeloest hat, und er stand
+ * ausgerechnet an der Stelle, an der man die Entity-ID sonst raten muss.
+ * Hier wird sie eingeloest.
+ *
+ * Fehler werden geschluckt (`null`): eine Diagnoseseite, die selbst
+ * abstuerzt, weil Home Assistant langsam ist, ist genau dann kaputt, wenn man
+ * sie braucht.
+ */
+function defaultListHaTrackers(env: Record<string, string | undefined>): ListHaTrackersFn {
+  return async (): Promise<string[] | null> => {
+    const connection = resolveHaConnection({ env });
+    if (!connection) {
+      return null;
+    }
+    const noop = (): void => {};
+    const states = await fetchHaStates(connection, {
+      logger: { info: noop, warn: noop, error: noop },
+      timeoutMs: PROBE_TIMEOUT_MS,
+    });
+    // `fetchHaStates` schluckt Fehler und liefert dann `[]`. Fuer die
+    // Unterscheidung „nicht erreichbar" vs. „erreichbar, aber kein Tracker"
+    // ist ein leeres Gesamtergebnis das verlaesslichere Signal: eine laufende
+    // HA-Instanz hat IMMER Zustaende (`sun.sun`, `person.*`, ...).
+    if (states.length === 0) {
+      return null;
+    }
+    return listGpsTrackers(states);
+  };
+}
+
+async function defaultDiskFree(path: string): Promise<number> {
+  const { getSystemResources } = await import('./resources.js');
+  const res = await getSystemResources(path);
+  return res.disk_free_bytes;
+}
+
+// ───────────────────────────── Hilfsmittel ──────────────────────────────
+
+function formatGiB(bytes: number): string {
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+}
+
+function formatMiB(bytes: number): string {
+  return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+}
+
+// ───────────────────────────── Die Prüfungen ────────────────────────────
+
+async function checkTiles(tilesDir: string, listDir: ListDirFn): Promise<PreflightCheck> {
+  const base = {
+    id: 'tiles' as const,
+    label: 'Kartenkacheln',
+    severity: 'required' as const,
+  };
+  // Diese Anweisung nennt ABSICHTLICH keinen Knopf in der Oberfläche: es gibt
+  // keinen. Bis 2026-09-02 stand hier „(Knopf „Kacheln bauen")" — den hat nie
+  // jemand gebaut (Backlog B-04). Eine Anweisung, die auf ein Bedienelement
+  // zeigt, das der Adressat nicht finden kann, ist genauso wertlos wie die
+  // 404-URL, die dieses ganze Thema ausgelöst hat.
+  const remedy =
+    'Für die mitgelieferten Regionen gibt es keine fertige Datei zum Herunterladen — ' +
+    'die Kacheln werden aus OpenStreetMap-Daten gebaut. Das geht direkt hier: ' +
+    '„Karten verwalten" (🗺️ rechts oben) öffnen und bei der gewünschten Karte auf ' +
+    '„Installieren" drücken. Liechtenstein braucht Minuten, ein Bundesland wie ' +
+    'Rheinland-Pfalz deutlich länger; der Fortschritt steht im Panel. Danach einmal ' +
+    '„Fehlendes bauen" für Routing und Suche. ' +
+    'Ganz Deutschland ist für dieses Gerät zu groß: auf einem anderen Rechner bauen und ' +
+    'die fertige .pmtiles per „Samba share" nach /share/yapaja/tiles/ legen. ' +
+    'Ausführlich: docs/installation.md §C.';
+
+  let entries: string[];
+  try {
+    entries = await listDir(tilesDir);
+  } catch {
+    return {
+      ...base,
+      status: 'fail',
+      detail: `Das Kachelverzeichnis ${tilesDir} existiert nicht.`,
+      remedy,
+    };
+  }
+
+  const tiles = entries.filter((name) => name.endsWith('.pmtiles'));
+  const partials = entries.filter((name) => name.endsWith('.pmtiles.part'));
+
+  if (tiles.length === 0) {
+    return {
+      ...base,
+      status: 'fail',
+      detail:
+        partials.length > 0
+          ? `Keine fertigen Kacheln in ${tilesDir}, aber ${partials.length} angefangene(r) Download(s) (.part).`
+          : `Keine Kacheldatei (*.pmtiles) in ${tilesDir}.`,
+      remedy:
+        partials.length > 0
+          ? 'Ein angefangener Download kann in der Oberfläche unter „Einstellungen → ' +
+            'Kartenregionen" fortgesetzt werden — er beginnt nicht von vorn. ' +
+            remedy
+          : remedy,
+    };
+  }
+
+  return {
+    ...base,
+    status: 'ok',
+    detail: `${tiles.length} Region(en) installiert: ${tiles
+      .map((name) => name.replace(/\.pmtiles$/, ''))
+      .join(', ')}.`,
+  };
+}
+
+async function checkRouting(
+  env: Record<string, string | undefined>,
+  httpProbe: HttpProbeFn,
+): Promise<PreflightCheck> {
+  const base = {
+    id: 'routing' as const,
+    label: 'Routing-Dienst (Valhalla)',
+    severity: 'required' as const,
+  };
+  const url = env.VALHALLA_URL || 'http://localhost:8002';
+  // ZWEI FRUEHERE FASSUNGEN DIESES TEXTES WAREN FALSCH.
+  //
+  // Zuerst stand hier „er wird beim Bau einer Region miterzeugt" -- das tut
+  // `build-pmtiles.sh` nicht, es baut ausschliesslich Kacheln.
+  //
+  // Danach stand hier, der Graph koenne auf dem Geraet „NICHT gebaut werden:
+  // das Bauwerkzeug braucht einen Docker-Socket". Das galt fuer unser SKRIPT
+  // (`services/valhalla/build-tiles.sh` faehrt ein Image von aussen an), aber
+  // nicht fuer die WERKZEUGE: das Add-on-Image setzt mit `FROM` auf
+  // `gis-ops/docker-valhalla` auf, dessen Dockerfile `valhalla_build_tiles`,
+  // `valhalla_build_config` und Geschwister ausdruecklich aufbewahrt -- samt
+  // dem Bau-Rezept unter /valhalla/scripts/. Der Text schickte den Betreiber
+  // also an einen zweiten Rechner, obwohl alles Noetige im Container lag.
+  //
+  // Dieselbe Fehlerklasse wie der JAR-Modus bei planetiler, und derselbe
+  // Preis: eine Anweisung, die aus dem vorgesehenen Bedienweg hinausfuehrt.
+  const remedy =
+    'Valhalla läuft als Teil des Add-ons, braucht aber einen fertigen Routinggraphen; ' +
+    'ohne ihn startet der Dienst nicht. Bauen Sie ihn mit dem Knopf „Routing bauen" ' +
+    'im Regionen-Panel (🗺️ rechts oben) — bei einer kleinen Region dauert das Minuten. ' +
+    'Der Dienst startet danach binnen 30 Sekunden von allein, ein Neustart des Add-ons ' +
+    'ist nicht nötig. Ohne Graph funktionieren Karte, Position und Favoriten weiterhin — ' +
+    'nur das Berechnen von Routen nicht. Ausführlich: docs/installation.md §C.';
+
+  const reachable = await httpProbe(`${url}/status`, PROBE_TIMEOUT_MS);
+  return reachable
+    ? { ...base, status: 'ok', detail: `Erreichbar unter ${url}.` }
+    : { ...base, status: 'fail', detail: `Unter ${url} antwortet nichts.`, remedy };
+}
+
+async function checkSearch(
+  env: Record<string, string | undefined>,
+  httpProbe: HttpProbeFn,
+  fileSize: FileSizeFn,
+  listSearchIndexes: (dir: string) => string[],
+): Promise<PreflightCheck> {
+  const base = {
+    id: 'search' as const,
+    label: 'Ortssuche',
+    severity: 'recommended' as const,
+  };
+
+  const photonEnabled = env.PHOTON_ENABLED !== 'false';
+  const photonUrl = env.PHOTON_URL || 'http://localhost:2322';
+  // ─── SEIT 0.5.0 GIBT ES MEHRERE INDIZES ──────────────────────────────────
+  // Einen je Region. Wer hier nur die eine alte Datei prueft, meldet „kein
+  // Lite-Index" auf einem Geraet, das drei hat -- und die Installations-
+  // pruefung ist genau der Ort, an dem so eine Falschaussage am meisten
+  // schadet: sie ist die Stelle, an der man nachsieht, wenn etwas klemmt.
+  const liteDbDir = resolveLiteSearchDir();
+  const liteFiles = listSearchIndexes(liteDbDir);
+
+  const [photonUp, liteSizes] = await Promise.all([
+    photonEnabled ? httpProbe(`${photonUrl}/status`, PROBE_TIMEOUT_MS) : Promise.resolve(false),
+    Promise.all(liteFiles.map((file) => fileSize(file))),
+  ]);
+  const liteBytes = liteSizes.reduce((sum: number, size) => sum + (size ?? 0), 0);
+  const liteCount = liteSizes.filter((size) => size !== null && size > 0).length;
+  const liteReady = liteCount > 0;
+  const liteDbPath = liteCount === 1 ? liteFiles[0] : `${liteCount} Indizes in ${liteDbDir}`;
+
+  // Die Suche ist ODER-verknüpft, und das ist der Kern von W-12: ein Gerät
+  // ohne genug RAM für Photon ist nicht suchunfähig, es sucht über den
+  // Lite-Index. Eine Prüfung, die nur Photon kennt, würde genau die
+  // vorgesehene Sparkonfiguration als Defekt melden.
+  if (photonUp && liteReady) {
+    return {
+      ...base,
+      status: 'ok',
+      detail: `Photon läuft (${photonUrl}), Lite-Index zusätzlich vorhanden (${formatMiB(liteBytes)}).`,
+    };
+  }
+  if (photonUp) {
+    return { ...base, status: 'ok', detail: `Photon läuft unter ${photonUrl}.` };
+  }
+  if (liteReady) {
+    return {
+      ...base,
+      status: 'ok',
+      detail: photonEnabled
+        ? `Photon antwortet nicht, aber der Lite-Index ist da (${liteDbPath}, ${formatMiB(liteBytes)}) — die Suche funktioniert darüber.`
+        : `Photon ist abgeschaltet; die Suche läuft über den Lite-Index (${liteDbPath}, ${formatMiB(liteBytes)}).`,
+    };
+  }
+
+  return {
+    ...base,
+    status: 'warn',
+    detail: photonEnabled
+      ? `Weder Photon (${photonUrl}) noch ein Lite-Index (${liteDbPath}) sind verfügbar.`
+      : `Photon ist abgeschaltet und es gibt keinen Lite-Index (${liteDbPath}).`,
+    // ─── DIESER TEXT WAR ZWEIMAL FALSCH ────────────────────────────────
+    // Zuerst nannte er einen Knopf „Suchindex bauen", den es nicht gab.
+    // Danach — als Korrektur gedacht — behauptete er, der Index lasse sich
+    // auf dem Gerät NICHT bauen, das Werkzeug setze osmium und einen
+    // Repository-Checkout voraus, und schickte den Betreiber an einen
+    // zweiten Rechner. Das beschrieb aber nur, was wir ins Image gelegt
+    // hatten: `osmium-tool` ist ein gewöhnliches Ubuntu-Paket, und das
+    // Werkzeug fehlte allein deshalb, weil der Core-Build es nicht mitnahm.
+    //
+    // Seit 0.3.4 stimmt beides nicht mehr, und der Knopf, den die erste
+    // Fassung fälschlich versprach, existiert jetzt wirklich.
+    remedy:
+      'Es gibt zwei Wege, und einer genügt. (1) Lite-Index (empfohlen auf einem ' +
+      'Gerät mit 8 GB): braucht wenig Arbeitsspeicher und wird direkt hier ' +
+      'gebaut — „Karten verwalten" (🗺️ rechts oben) öffnen und auf „Fehlendes bauen" ' +
+      'drücken; das baut Routing und Suche für alle installierten Karten. ' +
+      'Liechtenstein braucht Minuten, ein ' +
+      'Bundesland länger; der Fortschritt steht im Panel. (2) Photon: in der ' +
+      'Add-on-Konfiguration einschalten und den Index importieren; rechnen Sie mit ' +
+      'mehreren GB RAM. Ohne beides bleibt die Adresssuche leer — Navigieren zu ' +
+      'einem angetippten Punkt und zu Favoriten funktioniert trotzdem.',
+  };
+}
+
+/** Hilfstext: die gefundenen Tracker als Satz, oder `null`, wenn es nichts zu
+ *  sagen gibt. Steht in mehreren Zweigen und soll ueberall gleich klingen. */
+function trackerListSentence(trackers: string[] | null): string | null {
+  if (trackers === null || trackers.length === 0) {
+    return null;
+  }
+  return `Gefunden in Home Assistant: ${trackers.map((id) => `„${id}"`).join(', ')}.`;
+}
+
+const HA_TRACKER_SETUP_HINT =
+  'Home-Assistant-Companion-App auf dem Telefon/Tablet installieren, dort die ' +
+  'Ortung („Standort senden") erlauben — Home Assistant legt dann automatisch ' +
+  'eine `device_tracker`-Entität an.';
+
+async function checkPosition(
+  env: Record<string, string | undefined>,
+  tcpProbe: TcpProbeFn,
+  listHaTrackers: ListHaTrackersFn,
+  listDir: ListDirFn,
+  resolveTrackerId: () => string,
+  readGpsStatus: () => Promise<string | null>,
+  pathResolves: (pfad: string) => Promise<boolean>,
+): Promise<PreflightCheck> {
+  const base = {
+    id: 'position' as const,
+    label: 'Positionsquelle',
+    severity: 'recommended' as const,
+  };
+
+  const gpsdEnabled = env.GPSD_ENABLED === 'true' || env.GPSD_ENABLED === '1';
+  const simulator = env.ENABLE_SIMULATOR === 'true' || env.ENABLE_SIMULATOR === '1';
+
+  if (gpsdEnabled) {
+    const host = env.GPSD_HOST || 'localhost';
+    const port = env.GPSD_PORT ? parseInt(env.GPSD_PORT, 10) : 2947;
+    const up = await tcpProbe(host, Number.isNaN(port) ? 2947 : port, PROBE_TIMEOUT_MS);
+    if (up) {
+      return { ...base, status: 'ok', detail: `gpsd erreichbar unter ${host}:${port}.` };
+    }
+    // ─── WELCHE GERAETE ES UEBERHAUPT GIBT ────────────────────────────────
+    // Ohne diese Liste muesste man fuer den Pfad auf die Kommandozeile --
+    // und der Betreiber hat ausdruecklich gesagt, dass er alles aus der
+    // Oberflaeche heraus erledigen moechte. Der Kern laeuft im selben
+    // Container wie gpsd, sieht also dasselbe `/dev`.
+    const geraete = await beschrifteGeraete(await listSerialDevices(listDir), pathResolves);
+    const insLeere = geraete.some((g) => g.includes('ins Leere'));
+    const geraeteHinweis =
+      geraete.length > 0
+        ? ` Gefunden wurden: ${geraete.join(', ')}.` +
+          (insLeere
+            ? ' Ein Eintrag unter /dev/serial/by-id/ ist nur ein Verweis auf den eigentlichen' +
+              ' Anschluss. Zeigt er ins Leere, ist der Name da und das Gerät nicht — dann hilft' +
+              ' auch das Eintragen dieses Pfades nicht. Ziehen Sie den Empfänger ab und wieder an' +
+              ' und starten Sie das Add-on neu; die Durchreichung wird beim Start des Containers' +
+              ' festgelegt.'
+            : '')
+        : ' Im Container ist derzeit gar kein serielles Gerät sichtbar — der Empfänger steckt also nicht, oder die USB-Durchreichung des Supervisors greift nicht.';
+
+    // ─── DIE BEGRUENDUNG DES DIENSTES, WENN ES EINE GIBT ──────────────────
+    // Der gpsd-Dienst weiss genau, warum er nichts in Betrieb genommen hat
+    // (`find-gps-device.sh`). Bis 0.8.6 stand das nur im Add-on-Protokoll,
+    // und hier eine Liste zum Durchprobieren. Gemeldet wurde genau daran:
+    // „Der VK-162 scheint aber korrekt erkannt zu werden. Gpsd aber nicht?"
+    //
+    // Gibt es die Begruendung, steht sie VORN. Die allgemeinen Hinweise
+    // bleiben darunter -- fuer den Fall, dass der Dienst noch gar nicht dazu
+    // gekommen ist, etwas zu hinterlegen.
+    const gpsGrund = (await readGpsStatus())?.trim() ?? '';
+    const grundVorn = gpsGrund.length > 0 ? `Der gpsd-Dienst meldet: ${gpsGrund} ` : '';
+
+    return {
+      ...base,
+      status: 'warn',
+      detail: `gpsd ist eingeschaltet, antwortet aber nicht unter ${host}:${port}.`,
+      remedy:
+        grundVorn +
+        'Prüfen Sie, ob der USB-GPS-Empfänger gesteckt ist und ob das Gerät in der ' +
+        'Add-on-Konfiguration unter „USB-Gerät" eingetragen ist.' +
+        geraeteHinweis +
+        ' Der Pfad muss mit einem Schrägstrich beginnen (/dev/serial/by-id/…) — ' +
+        'ohne ihn ist es ein relativer Pfad, der ins Leere zeigt. ' +
+        'Nach jeder Änderung an dieser Option das Add-on NEU STARTEN: die Optionen ' +
+        'werden beim Start des Containers gelesen, Speichern allein ändert nichts. ' +
+        'Was der gpsd-Dienst dann tut, steht im Protokoll des Add-ons in einer Zeile, ' +
+        'die mit „gpsd:" beginnt. ' +
+        'Bitte den Pfad unter /dev/serial/by-id/ eintragen und nicht /dev/ttyACM0: ' +
+        'die Nummer verschiebt sich, sobald ein anderer USB-Stick dazukommt. ' +
+        'Haben Sie gar keinen USB-Empfänger, ist „usb" als Quelle ' +
+        'schlicht die falsche Einstellung — stellen Sie sie auf „companion_app" ' +
+        '(Position aus der Home-Assistant-Companion-App) oder auf „none" ' +
+        '(Position aus dem Browser). Solange gpsd fehlt, kann Yapaia die Position ' +
+        'weiterhin aus dem Browser beziehen — Telefon, Tablet oder Autoradio liefern ' +
+        'sie über die Standortfreigabe der Seite (ADR-007: gpsd > Browser > ' +
+        'Companion App > Simulator). Achtung: der Browser gibt den Standort nur über ' +
+        'HTTPS frei.',
+    };
+  }
+
+  // B-05: die Companion-App-Entitaet ist der Weg, der OHNE HTTPS funktioniert
+  // -- und damit fuer viele Aufbauten der einzige, der ueberhaupt eine
+  // Position liefert.
+  const haTracker = resolveTrackerId().trim();
+  const haTrackerSelected = istCompanionAppQuelle(env.GPS_SOURCE);
+
+  // Nachsehen, WAS es gibt, statt den Betreiber raten zu lassen. Genau das
+  // verspricht die Add-on-Konfiguration an dieser Stelle.
+  const trackers = haTracker.length > 0 || haTrackerSelected ? await listHaTrackers() : null;
+  const found = trackerListSentence(trackers);
+
+  if (haTracker.length > 0) {
+    // ─── YAPAIA ALS SEINE EIGENE QUELLE ───────────────────────────────────
+    // Dieser Fall MUSS vor dem naechsten stehen. Sonst faellt er dort mit
+    // hinein und bekommt die Begruendung „liefert keine Koordinaten" -- die
+    // hier schlicht falsch waere: der eigene Fahrzeug-Tracker traegt
+    // Koordinaten, er ist nur die AUSGABE dieser Navigation. Wer danach
+    // sucht, sucht am falschen Ende.
+    if (istEigeneEntitaet(haTracker)) {
+      return {
+        ...base,
+        status: 'warn',
+        detail:
+          `Eingetragen ist „${haTracker}" — das ist Yapaias EIGENER Fahrzeug-Tracker, ` +
+          'also die Position, die diese Navigation selbst nach Home Assistant ' +
+          'schreibt. Sie von dort als Eingabe zurückzulesen ergibt einen Kreis: ' +
+          'es entsteht nirgends eine neue Position.',
+        remedy:
+          (found ??
+            'Home Assistant kennt derzeit keinen anderen `device_tracker` mit ' +
+              'Koordinaten. ' + HA_TRACKER_SETUP_HINT) +
+          ' Wählen Sie hier in dieser Prüfung das Gerät der Companion App aus ' +
+          '(meist das eigene Telefon) — die Wahl gilt sofort. Seit 0.8.13 steht ' +
+          'der eigene Fahrzeug-Tracker nicht mehr in dieser Auswahl.',
+      };
+    }
+
+    // Eine eingetragene Entitaet, die es nicht gibt, ist der teuerste Fall:
+    // alles sieht eingerichtet aus, und es kommt trotzdem nie eine Position.
+    if (trackers !== null && !trackers.includes(haTracker)) {
+      return {
+        ...base,
+        status: 'warn',
+        detail:
+          `Die eingetragene Entität „${haTracker}" liefert in Home Assistant keine ` +
+          'Koordinaten — entweder gibt es sie nicht, oder sie meldet nur „zuhause"/' +
+          '„nicht zuhause" (WLAN-Tracker) statt einer Position.',
+        remedy:
+          (found ??
+            'Home Assistant kennt derzeit gar keinen `device_tracker` mit Koordinaten. ' +
+              HA_TRACKER_SETUP_HINT) +
+          ' Wählen Sie das richtige Gerät hier in dieser Prüfung aus (Auswahlfeld ' +
+          '„Gerät der Companion App") — die Wahl gilt sofort. Oder lassen Sie sie ' +
+          'leer und setzen „gps_source" auf „companion_app", dann sucht Yapaia ' +
+          'selbst, solange es genau einen Tracker gibt.',
+      };
+    }
+    return {
+      ...base,
+      status: 'ok',
+      detail:
+        `Position aus der Home-Assistant-Entität „${haTracker}" (Companion App). ` +
+        'Ein Browser-Standort hat weiterhin Vorrang, wenn er verfügbar ist.',
+    };
+  }
+
+  if (haTrackerSelected) {
+    // Die Companion-App-Quelle ohne Entity-ID heisst: Yapaia sucht selbst.
+    // Was dabei herauskommt, haengt allein an dem, was Home Assistant hat --
+    // also steht es hier, mit Namen.
+    if (trackers === null) {
+      return {
+        ...base,
+        status: 'warn',
+        detail:
+          'Als Positionsquelle ist die Home-Assistant-Companion-App gewählt, aber ' +
+          'Home Assistant war nicht erreichbar — welche Tracker es gibt, ließ sich ' +
+          'nicht feststellen.',
+        remedy:
+          'Das ist meist vorübergehend (Home Assistant startet gerade neu). Bleibt es ' +
+          'so, prüfen Sie im Add-on-Protokoll die Zeilen mit „HA states request" und ' +
+          'starten Sie das Add-on neu. Als Ausweichweg liefert der Browser die ' +
+          'Position, sofern die Seite über HTTPS läuft.',
+      };
+    }
+    if (trackers.length === 1) {
+      return {
+        ...base,
+        status: 'ok',
+        detail:
+          `Position aus der Home-Assistant-Entität „${trackers[0]}" (Companion App) — ` +
+          'automatisch gewählt, weil es genau eine mit Koordinaten gibt. ' +
+          'Ein Browser-Standort hat weiterhin Vorrang, wenn er verfügbar ist.',
+      };
+    }
+    if (trackers.length === 0) {
+      return {
+        ...base,
+        status: 'warn',
+        detail:
+          'Als Positionsquelle ist die Home-Assistant-Companion-App gewählt, aber Home ' +
+          'Assistant kennt keine einzige `device_tracker`-Entität mit Koordinaten.',
+        remedy:
+          HA_TRACKER_SETUP_HINT +
+          ' Ein Tracker, der nur „zuhause"/„nicht zuhause" per WLAN meldet, zählt ' +
+          'hier nicht — er hat keine Koordinaten und taugt nicht zum Navigieren.',
+      };
+    }
+    return {
+      ...base,
+      status: 'warn',
+      detail:
+        `Als Positionsquelle ist die Companion App gewählt, aber es gibt ${trackers.length} ` +
+        'Tracker mit Koordinaten. Yapaia rät nicht, welcher gemeint ist — der zweite ' +
+        'könnte das Telefon einer anderen Person sein.',
+      remedy:
+        `${found ?? ''} Wählen Sie den richtigen direkt hier in dieser Prüfung aus — ` +
+        'das Auswahlfeld „Gerät der Companion App" steht gleich darunter. Die Wahl ' +
+        'gilt sofort, ohne Neustart des Add-ons. (Wer es lieber fest einträgt, kann ' +
+        'stattdessen die Add-on-Option „ha_device_tracker" setzen.)',
+    };
+  }
+
+  // Kein gpsd konfiguriert ist KEIN Fehler: der Browser ist ein vollwertiger,
+  // ausdrücklich vorgesehener Weg (ADR-007), und für viele Aufbauten der
+  // einzige. Es ist aber ein Hinweis wert, weil er eine Bedingung hat (HTTPS)
+  // die man sonst erst im Fahrzeug bemerkt.
+  return {
+    ...base,
+    status: 'warn',
+    detail: simulator
+      ? 'Kein gpsd konfiguriert. Der Simulator ist eingeschaltet — das ist eine Testquelle, keine echte Position.'
+      : 'Kein gpsd konfiguriert. Die Position kommt vom Browser des jeweiligen Geräts.',
+    remedy:
+      'Wenn das so gewollt ist, ist nichts zu tun: erlauben Sie beim ersten Öffnen ' +
+      'der Karte den Standortzugriff. Damit der Browser überhaupt fragt, muss die ' +
+      'Seite über HTTPS erreichbar sein (bei Home-Assistant-Ingress ist das der Fall, ' +
+      'sofern Home Assistant selbst über HTTPS läuft — läuft es über http://, gibt ' +
+      'der Browser den Sensor NICHT frei, und daran kann Yapaia nichts ändern). ' +
+      'Ohne HTTPS ist der Weg über die Home-Assistant-Companion-App der richtige: ' +
+      'in der Add-on-Konfiguration die Quelle auf „companion_app" stellen. Gibt es ' +
+      'genau eine `device_tracker`-Entität mit Koordinaten, sucht Yapaia sie selbst; ' +
+      'gibt es mehrere, nennt diese Prüfung sie danach beim Namen, und Sie tragen die ' +
+      'gewünschte unter „ha_device_tracker" ein. Für einen fest eingebauten ' +
+      'USB-Empfänger stattdessen „gps_source" auf „usb" stellen.',
+  };
+}
+
+function checkMemory(
+  env: Record<string, string | undefined>,
+  totalMem: () => number,
+): PreflightCheck {
+  const base = {
+    id: 'memory' as const,
+    label: 'Arbeitsspeicher',
+    severity: 'recommended' as const,
+  };
+  const total = totalMem();
+  const photonEnabled = env.PHOTON_ENABLED !== 'false';
+
+  if (!photonEnabled || total >= PHOTON_COMFORTABLE_RAM_BYTES) {
+    return {
+      ...base,
+      status: 'ok',
+      detail: photonEnabled
+        ? `${formatGiB(total)} insgesamt — genug für Photon neben Valhalla und Home Assistant.`
+        : `${formatGiB(total)} insgesamt; Photon ist abgeschaltet, die Suche läuft über den Lite-Index.`,
+    };
+  }
+
+  return {
+    ...base,
+    status: 'warn',
+    detail:
+      `${formatGiB(total)} insgesamt, und Photon ist eingeschaltet. Photon belegt allein ` +
+      'mehrere GB; daneben laufen noch Valhalla, der Core und Home Assistant selbst.',
+    remedy:
+      'Empfehlung für dieses Gerät: Photon in der Add-on-Konfiguration abschalten ' +
+      '(„photon_enabled: false") und stattdessen den Lite-Suchindex verwenden. Der ' +
+      'braucht ein Vielfaches weniger Speicher und deckt dieselbe Ortssuche ab ' +
+      '(W-12). Wenn Photon bleiben soll, geben Sie der VM mehr RAM — sonst greift ' +
+      'irgendwann der OOM-Killer, und zwar nicht unbedingt bei Photon.',
+  };
+}
+
+async function checkDisk(
+  tilesDir: string,
+  diskFree: (path: string) => Promise<number>,
+): Promise<PreflightCheck> {
+  const base = {
+    id: 'disk' as const,
+    label: 'Freier Speicherplatz',
+    severity: 'recommended' as const,
+  };
+  // 5 GB: eine Deutschland-Kacheldatei liegt laut Katalog bei ~4,5 GB, und
+  // der Bau braucht zusätzlich Platz für das Zwischenergebnis. Wer knapper
+  // liegt, kann kleine Regionen weiter nutzen — deshalb `warn`.
+  const COMFORTABLE_FREE_BYTES = 5 * 1024 ** 3;
+
+  let free: number;
+  try {
+    free = await diskFree(tilesDir);
+  } catch (err) {
+    return {
+      ...base,
+      status: 'warn',
+      detail: `Freier Platz für ${tilesDir} nicht ermittelbar: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      remedy:
+        'Prüfen Sie, ob das Datenverzeichnis des Add-ons vorhanden und beschreibbar ist. ' +
+        'Bei einem frisch installierten Add-on legt der erste Start es an.',
+    };
+  }
+
+  if (free >= COMFORTABLE_FREE_BYTES) {
+    return { ...base, status: 'ok', detail: `${formatGiB(free)} frei in ${tilesDir}.` };
+  }
+  return {
+    ...base,
+    status: 'warn',
+    detail: `Nur ${formatGiB(free)} frei in ${tilesDir}.`,
+    remedy:
+      'Für eine kleine Region (Liechtenstein, ~15 MB) reicht das. Für eine große ' +
+      'Region wie Deutschland (~4,5 GB fertige Kacheln, beim Bau zeitweise deutlich ' +
+      'mehr) nicht. Vergrößern Sie die Platte der VM, oder entfernen Sie nicht mehr ' +
+      // „Einstellungen → Kartenregionen" gab es nie als Menüpfad. Das Panel
+      // öffnet die Schaltfläche „Karten verwalten" (🗺️) rechts oben.
+      'benötigte Karten über „Karten verwalten" (🗺️ rechts oben).',
+  };
+}
+
+function checkMqtt(env: Record<string, string | undefined>): PreflightCheck {
+  const base = {
+    id: 'mqtt' as const,
+    label: 'MQTT / Home-Assistant-Anbindung',
+    severity: 'optional' as const,
+  };
+  const url = env.MQTT_BROKER_URL;
+  // Seit 0.7.0 gibt es einen ZWEITEN Weg zu Home Assistant, und diese Zeile
+  // ist der Grund, warum diese Prüfung umgeschrieben wurde: vorher stand hier
+  // „Yapaia meldet keine Entitäten an Home Assistant", sobald kein Broker da
+  // war. Das ist mit dem HA-internen Kanal schlicht nicht mehr wahr, und eine
+  // Prüfung, die etwas Falsches behauptet, ist schlimmer als keine.
+  const intern = env.HA_INTERNAL === '1';
+
+  if (url && intern) {
+    return {
+      ...base,
+      status: 'ok',
+      detail:
+        `Broker konfiguriert: ${url}; der HA-interne Kanal ist zusätzlich eingeschaltet und ` +
+        'übernimmt, falls der Broker ausfällt. Den laufenden Verbindungszustand meldet ' +
+        'GET /api/v1/health.',
+    };
+  }
+  if (url) {
+    return {
+      ...base,
+      status: 'ok',
+      detail: `Broker konfiguriert: ${url}. Den laufenden Verbindungszustand meldet GET /api/v1/health.`,
+    };
+  }
+  if (intern) {
+    return {
+      ...base,
+      status: 'ok',
+      detail:
+        'Kein MQTT-Broker — die Entitäten kommen über den HA-internen Kanal (Option ' +
+        '„ha_internal"). Bedienen geht trotzdem: Yapaia legt dafür Helfer an ' +
+        '(input_button.yapaia_pause/_weiter/_beenden, input_select.yapaia_profil) und ' +
+        'führt aus, was gedrückt wird. Sie stehen unter Einstellungen → Geräte & Dienste ' +
+        '→ Helfer.',
+    };
+  }
+  return {
+    ...base,
+    status: 'warn',
+    detail:
+      'Weder MQTT noch der HA-interne Kanal ist eingeschaltet — Yapaia meldet keine ' +
+      'Entitäten an Home Assistant.',
+    remedy:
+      'Rein optional. Wenn Home Assistant Fahrtdaten (Position, verbleibende Strecke, ' +
+      'Ankunftszeit) sehen soll, gibt es zwei Wege: die Option „ha_internal" einschalten ' +
+      '(braucht keinen Broker) oder das Mosquitto-Add-on installieren und „mqtt_enabled" ' +
+      'anlassen. Ohne beides navigiert Yapaia unverändert.',
+  };
+}
+
+// ──────────────────────────── Gesamtergebnis ────────────────────────────
+
+function summarize(checks: PreflightCheck[]): { status: PreflightStatus; summary: string } {
+  const failed = checks.filter((c) => c.status === 'fail');
+  const warned = checks.filter((c) => c.status === 'warn');
+
+  if (failed.length > 0) {
+    return {
+      status: 'fail',
+      summary:
+        `${failed.length} Voraussetzung(en) fehlen, ohne die nicht navigiert werden kann: ` +
+        `${failed.map((c) => c.label).join(', ')}. Jeder Punkt unten sagt, was zu tun ist.`,
+    };
+  }
+  if (warned.length > 0) {
+    return {
+      status: 'warn',
+      summary:
+        `Navigieren ist möglich. ${warned.length} Punkt(e) sind eingeschränkt oder ` +
+        `nicht eingerichtet: ${warned.map((c) => c.label).join(', ')}.`,
+    };
+  }
+  return { status: 'ok', summary: 'Alle Voraussetzungen erfüllt.' };
+}
+
+/**
+ * Führt alle Prüfungen aus. Wirft nicht: eine Prüfung, die selbst
+ * fehlschlägt, erscheint als Ergebnis mit `status: 'warn'` — eine
+ * Diagnoseseite, die mit einem 500er antwortet, ist genau dann nutzlos,
+ * wenn man sie braucht.
+ */
+export async function runPreflight(deps: PreflightDeps = {}): Promise<PreflightReport> {
+  const env = deps.env ?? process.env;
+  const listDir = deps.listDir ?? defaultListDir;
+  const fileSize = deps.fileSize ?? defaultFileSize;
+  const tcpProbe = deps.tcpProbe ?? defaultTcpProbe;
+  const httpProbe = deps.httpProbe ?? defaultHttpProbe;
+  const listHaTrackers = deps.listHaTrackers ?? defaultListHaTrackers(env);
+  const resolveTrackerId = deps.resolveTrackerId ?? ((): string => env.HA_DEVICE_TRACKER ?? '');
+  const readGpsStatus = deps.readGpsStatus ?? defaultReadGpsStatus(env);
+  const pathResolves = deps.pathResolves ?? defaultPathResolves;
+  const totalMem = deps.totalMem ?? totalmem;
+  const diskFree = deps.diskFree ?? defaultDiskFree;
+  const now = deps.now ?? ((): Date => new Date());
+
+  const tilesDir = env.TILES_DIR || resolveTilesDir();
+
+  const settled = await Promise.allSettled([
+    checkTiles(tilesDir, listDir),
+    checkRouting(env, httpProbe),
+    checkSearch(env, httpProbe, fileSize, deps.listSearchIndexes ?? listLiteSearchDbFiles),
+    checkPosition(
+      env,
+      tcpProbe,
+      listHaTrackers,
+      listDir,
+      resolveTrackerId,
+      readGpsStatus,
+      pathResolves,
+    ),
+    Promise.resolve(checkMemory(env, totalMem)),
+    checkDisk(tilesDir, diskFree),
+    Promise.resolve(checkMqtt(env)),
+  ]);
+
+  const ids: PreflightCheckId[] = [
+    'tiles',
+    'routing',
+    'search',
+    'position',
+    'memory',
+    'disk',
+    'mqtt',
+  ];
+
+  const checks: PreflightCheck[] = settled.map((result, i) => {
+    if (result.status === 'fulfilled') {
+      return result.value;
+    }
+    const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+    return {
+      id: ids[i],
+      label: ids[i],
+      status: 'warn',
+      severity: 'recommended',
+      detail: `Diese Prüfung konnte nicht ausgeführt werden: ${reason}`,
+      remedy:
+        'Das ist ein Fehler in der Prüfung selbst, nicht zwingend in Ihrer ' +
+        'Installation. Bitte melden Sie ihn mit dem obigen Text als Issue.',
+    };
+  });
+
+  const { status, summary } = summarize(checks);
+  return { status, summary, checks, checkedAt: now().toISOString() };
+}
