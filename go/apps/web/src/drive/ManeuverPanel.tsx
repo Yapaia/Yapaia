@@ -1,0 +1,161 @@
+/**
+ * Maneuver panel (E04-T3, docs/06 §5) -- Drive BASICS; the full Drive UI
+ * (lane assist, follow-camera, etc.) ships in E07. Always shows: arrow icon,
+ * distance (counts down as `nav/state` ticks in at 1 Hz), street name, and
+ * the FOLLOWING maneuver when it's < 300 m after the current one.
+ *
+ * Hidden entirely outside an active drive (idle/routing/arrived) -- so it
+ * never interferes with any other screen/testid; every existing e2e spec
+ * never starts navigation, so this component simply never renders for them.
+ */
+
+import React from 'react';
+import type { Maneuver, NavState } from '@yapaia/shared';
+import { useNavState, useNavStore } from './navStore.js';
+import { useRoutingStore } from '../routing/store.js';
+import {
+  MANEUVER_PANEL_TOP_PX as MANEUVER_TOP_BREIT,
+  MANEUVER_PANEL_TOP_SCHMAL_PX,
+  MITTE_MAX_BREITE_CSS,
+  LINKS_MAX_BREITE_CSS,
+  EDGE_INSET_PX,
+} from '../shell/mapControlLayout.js';
+import { useSchmal } from '../shell/useSchmal.js';
+import { ManeuverArrow } from './arrows.js';
+import { formatDistance } from '../routing/format.js';
+import { useAnordnung } from '../shell/useAnordnung.js';
+
+// Liegt seit 0.5.5 in `driveActive.ts` -- ein komponentenfreies Modul, damit
+// auch die Karten-Knoepfe es benutzen koennen, ohne eine React-Komponente zu
+// importieren. Hier nur noch weitergereicht, damit bestehende Aufrufer
+// unveraendert bleiben.
+export { isDriveActive } from './driveActive.js';
+import { isDriveActive } from './driveActive.js';
+import { schildAnzeige } from './schildText.js';
+import { spurAnzeige } from './spuren.js';
+import { SchildTafel, SpurLeiste } from './SchildUndSpur.js';
+
+export interface FollowingManeuver {
+  type: Maneuver['type'];
+  street: string | null;
+}
+
+/**
+ * The maneuver AFTER `maneuver`, when it's close enough to preview
+ * (docs/06 §5: "Folgemanöver < 300 m dahinter"). `maneuver.distance_m` IS
+ * that gap: `Route.maneuvers[i].distance_m` is defined as the length of
+ * maneuver i's own road segment -- i.e. exactly the distance from finishing
+ * `maneuver` to the NEXT one -- so no extra geometry lookup is needed, only
+ * the full route's maneuver list (from the routing store) to find `index+1`.
+ */
+export function findFollowingManeuver(
+  maneuver: Maneuver,
+  routeManeuvers: readonly Maneuver[] | undefined,
+): FollowingManeuver | null {
+  if (maneuver.distance_m >= 300 || !routeManeuvers) return null;
+  const next = routeManeuvers.find((m) => m.index === maneuver.index + 1);
+  if (!next) return null;
+  return { type: next.type, street: next.street_names[0] ?? null };
+}
+
+export interface ManeuverPanelProps {
+  /** Explicit `NavState` to render (E07-T1: the widget shell passes the
+   *  state it received over its OWN shared `/ws/v1` connection instead of
+   *  this falling back to `navStore`'s dedicated connection -- see
+   *  `apps/web/src/shell/widgets/nextInstruction.tsx`). Omit to use
+   *  `useNavState()` as before (every pre-E07 caller, e.g. `DriveOverlay`). */
+  navState?: NavState | null;
+  /** Explicit drive-gate override (see `navStore.ts#useDriveGateOpen`'s doc
+   *  comment for W-19). Omit to use the `navStore` hook as before. Widget
+   *  usage passes `true` -- the widget shell has no reload-recovery-prompt
+   *  concept of its own, so there is nothing to gate on. */
+  driveGateOpen?: boolean;
+}
+
+export default function ManeuverPanel(props: ManeuverPanelProps = {}): React.ReactElement | null {
+  const anordnung = useAnordnung('maneuver');
+  const hookNavState = useNavState();
+  const schmal = useSchmal();
+  const routes = useRoutingStore((state) => state.routes);
+  // W-19 (E04-T5): stays hidden until any reload-recovery prompt is
+  // acknowledged, even if `navState` already reports an active session --
+  // see `navStore.ts#useDriveGateOpen`'s doc comment.
+  const hookDriveGateOpen = useNavStore((state) => state.resumeAcknowledged);
+
+  const navState = props.navState !== undefined ? props.navState : hookNavState;
+  const driveGateOpen = props.driveGateOpen !== undefined ? props.driveGateOpen : hookDriveGateOpen;
+
+  if (!navState || !driveGateOpen || !isDriveActive(navState.status)) return null;
+  const maneuver = navState.next_maneuver;
+  if (!maneuver) return null;
+
+  const distanceM = navState.distance_to_maneuver_m ?? 0;
+  const street = maneuver.street_names[0] ?? null;
+  const activeRoute = routes.find((r) => r.id === navState.route_id);
+  const following = findFollowingManeuver(maneuver, activeRoute?.maneuvers);
+  // Schild und Spuren: beide sind der Ausnahmefall. Schilder gibt es fast nur
+  // an Kreuzen und Abfahrten, Spurdaten nur, wo OSM `turn:lanes` kennt. Ohne
+  // sie bleibt das Panel genau so, wie es vorher war.
+  const schild = schildAnzeige(maneuver.sign);
+  const spuren = spurAnzeige(maneuver.lanes, navState.distance_to_maneuver_m);
+
+  return (
+    <div
+      ref={anordnung.ref}
+      data-testid="maneuver-panel"
+      // Die Breite ist begrenzt, sonst stoesst die Kachel in die Knopfspalte
+      // am rechten Rand -- gemessen bei 390 Bildpunkten, siehe
+      // `mapControlLayout.ts#MITTE_MAX_BREITE_CSS`.
+      style={{
+        // Auf schmalen Schirmen UNTER dem Tempolimit-Schild. Auch
+        // linksbuendig reicht der Platz daneben nicht: das Schild sitzt bei
+        // 390 Bildpunkten ab 250, die Kachel endet bei 254.
+        top: schmal ? MANEUVER_PANEL_TOP_SCHMAL_PX : MANEUVER_TOP_BREIT,
+        // Auf dem Telefon linksbuendig statt mittig -- das ist kein
+        // Geschmack, sondern Platz: mittig bleiben 142 Bildpunkte fuer die
+        // Anweisung, linksbuendig 238.
+        maxWidth: schmal ? LINKS_MAX_BREITE_CSS : MITTE_MAX_BREITE_CSS,
+        ...(schmal ? { left: EDGE_INSET_PX } : null),
+      }}
+      className={`absolute z-20 flex flex-col rounded-2xl bg-slate-900/90 text-white px-4 py-3 shadow-lg pointer-events-none ${
+        schmal ? '' : 'left-1/2 -translate-x-1/2'
+      }`}
+    >
+      {/* ─── ZWEI ZEILEN STATT EINER ─────────────────────────────────────
+          Die Spurleiste braucht die volle Breite und gehoert UNTER das
+          Manoever, nicht daneben: daneben nahm sie der Anweisung den Platz,
+          der auf 390 Bildpunkten ohnehin nur 238 breit ist. */}
+      <div className="flex items-center gap-3">
+      <ManeuverArrow type={maneuver.type} className="shrink-0" />
+      <div className="flex min-w-0 flex-col">
+        <span data-testid="maneuver-distance" className="text-xl font-bold leading-tight tabular-nums">
+          {formatDistance(distanceM)}
+        </span>
+        {street && (
+          <span
+            data-testid="maneuver-street"
+            // `truncate`: auf 390 Bildpunkten wurde „Bergstraße" mitten im
+            // Wort von der Kachelkante abgeschnitten -- ohne Punkte, also
+            // ohne Hinweis, dass da noch etwas fehlt.
+            className="truncate text-sm text-slate-200 leading-tight"
+          >
+            {street}
+          </span>
+        )}
+        {schild && <SchildTafel schild={schild} />}
+      </div>
+      {following && (
+        <div
+          data-testid="maneuver-following"
+          className="flex items-center gap-1 pl-3 ml-1 border-l border-white/30 text-slate-300"
+        >
+          <ManeuverArrow type={following.type} size={24} />
+          {following.street && <span className="truncate text-xs">{following.street}</span>}
+        </div>
+      )}
+      </div>
+      {spuren && <SpurLeiste spuren={spuren} />}
+      {anordnung.griff}
+    </div>
+  );
+}

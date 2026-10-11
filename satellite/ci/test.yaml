@@ -1,0 +1,11 @@
+# CI: das Paket mit Platzhaltern für WLAN und API bauen.
+packages:
+  yapaia: !include ../yapaia-satellite.yaml
+
+api:
+  encryption:
+    key: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+
+wifi:
+  ssid: ci-dummy
+  password: ci-dummy-password

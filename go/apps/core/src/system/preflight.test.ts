@@ -1,0 +1,882 @@
+/**
+ * Tests für die Installationsprüfung (`preflight.ts`).
+ *
+ * Leitgedanke: jede Behauptung eines Prüfergebnisses muss aus einer
+ * INJIZIERTEN Sonde stammen. Deshalb setzt `deps()` unten ALLE Sonden auf
+ * einen bekannten Zustand und kein Test lässt eine offen — sonst könnte ein
+ * grünes Ergebnis daher rühren, dass zufällig etwas Echtes auf dem
+ * Testrechner lief (oder eben nicht lief).
+ */
+
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { EIGENER_FAHRZEUG_TRACKER } from '../ha/eigeneEntitaeten.js';
+import {
+  runPreflight,
+  PHOTON_COMFORTABLE_RAM_BYTES,
+  type PreflightCheck,
+  type PreflightCheckId,
+  type PreflightDeps,
+} from './preflight.js';
+
+const GB = 1024 ** 3;
+
+/** Eine vollständig gesunde Installation. Jeder Test kippt daran genau das
+ *  eine Ding, das er untersucht — so ist der Unterschied im Ergebnis
+ *  eindeutig diesem einen Ding zuzuordnen. */
+function healthyDeps(overrides: Partial<PreflightDeps> = {}): PreflightDeps {
+  return {
+    env: {
+      TILES_DIR: '/data/tiles',
+      VALHALLA_URL: 'http://valhalla:8002',
+      PHOTON_URL: 'http://photon:2322',
+      PHOTON_ENABLED: 'true',
+      LITE_SEARCH_DB_PATH: '/data/lite/lite_search.db',
+      GPSD_ENABLED: 'true',
+      GPSD_HOST: 'localhost',
+      GPSD_PORT: '2947',
+      MQTT_BROKER_URL: 'mqtt://core-mosquitto:1883',
+    },
+    listDir: async () => ['liechtenstein.pmtiles'],
+    // Seit 0.5.0 gibt es einen Suchindex JE REGION; die Pruefung listet das
+    // Verzeichnis. Die Groesse steuern die Tests weiter ueber `fileSize` --
+    // wer „kein Index" ausdruecken will, setzt dort `null`.
+    listSearchIndexes: () => ['/data/lite/lite_search-liechtenstein.db'],
+    fileSize: async () => 4 * 1024 * 1024,
+    tcpProbe: async () => true,
+    httpProbe: async () => true,
+    // `null` = „konnte Home Assistant nicht fragen". Das ist die Vorgabe im
+    // Test, damit kein Test versehentlich echte Zustände holt; die Tests, in
+    // denen es um Tracker geht, setzen es ausdrücklich.
+    listHaTrackers: async () => null,
+    // `null` = „der gpsd-Dienst hat nichts hinterlegt". Ausdruecklich gesetzt,
+    // damit kein Test die echte Datei unter /run liest -- sonst haenge das
+    // Ergebnis daran, ob auf dem Rechner zufaellig ein Add-on laeuft.
+    readGpsStatus: async () => null,
+    // Vorgabe: jeder Pfad loest sich auf. Die Tests, in denen es um einen
+    // haengenden by-id-Verweis geht, setzen es ausdruecklich auf `false`.
+    pathResolves: async () => true,
+    totalMem: () => 16 * GB,
+    diskFree: async () => 40 * GB,
+    now: () => new Date('2026-09-01T10:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function byId(checks: PreflightCheck[], id: PreflightCheckId): PreflightCheck {
+  const found = checks.find((c) => c.id === id);
+  if (!found) {
+    throw new Error(`Prüfung "${id}" fehlt im Bericht`);
+  }
+  return found;
+}
+
+describe('runPreflight — Gesamtform', () => {
+  it('meldet eine vollständige Installation als ok', async () => {
+    const report = await runPreflight(healthyDeps());
+    expect(report.status).toBe('ok');
+    expect(report.summary).toMatch(/Alle Voraussetzungen erfüllt/);
+    expect(report.checkedAt).toBe('2026-09-01T10:00:00.000Z');
+    expect(report.checks.every((c) => c.status === 'ok')).toBe(true);
+  });
+
+  it('liefert alle sieben Prüfungen, jede genau einmal', async () => {
+    const report = await runPreflight(healthyDeps());
+    const ids = report.checks.map((c) => c.id);
+    expect(ids).toEqual(['tiles', 'routing', 'search', 'position', 'memory', 'disk', 'mqtt']);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // Der eigentliche Zweck dieser Datei: ein Befund ohne Handlungsanweisung
+  // ist für jemanden, der keine Shell öffnen will, wertlos. Dieser Test
+  // erzwingt, dass keine neue Prüfung ohne `remedy` hinzukommen kann.
+  it('jede nicht-ok-Prüfung nennt, was zu tun ist', async () => {
+    const report = await runPreflight({
+      env: {},
+      listDir: async () => {
+        throw new Error('ENOENT');
+      },
+      fileSize: async () => null,
+      tcpProbe: async () => false,
+      httpProbe: async () => false,
+      totalMem: () => 8 * GB,
+      diskFree: async () => 1 * GB,
+    });
+
+    expect(report.checks.some((c) => c.status !== 'ok')).toBe(true);
+    for (const check of report.checks) {
+      if (check.status !== 'ok') {
+        expect(check.remedy, `Prüfung "${check.id}" hat keine remedy`).toBeTruthy();
+        expect((check.remedy ?? '').length).toBeGreaterThan(40);
+      }
+    }
+  });
+
+  it('stuft eine fehlende Pflichtvoraussetzung als fail ein, eine fehlende Empfehlung nur als warn', async () => {
+    const failing = await runPreflight(
+      healthyDeps({
+        listDir: async () => [],
+      }),
+    );
+    expect(failing.status).toBe('fail');
+    expect(failing.summary).toContain('Kartenkacheln');
+
+    const warning = await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, MQTT_BROKER_URL: undefined },
+      }),
+    );
+    expect(warning.status).toBe('warn');
+    expect(byId(warning.checks, 'mqtt').status).toBe('warn');
+  });
+
+  // Seit 0.7.0 gibt es einen zweiten Weg zu Home Assistant. Ohne diese
+  // Faelle wuerde die Pruefung weiter „keine Entitaeten" behaupten, waehrend
+  // die Entitaeten da sind -- eine Diagnose, die luegt, ist schlimmer als
+  // keine.
+  it('kennt den HA-internen Kanal als vollwertigen zweiten Weg', async () => {
+    const ohneBroker = await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, MQTT_BROKER_URL: undefined, HA_INTERNAL: '1' },
+      }),
+    );
+    const check = byId(ohneBroker.checks, 'mqtt');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toContain('HA-internen Kanal');
+    // Und sagt, WO die Bedienung dann liegt. Bis 0.7.0 stand hier, es gebe
+    // sie nicht; seit 0.7.1 legt Yapaia dafuer Helfer an. Eine Diagnose, die
+    // eine Funktion verschweigt, schickt jemanden einen Broker installieren,
+    // den er nicht braucht.
+    expect(check.detail).toContain('input_button.yapaia_pause');
+    expect(check.detail).not.toContain('nur mit MQTT');
+  });
+
+  it('nennt beide Wege, wenn beide eingeschaltet sind', async () => {
+    const beides = await runPreflight(
+      healthyDeps({ env: { ...healthyDeps().env, HA_INTERNAL: '1' } }),
+    );
+    const check = byId(beides.checks, 'mqtt');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toContain('übernimmt, falls der Broker ausfällt');
+  });
+
+  it('warnt nur, wenn WEDER noch', async () => {
+    const keiner = await runPreflight(
+      healthyDeps({ env: { ...healthyDeps().env, MQTT_BROKER_URL: undefined } }),
+    );
+    const check = byId(keiner.checks, 'mqtt');
+    expect(check.status).toBe('warn');
+    expect(check.remedy).toContain('ha_internal');
+  });
+
+  // Eine Diagnoseseite, die selbst abstürzt, versagt genau dann, wenn man
+  // sie braucht. Eine werfende Sonde muss als Prüfergebnis erscheinen.
+  it('überlebt eine Sonde, die wirft, und meldet sie als eigenen Punkt', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        diskFree: async () => {
+          throw new Error('statfs kaputt');
+        },
+      }),
+    );
+    const disk = byId(report.checks, 'disk');
+    expect(disk.status).toBe('warn');
+    expect(disk.detail).toContain('statfs kaputt');
+    expect(disk.remedy).toBeTruthy();
+  });
+});
+
+describe('Kachelprüfung', () => {
+  it('zählt installierte Regionen und nennt sie beim Namen', async () => {
+    const report = await runPreflight(
+      healthyDeps({ listDir: async () => ['liechtenstein.pmtiles', 'rheinland-pfalz.pmtiles'] }),
+    );
+    const tiles = byId(report.checks, 'tiles');
+    expect(tiles.status).toBe('ok');
+    expect(tiles.detail).toContain('liechtenstein');
+    expect(tiles.detail).toContain('rheinland-pfalz');
+  });
+
+  it('erkennt ein fehlendes Verzeichnis als fail', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        listDir: async () => {
+          throw new Error('ENOENT');
+        },
+      }),
+    );
+    const tiles = byId(report.checks, 'tiles');
+    expect(tiles.status).toBe('fail');
+    expect(tiles.detail).toContain('/data/tiles');
+  });
+
+  // Eine `.part`-Datei ist ein ABGEBROCHENER Download, kein Defekt: er kann
+  // fortgesetzt werden. Das muss in der Meldung stehen, sonst löscht der
+  // Betreiber sie und lädt dieselben Gigabyte noch einmal.
+  it('unterscheidet „nichts da" von „Download angefangen"', async () => {
+    const nothing = await runPreflight(healthyDeps({ listDir: async () => [] }));
+    expect(byId(nothing.checks, 'tiles').detail).toContain('Keine Kacheldatei');
+
+    const partial = await runPreflight(
+      healthyDeps({ listDir: async () => ['germany.pmtiles.part'] }),
+    );
+    const tiles = byId(partial.checks, 'tiles');
+    expect(tiles.status).toBe('fail');
+    expect(tiles.detail).toContain('angefangene');
+    expect(tiles.remedy).toContain('fortgesetzt');
+  });
+
+  it('zählt eine .part-Datei nicht als installierte Region', async () => {
+    const report = await runPreflight(
+      healthyDeps({ listDir: async () => ['liechtenstein.pmtiles', 'germany.pmtiles.part'] }),
+    );
+    const tiles = byId(report.checks, 'tiles');
+    expect(tiles.status).toBe('ok');
+    expect(tiles.detail).toContain('1 Region');
+    expect(tiles.detail).not.toContain('germany');
+  });
+});
+
+describe('Suchprüfung (W-12: Photon ODER Lite)', () => {
+  it('ist ok, wenn nur Photon läuft', async () => {
+    const report = await runPreflight(healthyDeps({ fileSize: async () => null }));
+    const search = byId(report.checks, 'search');
+    expect(search.status).toBe('ok');
+    expect(search.detail).toContain('photon');
+  });
+
+  // Das ist der Kern von W-12: ein Gerät ohne Photon ist nicht suchunfähig.
+  // Eine Prüfung, die nur Photon kennt, würde die vorgesehene
+  // Sparkonfiguration als Defekt melden.
+  it('ist ok, wenn Photon abgeschaltet ist, aber ein Lite-Index existiert', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, PHOTON_ENABLED: 'false' },
+        httpProbe: async () => false,
+        fileSize: async () => 12 * 1024 * 1024,
+      }),
+    );
+    const search = byId(report.checks, 'search');
+    expect(search.status).toBe('ok');
+    expect(search.detail).toContain('Lite-Index');
+  });
+
+  /**
+   * ─── MEHRERE INDIZES, EINE AUSSAGE ────────────────────────────────────────
+   * Seit 0.5.0 liegt ein Index JE REGION. Eine Pruefung, die nur die eine
+   * alte Datei kennt, meldete „kein Lite-Index" auf einem Geraet mit dreien
+   * -- und ausgerechnet die Installationspruefung ist die Stelle, an der man
+   * nachsieht, wenn etwas klemmt. Eine Falschaussage schadet hier am meisten.
+   */
+  it('zaehlt alle Regions-Indizes, nicht nur einen', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, PHOTON_ENABLED: 'false' },
+        httpProbe: async () => false,
+        listSearchIndexes: () => [
+          '/data/lite/lite_search-deutschland.db',
+          '/data/lite/lite_search-frankreich.db',
+          '/data/lite/lite_search-schweiz.db',
+        ],
+        fileSize: async () => 5 * 1024 * 1024,
+      }),
+    );
+    const search = byId(report.checks, 'search');
+    expect(search.status).toBe('ok');
+    expect(search.detail).toContain('3 Indizes');
+  });
+
+  it('ist ok, wenn Photon eingeschaltet ist aber nicht antwortet und der Lite-Index einspringt', async () => {
+    const report = await runPreflight(
+      healthyDeps({ httpProbe: async (url) => !url.includes('photon') }),
+    );
+    expect(byId(report.checks, 'search').status).toBe('ok');
+  });
+
+  it('warnt nur, wenn BEIDE Wege fehlen', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        httpProbe: async (url) => !url.includes('photon'),
+        fileSize: async () => null,
+      }),
+    );
+    const search = byId(report.checks, 'search');
+    expect(search.status).toBe('warn');
+    expect(search.remedy).toContain('Lite-Index');
+  });
+
+  it('behandelt eine 0-Byte-Indexdatei nicht als fertigen Index', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        httpProbe: async (url) => !url.includes('photon'),
+        fileSize: async () => 0,
+      }),
+    );
+    expect(byId(report.checks, 'search').status).toBe('warn');
+  });
+
+  it('fragt Photon gar nicht erst, wenn es abgeschaltet ist', async () => {
+    const probed: string[] = [];
+    await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, PHOTON_ENABLED: 'false' },
+        httpProbe: async (url) => {
+          probed.push(url);
+          return true;
+        },
+      }),
+    );
+    expect(probed.some((u) => u.includes('photon'))).toBe(false);
+  });
+});
+
+describe('Positionsprüfung', () => {
+  it('meldet erreichbares gpsd als ok', async () => {
+    const report = await runPreflight(healthyDeps());
+    const pos = byId(report.checks, 'position');
+    expect(pos.status).toBe('ok');
+    expect(pos.detail).toContain('2947');
+  });
+
+  it('warnt, wenn gpsd eingeschaltet ist aber nicht antwortet, und nennt den Browser als Ausweg', async () => {
+    const report = await runPreflight(healthyDeps({ tcpProbe: async () => false }));
+    const pos = byId(report.checks, 'position');
+    expect(pos.status).toBe('warn');
+    expect(pos.remedy).toContain('Browser');
+  });
+
+  // ─── DIE BEGRUENDUNG DES DIENSTES MUSS HIER ANKOMMEN ──────────────────────
+  // Gemeldet: „Der VK-162 scheint aber korrekt erkannt zu werden. Gpsd aber
+  // nicht?" -- und genau das war aus dieser Meldung nicht zu beantworten. Der
+  // gpsd-Dienst WEISS, warum er nichts in Betrieb genommen hat; bis 0.8.6
+  // stand das nur im Add-on-Protokoll, und hier eine Liste zum Durchprobieren.
+  describe('die Begründung des gpsd-Dienstes', () => {
+    const NICHT_DA =
+      "gps_device ist auf '/dev/ttyUSB9' gesetzt, aber dort liegt nichts.";
+
+    it('steht in der Handlungsanweisung, wenn der Dienst eine hinterlegt hat', async () => {
+      const report = await runPreflight(
+        healthyDeps({ tcpProbe: async () => false, readGpsStatus: async () => NICHT_DA }),
+      );
+      expect(byId(report.checks, 'position').remedy).toContain(NICHT_DA);
+    });
+
+    it('steht VORN — nicht hinter der Liste möglicher Ursachen', async () => {
+      // Wer die Antwort erst nach vier Sätzen Rätselraten findet, hat sie
+      // praktisch nicht. Die Meldung ist im Add-on-Fenster schmal und lang.
+      const report = await runPreflight(
+        healthyDeps({ tcpProbe: async () => false, readGpsStatus: async () => NICHT_DA }),
+      );
+      const remedy = byId(report.checks, 'position').remedy ?? '';
+      expect(remedy.indexOf(NICHT_DA)).toBeLessThan(remedy.indexOf('Prüfen Sie'));
+    });
+
+    it('fehlt sie, bleiben die allgemeinen Hinweise — ohne leeren Vorspann', async () => {
+      // Standalone-Betrieb, oder die Prüfung kommt dem Dienst zuvor.
+      const report = await runPreflight(
+        healthyDeps({ tcpProbe: async () => false, readGpsStatus: async () => null }),
+      );
+      const remedy = byId(report.checks, 'position').remedy ?? '';
+      expect(remedy).not.toContain('Der gpsd-Dienst meldet');
+      expect(remedy).toContain('Prüfen Sie');
+    });
+
+    it('behandelt eine leere Datei wie gar keine', async () => {
+      const report = await runPreflight(
+        healthyDeps({ tcpProbe: async () => false, readGpsStatus: async () => '   ' }),
+      );
+      expect(byId(report.checks, 'position').remedy).not.toContain('Der gpsd-Dienst meldet');
+    });
+
+    it('nennt den führenden Schrägstrich — der gemeldete Fehler war genau der', async () => {
+      const report = await runPreflight(healthyDeps({ tcpProbe: async () => false }));
+      expect(byId(report.checks, 'position').remedy).toContain('Schrägstrich');
+    });
+
+    // ─── DER WIDERSPRUCH, DEN DER BETREIBER SAH ──────────────────────────
+    // „Der VK-162 scheint korrekt erkannt zu werden. Gpsd aber nicht?" --
+    // und die Pruefung listete das Geraet tatsaechlich auf. `/dev/serial/
+    // by-id/` besteht aber aus SYMLINKS. `readdir` listet den Namen auch
+    // dann, wenn das Ziel fehlt; `gpsd/run` prueft mit `[ -e ]`, das dem
+    // Link folgt, und sagt „dort liegt nichts". Beide hatten recht.
+    it('vermerkt einen by-id-Verweis, dessen Ziel fehlt', async () => {
+      const report = await runPreflight(
+        healthyDeps({
+          tcpProbe: async () => false,
+          listDir: async () => ['usb-u-blox_AG_-_GPS_GNSS_Receiver-if00'],
+          pathResolves: async () => false,
+        }),
+      );
+      const remedy = byId(report.checks, 'position').remedy ?? '';
+      expect(remedy).toContain('usb-u-blox_AG_-_GPS_GNSS_Receiver-if00 (Verweis zeigt ins Leere)');
+      expect(remedy).toContain('ist der Name da und das Gerät nicht');
+    });
+
+    it('vermerkt nichts, wenn sich alle Pfade auflösen', async () => {
+      // Sonst stuende der Hinweis immer da und saegte an seiner eigenen
+      // Aussagekraft -- eine Warnung, die immer leuchtet, liest niemand.
+      const report = await runPreflight(
+        healthyDeps({
+          tcpProbe: async () => false,
+          listDir: async () => ['usb-u-blox_AG_-_GPS_GNSS_Receiver-if00'],
+          pathResolves: async () => true,
+        }),
+      );
+      expect(byId(report.checks, 'position').remedy).not.toContain('(Verweis zeigt ins Leere)');
+      expect(byId(report.checks, 'position').remedy).not.toContain('ist der Name da und das Gerät nicht');
+    });
+
+    it('sagt, dass Speichern ohne Neustart nichts bewirkt', async () => {
+      // Die Optionen werden beim Start des Containers gelesen. Wer nur
+      // speichert, aendert am laufenden gpsd nichts -- und sucht den Fehler
+      // dann am Pfad, der laengst stimmt.
+      const report = await runPreflight(healthyDeps({ tcpProbe: async () => false }));
+      expect(byId(report.checks, 'position').remedy).toContain('NEU STARTEN');
+    });
+
+    it('nennt das Protokoll als die Stelle mit der Antwort', async () => {
+      const report = await runPreflight(healthyDeps({ tcpProbe: async () => false }));
+      expect(byId(report.checks, 'position').remedy).toContain('Protokoll');
+    });
+
+    it('nennt nicht mehr den alten Namen „ha_tracker"', async () => {
+      // Umbenannt in 0.8.3. Dieser Text blieb stehen und schickte den
+      // Betreiber zu einer Einstellung, die in der Oberfläche anders heisst.
+      const report = await runPreflight(healthyDeps({ tcpProbe: async () => false }));
+      expect(byId(report.checks, 'position').remedy).not.toContain('ha_tracker');
+      expect(byId(report.checks, 'position').remedy).toContain('companion_app');
+    });
+  });
+
+  // ─── DEN PFAD MUSS MAN IRGENDWO ABLESEN KOENNEN ───────────────────────────
+  // Der Hilfetext sagt seit 0.3.1 „tragen Sie das Gerät unter `gps_device`
+  // ein". Die Option gab es bis 0.8.2 gar nicht -- und wo man den Pfad
+  // herbekommt, stand nirgends. Im Add-on gibt es keine Kommandozeile, und
+  // der Betreiber möchte ausdrücklich alles aus der Oberfläche erledigen.
+  // Also nennt die Prüfung die Geräte selbst.
+  //
+  // `listDir` ist hier pfadabhängig: die Prüfung darf nicht irgendein
+  // Verzeichnis auflisten, sondern muss `/dev/serial/by-id` lesen.
+  const BY_ID_UBLOX = 'usb-u-blox_AG_-_www.u-blox.com_u-blox_7_-_GPS_GNSS_Receiver-if00';
+  const BY_ID_ZIGBEE = 'usb-Nabu_Casa_SkyConnect_v1.0_9e2adbd-if00-port0';
+
+  function mitGeraeten(namen: string[], dev: string[] = []): Partial<PreflightDeps> {
+    return {
+      tcpProbe: async () => false,
+      listDir: async (path: string) => {
+        if (path === '/dev/serial/by-id') {
+          if (namen.length === 0) throw new Error('ENOENT');
+          return namen;
+        }
+        if (path === '/dev') return dev;
+        return ['liechtenstein.pmtiles'];
+      },
+    };
+  }
+
+  // ─── DIE PRUEFUNG MUSS DASSELBE LESEN WIE DIE LAUFENDE QUELLE ────────────
+  // Seit 0.7.1 wählt man den Tracker IN YAPAIA (Installationsprüfung ->
+  // Auswahlfeld); die Wahl landet in der Einstellung `ha.device_tracker`, und
+  // `HaTrackerSource` liest sie bei der nächsten Abfrage. Die Prüfung las
+  // dagegen nur die Add-on-Option `HA_DEVICE_TRACKER`.
+  //
+  // Folge: wer in der Oberfläche wählt, bekommt eine Prüfung, die davon nichts
+  // weiß -- bei mehreren Trackern meldet sie „Yapaia rät nicht", während die
+  // Quelle längst einen benutzt. Eine Diagnose, die etwas anderes sagt als das
+  // laufende System, ist schlimmer als keine.
+  it('liest den in der Oberfläche gewählten Tracker, nicht nur die Add-on-Option', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        // `GPSD_ENABLED: 'false'`, weil `gps_source: companion_app` gpsd
+        // ausschaltet (init-yapaja-config.sh) -- sonst gewinnt der
+        // gpsd-Zweig, und der Test prüfte gar nicht, was er soll.
+        env: {
+          ...healthyDeps().env,
+          GPSD_ENABLED: 'false',
+          GPS_SOURCE: 'companion_app',
+          HA_DEVICE_TRACKER: '',
+        },
+        // Zwei Tracker: ohne Wahl würde die Prüfung zu Recht warnen.
+        listHaTrackers: async () => ['device_tracker.radio', 'device_tracker.telefon'],
+        // Genau das hat der Betreiber im Auswahlfeld angeklickt.
+        resolveTrackerId: () => 'device_tracker.radio',
+      }),
+    );
+    const pos = byId(report.checks, 'position');
+    expect(pos.status).toBe('ok');
+    expect(pos.detail).toContain('device_tracker.radio');
+  });
+
+  it('nennt die gefundenen Geräte beim vollen Pfad, damit man sie abschreiben kann', async () => {
+    const report = await runPreflight(healthyDeps(mitGeraeten([BY_ID_ZIGBEE, BY_ID_UBLOX])));
+    const pos = byId(report.checks, 'position');
+    expect(pos.status).toBe('warn');
+    // Der VOLLE Pfad, nicht nur der Dateiname -- genau dieser String gehört
+    // in das Feld, und Abtippen mit einer fehlenden Hälfte hilft niemandem.
+    expect(pos.remedy).toContain(`/dev/serial/by-id/${BY_ID_UBLOX}`);
+    // Auch die anderen: welches davon das GPS ist, weiß der Betreiber, und
+    // eine Vorauswahl wäre wieder ein Raten.
+    expect(pos.remedy).toContain(BY_ID_ZIGBEE);
+  });
+
+  it('sagt es, wenn gar kein serielles Gerät sichtbar ist', async () => {
+    // Der häufigste Fall: Empfänger steckt nicht, oder die USB-Durchreichung
+    // greift nicht. Eine leere Aufzählung wäre hier schlimmer als nichts --
+    // sie sähe aus wie ein Anzeigefehler.
+    const report = await runPreflight(healthyDeps(mitGeraeten([], [])));
+    const pos = byId(report.checks, 'position');
+    expect(pos.remedy).toContain('kein serielles Gerät sichtbar');
+  });
+
+  it('nimmt die rohen Knoten, wenn es kein by-id-Verzeichnis gibt', async () => {
+    // Ältere Systeme oder fehlende udev-Durchreichung. Dann sind `ttyACM0`
+    // und Geschwister das Einzige, was man überhaupt eintragen KANN.
+    const report = await runPreflight(
+      healthyDeps(mitGeraeten([], ['ttyACM0', 'tty', 'null', 'ttyUSB1'])),
+    );
+    const pos = byId(report.checks, 'position');
+    expect(pos.remedy).toContain('/dev/ttyACM0');
+    expect(pos.remedy).toContain('/dev/ttyUSB1');
+    // `/dev/tty` und `/dev/null` sind keine seriellen Geräte. Stünden sie in
+    // der Liste, trüge sie jemand ein -- und gpsd bekäme die Konsole.
+    expect(pos.remedy).not.toContain('/dev/tty,');
+    expect(pos.remedy).not.toContain('/dev/null');
+  });
+
+  // Kein gpsd ist ausdrücklich KEIN Fehler (ADR-007: gpsd > Browser >
+  // Simulator). Die Warnung existiert nur wegen der HTTPS-Bedingung, die
+  // man sonst erst im Fahrzeug bemerkt.
+  it('behandelt „kein gpsd konfiguriert" als Hinweis, nicht als Defekt', async () => {
+    const report = await runPreflight(
+      healthyDeps({ env: { ...healthyDeps().env, GPSD_ENABLED: 'false' } }),
+    );
+    const pos = byId(report.checks, 'position');
+    expect(pos.status).toBe('warn');
+    expect(pos.severity).toBe('recommended');
+    expect(pos.detail).toContain('Browser');
+    expect(pos.remedy).toContain('HTTPS');
+  });
+
+  it('sagt ausdrücklich, dass der Simulator keine echte Position ist', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, GPSD_ENABLED: 'false', ENABLE_SIMULATOR: 'true' },
+      }),
+    );
+    expect(byId(report.checks, 'position').detail).toContain('keine echte Position');
+  });
+
+  it('benutzt den konfigurierten gpsd-Host und -Port', async () => {
+    const seen: Array<[string, number]> = [];
+    await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, GPSD_HOST: 'gps-box', GPSD_PORT: '3333' },
+        tcpProbe: async (host, port) => {
+          seen.push([host, port]);
+          return true;
+        },
+      }),
+    );
+    expect(seen).toContainEqual(['gps-box', 3333]);
+  });
+
+  // ─── Die Zusage aus yapaja_go/config.yaml ────────────────────────────────
+  // Dort stand seit 0.3.0: „Welche Entitaeten in Frage kommen, sagt die
+  // Installationspruefung: sie listet alle gefundenen `device_tracker.*` MIT
+  // Koordinaten auf." Sie tat es nicht. Diese Tests sind der Grund, warum der
+  // Satz jetzt stimmt — sie fallen um, sobald die Auflistung wieder
+  // verschwindet.
+  describe('Home-Assistant-Tracker (B-05)', () => {
+    const haEnv = (extra: Record<string, string> = {}): Record<string, string> => ({
+      ...(healthyDeps().env as Record<string, string>),
+      GPSD_ENABLED: 'false',
+      ...extra,
+    });
+
+    it('nennt bei „gps_source: companion_app" mit mehreren Trackern jeden beim Namen', async () => {
+      const report = await runPreflight(
+        healthyDeps({
+          env: haEnv({ GPS_SOURCE: 'companion_app' }),
+          listHaTrackers: async () => ['device_tracker.ipad', 'device_tracker.telefon'],
+        }),
+      );
+      const pos = byId(report.checks, 'position');
+      expect(pos.status).toBe('warn');
+      expect(pos.remedy).toContain('device_tracker.telefon');
+      expect(pos.remedy).toContain('device_tracker.ipad');
+      expect(pos.remedy).toContain('ha_device_tracker');
+    });
+
+    it('ist ok — und nennt die Entität — wenn es genau eine gibt (automatische Wahl)', async () => {
+      const report = await runPreflight(
+        healthyDeps({
+          env: haEnv({ GPS_SOURCE: 'companion_app' }),
+          listHaTrackers: async () => ['device_tracker.telefon'],
+        }),
+      );
+      const pos = byId(report.checks, 'position');
+      expect(pos.status).toBe('ok');
+      expect(pos.detail).toContain('device_tracker.telefon');
+      expect(pos.detail).toContain('automatisch');
+    });
+
+    it('unterscheidet „kein Tracker vorhanden" von „Home Assistant nicht erreichbar"', async () => {
+      const keiner = byId(
+        (
+          await runPreflight(
+            healthyDeps({ env: haEnv({ GPS_SOURCE: 'companion_app' }), listHaTrackers: async () => [] })
+          )
+        ).checks,
+        'position',
+      );
+      expect(keiner.status).toBe('warn');
+      expect(keiner.remedy).toContain('Companion-App');
+
+      const unerreichbar = byId(
+        (
+          await runPreflight(
+            healthyDeps({
+              env: haEnv({ GPS_SOURCE: 'companion_app' }),
+              listHaTrackers: async () => null,
+            }),
+          )
+        ).checks,
+        'position',
+      );
+      expect(unerreichbar.status).toBe('warn');
+      expect(unerreichbar.detail).toContain('nicht erreichbar');
+      // Die beiden Fälle dürfen NICHT denselben Text bekommen — die
+      // Handlungsanweisung ist eine völlig andere.
+      expect(unerreichbar.detail).not.toBe(keiner.detail);
+    });
+
+    // Der teuerste Fall: alles sieht eingerichtet aus, und es kommt trotzdem
+    // nie eine Position.
+    it('warnt, wenn die eingetragene Entität in Home Assistant keine Koordinaten hat, und nennt die, die welche haben', async () => {
+      const report = await runPreflight(
+        healthyDeps({
+          env: haEnv({ HA_DEVICE_TRACKER: 'device_tracker.vertippt' }),
+          listHaTrackers: async () => ['device_tracker.telefon'],
+        }),
+      );
+      const pos = byId(report.checks, 'position');
+      expect(pos.status).toBe('warn');
+      expect(pos.detail).toContain('device_tracker.vertippt');
+      expect(pos.remedy).toContain('device_tracker.telefon');
+    });
+
+    // Der Fall aus einem echten Protokoll: eingetragen war Yapaias eigener
+    // Fahrzeug-Tracker. Er stand in der Auswahlliste, weil er Koordinaten
+    // trägt, und klang von allen Einträgen am meisten nach „das Fahrzeug".
+    it('nennt den eigenen Fahrzeug-Tracker einen Kreis — und nicht „keine Koordinaten"', async () => {
+      const report = await runPreflight(
+        healthyDeps({
+          env: haEnv({ HA_DEVICE_TRACKER: EIGENER_FAHRZEUG_TRACKER }),
+          listHaTrackers: async () => ['device_tracker.telefon'],
+        }),
+      );
+      const pos = byId(report.checks, 'position');
+      expect(pos.status).toBe('warn');
+      expect(pos.detail).toContain('Kreis');
+      // Die Begründung des Nachbarzweigs wäre hier schlicht falsch: der
+      // eigene Tracker TRÄGT Koordinaten. Wer danach sucht, sucht am
+      // falschen Ende.
+      expect(pos.detail).not.toContain('keine Koordinaten');
+      expect(pos.remedy).toContain('device_tracker.telefon');
+    });
+
+    it('ist ok, wenn die eingetragene Entität existiert', async () => {
+      const report = await runPreflight(
+        healthyDeps({
+          env: haEnv({ HA_DEVICE_TRACKER: 'device_tracker.telefon' }),
+          listHaTrackers: async () => ['device_tracker.telefon'],
+        }),
+      );
+      expect(byId(report.checks, 'position').status).toBe('ok');
+    });
+
+    // Ohne diesen Zweig wäre die Auflistung eine Funktion, die nur findet,
+    // wer schon weiß, dass es sie gibt: der Weg zur Companion App muss in der
+    // Voreinstellung („none", Browser) benannt sein.
+    it('weist im Browser-Fall auf die Companion-App-Quelle hin', async () => {
+      // Hiess bis 0.8.2 „ha_tracker". Seit 0.8.8 gibt es den Wert gar nicht
+      // mehr -- ein Hinweis darauf schickt den Betreiber zu einer Einstellung,
+      // die das Schema ablehnt.
+      const report = await runPreflight(healthyDeps({ env: haEnv() }));
+      expect(byId(report.checks, 'position').remedy).toContain('companion_app');
+      expect(byId(report.checks, 'position').remedy).not.toContain('ha_tracker');
+    });
+
+    // Der konkrete Ausgangspunkt: gps_source stand auf „usb", ein Empfänger
+    // war nie da, und die Prüfung riet nur zu einem Gerät, das es nicht gibt.
+    it('nennt bei totem gpsd auch die Möglichkeit, dass „usb" schlicht falsch eingestellt ist', async () => {
+      const report = await runPreflight(healthyDeps({ tcpProbe: async () => false }));
+      expect(byId(report.checks, 'position').remedy).toContain('companion_app');
+    });
+  });
+});
+
+describe('Speicherprüfung (der 8-GB-Fall)', () => {
+  it('warnt bei 8 GB mit eingeschaltetem Photon und empfiehlt den Lite-Index', async () => {
+    const report = await runPreflight(healthyDeps({ totalMem: () => 8 * GB }));
+    const mem = byId(report.checks, 'memory');
+    expect(mem.status).toBe('warn');
+    expect(mem.remedy).toContain('photon_enabled');
+    expect(mem.remedy).toContain('Lite');
+  });
+
+  it('warnt bei 8 GB nicht, wenn Photon abgeschaltet ist', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        totalMem: () => 8 * GB,
+        env: { ...healthyDeps().env, PHOTON_ENABLED: 'false' },
+      }),
+    );
+    expect(byId(report.checks, 'memory').status).toBe('ok');
+  });
+
+  it('warnt oberhalb der Schwelle auch mit Photon nicht', async () => {
+    const report = await runPreflight(
+      healthyDeps({ totalMem: () => PHOTON_COMFORTABLE_RAM_BYTES }),
+    );
+    expect(byId(report.checks, 'memory').status).toBe('ok');
+  });
+});
+
+describe('Plattenplatzprüfung', () => {
+  it('ist ok bei reichlich Platz', async () => {
+    const report = await runPreflight(healthyDeps({ diskFree: async () => 40 * GB }));
+    expect(byId(report.checks, 'disk').status).toBe('ok');
+  });
+
+  it('warnt bei knappem Platz und trennt kleine von großen Regionen', async () => {
+    const report = await runPreflight(healthyDeps({ diskFree: async () => 2 * GB }));
+    const disk = byId(report.checks, 'disk');
+    expect(disk.status).toBe('warn');
+    expect(disk.remedy).toContain('Liechtenstein');
+  });
+
+  it('misst den Platz im konfigurierten Kachelverzeichnis', async () => {
+    const seen: string[] = [];
+    await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, TILES_DIR: '/mnt/gross/tiles' },
+        diskFree: async (path) => {
+          seen.push(path);
+          return 40 * GB;
+        },
+      }),
+    );
+    expect(seen).toEqual(['/mnt/gross/tiles']);
+  });
+});
+
+/**
+ * ─── EINE ANWEISUNG DARF NICHT AUF ETWAS ZEIGEN, DAS ES NICHT GIBT ──────────
+ *
+ * Am 2026-09-02 zeigte die Installationsprüfung auf einer echten HAOS-Instanz
+ * korrekt an, dass Kacheln und Routinggraph fehlen — und nannte als Abhilfe
+ * den „Knopf ‚Kacheln bauen'" bzw. „‚Suchindex bauen'". Beide Knöpfe gibt es
+ * nicht; sie stehen als B-04 im Backlog. Der Betreiber suchte in der
+ * Oberfläche nach etwas, das nie gebaut wurde.
+ *
+ * Das ist exakt dieselbe Fehlerklasse wie der Katalog, der auf
+ * nicht existierende `.pmtiles`-URLs zeigte: eine Anweisung, die nicht
+ * befolgt werden KANN, ist schlimmer als gar keine — sie schickt den
+ * Adressaten auf die Fehlersuche in seiner eigenen Installation.
+ *
+ * Dieser Test kann nicht jede Formulierung prüfen. Er prüft das, was
+ * maschinell entscheidbar ist: nennt eine Anweisung ein Bedienelement in
+ * deutschen Anführungszeichen, muss diese Beschriftung im Frontend-Quelltext
+ * tatsächlich vorkommen.
+ */
+describe('Handlungsanweisungen verweisen nur auf real Vorhandenes', () => {
+  const GB = 1024 ** 3;
+
+  /** Beschriftungen, die in `„…"` stehen und wie ein Bedienelement aussehen.
+   *  Pfade, Dateinamen und Konfigurationsschlüssel sind ausgenommen — die
+   *  sind keine Knöpfe. */
+  function quotedControls(text: string): string[] {
+    const out: string[] = [];
+    for (const m of text.matchAll(/„([^"„]{2,40})"/g)) {
+      const label = m[1].trim();
+      if (/[/.:]/.test(label)) continue; // Pfad/Datei/Key, kein Bedienelement
+      if (/^[a-z_]+$/.test(label)) continue; // z. B. photon_enabled
+      out.push(label);
+    }
+    return out;
+  }
+
+  it('jede in Anführungszeichen genannte Beschriftung existiert im Frontend', async () => {
+    const report = await runPreflight({
+      env: {},
+      listDir: async () => [],
+      fileSize: async () => null,
+      tcpProbe: async () => false,
+      httpProbe: async () => false,
+      totalMem: () => 8 * GB,
+      diskFree: async () => 1 * GB,
+    });
+
+    const webSrc = join(
+      dirname(fileURLToPath(import.meta.url)),
+      '..',
+      '..',
+      '..',
+      'web',
+      'src',
+    );
+
+    // Beschriftungen, die BEWUSST nicht aus dem Frontend stammen: sie
+    // benennen Bedienelemente von Home Assistant bzw. fremden Add-ons, nicht
+    // von Yapaia. Jede weitere Ausnahme braucht dieselbe Begründung.
+    const FOREIGN_UI = new Set(['Samba share', 'File editor', 'Protokoll', 'Terminal']);
+
+    const labels = report.checks
+      .flatMap((c) => quotedControls(c.remedy ?? ''))
+      .filter((l) => !FOREIGN_UI.has(l));
+
+    if (labels.length === 0) {
+      return; // keine Beschriftung genannt -- nichts zu prüfen
+    }
+
+    const haystack = readFileSync(join(webSrc, 'settings/regions/RegionsPanel.tsx'), 'utf-8');
+    for (const label of labels) {
+      expect(
+        haystack.includes(label),
+        `Eine Handlungsanweisung nennt das Bedienelement „${label}", das im ` +
+          `RegionsPanel nicht vorkommt. Entweder das Element bauen oder die ` +
+          `Anweisung auf das umschreiben, was es wirklich gibt.`,
+      ).toBe(true);
+    }
+  });
+
+  // Die Gegenprobe: seit B-04 GIBT es einen Weg in der Oberfläche, und die
+  // Anweisung soll ihn auch nennen -- sonst schickt sie den Betreiber weiter
+  // über eine Kommandozeile, obwohl der Weg in der App existiert.
+  //
+  // Bis 0.15.3 hiess der Knopf „Kacheln bauen" und stand an jeder Karte.
+  // Seit 0.16.0 heisst er „Installieren" (bei einer schon installierten
+  // Karte „Update") und macht beides -- herunterladen oder bauen, je nach
+  // Quelle. Der Test prüft weiter dasselbe: dass der Weg BENANNT ist.
+  it('nennt den Weg in der Oberfläche, statt auf eine Kommandozeile zu verweisen', async () => {
+    const report = await runPreflight({
+      env: {},
+      listDir: async () => [],
+      fileSize: async () => null,
+      tcpProbe: async () => false,
+      httpProbe: async () => false,
+      totalMem: () => 8 * GB,
+      diskFree: async () => 1 * GB,
+    });
+
+    const tiles = report.checks.find((c) => c.id === 'tiles');
+    expect(tiles?.remedy).toContain('Installieren');
+    // Und den zweiten Schritt: eine installierte Karte allein ergibt weder
+    // Routing noch Suche. Wer das nicht weiss, hält die Installation für
+    // fertig und wundert sich, dass keine Route zustande kommt.
+    expect(tiles?.remedy).toContain('Fehlendes bauen');
+  });
+});

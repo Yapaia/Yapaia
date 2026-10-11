@@ -1,0 +1,41 @@
+{
+  "name": "@yapaia/core",
+  "version": "0.0.1",
+  "description": "Yapaia Go backend server",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "openapi:generate": "tsx src/openapi/generate.ts",
+    "openapi:check": "tsx src/openapi/generate.ts --check"
+  },
+  "dependencies": {
+    "@fastify/static": "^10.1.2",
+    "@fastify/websocket": "^11.3.0",
+    "@yapaia/shared": "workspace:*",
+    "better-sqlite3": "^12.11.1",
+    "fastify": "^5.12.5",
+    "fastify-plugin": "^6.0.0",
+    "mqtt": "^5.15.2",
+    "pino": "^8.17.2",
+    "pmtiles": "^4.4.1",
+    "tar-stream": "^3.2.0"
+  },
+  "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^24.8.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.12.12",
+    "@types/tar-stream": "^3.1.4",
+    "@types/ws": "^8.18.1",
+    "aedes": "^1.1.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

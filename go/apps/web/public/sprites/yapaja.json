@@ -1,0 +1,182 @@
+{
+  "shield-motorway": {
+    "x": 0,
+    "y": 0,
+    "width": 22,
+    "height": 15,
+    "pixelRatio": 1,
+    "stretchX": [
+      [
+        10,
+        12
+      ]
+    ],
+    "stretchY": [
+      [
+        7,
+        9
+      ]
+    ],
+    "content": [
+      4,
+      3,
+      19,
+      12
+    ]
+  },
+  "shield-trunk": {
+    "x": 24,
+    "y": 0,
+    "width": 22,
+    "height": 15,
+    "pixelRatio": 1,
+    "stretchX": [
+      [
+        10,
+        12
+      ]
+    ],
+    "stretchY": [
+      [
+        7,
+        9
+      ]
+    ],
+    "content": [
+      4,
+      3,
+      19,
+      12
+    ]
+  },
+  "shield-minor": {
+    "x": 48,
+    "y": 0,
+    "width": 22,
+    "height": 15,
+    "pixelRatio": 1,
+    "stretchX": [
+      [
+        10,
+        12
+      ]
+    ],
+    "stretchY": [
+      [
+        7,
+        9
+      ]
+    ],
+    "content": [
+      4,
+      3,
+      19,
+      12
+    ]
+  },
+  "poi-wohnmobil": {
+    "x": 0,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-camping": {
+    "x": 20,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-tanken": {
+    "x": 40,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-laden": {
+    "x": 60,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-parken": {
+    "x": 80,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-einkaufen": {
+    "x": 100,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-essen": {
+    "x": 120,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-sehenswert": {
+    "x": 140,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-versorgung": {
+    "x": 160,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "verkehr-baustelle": {
+    "x": 180,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "verkehr-sperrung": {
+    "x": 200,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-entsorgung": {
+    "x": 220,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-frischwasser": {
+    "x": 240,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-dusche": {
+    "x": 260,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-muell": {
+    "x": 280,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  }
+}

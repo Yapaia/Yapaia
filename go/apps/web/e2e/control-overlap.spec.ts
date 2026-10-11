@@ -1,0 +1,429 @@
+/**
+ * Kein Bedienelement darf ein anderes verdecken.
+ *
+ * ─── DIE MELDUNG ────────────────────────────────────────────────────────────
+ * „Wir haben viele Knöpfe und Anzeigen auf der Karte, die sich teilweise
+ * überlappen. Bspw. wenn die Navigation aktiv ist, liegen die neuen Buttons
+ * über der Zentrierung. Die nächste Abbiegung über der Suchzeile. Oder aber
+ * auch die Karteneinstellung über den Zoom-Einstellungen der Karte."
+ *
+ * ─── WARUM DIESER TEST MISST STATT ZU RECHNEN ───────────────────────────────
+ * Die Ursache ist systemisch: JEDES Overlay setzt seine Position selbst, mit
+ * handgewaehlten Werten (`bottom-20`, `bottom-24`, `bottom-[120px]`,
+ * `bottom-36` ...). Niemand kennt die Nachbarn. `DriveOverlay.tsx` begruendet
+ * seinen Abstand ausdruecklich -- aber nur gegenueber `DriveControls`; die
+ * drei Karten-Knoepfe auf derselben Seite kommen darin gar nicht vor.
+ *
+ * Ein Unit-Test mit nachgebauten Hoehen wuerde denselben Fehler wiederholen:
+ * er pruefte meine Annahme ueber die Groessen, nicht die Groessen. Deshalb
+ * misst dieser Test die ECHTEN Kaesten im Browser (`boundingBox`) und
+ * vergleicht sie paarweise. Er kann nicht von der CSS abdriften, weil er die
+ * CSS ausliest.
+ *
+ * Geprueft werden beide Zustaende, denn der Betreiber hat beide gemeldet:
+ * ohne Navigation und waehrend einer laufenden Fahrt.
+ */
+
+import { test, expect, type Page } from '@playwright/test';
+import type { Route } from '@yapaia/shared';
+import { encodePolyline6, type LatLon } from '../../core/src/routing/polyline.js';
+import { CONTROL_OVERLAP_CORE_BASE_URL } from './support/constants.js';
+import { langDruecken } from './support/zielGeste.js';
+
+const BASE_LAT = 47.2;
+const BASE_LON = 9.6;
+const M_PER_DEG_LAT = 111_195;
+
+const ROUTE_POINTS: LatLon[] = Array.from({ length: 11 }, (_, i) => ({
+  lat: BASE_LAT + (i * (M_PER_DEG_LAT * 0.001)) / M_PER_DEG_LAT,
+  lon: BASE_LON,
+}));
+const TOTAL_LENGTH_M = 10 * (M_PER_DEG_LAT * 0.001);
+
+const ROUTE: Route = {
+  id: 'overlap-e2e-route',
+  distance_m: TOTAL_LENGTH_M,
+  duration_s: 120,
+  geometry: encodePolyline6(ROUTE_POINTS),
+  legs: [{ index: 0, distance_m: TOTAL_LENGTH_M, duration_s: 120 }],
+  maneuvers: [
+    {
+      index: 0,
+      type: 'continue',
+      instruction: 'Der Hauptstraße folgen',
+      street_names: ['Hauptstraße'],
+      distance_m: 5 * (M_PER_DEG_LAT * 0.001),
+      begin_shape_index: 0,
+    },
+    {
+      index: 1,
+      type: 'turn_left',
+      instruction: 'Links abbiegen auf die Seestraße',
+      street_names: ['Seestraße'],
+      distance_m: 5 * (M_PER_DEG_LAT * 0.001),
+      begin_shape_index: 5,
+    },
+  ],
+  // Ein Tempolimit ab der Mitte -- damit das Schild sichtbar wird und der
+  // Test seine Lage mitmisst.
+  speed_limits: [{ begin_shape_index: 0, end_shape_index: 10, kmh: 80 }],
+  warnings: [],
+};
+
+/** Eine Position auf der Route, damit die Fahrt-Anzeigen erscheinen. */
+function browserFixBody(index: number): Record<string, unknown> {
+  return {
+    lat: ROUTE_POINTS[index].lat,
+    lon: ROUTE_POINTS[index].lon,
+    alt: null,
+    speed: 0,
+    heading: 0,
+    accuracy: 5,
+    fix: '3d',
+    ts: new Date().toISOString(),
+  };
+}
+
+/**
+ * Alle Bedienelemente, die gleichzeitig auf der Karte liegen koennen.
+ *
+ * Bewusst NUR Dinge, die man antippt oder ablesen muss. Vollbild-Dialoge
+ * (Assistent, Masse-Rueckfrage) stehen nicht drin -- die duerfen alles
+ * verdecken, das ist ihr Zweck.
+ */
+const CONTROLS = [
+  // NICHT `top-bar`: das ist ein durchsichtiger Container ueber die volle
+  // Breite mit `pointer-events-none`. Er ueberlappt zwangslaeufig alles und
+  // blockiert nichts -- gemessen werden seine BEDIENBAREN Kinder.
+  'search-input',
+  'compass-button',
+  'viewmode-button',
+  'recenter-button',
+  // Seit 0.23 EIN ⚙ im Seitenpanel statt fuenf runder Knoepfe auf der Karte.
+  'einstellungen-toggle',
+  'uebersicht-button',
+  'speed-display',
+  // Die Favoriten-Schublade, und zwar ihre KOPFZEILE: die ist immer da, das
+  // aufgeklappte Innere nicht. Sie fehlte hier -- und genau sie lag auf dem
+  // Telefon-Bildschirmfoto unter „Pause". Seit 0.18.0 gibt es sie waehrend
+  // der Fahrt nicht mehr (die Favoriten liegen im Fahrtmenue).
+  // Nur waehrend der Fahrt vorhanden. Pause, Stopp und die Ansagen-Taste
+  // liegen seit 0.18.0 im Fahrtmenue und stehen nicht mehr auf der Karte;
+  // „Fortsetzen" steht dort nur bei einer pausierten Fahrt.
+  'maneuver-panel',
+  'drive-resume-button',
+  'speed-limit-sign',
+  'trip-info-panel',
+] as const;
+
+interface Rect {
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+async function visibleControlRects(page: Page): Promise<Rect[]> {
+  const rects: Rect[] = [];
+  for (const name of CONTROLS) {
+    const locator = page.getByTestId(name);
+    if ((await locator.count()) === 0) continue;
+    if (!(await locator.first().isVisible())) continue;
+    const box = await locator.first().boundingBox();
+    if (box) rects.push({ name, ...box });
+  }
+  return rects;
+}
+
+/** Die Kanten von MapLibres eigener Zoom-/Kompass-Gruppe. Sie gehoert nicht
+ *  uns, liegt aber auf derselben Karte -- und der Betreiber hat sie
+ *  ausdruecklich genannt („Karteneinstellung über den Zoom-Einstellungen"). */
+async function maplibreControlRect(page: Page): Promise<Rect | null> {
+  const locator = page.locator('.maplibregl-ctrl-top-right .maplibregl-ctrl-group').first();
+  if ((await locator.count()) === 0) return null;
+  if (!(await locator.isVisible())) return null;
+  const box = await locator.boundingBox();
+  return box ? { name: 'maplibre-zoom-controls', ...box } : null;
+}
+
+/**
+ * Die Namensnennung von MapLibre („© OpenStreetMap contributors").
+ *
+ * ─── WARUM SIE HIER MITGEMESSEN WIRD ────────────────────────────────────────
+ * Sie ist keine Zierde, sondern eine Auflage der ODbL (docs/licenses.md §1).
+ * `map-render.spec.ts` prueft, dass sie DA ist -- aber `toBeVisible()` bleibt
+ * wahr, auch wenn etwas anderes davorliegt. Auf 390 Bildpunkten lag sie
+ * waehrend der Fahrt unter der Fahrtdaten-Leiste, und genau das faellt einem
+ * Sichtbarkeitstest nicht auf.
+ */
+async function attributionRect(page: Page): Promise<Rect | null> {
+  const locator = page.locator('.maplibregl-ctrl-attrib').first();
+  if ((await locator.count()) === 0) return null;
+  if (!(await locator.isVisible())) return null;
+  const box = await locator.boundingBox();
+  return box ? { name: 'osm-attribution', ...box } : null;
+}
+
+/** Überlappungsflaeche zweier Rechtecke in Quadratpunkten (0 = beruehrt sich hoechstens). */
+function overlapArea(a: Rect, b: Rect): number {
+  const w = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+function findOverlaps(rects: Rect[]): string[] {
+  const problems: string[] = [];
+  for (let i = 0; i < rects.length; i += 1) {
+    for (let j = i + 1; j < rects.length; j += 1) {
+      const area = overlapArea(rects[i], rects[j]);
+      if (area > 0) {
+        problems.push(
+          `${rects[i].name} <-> ${rects[j].name}: ${Math.round(area)} qpx ` +
+            `(${rects[i].name} @ ${Math.round(rects[i].x)},${Math.round(rects[i].y)} ` +
+            `${Math.round(rects[i].width)}x${Math.round(rects[i].height)}; ` +
+            `${rects[j].name} @ ${Math.round(rects[j].x)},${Math.round(rects[j].y)} ` +
+            `${Math.round(rects[j].width)}x${Math.round(rects[j].height)})`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
+async function waitForMapReady(page: Page): Promise<void> {
+  await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 15_000 });
+  await page.waitForFunction(() => Boolean(window.__yapaiaMapController?.getMap?.()), undefined, {
+    timeout: 15_000,
+  });
+}
+
+/**
+ * Alles herstellen, was die Knoepfe ueberhaupt erscheinen laesst:
+ *
+ *  * `ReCenterButton` braucht eine Position im Store;
+ *  * `CompassButton` erscheint nur bei GEDREHTER Karte.
+ *
+ * Ohne die Drehung wuerde der Test die Ueberlappung Kompass<->Zentrierung
+ * nie sehen -- und genau die gehoert zu den gemeldeten.
+ */
+/**
+ * Position setzen und warten, bis die positionsabhaengigen Knoepfe da sind.
+ *
+ * Der Speicher wird DIREKT gesetzt statt ueber die Browser-Geolocation: die
+ * lieferte im schmalen Fenster verlaesslich gar nichts (`position: null`
+ * nach 5 s), und dieser Test prueft GEOMETRIE, nicht die Positionskette.
+ * Dasselbe Mittel benutzt `drive.spec.ts` fuer den Routing-Speicher.
+ *
+ * Der KOMPASS fehlt bewusst: er erscheint nur bei gedrehter Karte, und der
+ * Ansichtsmodus `2d-north` sperrt die Drehung auf 0 -- im Test also nicht
+ * verlaesslich hervorzulocken. Seine Nachbarschaft deckt der Unit-Test ueber
+ * `mapControlLayout.ts` ab, der dieselben Werte benutzt wie die Komponenten.
+ */
+async function seedPosition(page: Page): Promise<void> {
+  await page.evaluate(
+    ({ lat, lon }) => {
+      window.__yapaiaPositionStore?.getState().setPosition({
+        lat,
+        lon,
+        alt: null,
+        speed: 0,
+        heading: null,
+        accuracy: 5,
+        source: 'browser',
+        fix: '3d',
+        ts: new Date().toISOString(),
+      });
+    },
+    { lat: BASE_LAT, lon: BASE_LON },
+  );
+  // Der Zentrier-Knopf erscheint seit 0.22 nur abseits der Position -- fuer
+  // diese Pruefung soll er da sein, also die Karte wegschieben.
+  await page.evaluate(() => {
+    window.__yapaiaFollowMeStore?.getState().halten();
+    window.__yapaiaMapController?.getMap()?.jumpTo({ center: [8.25, 49.22] });
+  });
+  await expect(page.getByTestId('recenter-button')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('viewmode-button')).toBeVisible({ timeout: 10_000 });
+}
+
+/**
+ * Zwei Fenstergroessen, weil Ueberlappungen von der Breite abhaengen.
+ *
+ * Das breite Fenster ist Playwrights Standard. Das schmale bildet ein Tablet
+ * im Hochformat nach -- so, wie der Betreiber es benutzt. Genau dort schob
+ * sich die Abbiege-Anzeige (mittig) ueber die Suchzeile; im breiten Fenster
+ * ebenfalls, aber mit anderer Flaeche -- beide Faelle sind gemessen.
+ */
+const VIEWPORTS = [
+  { name: 'breit', size: { width: 1280, height: 720 } },
+  { name: 'Tablet hochkant', size: { width: 768, height: 1024 } },
+  // ─── TELEFON ──────────────────────────────────────────────────────────────
+  // Gemeldet mit Bildschirmfoto vom iPhone: „Bisher habe ich immer auf einem
+  // 13-Zoll-iPad getestet und da ist GUI ganz ok. Auf kleinen screens sieht es
+  // nicht mehr gut aus."
+  //
+  // Und so war es: Kopfzeile, Tempolimit und Manoeverkachel lagen
+  // uebereinander, der Sperr-Hinweis lief quer durch die Knopfspalte, und die
+  // Fahrtdaten brachen dreizeilig ueber Pause/Stopp. Dieser Test hat das nicht
+  // gefunden, weil er bei 768 aufhoerte -- 390 ist die Breite, auf der
+  // wirklich jemand faehrt.
+  { name: 'Telefon hochkant', size: { width: 390, height: 844 } },
+] as const;
+
+// ─── DIESE DATEI LAEUFT SERIELL ─────────────────────────────────────────────
+// Alle Tests hier teilen sich EINEN Core, und einer von ihnen startet eine
+// echte Fahrt. Eine laufende Fahrt ist kein testeigener Zustand: der Core
+// sendet sie ueber /ws/v1 an jede Seite an diesem Port, und `RoutingPanel`
+// blendet sich waehrend einer Fahrt bewusst aus. Liefen die Tests parallel,
+// saehe der Ziel-Fenster-Test die Fahrt des Nachbarn und faende sein Fenster
+// nicht -- genau so ist es passiert.
+//
+// Dieselbe Ursache wie bei CONTROL_OVERLAP_CORE_PORT, nur eine Ebene tiefer:
+// dort zwischen zwei Dateien, hier innerhalb einer.
+test.describe.configure({ mode: 'serial' });
+
+test.describe('Bedienelemente ueberlappen einander nicht', () => {
+
+
+
+  test.afterEach(async ({ page }) => {
+    await page
+      .evaluate(async (baseUrl: string) => {
+        await fetch(`${baseUrl}/api/v1/navigation/stop`, { method: 'POST' });
+      }, CONTROL_OVERLAP_CORE_BASE_URL)
+      .catch(() => {
+        /* best effort */
+      });
+  });
+
+  for (const viewport of VIEWPORTS) {
+  test(`ohne laufende Navigation (${viewport.name})`, async ({ page }) => {
+    await page.setViewportSize(viewport.size);
+    await page.goto(CONTROL_OVERLAP_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+    await seedPosition(page);
+
+    const rects = await visibleControlRects(page);
+    const mapCtrl = await maplibreControlRect(page);
+    if (mapCtrl) rects.push(mapCtrl);
+    // ODbL-Pflicht -- darf von nichts verdeckt werden.
+    const attrib = await attributionRect(page);
+    if (attrib) rects.push(attrib);
+
+    // Mindestens die Karten-Knoepfe muessen da sein -- sonst prueft der Test
+    // eine leere Liste und ist immer gruen.
+    expect(rects.map((r) => r.name)).toEqual(
+      expect.arrayContaining(['viewmode-button', 'recenter-button', 'search-input']),
+    );
+
+    expect(findOverlaps(rects), findOverlaps(rects).join('\n')).toEqual([]);
+  });
+
+  test(`waehrend einer laufenden Fahrt (${viewport.name})`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize(viewport.size);
+    await page.goto(CONTROL_OVERLAP_CORE_BASE_URL + '/');
+    await waitForMapReady(page);
+
+    const startResponse = await page.request.post(`${CONTROL_OVERLAP_CORE_BASE_URL}/api/v1/navigation/start`, {
+      data: { route: ROUTE, destination: { latlng: ROUTE_POINTS[10], name: 'Ziel' } },
+    });
+    expect(startResponse.ok(), await startResponse.text()).toBe(true);
+
+    await page.evaluate((route: Route) => {
+      window.__yapaiaRoutingStore?.setState({ routes: [route], activeRouteId: route.id });
+    }, ROUTE);
+
+    await page.request.post(`${CONTROL_OVERLAP_CORE_BASE_URL}/api/v1/position/browser`, {
+      data: browserFixBody(1),
+    });
+    await expect(page.getByTestId('maneuver-panel')).toBeVisible({ timeout: 10_000 });
+
+    const rects = await visibleControlRects(page);
+    const mapCtrl = await maplibreControlRect(page);
+    if (mapCtrl) rects.push(mapCtrl);
+    // ODbL-Pflicht -- darf von nichts verdeckt werden.
+    const attrib = await attributionRect(page);
+    if (attrib) rects.push(attrib);
+
+    // Die Fahrt-Bedienelemente muessen wirklich da sein.
+    expect(rects.map((r) => r.name)).toEqual(
+      expect.arrayContaining(['maneuver-panel', 'trip-info-panel']),
+    );
+    // ─── UND WAS WAEHREND DER FAHRT NICHT MEHR DA IST ───────────────────────
+    // „wir haben so viele tolle Informationen dass man während der Fahrt zu
+    // viele Dinge sieht." Suche, Fahrzeugwahl, Favoriten-Schublade und die
+    // Panel-Knoepfe gehoeren zum Suchen und Planen.
+    for (const weg of [
+      'search-input',
+      'profile-chip',
+      'einstellungen-toggle',
+    ]) {
+      expect(rects.map((r) => r.name), `${weg} waehrend der Fahrt`).not.toContain(weg);
+    }
+
+    expect(findOverlaps(rects), findOverlaps(rects).join('\n')).toEqual([]);
+  });
+  }
+});
+
+/**
+ * ─── DAS ZIEL-FENSTER DARF DIE KARTENMITTE NICHT VERDECKEN ─────────────────
+ * Es hatte bis 0.5.9 gar keine Hoehenbegrenzung und wuchs mit jedem
+ * Abschnitt, den es bekam. Mit den Zwischenzielen reichte es erstmals ueber
+ * die Mitte der Karte -- ein Doppeltipp zum Hineinzoomen landete danach auf
+ * dem Fenster statt auf der Karte.
+ *
+ * Aufgefallen ist das an einem Gesten-Test, also durch Zufall. Diese Pruefung
+ * misst die Zusicherung direkt: was auch immer kuenftig in dieses Fenster
+ * kommt, die Mitte der Karte bleibt bedienbar.
+ */
+test.describe('Das Ziel-Fenster', () => {
+  // Kein Verlass auf das Aufraeumen des Nachbar-Describes: waere hier noch
+  // eine Fahrt aktiv, blendete sich `RoutingPanel` aus und der Test suchte
+  // ein Fenster, das es zu Recht nicht gibt.
+  test.beforeEach(async ({ request }) => {
+    await request
+      .post(`${CONTROL_OVERLAP_CORE_BASE_URL}/api/v1/navigation/stop`)
+      .catch(() => {
+        /* best effort */
+      });
+  });
+
+  for (const [name, viewport] of [
+    ['breit', { width: 1280, height: 720 }],
+    ['Tablet hochkant', { width: 768, height: 1024 }],
+  ] as const) {
+    test(`laesst die Kartenmitte frei (${name})`, async ({ page }) => {
+      test.setTimeout(45_000);
+      await page.setViewportSize(viewport);
+      await page.goto(CONTROL_OVERLAP_CORE_BASE_URL + '/');
+      await waitForMapReady(page);
+
+      const canvas = await page.locator('canvas.maplibregl-canvas').boundingBox();
+      expect(canvas).not.toBeNull();
+      const mitteY = canvas!.y + canvas!.height / 2;
+
+      // Ein LANGER DRUCK auf die Karte oeffnet das Fenster (Ziel setzen).
+      // Seit 0.17.1 tut ein kurzer Tipper das nicht mehr -- siehe
+      // `support/zielGeste.ts`.
+      await langDruecken(page, canvas!.x + canvas!.width / 2, mitteY);
+      await expect(page.getByTestId('destination-sheet')).toBeVisible({ timeout: 10_000 });
+
+      const sheet = await page.getByTestId('destination-sheet').boundingBox();
+      expect(sheet).not.toBeNull();
+      // Seit 0.25 sitzt das Fenster auf breiten Schirmen im Seitenpanel --
+      // dann liegt es NEBEN der Mitte statt darunter. Beides laesst sie frei.
+      const mitteX = canvas!.x + canvas!.width / 2;
+      const daneben = mitteX < sheet!.x || mitteX > sheet!.x + sheet!.width;
+      const darunter = sheet!.y > mitteY;
+      expect(
+        daneben || darunter,
+        `Das Ziel-Fenster (${Math.round(sheet!.x)},${Math.round(sheet!.y)} ` +
+          `${Math.round(sheet!.width)}x${Math.round(sheet!.height)}) deckt die Kartenmitte ` +
+          `(${Math.round(mitteX)},${Math.round(mitteY)}) -- Gesten in der Mitte treffen dann das Fenster.`,
+      ).toBe(true);
+    });
+  }
+});

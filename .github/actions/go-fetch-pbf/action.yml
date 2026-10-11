@@ -1,0 +1,136 @@
+name: OSM-Extrakt holen
+description: >-
+  Laedt eine .osm.pbf mit Cache, hartem Zeitlimit und Abbruch bei stehendem
+  Transfer. Ergebnis ist eine LOKALE Datei fuer services/valhalla/build-tiles.sh.
+
+inputs:
+  url:
+    description: Adresse des Extrakts (Geofabrik).
+    required: true
+  path:
+    description: Wohin die Datei gelegt wird. NICHT unter data/valhalla -- das raeumt build-tiles.sh aus.
+    required: true
+  bbox:
+    description: >-
+      Nur fuer den Ausweg ueber planet.osm.ch: das Rechteck (west,sued,ost,nord),
+      das aus dem Schweiz-Extrakt ausgeschnitten wird. Leer = kein Ausweg.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # ─── WARUM ES DIESEN SCHRITT UEBERHAUPT GIBT ──────────────────────────
+    # `build-tiles.sh` nimmt entweder eine URL oder eine lokale Datei. Mit
+    # der URL laedt der gis-ops-Build-Container die Datei SELBST, und das
+    # Skript pollt danach bis zu 1800 s auf /status. Ein langsamer
+    # Geofabrik-Download sieht darin exakt aus wie ein haengender
+    # Graph-Build: kein Fortschritt, keine Meldung, nach 30 Minuten
+    # Job-Abbruch.
+    #
+    # Gemessen an derselben Datei (Liechtenstein, wenige MB): 21 s, 2:33 min
+    # -- und zweimal ueber 30 Minuten, was jeweils einen Merge blockierte und
+    # 30 Actions-Minuten kostete. Bei dieser Dateigroesse ist das kein
+    # Rechnen, das ist ein stehender Transfer.
+    #
+    # Hier faellt derselbe Fall in Sekunden auf, mit Klartext.
+    - name: Cache-Schluessel bilden
+      id: schluessel
+      shell: bash
+      run: |
+        # Woechentlich frisch. OSM-Extrakte aendern sich taeglich, aber fuer
+        # ein Routing-Gate ist der Stand dieser Woche gut genug -- und jeder
+        # Lauf neu zu laden ist genau das, was hier haengen bleibt.
+        echo "wert=pbf-$(basename '${{ inputs.url }}')-$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+    - name: Aus dem Cache holen
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ steps.schluessel.outputs.wert }}
+
+    - name: Notfalls herunterladen
+      shell: bash
+      run: |
+        set -euo pipefail
+        ZIEL='${{ inputs.path }}'
+        if [ -s "${ZIEL}" ]; then
+          echo "PBF aus dem Cache ($(du -h "${ZIEL}" | cut -f1)) -- kein Netzzugriff noetig."
+          exit 0
+        fi
+        mkdir -p "$(dirname "${ZIEL}")"
+
+        # ─── WENN GEOFABRIK NICHT LIEFERT ───────────────────────────────────
+        # Seit 2026-09-30 antwortet Geofabrik den GitHub-Runnern mit einer
+        # Umleitung auf sich selbst (`curl: (47)`), und vom Betreiber aus lief
+        # die Verbindung in eine Zeitueberschreitung -- der Dienst war also
+        # insgesamt weg, nicht nur fuer GitHub. Ein einzelner Anbieter ist
+        # damit ein Merge-Blocker fuer jede Aenderung.
+        #
+        # Die zuerst versuchten Spiegel (openstreetmap.fr, gwdg) lieferten fuer
+        # Liechtenstein nur 404 und sind wieder heraus. Der Ausweg ist jetzt
+        # ein anderer Anbieter mit anderem Zuschnitt: der Schweizer OSM-Verein
+        # (planet.osm.ch) bietet einen Schweiz-Extrakt mit 10 km Rand, und der
+        # enthaelt Liechtenstein vollstaendig. Daraus schneidet `osmium` das
+        # Rechteck aus `bbox` aus. Das kostet einen groesseren Download, aber
+        # nur dann, wenn Geofabrik ausfaellt -- und das Ergebnis landet im
+        # selben Wochen-Cache wie sonst.
+        URL='${{ inputs.url }}'
+        BBOX='${{ inputs.bbox }}'
+        lade() {
+          # `--speed-limit/--speed-time` bricht ab, wenn der Durchsatz 30 s
+          # lang unter 1 KB/s faellt -- die Verbindung stand schon einmal,
+          # es kam nur nichts mehr. `--cookie ''` schaltet curls
+          # Cookie-Verwaltung ein, ohne eine Datei zu lesen.
+          curl --fail --location --show-error --silent --cookie '' \
+               --connect-timeout 20 --max-time "$3" \
+               --speed-limit 1024 --speed-time 30 \
+               --retry 2 --retry-delay 5 \
+               --output "$2" "$1" \
+            && head -c 64 "$2" | grep -q "OSMHeader"
+        }
+
+        GELADEN=""
+        echo "Versuche ${URL}"
+        if lade "${URL}" "${ZIEL}" 300; then
+          GELADEN="${URL}"
+        else
+          rm -f "${ZIEL}"
+          echo "::warning::${URL} lieferte keine brauchbare .osm.pbf."
+          if [ -n "${BBOX}" ]; then
+            GROSS="$(dirname "${ZIEL}")/schweiz-gross.osm.pbf"
+            for CH in https://planet.osm.ch/switzerland-padded.osm.pbf https://planet.osm.ch/switzerland.pbf; do
+              echo "Ausweg: ${CH}, danach Ausschnitt ${BBOX}"
+              if lade "${CH}" "${GROSS}" 900; then
+                command -v osmium >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool >/dev/null; }
+                osmium extract --bbox "${BBOX}" --overwrite -o "${ZIEL}" "${GROSS}"
+                rm -f "${GROSS}"
+                GELADEN="${CH} (Ausschnitt ${BBOX})"
+                break
+              fi
+              rm -f "${GROSS}"
+              echo "::warning::${CH} lieferte keine brauchbare .osm.pbf."
+            done
+          fi
+        fi
+        if [ -z "${GELADEN}" ]; then
+          echo "::error::Keine Quelle lieferte den Extrakt (${URL}${BBOX:+, Ausweg planet.osm.ch})."
+          exit 1
+        fi
+        echo "Quelle: ${GELADEN}"
+        echo "PBF geladen: $(du -h "${ZIEL}" | cut -f1)"
+
+    - name: Datei ist brauchbar
+      shell: bash
+      run: |
+        set -euo pipefail
+        ZIEL='${{ inputs.path }}'
+        # Ein abgeschnittener Download aus dem Cache waere schlimmer als gar
+        # keiner: der Graph-Build liefe an und scheiterte spaeter mit einer
+        # Meldung ueber kaputte Kacheln. PBF beginnt mit einem BlobHeader --
+        # die ersten Bytes enthalten "OSMHeader".
+        test -s "${ZIEL}" || { echo "::error::PBF fehlt oder ist leer: ${ZIEL}"; exit 1; }
+        head -c 64 "${ZIEL}" | grep -q "OSMHeader" || {
+          echo "::error::${ZIEL} sieht nicht wie eine .osm.pbf aus (kein OSMHeader in den ersten 64 Bytes)."
+          exit 1
+        }

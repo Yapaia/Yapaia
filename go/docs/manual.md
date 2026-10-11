@@ -1,0 +1,706 @@
+# Yapaia Go — User Manual
+
+Everything the app can do, in plain language. You do not need to have read
+anything else first.
+
+If you just want to get driving, read [Getting started](#getting-started) and
+stop there. The rest is here for when you need it.
+
+> **About the pictures.** They are real recordings of the running app, captured
+> automatically. The map background is blank in all of them because they come
+> from the automated test harness, whose map fixture carries no tiles —
+> everything Yapaia draws itself is real. [Details.](media/README.md)
+
+**Contents**
+
+1. [What you are looking at](#what-you-are-looking-at)
+2. [Installing](#installing)
+3. [Getting started](#getting-started)
+4. [Your vehicle profile](#your-vehicle-profile) — the most important screen
+5. [Finding a destination](#finding-a-destination)
+6. [Driving](#driving)
+7. [Where your position comes from](#where-your-position-comes-from)
+8. [Home Assistant](#home-assistant)
+9. [Making it yours](#making-it-yours)
+10. [Maps and regions](#maps-and-regions)
+11. [When something is wrong](#when-something-is-wrong)
+
+---
+
+## What you are looking at
+
+Yapaia Go is a navigation system for motorhomes that runs on your own hardware
+and needs no internet connection. It has two halves:
+
+- **The engine**, running on a mini-PC in your vehicle. It holds the map, works
+  out routes and knows where you are.
+- **The screen**, which is just a web browser — the tablet on your dashboard,
+  your phone, a laptop. Several can watch the same trip at once, because the
+  trip lives in the engine and the browser only displays it.
+
+> One caveat if you use **browser GPS** on more than one device: they all
+> report to the same place, and the most recent report wins. Two devices in the
+> same vehicle agree, so nothing happens. A tablet in the camper and a phone
+> left at home do not, and the position will jump between them. Use a USB
+> receiver or the Companion App if that is your situation.
+
+Nothing you do leaves the vehicle. There is no account, no cloud, no telemetry.
+
+### The two modes
+
+**Explore mode** is what you see when nothing is running: a map, a search bar
+at the top, your favourites in a drawer at the bottom.
+
+![The app shell in Explore mode](media/explore.png)
+
+**Drive mode** takes over once you start navigating: the map turns to face your
+direction of travel, a large panel shows the next manoeuvre, and the bottom bar
+carries speed, ETA, remaining distance and altitude.
+
+![Drive mode with everything on screen](media/fahrmodus.png)
+
+Opening the panels — the vehicle profile, the favourites drawer, the health
+check:
+
+![Opening the panels](media/bedienung.gif)
+
+---
+
+## Installing
+
+### As a Home Assistant add-on
+
+This is the recommended route and needs no terminal.
+
+1. **Settings → Add-ons → Add-on Store → ⋮ (top right) → Repositories**
+2. Paste `https://github.com/Apfelsafft/Yapaja-Go-Design` and add it.
+3. Find **Yapaia Go** in the store and install it.
+
+> **The progress bar will sit at 0 % for several minutes.** This is normal.
+> Your Home Assistant is building the add-on on your own machine rather than
+> downloading a finished image. Leave it alone; it is not stuck.
+
+4. Start the add-on, then open it from the sidebar.
+
+### Standalone
+
+If you do not run Home Assistant, Yapaia Go also runs on its own with Docker
+Compose, or in a Proxmox LXC container. See the
+[Installation Guide](installation.md) (German).
+
+### If you are short on memory
+
+Yapaia shares RAM with everything else on the machine. A country-sized map with
+address search enabled wants about 2.4–2.9 GB for Yapaia alone, and a Home
+Assistant VM should have 6 GB or more in total.
+
+If that is more than you have, in order of how much they buy you:
+
+1. **Turn off `photon_enabled`** in the add-on options, under **Search**. This removes the single
+   biggest consumer. Search still works through a built-in lightweight index —
+   you keep place names and street names, you lose house numbers.
+2. **Lower `photon_xmx_mb`** instead (same group), if you would rather keep full search with
+   a smaller memory allowance.
+3. **Install a smaller region** — one state instead of a whole country. Both
+   routing and search shrink with it.
+
+The catalogue offers 49 European countries, including every neighbour of
+Germany. Entries are marked by build effort: a large one (France, Italy, Spain,
+Great Britain, Poland, Germany) should not be built on the Home Assistant VM —
+build it on a desktop and drop the finished file in.
+
+---
+
+## Getting started
+
+On first open, a wizard walks you through five decisions. None of them are
+permanent — everything can be changed later in settings.
+
+| Step | What it asks | Notes |
+|---|---|---|
+| **Language and units** | German or English; metric or imperial | Affects the interface and spoken distances |
+| **Map region** | Which part of the world to download | See [Maps and regions](#maps-and-regions) |
+| **Vehicle profile** | Your camper's dimensions | **Take your time here** — see below |
+| **Position** | Where GPS comes from | See [Where your position comes from](#where-your-position-comes-from) |
+| **Home Assistant** | Whether to publish your trip to HA | Skippable; you can enable it later |
+
+There is also a disclaimer to acknowledge. It is worth actually reading: it
+says that map data on height and weight limits is incomplete, and that you
+remain the driver. More on that in the next section.
+
+---
+
+## Your vehicle profile
+
+**This is the screen that matters most.** It is the difference between a
+navigation system and a truck navigation system.
+
+![The vehicle profile list](media/fahrzeugprofil.png)
+
+Profiles live under **⚙ → Fahrzeuge** (create, edit, delete). Which one is
+used for a route you pick in the route panel: it has a vehicle selector at the
+top, and switching it recalculates the route with that vehicle's dimensions.
+
+Enter the dimensions of your camper:
+
+| Value | Range | What it does |
+|---|---|---|
+| **Height** | 1.0 – 4.5 m | Keeps you out from under low bridges and tunnels |
+| **Width** | 1.5 – 3.0 m | Avoids roads too narrow for you |
+| **Length** | 3.0 – 20.0 m | Avoids turns you cannot physically make |
+| **Weight** | 1.0 – 40.0 t | Respects weight limits on bridges and roads |
+| **Average speed** | 40 – 130 km/h | Affects the ETA only, never the route |
+
+You can also choose what to **avoid**: motorways, tolls, ferries, unpaved
+roads. And you can keep several profiles — one for the camper, one for the car
+you tow — but only one is active at a time.
+
+### Measure, do not look it up
+
+Enter what your vehicle actually measures **today, loaded, with everything on
+the roof**. The manufacturer's brochure figure does not include your satellite
+dish, your roof box, or the bikes on the back. A roof rack that adds 15 cm is
+the difference between clearing a 3.10 m bridge and not.
+
+Round **up**, never down.
+
+### The warning above 2.70 m
+
+Set a height over 2.70 m and Yapaia shows a warning. It is not being cautious
+for the sake of it, and it is not a bug:
+
+> **OpenStreetMap does not know every height limit.** Main roads are well
+> mapped. Small roads, farm tracks and village archways often are not. A route
+> that Yapaia considers clear may still lead somewhere you do not fit.
+
+No offline navigation system can solve this, because the information simply is
+not in the data. **Watch the road signs.** Yapaia routes you; it does not drive
+for you.
+
+Yapaia also asks you to confirm your dimensions periodically, so a profile from
+two campers ago does not quietly stay in charge.
+
+---
+
+## Finding a destination
+
+Type into the search bar at the top. Search works offline and tolerates typos —
+`Müchen` will usually still find `München`. Results are biased towards where
+you are, so the nearest match comes first.
+
+You can also **press and hold anywhere on the map** (right-click on a desktop)
+to drop a destination pin — useful for a place with no address at all: a car
+park in the middle of nowhere, a spot someone showed you on their map.
+
+A *short* tap deliberately does nothing here. A swipe that lands a couple of
+pixels off is a click as far as the browser is concerned, so plain taps used to
+replace the destination while you were simply panning around looking for
+something. If you tap by habit, Yapaia says so rather than sitting silent.
+
+### Road signs and lanes
+
+At motorway exits and interchanges the turn panel shows **what the road signs
+say** — a blue plate with the exit number, the road you are joining and where it
+leads, e.g. `61 · A 65 · Landau`. It is there so you can check the instruction
+against the sign you are actually looking at.
+
+About 500 m before a turn, a **lane strip** appears under it. Every lane is
+shown; the one you should be in is highlighted in white. Lanes you *could* use
+but would have to leave again before the exit are deliberately **not**
+highlighted — with a long vehicle, that last-second merge is exactly what you
+want to avoid.
+
+Both depend on the map data: signs and lane markings (`turn:lanes`) are well
+covered on German motorways but often missing on smaller roads. Where there is
+no data, nothing is shown — rather than a guess.
+
+### "Not down that road"
+
+Long-press (or right-click) **on the route line itself** and Yapaia will avoid
+that stretch and recalculate. This is for the case a map cannot know about: the
+road you can see is flooded, blocked by roadworks, or simply looks far too
+narrow for your camper once you are looking at it.
+
+The avoidance lasts for the current trip only.
+
+### Alternative routes
+
+When Yapaia offers alternatives it draws them as grey lines alongside the main
+route. Tap one to make it the active route.
+
+### Choosing what to optimise for
+
+Three buttons in the routing panel:
+
+| | |
+|---|---|
+| **Schnellste** | Shortest travel time. The default. |
+| **Kürzeste** | Shortest distance. Time no longer counts — a village high street can beat the motorway. |
+| **Ausgewogen** | A middle ground: the motorway gets taken when it pays off, but a long detour to reach it no longer does. |
+
+**Your vehicle's dimensions apply in all three.** The choice only decides which
+*permitted* route is taken — never whether a forbidden one becomes permitted.
+Yapaia remembers the choice, and it also applies to routes triggered from Home
+Assistant.
+
+### Stops along the way
+
+A route can have intermediate stops, not just a destination. Add them, drag
+them into the order you want, and the route follows that order. You can add a
+stop **while you are already driving** — the route recalculates from where you
+are now.
+
+With two or more stops, **↕ Reihenfolge optimieren** works out the cheapest
+order to visit them in — the same job you would otherwise do on paper. It uses
+your vehicle's dimensions and avoidances like any other route. If the result
+comes back incomplete, your order is left exactly as it was: you are the one
+who drives it, so nothing here is guessed.
+
+### Favourites
+
+Save a place as a favourite and it appears in the drawer at the bottom of
+Explore mode. Categories: home, campsite, point of interest, or your own. Your
+recent destinations are kept as history too — the drawer has a tab for each.
+
+![The favourites and history drawer, before anything is saved](media/favoriten.png)
+
+---
+
+## Driving
+
+Tap **Start navigation** and the app switches to Drive mode.
+
+![A drive: manoeuvres counting down and switching](media/fahrt.gif)
+
+**What you get:**
+
+- **Spoken instructions**, through the browser or through a Home Assistant
+  media player, whichever you have set.
+- **A large manoeuvre panel** showing the next turn and the distance to it.
+
+  ![The manoeuvre panel](media/anweisung.png)
+
+- **The current speed limit**, with a warning if you exceed it.
+- **ETA, remaining time and distance** in the bottom bar.
+- **Automatic rerouting** if you miss a turn — typically within three seconds.
+
+**What you no longer see while driving.** The search bar, the vehicle
+selector, the favourites drawer and the settings buttons belong to searching
+and planning, so Drive mode hides them. What you only need occasionally sits
+**one tap away, behind the bottom bar**:
+
+- **Tap the ETA bar** to open the trip menu: **⏸ Pause**, **⏹ Stopp** and
+  **🔊 Ansagen an/aus**.
+- **Unterwegs finden** (fuel, parking, motorhome site, campsite, supermarket,
+  dump station, water, gas, toilet): one tap shows the three nearest you will
+  actually pass — ahead on the route and at most 2 km off it. Tap one to make
+  it your next stop. Without a route, it searches within 25 km.
+- In the same menu, **Zwischenstopp einschieben** lists your favourites and
+  recent destinations. Tap one and it becomes your **next** stop — the car
+  park or fuel station you want to pull into before carrying on.
+- **Fahrzeug** switches the vehicle profile, with the usual "recalculate
+  with …?" question.
+- When the trip is paused, **▶ Fortsetzen** stands directly on the map, since
+  that is the next thing you will want.
+
+**Your position sits in the lower quarter on the driver's side** — lower left
+for a left-hand-drive vehicle, lower right for right-hand drive — so most of
+the screen shows the road ahead. Set the side under **Lenkrad (LHD/RHD)** in
+the map settings.
+
+**Traffic notes are brief.** A note like "traffic data for A5 is about 17
+minutes old" shows for ten seconds and then gets out of the way; it comes back
+only if a different road is affected. A warning that data is *missing* for a
+road stays until you tap it away.
+
+### On-board sensors
+
+If your motorhome reports its tanks to Home Assistant, Yapaia can keep an eye on
+them. Set the entities under **Bordsensoren** in the add-on configuration (grey
+water, fresh water and house battery in percent, outside temperature in °C) and
+restart the add-on.
+
+When a threshold is reached, a note appears. **Grey water full** comes with the
+next dump station *ahead on your route*, at most 2 km off it. **Fresh water low**
+comes with the next water tap. Tap **Als nächsten Halt** and it becomes your next
+stop. **Battery low** and **frost** only get a note, with no stop offered.
+
+A new note is spoken once while driving (if announcements are on). **Später**
+hides it until a different station becomes the nearest one. The trip menu keeps
+all current notes.
+
+### Losing GPS
+
+Tunnels and multi-storey car parks cut the signal. Yapaia keeps estimating your
+position from your last known speed and heading, so the display keeps moving
+instead of freezing. When the signal comes back it snaps to the real position.
+
+### Spoken announcements
+
+Yapaia speaks the next manoeuvre at 2000 m, 500 m, 200 m and at the turn
+itself. The **🔊 Ansagen an** button in the trip menu (tap the ETA bar)
+switches them on and off.
+
+**They only happen while you are moving.** The announcement is triggered by the
+distance to the next turn falling below a threshold — standing still, nothing
+falls below anything, and there is nothing to announce. That is not a fault.
+
+**To check the sound without driving**, switch announcements off and on again:
+Yapaia confirms out loud. If you hear it, the audio path is fine. If you do
+not, look at the device — silent switch, volume, or a browser without speech
+synthesis (then Yapaia plays a gong instead).
+
+Browsers only release audio after you have tapped something, and phones and
+tablets are strict about it. Yapaia takes that permission at your first tap
+anywhere in the app, so it may speak on its own afterwards. Load the page and
+touch nothing, and the first announcement would otherwise be swallowed
+silently.
+
+### Standing still: the map does not spin
+
+A GPS receiver does not measure a compass direction. It measures positions and
+works out which way you are heading from the *movement* between them. Stand
+still and that movement is pure noise, so the derived direction is a random
+number — a receiver lying motionless on a windowsill reported 170°, then 40°,
+then 187°, while "moving" at three centimetres per second.
+
+Below **3.6 km/h** Yapaia therefore reports no direction at all, and the map
+simply keeps its current orientation. It starts turning again when you actually
+drive. This is not a receiver fault and no setting fixes it; every GNSS
+receiver behaves this way.
+
+### The screen stays on
+
+Yapaia keeps the display awake while you navigate. Where the browser supports
+it, it asks the operating system directly; where it does not (older iPads, for
+instance), it falls back to a trick involving an invisible looping video, which
+achieves the same thing.
+
+On some devices the browser will only allow this **after you have touched the
+screen once**. If your display still sleeps, tap the map once at the start of
+the trip.
+
+### Controls lock above 10 km/h
+
+Once you are moving faster than 10 km/h, the settings, the layout editor, the
+profile editor and the full search field lock behind an overlay. Pause the
+navigation or stop to change something.
+
+This is deliberate. The threshold is configurable if it does not suit you, but
+consider leaving it: the co-driver can always use their own device, which is
+not the one moving at 80 km/h in the driver's line of sight.
+
+### Pausing and resuming
+
+Pause and stop live in the trip menu — tap the ETA bar at the bottom. If the app is reloaded
+mid-trip — a browser crash, a tablet reboot — it offers to resume where you
+left off.
+
+Simply switching to another Home Assistant page and back does **not** count as
+an interruption and will not ask you anything. Your trip continues in the
+background regardless of what the screen is showing, because the trip lives in
+the engine, not in the browser.
+
+---
+
+## Where your position comes from
+
+Yapaia accepts a position from four sources. You choose in the add-on options
+under `gps_source`.
+
+| Source | Setting | Best for |
+|---|---|---|
+| **Browser** | `none` | Quick testing. **Only works over HTTPS** |
+| **USB GPS receiver** | `usb` / `network` | The most accurate option; needs hardware |
+| **HA Companion App** | `companion_app` | A phone you already carry |
+| **Simulator** | `gps_simulator` (group **Advanced**) | Trying the app without moving |
+
+### Using a USB GPS receiver
+
+Any receiver that Linux exposes as a serial device works — there is no driver
+to install and no vendor software. The common "G-Mouse" dongles (VK-162 and
+relatives) carry a u-blox chip, appear as `/dev/ttyACM0`, and are recognised
+automatically.
+
+Set `gps_source: usb` in the add-on options, plug the receiver in, and restart
+the add-on. Yapaia picks the device itself, and it does so carefully: on a Home
+Assistant machine a Zigbee coordinator or a Z-Wave stick appears under exactly
+the same device names. If Yapaia cannot tell which one is the GPS, it touches
+none of them and says so, rather than writing to a radio stick that belongs to
+another add-on. You then name the right one under `gps_device` — the health
+check lists the available paths, so you never need a terminal.
+
+### Why the browser often will not work
+
+Browsers only release GPS over a secure connection. If your Home Assistant runs
+on plain `http://`, **no browser will give Yapaia a position** — not your
+phone, not your tablet, and no setting inside Yapaia can change that. This is a
+browser rule, not a Yapaia limitation.
+
+That is what the Companion App route is for.
+
+### Using the Home Assistant Companion App
+
+The Companion App reports your position to Home Assistant rather than to the
+browser, and it keeps reporting with the screen locked and the phone in your
+pocket.
+
+1. Set `gps_source: companion_app` in the add-on options. (It was called
+   `ha_tracker` up to 0.8.2, and that value was removed in 0.8.8.)
+2. Open Yapaia Go → **🩺 Installationsprüfung**.
+3. Below the check list is a drop-down of the `device_tracker` entities your
+   Home Assistant actually knows. Pick your phone.
+
+**The choice takes effect immediately** — no add-on restart.
+
+If there is exactly one candidate, Yapaia picks it itself. If there are
+several, it will not guess: the second one might be a passenger's phone, and a
+navigation system that silently follows the wrong person is worse than one that
+asks.
+
+### The health check
+
+**🩺 Installationsprüfung** inside the app is worth knowing about. It checks
+maps, routing, search, position, memory, disk and the Home Assistant
+connection, and tells you in plain language what is wrong and what to do about
+it. It is the first place to look when something behaves oddly.
+
+![The health check](media/installationspruefung.png)
+
+That screenshot shows genuine failures, because the test harness it was
+captured in runs neither the routing service nor search. It is a fair picture
+of what the check looks like when something really is missing: a green tick for
+what works, and for what does not, the reason and the fix.
+
+---
+
+## Home Assistant
+
+Yapaia publishes your trip to Home Assistant, so you can build automations on
+it: *"ETA under 30 minutes → turn on the boiler."*
+
+### Two channels — pick either, or both
+
+| Channel | Option | What you get |
+|---|---|---|
+| **MQTT** | `mqtt_enabled` | Full entities with a device and history. Needs a broker (the Mosquitto add-on) |
+| **HA-internal** | `ha_internal` | The same entity IDs with no broker at all |
+
+**Both on at once is fine and sensible.** They do not fight: while MQTT is
+connected the internal channel stays quiet, and if the broker goes away the
+internal channel takes over. What starts as collision avoidance ends up as a
+failover.
+
+The internal channel has two limits worth knowing. Its entities do not appear
+under *Devices* and cannot be renamed in the UI; and they vanish when Home
+Assistant restarts, until the next write — which is why Yapaia rewrites even
+unchanged values every five minutes.
+
+### What appears in Home Assistant
+
+Speed, speed limit, a "speeding" flag, ETA, remaining distance, the next
+instruction and its distance, altitude, navigation state, the active vehicle,
+and the destination.
+
+### Operating Yapaia from Home Assistant
+
+Pause, resume, stop and the profile selector — available on **both** channels.
+
+With MQTT you get them as proper `button` and `select` entities. Without a
+broker, Yapaia creates four **helpers** on start and listens to them:
+
+| Helper | What it does |
+|---|---|
+| `input_button.yapaia_pause` | Pause navigation |
+| `input_button.yapaia_weiter` | Resume |
+| `input_button.yapaia_beenden` | End the trip |
+| `input_select.yapaia_profil` | Switch vehicle profile |
+
+They show up under **Settings → Devices & Services → Helpers** and work in
+dashboards, automations and voice commands like anything else.
+
+> **If you run MQTT, the helpers sit idle** and the MQTT buttons are the live
+> ones. Two sets of buttons for one job would only confuse. A helper that does
+> not react is therefore not broken — and the generated dashboard file says so
+> in its header.
+
+### The ready-made dashboard
+
+Yapaia writes a complete Lovelace dashboard for you, using the entity IDs that
+actually exist on *your* installation.
+
+1. **Settings → Dashboards → ⋮ → Resources → Add resource**
+   URL `/local/yapaja/yapaja-map-card.js`, type *JavaScript module*.
+   (Once only. Without this the map card stays empty.)
+2. **Settings → Dashboards → Add dashboard → New from scratch**
+3. In the new dashboard: **pencil → ⋮ → Raw configuration editor**
+4. Replace everything with the contents of `/local/yapaja/dashboard.txt` and save.
+
+Open that file in your browser — `http://<your-ha>:8123/local/yapaja/dashboard.txt`.
+It is also written as `.yaml`; the `.txt` copy exists because Safari on an iPad
+downloads `.yaml` files instead of showing them.
+
+**Read the header of that file.** It tells you what Yapaia found when it
+generated it — which entities exist, which do not, and why. If your dashboard
+is full of "entity not found", the answer is in there.
+
+---
+
+## Making it yours
+
+**Move the widgets.** Long-press an empty area in either mode to enter edit
+mode, then drag widgets between slots and choose their size (S/M/L). "Reset to
+default" is in the same menu.
+
+**Left- or right-hand drive.** Under **Lenkrad (LHD/RHD)** in the map
+settings. It decides which lower quarter your position sits in while driving:
+lower left for LHD, lower right for RHD (the default).
+
+**Day and night.** The interface and the map switch together. Under **Design**
+there are four modes:
+
+| Mode | What it follows |
+|---|---|
+| **Light** / **Dark** | nothing — it stays as you set it |
+| **System** | the device's own light/dark setting (the iOS Control Centre switch) |
+| **Sun** | sunrise and sunset at your position, or the clock if there is no position yet |
+
+In a vehicle **Sun** is usually the better one: it goes dark when it actually
+gets dark outside, whatever the tablet is set to. The dark map is not the light
+one inverted — it has its own palette so that roads stay distinguishable at
+night.
+
+If you run Yapaia as a Home Assistant add-on, the add-on option
+**Appearance → Theme** sets what a device starts with. It is a default, not an
+override: once you pick a mode here, that device keeps it. So the dashboard
+tablet can follow the sun while your phone stays light.
+
+**On a phone.** Below 480 px of width, drive mode rearranges itself: the trip
+data becomes a bar across the bottom, and everything else stacks above it —
+favourites, pause/stop, the announcement button, then the map buttons. The
+manoeuvre panel moves to the left edge so that a long street name still fits.
+Nothing is hidden; it is the same screen in a different order.
+
+<p align="center"><img src="media/telefon-fahrmodus.png" width="300"
+alt="Drive mode on a phone in portrait"></p>
+
+**Install it as an app.** Yapaia is a progressive web app: "Add to home
+screen" gives it its own icon and no browser chrome.
+
+**Add-ons.** Yapaia has its own add-on system with a sandbox and a git-based
+registry — a second layer of extensibility inside the Home Assistant add-on.
+See the [Add-on Development Guide](addon-dev-guide.md) (German).
+
+---
+
+### Voice commands
+
+Tap 🎤 (next to the search field, or in the button column while driving) and
+speak or type a command in German, for example:
+
+| Say | What happens |
+|---|---|
+| „Fahre mich zur Ziolkowskistraße nach Magdeburg" | Searches, plans the route with your active vehicle, shows it — and starts only after „Ja" / „Los" |
+| „Wo ist die nächste Tankstelle?" | Nearest one ahead on the route (otherwise nearby); „die zweite" picks the next |
+| „Finde den nächsten Aldi" | Same, but by name or brand — any shop, chain or place in the offline search within 25 km |
+| „Stoppe die Navigation" / „Pause" / „Weiter" | Controls navigation |
+| „Wann sind wir da?" | Arrival time and remaining distance |
+| „Lies die Verkehrsmeldungen vor" | The next roadworks/closure ahead (needs online services) |
+| „Ansagen aus" / „Ansagen an" | Turn-by-turn announcements |
+
+The answer is read aloud. Commands are understood offline, without any AI.
+Browsers only allow the microphone on **HTTPS** pages; over plain
+`http://…:8123` the voice window is a text field.
+
+**Speaking through Home Assistant Assist** works without HTTPS: open
+**⚙ → Sprache & Home Assistant → In Home Assistant einrichten**. Yapaia
+creates a helper, an answer sensor and the automation „Yapaia Sprachbefehle".
+Then talk to a voice satellite or the Assist button of the Home Assistant app
+(„Yapaia, fahre mich nach Magdeburg"); Assist speaks Yapaia's answer. On the
+same page you can pick a Home Assistant conversation agent (AI) for free-form
+sentences — it only translates, Yapaia still asks before starting a route. A
+custom wake word „Yapaia" is described in `docs/aktivierungswort-yapaia.md`.
+
+**Announcements and the radio.** If the Yapaia Beat radio (1.6 or newer) is
+playing, Yapaia hands its announcements — turn-by-turn instructions, on-board
+notices and answers to voice commands — to Beat, which mixes them into the
+radio: the music is turned down, the announcement plays on top, then the music
+comes back. Nothing is stopped or restarted. When Beat is not playing, Yapaia
+speaks as before (browser or Home Assistant TTS). Switch it off under
+**⚙ → Sprache & Home Assistant → Ansagen und Radio**; how far the music is
+turned down is set in Beat's add-on options (`announce_music_level`).
+With **Music Assistant**, choose a player under **Ansagen über** (or leave
+it on *Automatisch*): announcements then go to Music Assistant, which pauses
+the music briefly — or, with Snapcast and Sonos, mixes it under the voice —
+and resumes it afterwards. If Yapaia Beat plays on a Music Assistant player,
+radio and announcements run together through it, without the browser
+stream's delay.
+**Ansage ins Radio testen** on the same page plays a test announcement through
+Beat and tells you in plain words why it fails, if it does (for example:
+restart Home Assistant after updating Beat, or no text-to-speech set up).
+
+### Arranging the screen
+
+Every button and panel on the map can be moved and resized. Open
+**⚙ → Bildschirm anpassen** for the resting/planning screen, or
+**Bildschirm anpassen** in the drive menu for the navigation screen (only when
+stopped or below 10 km/h). Drag an element to move it; drag the blue dot at
+its corner to make it bigger or smaller (60–200 %). **Zurücksetzen** restores
+the default layout, **Fertig** ends editing. The layout is stored per device,
+and an element that would end up off-screen — after rotating the tablet, for
+instance — is pulled back into view. The editing bar can be dragged out of the way by its ⠿ handle. The crosshair
+**Position** sets where
+your own location sits on the map (centre by default, lower quarter on the
+driver's side while navigating).
+
+When the app opens, the map zooms to your current position, just like the
+re-centre button.
+
+After you pan the map it stays where you left it until you tap the re-centre
+button. An automatic return (off by default) can be set under
+⚙ → Karte & Darstellung (5 s to 2 min, or off).
+
+## Maps and regions
+
+Maps are OpenStreetMap data, converted into a single compressed file per region
+(PMTiles) that lives on your disk.
+
+Install and remove regions from within the app. A download runs as a background
+job with progress, so you can leave the page. Several regions can be installed
+at once — useful if you cross a border.
+
+**Maps go stale.** Yours are a snapshot from the day you built them. New roads
+and changed restrictions will not appear until you rebuild. For a vehicle whose
+routing depends on height limits, refreshing once a season is a reasonable
+habit. The procedure is in the
+[data update runbook](data-update-runbook.md) (German).
+
+---
+
+## When something is wrong
+
+**Start with 🩺 Installationsprüfung inside the app.** It names the failing
+component and what to do.
+
+Common cases:
+
+| Symptom | Likely cause |
+|---|---|
+| No position at all | Home Assistant runs on `http://`, so the browser refuses GPS. Use the Companion App |
+| Dashboard full of "entity not found" | Read the header of `/local/yapaja/dashboard.txt` — it says which channel is live |
+| Search finds nothing | `photon_enabled` is off and the lightweight index has no house numbers; or the region is not installed |
+| Screen keeps sleeping | Tap the map once — some browsers only permit it after a touch |
+| Route ignores my dimensions | Check that the right profile is **active** — only one is at a time |
+| A helper button does nothing | You have MQTT running; the MQTT buttons are the live ones |
+
+For anything else: [Troubleshooting](troubleshooting.md) (German) works through
+symptom → cause → fix, and the [FAQ](faq.md) (German) covers the rest.
+
+---
+
+## Where to go next
+
+- [Installation Guide](installation.md) (German) — the full install, both routes
+- [Troubleshooting](troubleshooting.md) (German) — when something breaks
+- [Developer Guide](developers.md) — if you want to contribute code
+- [Add-on Changelog](../yapaja_go/CHANGELOG.md) (German) — what changed and why

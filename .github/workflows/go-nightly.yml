@@ -1,0 +1,993 @@
+name: Go Nightly
+
+on:
+  # ACTIONS-MINUTEN (2026-08-08): WOECHENTLICH statt naechtlich.
+  # Gemessen kostete ein Lauf ~20 abgerechnete Minuten (nach dem
+  # Zurueckstellen der beiden Timeout-Jobs in #73; davor 165 min/Nacht).
+  # Taeglich waren das ~600 min/Monat allein fuer den Nightly -- bei einem
+  # Projekt, das nicht taeglich ausliefert, ein schlechtes Verhaeltnis.
+  # Woechentlich sind es ~80 min/Monat, und der Perf-Trend bleibt
+  # aussagekraeftig. Wer einen Lauf sofort braucht: `workflow_dispatch`.
+  schedule:
+    # Sonntag 03:30 UTC -- die regulaere Runde. Der 24-h-Soak laeuft darin
+    # mit, sofern es einen Runner fuer ihn gibt (Job `perf-soak-24h`).
+    #
+    # ─── WARUM ES KEINEN ZWEITEN ZEITPLAN MEHR GIBT (2026-10-04) ──────────
+    # Hier stand zusaetzlich `0 2 * * 0` fuer den Soak. Ein Zeitplan startet
+    # aber den GANZEN Workflow: jeden Sonntag liefen alle Jobs zweimal, und
+    # der Soak lief auf `ubuntu-latest`, wo GitHub ihn nach 6 Stunden
+    # abbricht (gemessen: 07:42 -> 13:42, „cancelled"). Sechs Stunden
+    # Actions-Zeit je Woche ohne Ergebnis, und eine zweite Fehler-Mail.
+    - cron: '30 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      soak_duration_s:
+        description: 'Soak-Laufzeit in Sekunden (0 = kein Soak; 86400 = 24 h; fuer einen Rauchtest z. B. 600)'
+        required: false
+        default: '0'
+  # E10-T5: macht diese komplette Job-Sammlung ("Nightly-Suite") als
+  # reusable Workflow fuer .github/workflows/release.yml aufrufbar
+  # (`uses: ./.github/workflows/go-nightly.yml`) -- docs/07-testing-qa.md §6
+  # definiert die Release-Pipeline woertlich als "Nightly-Suite + Add-on-
+  # Kompatibilitaetstest + Changelog + signierte Images", nicht als eigene,
+  # zweite Kopie derselben ~15 Jobs. `perf-soak-24h` bleibt dabei ausgesetzt
+  # (sein `if` prueft explizit `schedule`/`workflow_dispatch`;
+  # unter `workflow_call` ist `github.event_name == 'workflow_call'`, die
+  # Bedingung ist also false) -- gewollt: ein 24h-Soak gehoert nicht in einen
+  # Tag-Push-Ablauf, der in Minuten fertig sein soll, sondern bleibt sein
+  # eigener woechentlicher Rhythmus.
+  workflow_call: {}
+
+defaults:
+  run:
+    working-directory: go
+
+jobs:
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test --run
+
+      - name: Build
+        run: pnpm build
+
+  addon-lint:
+    name: HA Add-on Linter (frenck/action-addon-linter, nightly, E08-T4)
+    runs-on: ubuntu-latest
+    # continue-on-error: true -- this is a third-party GitHub Action whose
+    # availability/behavior in this CI environment was not verifiable from
+    # the authoring sandbox (no outbound network to exercise it there). A
+    # flaky/unavailable third-party Action must never block a merge (same
+    # reasoning as golden-routes-de / photon-li-nightly above). The fast,
+    # deterministic, in-repo structural check
+    # (yapaja_go/config.test.ts) is what actually gates PRs --
+    # see .github/workflows/ci.yml job `addon-config-check` and
+    # yapaja_go/PACKAGING.md "CI strategy" for the full split rationale. This
+    # job exists to surface the FULL Supervisor add-on schema's findings
+    # nightly so a human can act on anything the narrower per-PR check
+    # doesn't cover.
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint yapaja_go/ against the Supervisor add-on schema
+        uses: frenck/action-addon-linter@v2
+        with:
+          path: "./go/yapaja_go"
+
+  # E08-T4 / STAND 0.3.8: `yapaja_go/Dockerfile` wird jetzt gebaut -- in
+  # `.github/workflows/addon-image.yml`, pfadgefiltert auf `yapaja_go/**`,
+  # amd64, mit Pruefungen IM Container.
+  #
+  # Dass es das vorher nicht gab, war der strukturelle Grund, warum jeder
+  # Fehler in diesem Image beim Betreiber landete und nicht in der CI: der
+  # Job „Docker Build & Health Check" in ci.yml baut `apps/core/Dockerfile`,
+  # ein anderes Image mit anderer Basis und anderem Inhalt.
+  #
+  # Weiterhin NICHT automatisiert: der aarch64-Bau. Das Zielgeraet ist ein
+  # Mini-PC (amd64); eine zweite Architektur verdoppelte die Kosten fuer
+  # einen Fall, den es hier noch nicht gibt. Er bleibt manuell, per
+  # `workflow_dispatch` auf `addon-image.yml` mit passendem `BUILD_FROM`
+  # aus `yapaja_go/build.yaml`.
+
+  perf-soak-24h:
+    name: Performance-Soak 24 h (E10-T2, woechentlich)
+    # Im woechentlichen Lauf NUR, wenn ein Runner dafuer eingetragen ist
+    # (Repo-Variable `PERF_SOAK_RUNNER`, siehe unten) -- auf einem gehosteten
+    # Runner bricht GitHub nach 6 h ab, der Lauf kostet dann nur Zeit.
+    # Manuell, wenn eine Laufzeit angegeben ist (dann auch als Kurzlauf auf
+    # `ubuntu-latest`, z. B. 600 s als Rauchtest).
+    if: >-
+      (github.event_name == 'schedule' && vars.PERF_SOAK_RUNNER != '') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.soak_duration_s != '0')
+    #
+    # RUNNER: GitHub-gehostete Runner brechen einen Job nach 6 STUNDEN ab
+    # (dokumentiertes Limit). Ein echter 24-h-Soak ist dort also NICHT
+    # lauffaehig. Deshalb zeigt `runs-on` auf die Repo-Variable
+    # `PERF_SOAK_RUNNER` (z. B. ein self-hosted Runner oder das
+    # N100-Zielgeraet); ist sie nicht gesetzt, faellt der Job auf
+    # `ubuntu-latest` zurueck und wird nach 6 h abgeschnitten -- dann ist das
+    # Ergebnis ein 6-h-Soak, und der Report sagt das auch (er weist die
+    # TATSAECHLICHE Dauer neben der geplanten aus).
+    runs-on: ${{ vars.PERF_SOAK_RUNNER || 'ubuntu-latest' }}
+    #
+    # continue-on-error: true -- gleiche Begruendung wie bei
+    # `golden-routes-de` und `photon-li-nightly`: dieser Job konnte aus der
+    # Entwicklungsumgebung heraus NICHT in voller Laenge beobachtet werden.
+    # Ausgefuehrt und belegt sind dort nur Kurzlaeufe von Minuten (siehe
+    # e2e/perf/README.md §6). Ein unverifizierter Langlaufjob darf nichts
+    # blockieren; er soll seinen Report liefern, damit ein Mensch ihn einmal
+    # ansieht und diese Zeile danach entfernt.
+    continue-on-error: true
+    # 24 h + Aufbau/Abbau. Auf einem gehosteten Runner greift vorher das
+    # 6-h-Limit der Plattform (siehe oben).
+    timeout-minutes: 1500
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+
+      - name: Typecheck perf suite
+        run: pnpm exec tsc --noEmit -p e2e/perf/tsconfig.json
+
+      # Simulator-Dauerfahrt; Kriterien RSS-Drift < 5 % und keine
+      # FD-/Verbindungslecks werden von `e2e/perf/soak.ts` ausgewertet
+      # (unit-getestet in `soak.test.ts`).
+      - name: Soak-Lauf
+        env:
+          PERF_SOAK: '1'
+          PERF_SOAK_DURATION_S: ${{ github.event.inputs.soak_duration_s || '86400' }}
+        run: npx playwright test -c e2e/perf/playwright.config.ts -g "Soak"
+
+      - name: Soak-Report in die Job-Summary schreiben
+        if: always()
+        run: cat e2e/perf/.tmp/soak-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload Soak-Artefakte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-soak
+          path: |
+            go/e2e/perf/.tmp/soak-results.json
+            go/e2e/perf/.tmp/soak-report.md
+          retention-days: 30
+          if-no-files-found: warn
+
+  multiarch:
+    name: Multi-Architecture Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build multi-arch image
+        run: docker buildx build --platform linux/amd64,linux/arm64 -f apps/core/Dockerfile .
+
+  audit:
+    name: Dependency Audit & Lizenz-Gate (E10-T4)
+    runs-on: ubuntu-latest
+    # E10-T4: dieser Job hiess vorher nur "Dependency Audit" und lief
+    # `pnpm audit --audit-level high` ueber den GESAMTEN Baum. Das hat in der
+    # Praxis nichts geschuetzt, sondern nur dauerhaft rot geleuchtet: die
+    # Advisories stammten fast ausschliesslich aus Dev-Werkzeugen (vitest,
+    # vite, esbuild), die das Geraet nie erreichen, und ein Gate, das immer rot
+    # ist, wird ignoriert statt beachtet.
+    #
+    # Ersetzt durch `scripts/dependency-audit.mjs`. Der Umfang ist damit
+    # ENGER, und das ist eine bewusste, hier festgehaltene Entscheidung:
+    # blockierend sind nur Produktions-Abhaengigkeiten (die per
+    # `pnpm install --prod` ins Image wandern), Dev-Funde werden weiterhin
+    # vollstaendig ausgegeben, nur eben nicht mehr blockierend. Dafuer ist das
+    # Gate jetzt tatsaechlich gruen erreichbar -- und Ausnahmen brauchen
+    # Begruendung und Ablaufdatum (< 90 Tage), statt dass man den Job
+    # stillschweigend rot laesst. Ausserdem laeuft hier zusaetzlich das
+    # Copyleft-Gate (E10-T4 Akzeptanzkriterium 3).
+    #
+    # Derselbe Job laeuft auch je PR (.github/workflows/ci.yml,
+    # `dependency-audit`); nightly bleibt er, weil neue Advisories ohne
+    # Code-Aenderung erscheinen -- ein gruener PR-Lauf von gestern sagt heute
+    # nichts mehr.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ausnahme-Datei pruefen (Begruendung + Ablauf < 90 Tage)
+        run: node scripts/dependency-audit.mjs --check-exceptions
+
+      # Siehe ci.yml: in der Entwicklungsumgebung nicht ausfuehrbar (403 auf
+      # GitHub-Releases ueber den Proxy), laeuft erstmalig auf dem Runner.
+      - name: osv-scanner (JSON-Report erzeugen)
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@v2.2.4
+        with:
+          scan-args: |-
+            --format=json
+            --output=go/osv-report.json
+            --lockfile=go/pnpm-lock.yaml
+
+      - name: "Audit-Gate (blockierend: prod; sichtbar: dev)"
+        run: |
+          node scripts/dependency-audit.mjs \
+            --osv osv-report.json \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Lizenz-Inventar aktuell + Copyleft-Gate
+        run: node scripts/generate-licenses.mjs --check
+
+  # ─── E10-T4 (d): E09-T6-Suite in der Release-Pipeline ──────────────────────
+  # Doppel-Check-Ergebnis: die Sandbox-Escape-Suite lief bisher NUR in
+  # ci.yml (je PR/Push) -- nicht nightly. docs/07 §6 definiert die Release-
+  # Pipeline aber als "Nightly-Suite + Add-on-Kompatibilitaetstest + ...", d. h.
+  # die Sicherheitssuite war formal gar nicht Teil der Release-Pipeline, obwohl
+  # der Release-Gate-Punkt in §7 sie ausdruecklich verlangt
+  # ("Add-on-Sandbox-Escape-Tests (E09-T6) gruen"). Diese Luecke schliesst der
+  # folgende Job. `retries: 0` und der Mutations-Nachweis bleiben unveraendert
+  # wie in ci.yml -- eine Sicherheitsaussage wird nie gruen retried.
+  security-suite:
+    name: Security Suite (Sandbox-Escape, E09-T6, W-10) — Release-Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+
+      - name: Typecheck security suite
+        run: pnpm exec tsc --noEmit -p e2e/security/tsconfig.json
+
+      - name: Run security suite (all vectors blocked + logged)
+        run: pnpm e2e:security
+
+      - name: Mutation proof (the suite really detects a removed protection)
+        run: pnpm security:mutation-proof
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-suite-traces-nightly
+          path: go/e2e/security/.tmp/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # E10-T4 (b): die Auth-Matrix aus E08-T3 + der Security-Header-Check
+  # ebenfalls in der Release-Pipeline, nicht nur je PR.
+  api-security-smoke:
+    name: API-Security-Smoke (Auth-Matrix + Security-Header, E10-T4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Auth-Matrix + Header-Check (Unit)
+        run: npx vitest run apps/core/src/auth apps/core/src/security
+
+      - name: API-Security-Smoke gegen den gebauten Core (echtes HTTP)
+        run: bash scripts/api-security-smoke.sh
+
+  golden-routes-de:
+    name: Golden-Routes DE (manuell, zurueckgestellt -- siehe docs/backlog.md B-01)
+    runs-on: ubuntu-latest
+    # ZURUECKGESTELLT (2026-08-05, Entscheidung des Betreibers): laeuft NICHT
+    # mehr im naechtlichen Zeitplan, sondern nur noch auf ausdrueckliche
+    # Anforderung (`workflow_dispatch`).
+    #
+    # Grund, empirisch und nicht vermutet: der Schritt "Build Germany tileset"
+    # lief in JEDEM Lauf seit Wochen exakt 2 h und wurde dann abgebrochen
+    # (z. B. Lauf 30980175183: 06:05:37 -> 08:05:55). Ein germany-latest-PBF
+    # laesst sich auf einem Standard-GitHub-Runner nicht in vertretbarer Zeit
+    # zu einem Valhalla-Graphen bauen. Der Job konnte also nie gruen werden --
+    # er hat nur jede Nacht eine rote Mail erzeugt und damit die Aufmerksamkeit
+    # fuer ECHTE Fehlschlaege abgestumpft.
+    #
+    # Das ist bewusst KEIN Loeschen und KEIN Gruenfaerben: die Arbeit steht als
+    # B-01 im Backlog, die DE-Faelle bleiben `unverified: true`, und v1.0 wird
+    # ausdruecklich mit einem Liechtenstein-Gate ausgeliefert (docs/07 §7,
+    # Ausnahme zu Punkt 2). Wer den Nachweis fuehren will, startet diesen Job
+    # von Hand auf einem ausreichend grossen Runner -- die 6-Punkte-Checkliste
+    # unten bleibt unveraendert gueltig.
+    if: github.event_name == 'workflow_dispatch'
+    # DE Golden-Route slot (docs/07 §3b + §6 Nightly, E03-T5). Runs the DE
+    # curated set against a full-Germany Valhalla graph. The DE PBF build is
+    # large/slow (and may need a bigger/self-hosted runner or a smaller extract
+    # than germany-latest on a standard GitHub runner) -- hence nightly, not
+    # per-PR.
+    #
+    # ─────────────────────────────────────────────────────────────────────
+    # WHY THIS JOB IS STILL NON-BLOCKING, AND EXACTLY WHAT MUST BE TRUE TO
+    # MAKE THE DE SET A HARD GATE (E10-T3)
+    # ─────────────────────────────────────────────────────────────────────
+    # Every DE case in e2e/golden-routes.json is `unverified: true`: the
+    # distances are seed estimates that were never routed, and every
+    # `restriction.osm_way_id` is null because no OSM tag has ever been read.
+    # Turning that into a merge gate today would only mean blocking merges on
+    # numbers nobody has checked.
+    #
+    # This job produces the evidence instead of asserting on it. The
+    # provenance step below reads the maxheight/maxweight/maxwidth tags out of
+    # THE SAME PBF this job just built the graph from, and the runner logs the
+    # observed distance/duration/intersection for every case.
+    #
+    # CHECKLIST — remove `continue-on-error: true` and the `--bail 0` override
+    # only when ALL of these hold, and record the run URL in the PR that does
+    # it:
+    #   1. The provenance step reports CONFIRMED for all 6 restriction cases
+    #      (no NO_CANDIDATES / VALUE_MISMATCH / NO_PARSABLE_VALUE left). Cases
+    #      it cannot confirm must be REPLACED using `discover`, not kept red.
+    #      The two E10-T3 candidate cases (duisburg-neuenkamp weight,
+    #      rothenburg width) are the most likely to need replacing — both are
+    #      explicitly flagged as unconfirmed in the fixture.
+    #   2. Each restriction case's `osm_way_id`/`value` has been frozen from
+    #      that report, and `unverified` dropped. NEVER hand-fill a way-id.
+    #   3. Every distance case's `expected_distance_m` has been frozen from an
+    #      observed run (the seeds are ±10 % bands around guesses today).
+    #   4. de-monotonic-nuernberg-fuerth routed for all three profiles.
+    #   5. de-no-route-langeoog actually returned NO_ROUTE.
+    #   6. Two consecutive nightlies were green with the frozen values — one
+    #      green run does not distinguish "correct" from "lucky".
+    # Until then a failure here is information, not a gate.
+    #
+    # Note that the DE set's SHAPE is already hard-gated even while this job
+    # is soft: `runner.test.ts` asserts >=15 DE cases with
+    # height×3/weight×2/width×1 on every single run of the suite, including
+    # the per-PR LI gate, and `provenance.test.ts` fails any case whose
+    # profiles do not straddle its limit or that carries an osm_way_id while
+    # still claiming to be unverified.
+    continue-on-error: true
+    timeout-minutes: 330
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck golden-routes runner
+        run: pnpm exec tsc --noEmit -p e2e/golden-routes/tsconfig.json
+
+      # Full-Germany graph build via the same gis-ops recipe / build-tiles.sh
+      # (atomic swap, W-17). Generous timeout for the large PBF.
+      - name: Build Germany tileset via build-tiles.sh
+        env:
+          VALHALLA_BUILD_TIMEOUT_S: '7200'
+        run: |
+          chmod +x services/valhalla/build-tiles.sh
+          services/valhalla/build-tiles.sh https://download.geofabrik.de/europe/germany-latest.osm.pbf
+
+      # ── E10-T3: restriction provenance from the ROUTED dataset ───────────
+      # The gis-ops image downloads the PBF into the tiles directory, which
+      # build-tiles.sh then swaps into data/valhalla/tiles -- so the exact
+      # bytes the graph was built from are sitting right there. Reading the
+      # maxheight/maxweight/maxwidth tags out of THAT file is stronger
+      # evidence than an Overpass lookup: it proves the tag is in the data the
+      # router routes on, not merely in today's live OSM. (It is also the only
+      # way this can work at all from an environment without Overpass egress.)
+      #
+      # Non-blocking on purpose: this step REPORTS, it does not assert. When
+      # the checklist in this job's header is satisfied, add
+      # `--fail-on-unconfirmed` to the verify call and drop the `|| true`.
+      - name: Install osmium-tool
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends osmium-tool
+
+      - name: Restriction provenance from the same PBF (verify + discover)
+        run: |
+          chmod +x scripts/osm-restriction-provenance.sh
+          PBF="$(find data/valhalla/tiles -maxdepth 1 -name '*.osm.pbf' | head -1)"
+          if [ -z "$PBF" ]; then
+            echo "::warning::No .osm.pbf found next to the built tiles — downloading it separately for the provenance run."
+            mkdir -p data/pbf
+            curl -fL --retry 3 -o data/pbf/germany-latest.osm.pbf \
+              https://download.geofabrik.de/europe/germany-latest.osm.pbf
+            PBF=data/pbf/germany-latest.osm.pbf
+          fi
+          echo "Using PBF: $PBF"
+          scripts/osm-restriction-provenance.sh verify "$PBF" || true
+          # Real, currently-tagged alternatives for any case verify could not
+          # confirm — so an unusable case gets REPLACED with evidence instead
+          # of guessed into shape.
+          for kind in maxheight maxweight maxwidth; do
+            scripts/osm-restriction-provenance.sh discover "$PBF" "$kind" 40 || true
+          done
+
+      - name: Upload provenance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-routes-de-provenance
+          path: go/e2e/golden-routes/.tmp/*.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Start Valhalla serving the swapped tiles
+        run: |
+          docker run -d --name valhalla \
+            -p 8002:8002 \
+            -v "$PWD/data/valhalla/tiles:/custom_files" \
+            -e tile_urls= \
+            -e serve_tiles=True \
+            -e force_rebuild=False \
+            -e build_elevation=False \
+            -e build_admins=True \
+            -e build_time_zones=False \
+            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+
+      - name: Wait for Valhalla /status
+        run: |
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:8002/status >/dev/null 2>&1; then
+              echo "Valhalla /status ready after ~$((i*2))s"
+              break
+            fi
+            if [ "$i" -eq 120 ]; then
+              echo "::error::Valhalla did not come up in time"
+              docker logs valhalla 2>&1 | tail -150
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Build app
+        run: pnpm build
+
+      - name: Run Golden-Routes runner (GOLDEN_REGION=de)
+        run: |
+          echo "NOTE: DE cases are curated but 'unverified' -- this job is non-blocking."
+          echo "It reports observed distances/durations/intersections for freezing."
+          DB_PATH=:memory: VALHALLA_URL=http://localhost:8002 PORT=8080 \
+            node apps/core/dist/index.js > core.log 2>&1 &
+          CORE_PID=$!
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/api/v1/health >/dev/null 2>&1; then
+              echo "Core healthy after ~${i}s"; break
+            fi
+            if ! kill -0 "$CORE_PID" 2>/dev/null; then
+              echo "::error::Core exited before healthy"; cat core.log; exit 1
+            fi
+            [ "$i" -eq 60 ] && { echo "::error::Core not healthy in time"; cat core.log; exit 1; }
+            sleep 1
+          done
+          set +e
+          # --bail 0 (override the config's bail:1) so ALL DE cases report their
+          # observations in one pass while still unverified. Restore the hard
+          # bail once the DE set is verified and this job becomes a gate.
+          # GOLDEN_NIGHTLY=1 also admits `nightly_only` cases (the ETA type).
+          # The DE set has none today -- the ETA case runs on the LI graph in
+          # `golden-eta-li` below, because that is the graph CI actually
+          # builds reliably -- but setting it here keeps "the nightly runs
+          # everything" true when a DE ETA case is added.
+          GOLDEN_LIVE=1 GOLDEN_NIGHTLY=1 GOLDEN_REGION=de CORE_URL=http://localhost:8080 \
+            pnpm exec vitest run --config vitest.golden.config.ts --bail 0
+          RC=$?
+          set -e
+          kill "$CORE_PID" 2>/dev/null || true
+          exit $RC
+
+      - name: Dump Core log on failure
+        if: failure()
+        run: tail -200 core.log || true
+
+      - name: Dump Valhalla logs on failure
+        if: failure()
+        run: docker logs valhalla 2>&1 | tail -150 || true
+
+  golden-eta-li:
+    name: ETA-Plausibilität LI (nightly, E10-T3, docs/07 §3b)
+    runs-on: ubuntu-latest
+    # docs/07 §3b: "ETA-Plausibilität: simulierte Fahrt mit Faktor 1.0 =>
+    # tatsächliche Ankunftszeit weicht < 5 % von initialer ETA ab." E10-T3
+    # requires it automated as a NIGHTLY test -- and nightly is also the only
+    # honest place for it: at speed_factor 1.0 one simulated second costs one
+    # real second, so the case burns minutes of wall clock and has no business
+    # in a per-PR merge gate. The `nightly_only` flag on the case plus
+    # GOLDEN_NIGHTLY=1 here is exactly that split; the per-PR
+    # `golden-routes-li` job leaves the flag unset and skips the case.
+    #
+    # It runs on the LIECHTENSTEIN graph, not the German one: LI is the
+    # extract CI demonstrably builds and routes (see `golden-routes-li` in
+    # ci.yml), so an ETA failure here means the ETA pipeline is wrong rather
+    # than "the DE graph did something unknown". A DE counterpart is worth
+    # adding once the DE set itself is verified.
+    #
+    # continue-on-error: the case has never been executed against a real
+    # Valhalla -- the authoring sandbox has no Docker daemon and no geofabrik
+    # egress. What IS proven there: the <5 % judgement and the wall-clock cap
+    # (e2e/golden-routes/eta.test.ts, pure unit tests) and the whole
+    # route -> navigation/start -> simulator/play -> nav/state -> arrival chain
+    # end-to-end against a real Core with a stub router
+    # (scripts/runbook-smoke.sh, case `smoke-eta-direct`). Drop this line and
+    # flip `unverified:false` on `li-eta-vaduz-schaan` after two consecutive
+    # green runs here -- one green run cannot distinguish a correct ETA from a
+    # lucky one.
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck golden-routes runner
+        run: pnpm exec tsc --noEmit -p e2e/golden-routes/tsconfig.json
+
+      - name: Build Liechtenstein tileset via build-tiles.sh
+        run: |
+          chmod +x services/valhalla/build-tiles.sh
+          services/valhalla/build-tiles.sh https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+
+      - name: Start Valhalla serving the swapped tiles
+        run: |
+          docker run -d --name valhalla \
+            -p 8002:8002 \
+            -v "$PWD/data/valhalla/tiles:/custom_files" \
+            -e tile_urls= \
+            -e serve_tiles=True \
+            -e force_rebuild=False \
+            -e build_elevation=False \
+            -e build_admins=True \
+            -e build_time_zones=False \
+            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+
+      - name: Wait for Valhalla /status
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8002/status >/dev/null 2>&1; then
+              echo "Valhalla /status ready after ~$((i*2))s"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Valhalla did not come up in time"
+              docker logs valhalla 2>&1 | tail -150
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Build app
+        run: pnpm build
+
+      # GOLDEN_NIGHTLY=1 admits the `eta` case. The simulator endpoints the
+      # case drives are open here because NODE_ENV is not `production` (see
+      # apps/core/src/position/simulator/routes.ts) -- no extra flag needed.
+      - name: Run Golden-Routes with the ETA case (GOLDEN_REGION=li, GOLDEN_NIGHTLY=1)
+        run: |
+          DB_PATH=:memory: VALHALLA_URL=http://localhost:8002 PORT=8080 \
+            node apps/core/dist/index.js > core.log 2>&1 &
+          CORE_PID=$!
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/api/v1/health >/dev/null 2>&1; then
+              echo "Core healthy after ~${i}s"; break
+            fi
+            if ! kill -0 "$CORE_PID" 2>/dev/null; then
+              echo "::error::Core exited before healthy"; cat core.log; exit 1
+            fi
+            [ "$i" -eq 60 ] && { echo "::error::Core not healthy in time"; cat core.log; exit 1; }
+            sleep 1
+          done
+          set +e
+          GOLDEN_LIVE=1 GOLDEN_NIGHTLY=1 GOLDEN_REGION=li CORE_URL=http://localhost:8080 \
+            pnpm exec vitest run --config vitest.golden.config.ts
+          RC=$?
+          set -e
+          kill "$CORE_PID" 2>/dev/null || true
+          exit $RC
+
+      - name: Dump Core log on failure
+        if: failure()
+        run: tail -200 core.log || true
+
+      - name: Dump Valhalla logs on failure
+        if: failure()
+        run: docker logs valhalla 2>&1 | tail -150 || true
+
+  runbook-smoke:
+    name: Datenaktualisierungs-Runbook Rauchtest (E10-T3)
+    runs-on: ubuntu-latest
+    # Pflicht-Test aus E10-T3 ("Runbook-Smoke als Skript"). Läuft die Schritte
+    # aus docs/data-update-runbook.md in reduzierter Form ab, damit das Runbook
+    # nicht still verrottet, wenn ein Skript umbenannt oder ein Job entfernt
+    # wird.
+    #
+    # BLOCKIEREND (kein continue-on-error): anders als die Jobs oben wurde
+    # dieses Skript vollständig ausgeführt und beobachtet -- es braucht weder
+    # Docker noch Netzwerk noch Kartendaten. Sein Kernpunkt, S6, weist positiv
+    # nach, dass ein Datenupdate mit verlorener Höhenbeschränkung das
+    # Abnahme-Gate ROT macht (`🔴 SAFETY VIOLATION`). Wenn dieser Nachweis
+    # ausfällt, ist die zentrale Zusage des Runbooks unbelegt, und das soll
+    # sichtbar sein.
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck golden-routes runner (incl. stub router + provenance CLI)
+        run: pnpm exec tsc --noEmit -p e2e/golden-routes/tsconfig.json
+
+      # S5/S6 fahren den echten Core gegen den Stub-Router.
+      - name: Build app
+        run: pnpm build
+
+      - name: Runbook-Rauchtest
+        run: |
+          chmod +x scripts/runbook-smoke.sh
+          scripts/runbook-smoke.sh
+
+      - name: Upload Rauchtest-Artefakte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runbook-smoke
+          path: go/e2e/golden-routes/.tmp/runbook-smoke/
+          retention-days: 14
+          if-no-files-found: warn
+
+  perf-budgets:
+    name: Performance-Budgets (E10-T2, N100-Profil)
+    runs-on: ubuntu-latest
+    # ACTIONS-MINUTEN (2026-08-08): aus dem PR-Lauf HIERHER verschoben, nicht
+    # gestrichen. Die beiden Perf-Jobs kosteten zusammen 12 der 36
+    # abgerechneten Minuten JEDES PR-Laufs -- ein Drittel -- und ihre Aussage
+    # ist ein TREND ueber die Zeit, kein Urteil ueber einen einzelnen Commit.
+    # In ci.yml bleiben sie als `workflow_dispatch` erhalten, damit man sie
+    # bei einem konkreten Verdacht sofort gegen einen PR fahren kann.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+      - name: Typecheck perf suite
+        run: pnpm exec tsc --noEmit -p e2e/perf/tsconfig.json
+      - name: Measure performance budgets
+        run: pnpm perf
+      - name: Trend-Kommentar in die Job-Summary schreiben
+        if: always()
+        run: cat e2e/perf/.tmp/perf-trend.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Upload perf artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-budgets
+          path: |
+            go/e2e/perf/.tmp/perf-results.json
+            go/e2e/perf/.tmp/perf-trend.md
+          retention-days: 30
+          if-no-files-found: warn
+
+  perf-degradation-proof:
+    name: Perf-Degradations-Nachweis (E10-T2 Akzeptanz 2)
+    runs-on: ubuntu-latest
+    # Siehe perf-budgets -- ebenfalls aus dem PR-Lauf hierher verschoben.
+    # Akzeptanzkriterium 2 aus E10-T2: die kuenstliche 200-ms-Verschlechterung
+    # muss die Pipeline nachweislich ROT machen.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+      - name: Perf-Degradations-Nachweis
+        run: pnpm perf:degradation-proof
+
+  # ─── GIBT ES DIE EXTRAKTE IM KATALOG WIRKLICH? ──────────────────────────
+  # Der Katalog trug schon einmal Adressen, die es nicht gab (siehe
+  # `apps/core/src/map/regions/catalog.ts`). Mit 49 Eintraegen ist ein
+  # Tippfehler im Laendernamen kein Einzelfallrisiko mehr -- und er faellt
+  # sonst erst beim Betreiber auf, Stunden nachdem er „Karte bauen" gedrueckt
+  # hat.
+  #
+  # WOECHENTLICH und nicht per PR: die Pruefung befragt eine FREMDE Seite. Ein
+  # Ausfall bei Geofabrik wuerde sonst jeden Pull Request blockieren, ohne dass
+  # an Yapaia etwas falsch waere -- und genau das hat in diesem Projekt schon
+  # zweimal einen Merge-Blocker haengen lassen.
+  region-catalog-urls:
+    name: Regionen-Katalog — gibt es die Extrakte?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Jede pbfUrl im Katalog per HEAD pruefen
+        run: node scripts/check-region-catalog.mjs
+
+  photon-li-nightly:
+    name: Photon CH+LI Live Search (manuell, zurueckgestellt -- siehe docs/backlog.md B-02)
+    runs-on: ubuntu-latest
+    # ZURUECKGESTELLT (2026-08-05), gleiche Begruendung wie golden-routes-de:
+    # der Schritt "Wait for Photon /status" lief seit Wochen in jedem Lauf ins
+    # Timeout (z. B. Lauf 30980175183: 25 min, danach abgebrochen), weil der
+    # JSONL-Import den Index IM Container aufbaut und das auf einem
+    # Standard-Runner nicht durchlaeuft. Ein Job, der nie gruen werden kann,
+    # ist kein Test, sondern eine Fehlalarmquelle.
+    #
+    # Faellt damit NICHT weg: der Lite-Suchindex (W-12-Fallback) wird
+    # weiterhin per PR gebaut und geraucht (`lite-search-li` in ci.yml), und
+    # `photon-setup` prueft die Skript-Fixtures + das Xmx-Wiring. Was hier
+    # fehlt, ist ausschliesslich der Live-Suchlauf gegen einen echten
+    # Photon-Index -- als B-02 im Backlog notiert.
+    if: github.event_name == 'workflow_dispatch'
+    # E05-T4 Akzeptanz #1 ("CI startet Photon-LI und E05-T1-Integration laeuft
+    # dagegen") NIGHTLY statt per-PR -- siehe `photon-setup` in ci.yml und
+    # services/photon/README.md "Warum kein LI-only-Index in CI" fuer die
+    # volle Recherche/Begruendung: ein Liechtenstein-ONLY-Suchindex existiert
+    # bei keiner bekannten Quelle vorgebaut (weder komoot/photons eigene
+    # Dumps noch der von docker-compose.yml genutzte rtuszik/photon-docker-
+    # Spiegel bieten diese Granularitaet). Die naechstkleinere ECHTE, real
+    # herunterladbare Region, die Liechtenstein/Vaduz enthaelt, ist
+    # "switzerland-liechtenstein" -- von rtuszik/photon-docker selbst als
+    # Beispiel fuer `IMPORT_MODE=jsonl` genannt, dort aber ausdruecklich als
+    # "experimental" markiert (der Index wird IM Container aus einem
+    # OSM-JSONL-Dump gebaut, nicht aus einem fertigen Photon-Suchindex
+    # geladen).
+    #
+    # continue-on-error: true, weil weder Groesse/Bauzeit noch die
+    # Zuverlaessigkeit des Drittanbieter-Mirrors (r2.koalasec.org) aus dieser
+    # Sandbox heraus verifizierbar waren (kein Docker-Daemon/kein
+    # Netzwerkzugriff auf Photon-Dumps im Dev-Sandbox -- Details in
+    # services/photon/README.md). Dieser Job ist analog zu `golden-routes-de`
+    # oben: er laeuft und meldet seine Beobachtungen, blockiert aber nicht,
+    # bis ein Mensch das JSONL-Bauverhalten einmal beobachtet/eingefroren hat.
+    continue-on-error: true
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Groesserer Xmx als der Mini-PC-Default (docker-compose.yml PHOTON_XMX,
+      # Default 1g), weil dieser Job den deutlich groesseren CH+LI-Index baut
+      # UND serviert -- nicht der repraesentative Mini-PC-Betriebsfall, siehe
+      # README fuer die Diskrepanz-Begruendung.
+      - name: Start Photon (IMPORT_MODE=jsonl, REGION=switzerland-liechtenstein)
+        run: |
+          mkdir -p data/photon/photon_data
+          docker run -d --name photon \
+            -p 2322:2322 \
+            -v "$PWD/data/photon/photon_data:/photon/photon_data" \
+            -e IMPORT_MODE=jsonl \
+            -e REGION=switzerland-liechtenstein \
+            -e LANGUAGES=en,de \
+            -e JAVA_PARAMS=-Xmx2g \
+            rtuszik/photon-docker:latest
+
+      - name: Wait for Photon /status (grosszuegiges Timeout -- JSONL-Import baut den Index IM Container)
+        run: |
+          for i in $(seq 1 150); do
+            if curl -sf http://localhost:2322/status >/dev/null 2>&1; then
+              echo "Photon /status ready after ~$((i * 10))s"
+              break
+            fi
+            if [ "$i" -eq 150 ]; then
+              echo "::warning::Photon kam nicht rechtzeitig hoch (unverifizierter JSONL-Importpfad, r2.koalasec.org-Mirror) -- Job bleibt dank continue-on-error non-blocking."
+              docker logs photon 2>&1 | tail -200
+              exit 1
+            fi
+            sleep 10
+          done
+
+      # Beweist Akzeptanz #1 direkt: E05-T1's PhotonBackend + SearchService
+      # gegen ein ECHTES, laufendes Photon (apps/core/src/search/
+      # photonBackend.live.test.ts, gated hinter PHOTON_LIVE=1).
+      - name: Live search integration (PhotonBackend + SearchService, "Vaduz")
+        run: |
+          PHOTON_LIVE=1 PHOTON_URL=http://localhost:2322 \
+            npx vitest run apps/core/src/search/photonBackend.live.test.ts
+
+      # Plausibilitaet (E05-T4-Spec): Photon-RSS unter Last (20 parallele
+      # Suchen) < Xmx + 300 MB. Informativ (docker stats statt einer harten
+      # Assertion) -- dieser gesamte Job ist ohnehin continue-on-error, bis
+      # das JSONL-Bauverhalten einmal beobachtet und eingefroren wurde.
+      - name: "RSS-under-load plausibility (20 parallel searches, E05-T4: RSS < Xmx + 300 MB)"
+        run: |
+          for i in $(seq 1 20); do
+            curl -sf "http://localhost:2322/api?q=Vaduz&limit=5" >/dev/null &
+          done
+          wait
+          docker stats --no-stream photon
+          echo "Vergleichswert: Xmx=2g + 300 MB Budget (informativ, siehe Job-Kommentarkopf)."
+
+      - name: Dump Photon logs on failure
+        if: failure()
+        run: docker logs photon 2>&1 | tail -200 || true

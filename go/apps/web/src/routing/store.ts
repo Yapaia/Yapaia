@@ -1,0 +1,536 @@
+/**
+ * Zustand store for routing (E03-T3): the selected destination, the
+ * computed route(s), and which one is currently "active" (the highlighted
+ * main route vs. the tappable gray alternatives).
+ *
+ * E03-T4 additions (avoidances & temporary lockouts):
+ *  - `avoidOverrides`: the 4 avoid-chip flags, overriding the active
+ *    profile's `avoid.*` for the CURRENT route only (never written back to
+ *    the profile). Scoped "per route": reset whenever a new destination is
+ *    picked (`setDestination`) or the flow is cancelled (`clear`) -- see the
+ *    task's "PRO ROUTE" wording for the chips, vs. "PRO SESSION" below.
+ *  - `tempAvoidances`: "Diesen Abschnitt meiden" polygons, collected over
+ *    the whole app session (survive `setDestination`/`clear`, per the task's
+ *    explicit "PRO SESSION" wording), shown as a manageable list and
+ *    individually removable.
+ * Both `toggleAvoidOverride` and `addSectionAvoidance`/`removeAvoidance`
+ * immediately trigger a reroute (by delegating to `requestRoute`, which
+ * already reads `avoidOverrides`/`tempAvoidances` off this same store), so
+ * every mutation is a single source of truth for what the NEXT request
+ * looks like.
+ */
+
+import { create } from 'zustand';
+import type { LatLng, Route, RouteAvoidOverrides, RouteMode } from '@yapaia/shared';
+import * as client from './client.js';
+import { RoutingApiError } from './client.js';
+import {
+  addWaypoint as addWaypointToList,
+  addWaypointVorn,
+  canAddWaypoint,
+  moveWaypoint as moveWaypointInList,
+  removeWaypoint as removeWaypointFromList,
+  toRequestWaypoints,
+  type Waypoint,
+} from './waypoints.js';
+import { useNavStore } from '../drive/navStore.js';
+import { isDriveActive } from '../drive/driveActive.js';
+import { updateNavigationWaypoints } from '../drive/client.js';
+
+export type RoutingStatus = 'idle' | 'loading' | 'success' | 'error';
+
+export interface RoutingError {
+  code: string;
+  message: string;
+}
+
+export interface RequestRouteParams {
+  /**
+   * Der vom Aufrufer gewuenschte Start. In der Regel `'current'` -- der Core
+   * loest das dann ueber die Live-GPS-Position auf.
+   *
+   * ACHTUNG: ein im Store gesetzter `startPoint` hat VORRANG (siehe dort).
+   * Das ist Absicht und kein Sonderfall, den man uebersehen darf: waehlt ein
+   * Betreiber einen Startpunkt auf der Karte, soll das fuer JEDEN Weg gelten,
+   * der eine Route anfordert -- auch fuer „zu diesem Favoriten navigieren",
+   * das hier `'current'` uebergibt. Andernfalls haette die Wahl je nach
+   * Einstiegspunkt gegolten oder nicht.
+   */
+  origin: LatLng | 'current';
+  /** `activeProfile.id`, or `undefined`/empty if no profile is active. */
+  profileId: string | undefined;
+}
+
+/** A single "Diesen Abschnitt meiden" temporary avoidance (E03-T4). */
+export interface TempAvoidance {
+  /** Client-generated, stable for the lifetime of the session -- used as the React key and for individual removal. */
+  id: string;
+  /** Closed ring of LatLng points (app-internal `{lat, lon}` order; the Core swaps to Valhalla's `[lon, lat]`). */
+  polygon: LatLng[];
+}
+
+/**
+ * Wie lange der Hinweis „Ziel setzen: lange druecken" stehen bleibt.
+ *
+ * Lang genug, um ihn im Vorbeisehen zu lesen, kurz genug, um nicht im Weg zu
+ * stehen -- er liegt ueber der Karte, auf der man gerade sucht.
+ */
+export const LANGER_DRUCK_HINWEIS_MS = 2600;
+
+export interface RoutingState {
+  destination: LatLng | null;
+  /**
+   * Ausdruecklich gewaehlter Startpunkt, oder `null` fuer „aktuelle
+   * Position" (der Normalfall und die Voreinstellung).
+   *
+   * Bis 2026-09-03 gab es diesen Zustand nicht: die Oberflaeche konnte NUR
+   * ein Ziel setzen, der Start war zwangsweise die Live-GPS-Position. Wer
+   * keine Position hatte -- etwa weil der Browser den Sensor ohne HTTPS gar
+   * nicht freigibt -- konnte damit ueberhaupt keine Route berechnen, obwohl
+   * Karte und Routinggraph fertig waren. Der Core kann einen expliziten
+   * Startpunkt seit jeher (`RoutingService.resolveOrigin`); es fehlte
+   * ausschliesslich die Bedienung.
+   */
+  startPoint: LatLng | null;
+  /** Name des gewaehlten Startpunkts, falls die Kacheln einen hergaben
+   *  (`map/placeName.ts`). `null` = nur Koordinaten anzeigen. */
+  startPointName: string | null;
+  /** Worauf sich der naechste Kartenklick bezieht. Nach dem Setzen eines
+   *  Startpunkts faellt es auf `'destination'` zurueck -- ein Modus, in dem
+   *  man versehentlich haengen bleibt, ist schlimmer als ein Klick zu viel. */
+  pickTarget: 'destination' | 'origin' | 'waypoint';
+  /**
+   * Bis wann der Hinweis „Ziel setzen: lange druecken" steht (Zeitstempel in
+   * Millisekunden), oder `null`.
+   *
+   * ─── WARUM EIN ZEITPUNKT UND KEIN `boolean` ───────────────────────────
+   * Weil ein `boolean` jemanden braeuchte, der ihn wieder ausschaltet. Der
+   * Hinweis soll von allein verschwinden, und der einzige Ort, an dem er
+   * sichtbar ist, weiss am besten, wann er das tut -- ein Zeitpunkt laesst
+   * sich von dort ablesen, ohne dass der Speicher einen Zeitgeber halten
+   * muss, der einen Abbau ueberlebt.
+   */
+  langerDruckHinweisBis: number | null;
+  /**
+   * E05-T2 addition: the human-readable name of the destination, when it was
+   * picked via search (`SearchResult.name`) rather than a raw map click/tap
+   * (`DestinationSelector`, which never has a name). `null` whenever
+   * `destination` is `null` OR was set without a name. Additive-only field:
+   * every existing caller of `setDestination` that only ever passed one
+   * argument keeps working unchanged and keeps getting `destinationName:
+   * null`, exactly as before this field existed.
+   */
+  destinationName: string | null;
+  routes: Route[];
+  activeRouteId: string | null;
+  status: RoutingStatus;
+  error: RoutingError | null;
+  /** Per-request avoid-flag overrides (E03-T4), see the file-level doc comment. */
+  avoidOverrides: RouteAvoidOverrides;
+  /** Session-scoped "meide diesen Abschnitt" polygons (E03-T4). */
+  tempAvoidances: TempAvoidance[];
+  /**
+   * Zwischenziele, in der Reihenfolge, in der sie angefahren werden.
+   *
+   * Bis 0.5.9 schickte der Browser hier fest verdrahtet `[]` an den Core --
+   * obwohl `RouteRequest.waypoints` seit jeher existiert, an Valhalla
+   * durchgereicht und sogar auf Kartenabdeckung geprueft wird. Die Leitung
+   * lag, es hing nur nichts daran.
+   */
+  waypoints: Waypoint[];
+  /** Wonach gesucht wird. Wird mit jeder Anfrage mitgeschickt. */
+  routeMode: RouteMode;
+
+  /** Sets (or clears, with `null`) the selected destination, optionally with
+   *  a display `name` (E05-T2, search result selection). Always resets any
+   *  previous route result and the per-route avoid overrides. */
+  setDestination: (destination: LatLng | null, name?: string | null) => void;
+  /** Setzt (oder loescht, mit `null`) den ausdruecklichen Startpunkt. */
+  setStartPoint: (startPoint: LatLng | null, name?: string | null) => void;
+  setPickTarget: (target: 'destination' | 'origin' | 'waypoint') => void;
+  /** Zeigt kurz an, dass ein Ziel einen langen Druck braucht. */
+  zeigeLangerDruckHinweis: () => void;
+  /** Haengt ein Zwischenziel ans Ende an und berechnet neu, wenn schon eine Route steht. */
+  addWaypoint: (latlng: LatLng, name: string | null, params: RequestRouteParams | null) => void;
+  /** Ein Zwischenziel als NAECHSTEN Halt einschieben -- siehe `waypoints.ts#addWaypointVorn`. */
+  zwischenstoppVorn: (latlng: LatLng, name: string | null, params: RequestRouteParams | null) => void;
+  /** Entfernt ein Zwischenziel und berechnet neu, wenn schon eine Route steht. */
+  removeWaypoint: (id: string, params: RequestRouteParams | null) => void;
+  /** Verschiebt ein Zwischenziel um eine Position und berechnet neu. */
+  moveWaypoint: (id: string, direction: 'up' | 'down', params: RequestRouteParams | null) => void;
+  /** Requests routes for the current `destination`, including any active `avoidOverrides`/`tempAvoidances`. No-ops (no request sent) if there is no destination or no `profileId`. */
+  requestRoute: (params: RequestRouteParams) => Promise<void>;
+  /** Makes `routeId` the active (highlighted) route; the previously-active one becomes a gray alternative. No-ops if `routeId` isn't among the current `routes`. */
+  selectRoute: (routeId: string) => void;
+  /** Clears the destination and any route result (e.g. "Abbrechen"/"Neues Ziel wählen"). Does NOT clear `tempAvoidances` (session-scoped). */
+  clear: () => void;
+  /** Toggles one avoid flag against its current EFFECTIVE value (`avoidOverrides[flag] ?? profileDefault`) and immediately reroutes with `params`. */
+  toggleAvoidOverride: (
+    flag: keyof RouteAvoidOverrides,
+    profileDefault: boolean,
+    params: RequestRouteParams,
+  ) => void;
+  /** Adds a temporary avoidance polygon and immediately reroutes with `params`. */
+  /** Setzt die Routenart und berechnet neu, wenn schon eine Route steht. */
+  setRouteMode: (mode: RouteMode, params: RequestRouteParams | null) => void;
+  /**
+   * Holt die gemerkte Routenart einmalig aus den Einstellungen.
+   *
+   * Ohne das zeigte die Oberflaeche nach jedem Neuladen „Schnellste", waehrend
+   * gespeichert etwas anderes steht -- eine Anzeige, die nicht stimmt, ist
+   * schlimmer als gar keine.
+   */
+  ladeRouteMode: () => Promise<void>;
+  /** Sortiert die Zwischenziele in die guenstigste Reihenfolge und berechnet
+   *  neu. Unter zwei Zwischenzielen passiert nichts. */
+  optimizeWaypointOrder: (params: RequestRouteParams) => Promise<void>;
+  addSectionAvoidance: (polygon: LatLng[], params: RequestRouteParams) => void;
+  /** Removes a temporary avoidance by id and immediately reroutes with `params`. */
+  removeAvoidance: (id: string, params: RequestRouteParams) => void;
+}
+
+/** Merkt die Routenart dauerhaft. Bestes Bemuehen -- offline ist hier normal. */
+async function patchSetting(key: string, value: unknown): Promise<void> {
+  try {
+    await fetch(`${import.meta.env.BASE_URL}api/v1/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: value }),
+    });
+  } catch {
+    // Siehe oben.
+  }
+}
+
+function nextAvoidanceId(): string {
+  return `avoid-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Was nach einer Aenderung der Zwischenziele zu tun ist.
+ *
+ * ─── ZWEI FAELLE, ZWEI WEGE ─────────────────────────────────────────────────
+ * WAEHREND EINER FAHRT geht die Aenderung an den Core: er legt die Strecke
+ * mit derselben Maschinerie neu, die er fuer Abweichungen schon hat, und
+ * uebergibt die laufende Fahrt nahtlos. Ein neues `POST /navigation/start`
+ * waere hier gar nicht erlaubt (409) und wuerde Kalibrierung und Ansagestand
+ * wegwerfen -- fuer den Menschen im Fahrzeug ein sichtbarer Aussetzer.
+ *
+ * BEIM PLANEN gibt es keine laufende Fahrt; dann wird hier im Browser neu
+ * gerechnet, wie bei jeder anderen Aenderung an der Route auch.
+ *
+ * `params === null` heisst „nicht rechnen" -- etwa, wenn noch gar kein Ziel
+ * gewaehlt ist. Dann bleibt es beim Aendern der Liste.
+ */
+function applyWaypointChange(
+  waypoints: Waypoint[],
+  params: RequestRouteParams | null,
+  get: () => RoutingState,
+): void {
+  if (isDriveActive(useNavStore.getState().navState?.status)) {
+    void updateNavigationWaypoints(toRequestWaypoints(waypoints)).catch(() => {
+      // Ein Fehlschlag darf die Liste nicht zuruecksetzen: der Wunsch steht,
+      // und der Core versucht es bei der naechsten Neuberechnung erneut. Ein
+      // stiller Ruecksprung der Liste waere schlimmer als eine Strecke, die
+      // einen Moment spaeter nachzieht.
+    });
+    return;
+  }
+  if (params) void get().requestRoute(params);
+}
+
+export const useRoutingStore = create<RoutingState>((set, get) => ({
+  destination: null,
+  destinationName: null,
+  startPoint: null,
+  startPointName: null,
+  pickTarget: 'destination',
+  langerDruckHinweisBis: null,
+  routes: [],
+  activeRouteId: null,
+  status: 'idle',
+  error: null,
+  avoidOverrides: {},
+  tempAvoidances: [],
+  waypoints: [],
+  routeMode: 'fastest',
+
+  setDestination: (destination, name = null) => {
+    set({
+      destination,
+      destinationName: destination ? name : null,
+      routes: [],
+      activeRouteId: null,
+      status: 'idle',
+      error: null,
+      avoidOverrides: {},
+    });
+  },
+
+  setStartPoint: (startPoint, name = null) => {
+    set({
+      startPoint,
+      startPointName: startPoint === null ? null : name,
+      routes: [],
+      activeRouteId: null,
+      status: 'idle',
+      error: null,
+    });
+  },
+
+  setPickTarget: (pickTarget) => {
+    set({ pickTarget });
+  },
+
+  zeigeLangerDruckHinweis: () => {
+    // Jeder weitere Tipper verlaengert das Fenster, statt ein zweites
+    // aufzumachen. Wer dreimal hintereinander tippt, soll den Satz
+    // durchgehend lesen koennen und nicht dreimal ein Aufblitzen sehen.
+    set({ langerDruckHinweisBis: Date.now() + LANGER_DRUCK_HINWEIS_MS });
+  },
+
+  // ─── ZWISCHENZIELE ────────────────────────────────────────────────────────
+  // Nach jeder Aenderung muss die STRECKE nachziehen -- sonst zeigte die
+  // Karte weiter die alte, waehrend die Liste schon die neue Absicht anzeigt.
+  // Zwei Anzeigen, die sich widersprechen, sind schlimmer als eine langsame.
+  //
+  // Welcher Weg dafuer richtig ist, haengt davon ab, ob gefahren wird --
+  // siehe `applyWaypointChange`.
+  addWaypoint: (latlng, name, params) => {
+    const { waypoints } = get();
+    if (!canAddWaypoint(waypoints)) return;
+    const next = addWaypointToList(waypoints, latlng, name);
+    set({ waypoints: next });
+    applyWaypointChange(next, params, get);
+  },
+
+  zwischenstoppVorn: (latlng, name, params) => {
+    const { waypoints } = get();
+    if (!canAddWaypoint(waypoints)) return;
+    const next = addWaypointVorn(waypoints, latlng, name);
+    set({ waypoints: next });
+    applyWaypointChange(next, params, get);
+  },
+
+  removeWaypoint: (id, params) => {
+    const { waypoints } = get();
+    const next = removeWaypointFromList(waypoints, id);
+    if (next.length === waypoints.length) return; // nichts entfernt
+    set({ waypoints: next });
+    applyWaypointChange(next, params, get);
+  },
+
+  moveWaypoint: (id, direction, params) => {
+    const { waypoints } = get();
+    const next = moveWaypointInList(waypoints, id, direction);
+    // Am Rand aendert sich nichts -- dann auch keine Neuberechnung.
+    if (next.every((w, i) => w.id === waypoints[i]?.id)) return;
+    set({ waypoints: next });
+    applyWaypointChange(next, params, get);
+  },
+
+  requestRoute: async ({ origin, profileId }) => {
+    const { destination, avoidOverrides, tempAvoidances, startPoint, waypoints } = get();
+    // Ein ausdruecklich gewaehlter Startpunkt schlaegt den Wunsch des
+    // Aufrufers. Ohne ihn bleibt alles wie bisher: `'current'` geht an den
+    // Core, der die Live-Position einsetzt.
+    const effectiveOrigin = startPoint ?? origin;
+    if (!destination) {
+      return;
+    }
+    if (!profileId) {
+      set({
+        status: 'error',
+        error: { code: 'NO_ACTIVE_PROFILE', message: 'Kein aktives Fahrzeugprofil ausgewählt.' },
+        routes: [],
+        activeRouteId: null,
+      });
+      return;
+    }
+
+    set({ status: 'loading', error: null });
+    try {
+      const excludePolygons = tempAvoidances.map((a) => a.polygon);
+      const routes = await client.requestRoutes({
+        origin: effectiveOrigin,
+        destination,
+        waypoints: toRequestWaypoints(waypoints),
+        profile_id: profileId,
+        alternatives: 2,
+        mode: get().routeMode,
+        // Only attach these when non-empty, so a request with no
+        // avoidances is byte-for-byte identical to the pre-E03-T4 shape.
+        ...(Object.keys(avoidOverrides).length > 0 ? { avoid_overrides: avoidOverrides } : {}),
+        ...(excludePolygons.length > 0 ? { exclude_polygons: excludePolygons } : {}),
+      });
+      if (routes.length === 0) {
+        set({
+          routes: [],
+          activeRouteId: null,
+          status: 'error',
+          error: { code: 'NO_ROUTES', message: 'Keine Route gefunden.' },
+        });
+        return;
+      }
+      set({ routes, activeRouteId: routes[0].id, status: 'success', error: null });
+    } catch (err) {
+      if (err instanceof RoutingApiError) {
+        set({ status: 'error', error: { code: err.code, message: err.message }, routes: [], activeRouteId: null });
+      } else {
+        set({
+          status: 'error',
+          error: { code: 'UNKNOWN', message: 'Route konnte nicht berechnet werden.' },
+          routes: [],
+          activeRouteId: null,
+        });
+      }
+    }
+  },
+
+  selectRoute: (routeId) => {
+    const { routes } = get();
+    if (!routes.some((r) => r.id === routeId)) {
+      return;
+    }
+    set({ activeRouteId: routeId });
+  },
+
+  clear: () => {
+    set({
+      destination: null,
+      destinationName: null,
+      routes: [],
+      activeRouteId: null,
+      status: 'idle',
+      error: null,
+      avoidOverrides: {},
+      // Zwischenziele gehoeren zu DIESER Fahrt, anders als die
+      // Meide-Bereiche (die gelten fuer die ganze Sitzung). Wer „Neues Ziel
+      // waehlen" drueckt, will nicht die Stationen der letzten Fahrt erben.
+      waypoints: [],
+      // Und der Zwischenziel-Modus darf nicht ueberleben -- ein Modus, in
+      // dem man haengen bleibt, ist schlimmer als ein Klick zu viel (siehe
+      // dieselbe Begruendung an `pickTarget`).
+      pickTarget: 'destination',
+    });
+  },
+
+  toggleAvoidOverride: (flag, profileDefault, params) => {
+    const { avoidOverrides } = get();
+    const effective = avoidOverrides[flag] ?? profileDefault;
+    set({ avoidOverrides: { ...avoidOverrides, [flag]: !effective } });
+    void get().requestRoute(params);
+  },
+
+  ladeRouteMode: async () => {
+    try {
+      const antwort = await fetch(`${import.meta.env.BASE_URL}api/v1/settings`);
+      if (!antwort.ok) return;
+      const koerper = (await antwort.json()) as { data?: Record<string, unknown> };
+      const wert = koerper?.data?.route_mode;
+      if (wert === 'fastest' || wert === 'shortest' || wert === 'balanced') {
+        set({ routeMode: wert });
+      }
+    } catch {
+      // Offline ist hier ein normaler Betriebszustand; dann bleibt es bei
+      // der Vorgabe.
+    }
+  },
+
+  setRouteMode: (mode, params) => {
+    if (get().routeMode === mode) return;
+    set({ routeMode: mode });
+    // Dauerhaft merken, damit auch Routen, die ueber Home Assistant oder MQTT
+    // ausgeloest werden, dieselbe Wahl bekommen -- der Core liest die
+    // Einstellung, wenn eine Anfrage keine mitbringt.
+    void patchSetting('route_mode', mode);
+    if (params && get().destination) void get().requestRoute(params);
+  },
+
+  optimizeWaypointOrder: async (params) => {
+    const { waypoints, destination, startPoint, avoidOverrides, tempAvoidances, routeMode } = get();
+    // Ohne Profil gibt es keine Route -- und damit auch nichts zu sortieren.
+    // Dieselbe Abfrage wie in `requestRoute`, nur still: die Optimierung ist
+    // eine Zusatzfunktion, keine Fahrfunktion.
+    if (waypoints.length < 2 || !destination || !params.profileId) return;
+
+    const effectiveOrigin = startPoint ?? params.origin;
+    const excludePolygons = tempAvoidances.map((a) => a.polygon);
+    set({ status: 'loading', error: null });
+    try {
+      const order = await client.optimiereReihenfolge({
+        origin: effectiveOrigin,
+        destination,
+        waypoints: toRequestWaypoints(waypoints),
+        profile_id: params.profileId,
+        alternatives: 0,
+        mode: routeMode,
+        ...(Object.keys(avoidOverrides).length > 0 ? { avoid_overrides: avoidOverrides } : {}),
+        ...(excludePolygons.length > 0 ? { exclude_polygons: excludePolygons } : {}),
+      });
+      // Eine unbrauchbare Antwort laesst die Liste, wie sie ist: der Fahrer
+      // faehrt diese Reihenfolge ab -- geraten wird hier nichts.
+      const brauchbar =
+        order.length === waypoints.length &&
+        order.every((i) => Number.isInteger(i) && i >= 0 && i < waypoints.length) &&
+        new Set(order).size === order.length;
+      if (brauchbar) {
+        const sortiert = order.map((i) => waypoints[i]);
+        set({ waypoints: sortiert });
+        void updateNavigationWaypoints(toRequestWaypoints(sortiert)).catch(() => {
+          // Wie bei jeder anderen Aenderung der Liste.
+        });
+      }
+      await get().requestRoute(params);
+    } catch (err) {
+      if (err instanceof RoutingApiError) {
+        set({ status: 'error', error: { code: err.code, message: err.message } });
+      } else {
+        set({
+          status: 'error',
+          error: { code: 'UNKNOWN', message: 'Reihenfolge konnte nicht optimiert werden.' },
+        });
+      }
+    }
+  },
+
+  addSectionAvoidance: (polygon, params) => {
+    const { tempAvoidances } = get();
+    set({ tempAvoidances: [...tempAvoidances, { id: nextAvoidanceId(), polygon }] });
+    void get().requestRoute(params);
+  },
+
+  removeAvoidance: (id, params) => {
+    const { tempAvoidances } = get();
+    set({ tempAvoidances: tempAvoidances.filter((a) => a.id !== id) });
+    void get().requestRoute(params);
+  },
+}));
+
+export type RouteSelectionState = Pick<RoutingState, 'routes' | 'activeRouteId'>;
+
+/** The currently active (highlighted) route, or `null` if none. */
+export function selectActiveRoute(state: RouteSelectionState): Route | null {
+  return state.routes.find((r) => r.id === state.activeRouteId) ?? null;
+}
+
+/** All routes other than the active one (rendered gray, tappable). */
+export function selectAlternativeRoutes(state: RouteSelectionState): Route[] {
+  return state.routes.filter((r) => r.id !== state.activeRouteId);
+}
+
+declare global {
+  interface Window {
+    /**
+     * Debug/E2E hook, mirrors `window.__yapaiaMapController` /
+     * `window.__yapaiaPositionStore`: exposes the routing store so
+     * Playwright can assert on `activeRouteId`/`status` directly.
+     * Production code must still go through `useRoutingStore`.
+     */
+    __yapaiaRoutingStore?: typeof useRoutingStore;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__yapaiaRoutingStore = useRoutingStore;
+}

@@ -1,0 +1,249 @@
+/**
+ * Wire-format types for the subset of the Valhalla `/route` HTTP API that the
+ * RoutingService produces (request) and consumes (response).
+ *
+ * These are deliberately NARROW: we only model the fields we actually build or
+ * read. They are NOT re-exports of `@yapaia/shared` -- the shared package owns
+ * the app-internal `Route`/`Maneuver` contract, this file owns the external
+ * Valhalla contract, and the mapping between the two lives in
+ * `./profileMapping.ts` (outbound) and `./mapResponse.ts` (inbound).
+ *
+ * References:
+ *  - https://valhalla.github.io/valhalla/api/turn-by-turn/api-reference/
+ *  - Costing model "truck": https://valhalla.github.io/valhalla/api/turn-by-turn/api-reference/#truck-costing-options
+ */
+
+// --- Outbound (request) --------------------------------------------------
+
+export interface ValhallaLocation {
+  lat: number;
+  lon: number;
+  /** All routing points are hard stops ("break") for our use case. */
+  type: 'break';
+  /**
+   * E04-T4 (W-05): optional edge-heading bias in degrees (0 = North). Set ONLY
+   * on the origin location of a reroute request so Valhalla starts the new
+   * route on an edge pointing in the direction of travel — the first
+   * instruction then points forward instead of "turn around". Absent on every
+   * other location and on ordinary (non-reroute) routing.
+   */
+  heading?: number;
+}
+
+/**
+ * `costing_options.truck`. Only `use_*` flags that we intentionally *lower*
+ * from Valhalla's default of `1` are present; leaving a flag absent keeps
+ * Valhalla's default (see `../routing/profileMapping.ts`). This shape is the
+ * heart of W-08: every field here changes which physical edges a truck route
+ * may traverse.
+ */
+export interface ValhallaTruckCostingOptions {
+  /** metres -- vehicle height, gates low bridges/tunnels. */
+  height: number;
+  /** metres -- vehicle width, gates narrow ways. */
+  width: number;
+  /** metres -- vehicle length. */
+  length: number;
+  /** metric tonnes -- gross weight, gates weak bridges/weight limits. */
+  weight: number;
+  /** carrying hazardous materials. */
+  hazmat: boolean;
+  /**
+   * km/h -- die HOECHSTGESCHWINDIGKEIT DES FAHRZEUGS.
+   *
+   * Hier stand „upper speed cap for ETA". Das war falsch, und es war die
+   * Ursache eines echten Fehlers: `top_speed` wirkt in Valhalla NICHT auf die
+   * Ankunftszeit, sondern auf die WAHL DER STRASSE -- es deckelt das Tempo
+   * jeder Kante und bestraft ausserdem jede Strasse, die schneller ist
+   * (`truckcost.cc`, `SpeedPenalty`). Wer hier die Reisegeschwindigkeit
+   * einsetzt, laesst „schnellste" die Autobahn meiden.
+   *
+   * OPTIONAL, und Yapaia setzt es bewusst nicht: fehlt der Schluessel, nimmt
+   * Valhalla seine eigene Vorgabe fuer `truck`. Die Begruendung im Ganzen
+   * steht in `profileMapping.ts#buildTruckCostingOptions`.
+   */
+  top_speed?: number;
+  /** present & 0 only when the profile avoids motorways. */
+  use_highways?: number;
+  /** present & 0 only when the profile avoids tolls. */
+  use_tolls?: number;
+  /** present & 0 only when the profile avoids ferries. */
+  use_ferry?: number;
+  /** present & 0 only when the profile avoids unpaved ways (closest Valhalla equivalent). */
+  use_tracks?: number;
+  /**
+   * Nur bei `mode: 'shortest'` gesetzt. Valhalla rechnet dann rein nach
+   * ENTFERNUNG. Wichtig: laut Valhalla-Referenz schaltet das die uebrigen
+   * Kostenfaktoren ab -- die MASSE des Fahrzeugs bleiben davon unberuehrt,
+   * sie sind keine Kosten, sondern Zugangsbedingungen.
+   */
+  shortest?: boolean;
+}
+
+/**
+ * A single point exclusion, Valhalla's `exclude_locations` entry (E03-T4).
+ * Same `{lat,lon}` order as `ValhallaLocation` -- NOT swapped, unlike
+ * `exclude_polygons` below.
+ */
+export interface ValhallaExcludeLocation {
+  lat: number;
+  lon: number;
+}
+
+/**
+ * A single exclude polygon ring: an array of `[lon, lat]` PAIRS (⚠️ note the
+ * swapped order vs. every other coordinate in this file -- Valhalla's
+ * `exclude_polygons` is the one field that takes GeoJSON-style `[lon, lat]`
+ * tuples, not `{lat, lon}` objects). See `../routing/profileMapping.ts`.
+ */
+export type ValhallaExcludePolygonRing = [number, number][];
+
+export interface ValhallaRouteRequestBody {
+  locations: ValhallaLocation[];
+  costing: 'truck';
+  costing_options: { truck: ValhallaTruckCostingOptions };
+  /**
+   * `language` ist NICHT optional, obwohl Valhalla ohne sie auskommt: ohne
+   * Angabe antwortet Valhalla in `en-US`, und genau das stand im Dashboard
+   * („Enter the roundabout and take the 2nd exit onto B 44."). Ein Feld, das
+   * man vergessen KANN, wird vergessen -- deshalb erzwingt der Typ es.
+   */
+  directions_options: { units: 'kilometers'; language: string };
+  /** number of alternative routes requested (Valhalla naming: "alternates"). */
+  alternates: number;
+  /**
+   * Spurfuehrung anfordern. NICHT optional -- aus demselben Grund wie
+   * `directions_options` darueber.
+   *
+   * ─── DIE FALLE ────────────────────────────────────────────────────────────
+   * Valhalla liefert `lanes` NUR, wenn diese Option gesetzt ist. Aus der
+   * API-Referenz: „When present and `true`, each maneuver in the route
+   * response can include a `lanes` array describing lane-level guidance."
+   * Standard ist AUS.
+   *
+   * Ohne sie waere die ganze Spurfuehrung gebaut, geprueft und lautlos leer:
+   * der Kern bildet ab, was nicht kommt, die Anzeige zeigt nichts, und nichts
+   * schlaegt fehl. Genau die Sorte Fehler, die dieses Projekt seit Monaten
+   * verfolgt -- eine Antwort, die es gibt, die aber nie angefordert wird.
+   *
+   * Ein Feld, das man vergessen KANN, wird vergessen. Deshalb erzwingt der
+   * Typ es.
+   */
+  turn_lanes: boolean;
+  /** present & non-empty only when the request carries `exclude_locations`. */
+  exclude_locations?: ValhallaExcludeLocation[];
+  /**
+   * present & non-empty only when the request carries `exclude_polygons`.
+   * ⚠️ Each ring is `[lon, lat]` pairs, NOT `{lat, lon}` -- see
+   * {@link ValhallaExcludePolygonRing}.
+   */
+  exclude_polygons?: ValhallaExcludePolygonRing[];
+}
+
+// --- Inbound (response) --------------------------------------------------
+
+export interface ValhallaSummary {
+  /** kilometres (because we request `units: "kilometers"`). */
+  length: number;
+  /** seconds. */
+  time: number;
+}
+
+/**
+ * Ein Eintrag auf einem Wegweiser, wie Valhalla ihn liefert.
+ *
+ * `text` ist Pflicht, `consecutive_count` laut Referenz ausdruecklich
+ * optional („This item is optional.").
+ */
+export interface ValhallaSignElement {
+  text: string;
+  consecutive_count?: number;
+}
+
+/**
+ * Valhallas `sign`-Block. Vier Listen, alle optional.
+ *
+ * Die Namen tragen bei Valhalla die Endung `_elements`; in unserer
+ * Schnittstelle fallen sie weg (siehe `@yapaia/shared#ManeuverSign`). Die
+ * Zuordnung steht an genau einer Stelle: `mapResponse.ts`.
+ */
+export interface ValhallaSign {
+  exit_number_elements?: ValhallaSignElement[];
+  exit_branch_elements?: ValhallaSignElement[];
+  exit_toward_elements?: ValhallaSignElement[];
+  exit_name_elements?: ValhallaSignElement[];
+}
+
+/**
+ * Eine Fahrspur. Drei BITMASKEN -- siehe `@yapaia/shared#SPUR` fuer die Werte.
+ *
+ * `valid` und `active` laesst Valhalla weg, wo eine Spur fuer dieses Manoever
+ * gar nicht in Frage kommt.
+ */
+export interface ValhallaLane {
+  directions: number;
+  valid?: number;
+  active?: number;
+}
+
+export interface ValhallaManeuver {
+  /** integer maneuver-type enum, see ./maneuverMapping.ts. */
+  type: number;
+  instruction?: string;
+  street_names?: string[];
+  /** kilometres. */
+  length: number;
+  /** seconds. */
+  time?: number;
+  begin_shape_index: number;
+  end_shape_index?: number;
+  /** Was auf den Schildern steht. Fehlt ueberall ausser an Kreuzen/Abfahrten. */
+  sign?: ValhallaSign;
+  /** Spurfuehrung. Kommt NUR, wenn die Anfrage `turn_lanes: true` setzt. */
+  lanes?: ValhallaLane[];
+  /** Nur an der Kreisel-Einfahrt: „The spoke to exit roundabout after entering." */
+  roundabout_exit_count?: number;
+  /** Fahrtrichtung unmittelbar VOR dem Manoever, Grad im Uhrzeigersinn ab Nord. */
+  bearing_before?: number;
+  /** Fahrtrichtung unmittelbar NACH dem Manoever, Grad im Uhrzeigersinn ab Nord. */
+  bearing_after?: number;
+}
+
+export interface ValhallaLeg {
+  /** polyline6-encoded geometry for this leg. */
+  shape: string;
+  summary: ValhallaSummary;
+  maneuvers: ValhallaManeuver[];
+}
+
+export interface ValhallaTrip {
+  legs: ValhallaLeg[];
+  summary: ValhallaSummary;
+  /** 0 = success. */
+  status?: number;
+  status_message?: string;
+  /**
+   * Nur bei `/optimized_route` von Belang: Valhalla gibt die Halte in der
+   * GUENSTIGSTEN Reihenfolge zurueck und haengt an jeden `original_index` --
+   * die Stelle, an der er in der Anfrage stand. Ohne diese Zahl waere die
+   * Antwort eine Liste ohne Zuordnung.
+   */
+  locations?: Array<{ original_index?: number }>;
+}
+
+export interface ValhallaAlternate {
+  trip: ValhallaTrip;
+}
+
+export interface ValhallaRouteResponse {
+  trip: ValhallaTrip;
+  alternates?: ValhallaAlternate[];
+}
+
+/** Valhalla's error payload shape (HTTP 4xx). */
+export interface ValhallaErrorBody {
+  error_code?: number;
+  error?: string;
+  status_code?: number;
+  status?: string;
+}

@@ -1,0 +1,1292 @@
+name: Go
+
+# ACTIONS-MINUTEN (2026-08-08): bewusst NUR `pull_request`, nicht zusaetzlich
+# `push: [main]`. Ein Squash-Merge erzeugt denselben Baum, den der PR-Lauf
+# soeben gegen alle 13 Jobs geprueft hat -- der Lauf danach auf `main` hat in
+# diesem Projekt noch nie etwas gefunden, kostete aber jedes Mal volle
+# ~36 abgerechnete Minuten. Das Gating passiert dort, wo es wirkt: VOR dem
+# Merge.
+#
+# Was dadurch entfaellt: ein Signal fuer den Fall, dass `main` durch zwei
+# unabhaengig gemergte PRs kaputtgeht (jeder fuer sich gruen, zusammen nicht).
+# Aufgefangen wird das vom woechentlichen Nightly, der auf `main` laeuft --
+# bei der Merge-Frequenz dieses Projekts ein vertretbarer Tausch. Wer haeufiger
+# parallel merged, sollte `push: [main]` wieder aufnehmen.
+on:
+  workflow_call: {}
+  workflow_dispatch:
+
+
+defaults:
+  run:
+    working-directory: go
+
+jobs:
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test --run
+
+      # Die ESPHome-Anzeige (esphome/) wird sonst erst auf dem Geraet
+      # uebersetzt -- ein Fehler faellt dann nach Minuten auf, oder gar nicht,
+      # weil er uebersetzt und nur falsch zeichnet. Hier laeuft die
+      # Zeichenroutine gegen einen Nachbau der ESPHome-API. Braucht nur g++,
+      # kein ESPHome, und haengt bewusst in diesem Job statt in einem eigenen.
+      - name: ESPHome-Anzeige — Zeichenroutine
+        run: node esphome/test/run.mjs
+
+      - name: Build
+        run: pnpm build
+
+  addon-config-check:
+    name: HA Add-on Config Validity (E08-T4)
+    runs-on: ubuntu-latest
+    # Bewusst KEIN `needs: quality` -- eigenstaendig, mirrors valhalla-li-
+    # build/lite-search-li-build's Begruendung: schnell, in-repo, keine
+    # Abhaengigkeit vom Rest der Suite. Der eigentliche `frenck/action-
+    # addon-linter` (Drittanbieter-Action, Schema-Vollpruefung) laeuft
+    # bewusst NICHT hier, sondern nightly mit continue-on-error --
+    # Begruendung: yapaja_go/PACKAGING.md "CI strategy". Dieser Job prueft nur
+    # die konkreten, in tasks/E08-home-assistant.md + docs/04 §3 genannten
+    # Pflicht-Keys (ingress, slug, arch, map, services, options/schema),
+    # rein in-repo via yapaja_go/config.test.ts (Vitest + js-yaml)
+    # -- deterministisch, kein Netzwerk, kann daher gefahrlos Merge-Gate sein.
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate yapaja_go/config.yaml structure
+        run: npx vitest run yapaja_go/config.test.ts
+
+      - name: Lint yapaja_go/ TypeScript (config.test.ts)
+        run: npx eslint yapaja_go --ext .ts
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: quality
+    # ─── 30 STATT 20 MINUTEN, UND WARUM ────────────────────────────────────
+    # Nicht, weil die Suite langsamer geworden waere. Gemessen an Lauf
+    # 34363767625 (PR #120):
+    #
+    #     Install Playwright Chromium  14:29:54 -> 14:44:13   14 min 19 s
+    #     Run E2E tests                14:44:13 -> 14:49:46    5 min 33 s  164 passed
+    #     Job abgebrochen                       14:49:49       Zeitlimit
+    #
+    # Der Browser-Download hat 14 Minuten gebraucht (sonst 1-2), und das
+    # Zeitlimit zaehlt ab JOB-Start. Die Pruefungen waren fertig und gruen --
+    # drei Sekunden spaeter wurde der Job trotzdem als abgebrochen gewertet
+    # und blockierte den Merge.
+    #
+    # Das kostet keine zusaetzlichen Minuten: ein Zeitlimit verbraucht nichts,
+    # es begrenzt nur. Teuer war der Gegenzustand -- 20 verbrauchte Minuten
+    # ohne Ergebnis und ein kompletter Wiederholungslauf. Eine wirklich
+    # haengende Suite faellt weiterhin auf: sie braucht nach dem Download
+    # noch immer keine 30 Minuten.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # GitHub runners do not have the sandbox's pre-installed Chromium at
+      # PLAYWRIGHT_BROWSERS_PATH; the playwright config falls back to Playwright's
+      # own browser resolution when that env var is unset, so install it here.
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+
+      # globalSetup builds web+core and starts the core; run the suite.
+      - name: Run E2E tests
+        run: pnpm e2e
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: go/apps/web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  security-suite:
+    name: Security Suite (Sandbox-Escape, E09-T6, W-10)
+    runs-on: ubuntu-latest
+    needs: quality
+    # Bewusst ein EIGENER Job neben `e2e`: die Suite (e2e/security/) startet
+    # genau EINEN dedizierten Core (Port 4340) statt der ~17 der Haupt-Harness,
+    # laeuft mit `workers: 1` und `retries: 0` (eine Sicherheitsaussage wird
+    # NIE gruen retried, gleiche Regel wie beim Golden-Route-Gate, docs/07 §3b)
+    # und muss von einem flakenden UI-Spec unabhaengig sein. Laufzeit lokal
+    # gemessen: Build ~50 s + Suite ~40 s; der Mutations-Nachweis (Akzeptanz-
+    # kriterium 2) sind drei weitere gefilterte Laeufe, zusammen ~5 min --
+    # deutlich unter dem `e2e`-Job und daher per Push/PR tragbar statt nightly.
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # GitHub-Runner haben die vorinstallierte Chromium-Revision unter
+      # PLAYWRIGHT_BROWSERS_PATH nicht; die Config faellt dann auf Playwrights
+      # eigene Aufloesung zurueck, also hier installieren (wie im e2e-Job).
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+
+      # e2e/ ist KEIN Workspace-Paket, `pnpm typecheck` (= `pnpm -r`) deckt es
+      # nicht ab -- gleiche Begruendung wie beim golden-routes-Job.
+      - name: Typecheck security suite
+        run: pnpm exec tsc --noEmit -p e2e/security/tsconfig.json
+
+      # Akzeptanzkriterien 1 + 3: alle Angriffsvektoren geblockt UND als
+      # `security`-Event geloggt, verdrahtet in der Pipeline.
+      - name: Run security suite (all vectors blocked + logged)
+        run: pnpm e2e:security
+
+      # Akzeptanzkriterium 2: die Suite bricht nachweislich, wenn man eine
+      # Schutzmassnahme deaktiviert (echter Patch auf echtem Quellcode,
+      # kein Feature-Flag). Siehe e2e/security/README.md.
+      - name: Mutation proof (the suite really detects a removed protection)
+        run: pnpm security:mutation-proof
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-suite-traces
+          path: go/e2e/security/.tmp/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  perf-budgets:
+    name: Performance-Budgets (E10-T2, N100-Profil)
+    runs-on: ubuntu-latest
+    # ACTIONS-MINUTEN (2026-08-08): laeuft NICHT mehr bei jedem PR, sondern nur
+    # noch auf Anforderung -- im woechentlichen Nightly ist derselbe Job fest
+    # verdrahtet. Begruendung: die beiden Perf-Jobs zusammen kosteten 12 der
+    # 36 abgerechneten Minuten JEDES PR-Laufs, also ein Drittel, und ihre
+    # Aussage ist ein TREND ueber die Zeit, kein Urteil ueber einen einzelnen
+    # Commit. Ein Budget-Verstoss faellt im woechentlichen Lauf frueh genug
+    # auf; wer eine Aenderung im Verdacht hat, startet den Job hier von Hand.
+    if: github.event_name == 'workflow_dispatch'
+    needs: quality
+    # Eigener Job neben `e2e`, aus demselben Grund wie `security-suite`: die
+    # Suite (e2e/perf/) startet genau EINEN dedizierten Core (Port 4350),
+    # laeuft mit `workers: 1` und `retries: 0` -- eine wiederholte Messung
+    # ist keine Messung -- und darf von einem flakenden UI-Spec nicht
+    # abhaengen. Laufzeit lokal gemessen: Build ~50 s + Suite ~2,7 min.
+    #
+    # WICHTIG fuer die Lesart der Ergebnisse (Details: e2e/perf/README.md):
+    #  * Messbar ist hier der RSS des Core-Prozesses. Valhalla/Photon/gpsd
+    #    laufen in dieser Pipeline NICHT als Dienste (die Jobs unten bauen
+    #    Fixtures und smoke-testen); ihr RSS wird als `not_measured` mit
+    #    Begruendung ausgewiesen und NICHT geschaetzt.
+    #  * Die fps-Metriken werden gemessen, aber auf GitHub-Runnern ohne GPU
+    #    (SwiftShader-Softwarerasterung) nicht als Merge-Gate gewertet. Die
+    #    30-fps-Schwelle bleibt unveraendert; die Einstufung leitet die Suite
+    #    zur Laufzeit aus dem GL-Renderer-String ab, auf einem Runner mit
+    #    echter GPU gatet sie automatisch hart.
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+
+      # e2e/ ist KEIN Workspace-Paket, `pnpm typecheck` (= `pnpm -r`) deckt es
+      # nicht ab -- gleiche Begruendung wie bei golden-routes/security.
+      - name: Typecheck perf suite
+        run: pnpm exec tsc --noEmit -p e2e/perf/tsconfig.json
+
+      # Akzeptanzkriterium 1: alle in dieser Umgebung messbaren Budgets
+      # gemessen und gegen docs/00 + docs/01 §4 bewertet.
+      - name: Measure performance budgets
+        run: pnpm perf
+
+      - name: Trend-Kommentar in die Job-Summary schreiben
+        if: always()
+        run: cat e2e/perf/.tmp/perf-trend.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      # Das JSON-Artefakt (Aufgabenstellung: "Ergebnisse als JSON-Artefakt").
+      # Ein gruenes Artefakt von `main` ist zugleich die Referenz, gegen die
+      # ein spaeterer Lauf per `PERF_BASELINE` das Regressions-Gate fahren kann.
+      - name: Upload perf artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-budgets
+          path: |
+            go/e2e/perf/.tmp/perf-results.json
+            go/e2e/perf/.tmp/perf-trend.md
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-traces
+          path: go/e2e/perf/.tmp/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  perf-degradation-proof:
+    name: Perf-Degradations-Nachweis (E10-T2 Akzeptanz 2)
+    runs-on: ubuntu-latest
+    # ACTIONS-MINUTEN (2026-08-08): laeuft NICHT mehr bei jedem PR, sondern nur
+    # noch auf Anforderung -- im woechentlichen Nightly ist derselbe Job fest
+    # verdrahtet. Begruendung: die beiden Perf-Jobs zusammen kosteten 12 der
+    # 36 abgerechneten Minuten JEDES PR-Laufs, also ein Drittel, und ihre
+    # Aussage ist ein TREND ueber die Zeit, kein Urteil ueber einen einzelnen
+    # Commit. Ein Budget-Verstoss faellt im woechentlichen Lauf frueh genug
+    # auf; wer eine Aenderung im Verdacht hat, startet den Job hier von Hand.
+    if: github.event_name == 'workflow_dispatch'
+    needs: quality
+    # Akzeptanzkriterium 2: "kuenstliche Verschlechterung (Test-Fixture mit
+    # 200 ms-Delay) macht Pipeline nachweislich rot". Bewusst ein EIGENER Job
+    # neben `perf-budgets` (analog zum Mutations-Nachweis der Sicherheits-
+    # Suite, der dort im selben Job laeuft, hier aber vier weitere
+    # Suite-Laeufe braucht und den Budget-Job sonst ueber sein Zeitbudget
+    # heben wuerde). Laufzeit lokal gemessen: ~9 min.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @yapaia/web exec playwright install --with-deps chromium
+
+      - name: Degradation proof (200 ms fixture must turn the pipeline red)
+        run: pnpm perf:degradation-proof
+
+  dependency-audit:
+    name: Dependency-Audit & Lizenz-Gate (E10-T4)
+    runs-on: ubuntu-latest
+    # Bewusst KEIN `needs: quality` -- reine Metadaten-Pruefung auf Lockfile
+    # und package.json, unabhaengig von Lint/Build. Gleiche Begruendung wie
+    # bei `addon-config-check`: schnell, in-repo, darum ohne Vorbedingung.
+    #
+    # ─── SCOPING, ausdruecklich und absichtlich ────────────────────────────
+    # BLOCKIEREND ist nur der Produktions-Umfang (`pnpm audit --prod`). Dev-
+    # Werkzeuge (vitest, vite, esbuild, tsup, playwright) erreichen das Geraet
+    # nie -- apps/core/Dockerfile installiert mit `--prod` --, ein Advisory
+    # dort ist also ein Aufraeum-Ticket, kein Release-Blocker. Diese Funde
+    # werden trotzdem bei JEDEM Lauf ausgegeben und in die Job-Summary
+    # geschrieben, damit die Entscheidung sichtbar bleibt und nicht als
+    # stiller `--prod`-Schalter Funde verschwinden laesst. Ausnahmen fuer den
+    # blockierenden Umfang stehen mit Begruendung UND Ablaufdatum (< 90 Tage,
+    # maschinell erzwungen) in `security/audit-exceptions.json`.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Eigener Schritt VOR den Scannern: eine abgelaufene oder zu weit in die
+      # Zukunft datierte Ausnahme ist selbst ein Gate-Fehler und soll als
+      # solcher erkennbar sein, nicht als Nebensatz einer Advisory-Ausgabe.
+      - name: Ausnahme-Datei pruefen (Begruendung + Ablauf < 90 Tage)
+        run: node scripts/dependency-audit.mjs --check-exceptions
+
+      # osv-scanner (osv.dev) als ZWEITE Quelle neben der npm-Advisory-DB:
+      # er kennt Advisories, die (noch) keinen npm-Eintrag haben.
+      #
+      # HINWEIS: Dieser Schritt konnte in der Entwicklungsumgebung NICHT
+      # ausgefuehrt werden -- GitHub-Releases antworten dort mit 403 ueber den
+      # Proxy, osv-scanner liess sich nicht installieren. Er ist hier nach der
+      # Dokumentation verdrahtet und laeuft erstmalig auf dem Runner.
+      # `continue-on-error`, weil osv-scanner sich mit != 0 beendet, sobald es
+      # ueberhaupt etwas findet -- die Bewertung (prod vs. dev, Ausnahmen)
+      # trifft der naechste Schritt, nicht der Scanner.
+      - name: osv-scanner (JSON-Report erzeugen)
+        id: osv
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@v2.2.4
+        with:
+          scan-args: |-
+            --format=json
+            --output=go/osv-report.json
+            --lockfile=go/pnpm-lock.yaml
+
+      # Das eigentliche Gate. Fasst beide Scanner zusammen, trennt prod/dev
+      # (OSV kennt die Unterscheidung fuer pnpm-Workspaces nicht -- das Skript
+      # schneidet die Funde gegen `pnpm list --prod` zu), wendet die Ausnahmen
+      # an und faellt bei High/Critical im Produktions-Umfang durch.
+      # Fehlt der OSV-Report, schlaegt das Skript bewusst FEHL ("fail closed")
+      # -- ein nicht gelaufener Scanner darf nie wie "nichts gefunden" wirken.
+      - name: "Audit-Gate (blockierend: prod; sichtbar: dev)"
+        run: |
+          node scripts/dependency-audit.mjs \
+            --osv osv-report.json \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      # Lizenz-Inventar: (1) ist docs/licenses.md noch aktuell, (2) enthaelt
+      # das ausgelieferte Bundle Copyleft? Eine GPL-Abhaengigkeit macht den
+      # Job rot (E10-T4 Akzeptanzkriterium 3).
+      - name: Lizenz-Inventar aktuell + Copyleft-Gate
+        run: node scripts/generate-licenses.mjs --check
+
+  docs-freshness:
+    name: Doku-Aktualität — OpenAPI + Wargame-Abgleich (E10-T5)
+    runs-on: ubuntu-latest
+    # Bewusst KEIN `needs: quality` -- gleiche Begruendung wie bei
+    # `addon-config-check`/`dependency-audit`: beide Pruefungen sind schnell,
+    # in-repo, deterministisch (kein Docker, kein externer Netzwerkzugriff)
+    # und haengen nicht vom Ergebnis der Quality-Checks ab.
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Pflicht-Test 1 (E10-T5 Akzeptanzkriterium 2 / "Spec aktuell"): baut
+      # den echten Core (buildServer(), In-Memory-DB, kein offener Port),
+      # liest daraus die tatsaechlich registrierten Fastify-Routen aus und
+      # vergleicht das damit erzeugte OpenAPI-Dokument BYTE-FUER-BYTE gegen
+      # das committete docs/openapi.json. Siehe apps/core/src/openapi/ fuer
+      # die Generierung und apps/core/src/openapi/generate.test.ts fuer den
+      # Nachweis, dass diese Pruefung echtes Auseinanderlaufen erkennt.
+      - name: "OpenAPI-Aktualitäts-Check (\"Spec aktuell\")"
+        run: pnpm openapi:check
+
+      # Pflicht-Test 2 (E10-T5 Akzeptanzkriterium 3): leitet die Liste der
+      # 🔴/🟠-Pflichtfaelle bei JEDEM Lauf frisch aus docs/08-wargame.md ab
+      # (keine hartkodierte Liste, siehe scripts/wargame-coverage.mjs) und
+      # scheitert, sobald einer davon keinen eigenen Abschnitt in
+      # docs/troubleshooting.md hat.
+      - name: W-ID-Abgleich (Troubleshooting deckt alle 🔴/🟠-Wargame-Fälle ab)
+        run: pnpm wargame:check
+
+      # Plausibilität (E10-T5): ein major-Bump auf eine Add-on-API-
+      # Paketgrenze (@yapaia/core, @yapaia/addon-sdk) OHNE benannten
+      # "## Breaking Change"-Abschnitt lässt bereits DIESEN PR fehlschlagen
+      # -- nicht erst beim Release. Bei null offenen Changesets ist das ein
+      # No-Op (siehe scripts/changeset-breaking-check.mjs).
+      - name: "Changesets: Breaking-Change-Kategorie erzwungen"
+        run: node scripts/changeset-breaking-check.mjs --check
+
+  api-security-smoke:
+    name: API-Security-Smoke (Auth-Matrix + Security-Header, E10-T4)
+    runs-on: ubuntu-latest
+    needs: quality
+    # E10-T4 (b). Die Auth-Matrix (E08-T3) und der Header-Check laufen bereits
+    # als Unit-Tests -- aber ueber `fastify.inject()`, also ohne echten Socket
+    # und ohne den @fastify/static-Stream. Genau dort koennen Header verloren
+    # gehen. Dieser Job startet den GEBAUTEN Core (`dist/`) mit dem echten
+    # Web-Bundle als public/ -- dieselbe Konstellation wie im Docker-Image --
+    # und prueft ueber echtes HTTP. Beim ersten Lauf hat genau das einen
+    # veralteten Build entlarvt, den die Unit-Tests nicht sehen konnten.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Die in-process-Variante derselben Aussagen (voller Auth-Matrix-Umfang
+      # inkl. WebSocket-Upgrade, den ein curl-Rauchtest nicht abdeckt).
+      - name: Auth-Matrix + Header-Check (Unit)
+        run: npx vitest run apps/core/src/auth apps/core/src/security
+
+      - name: API-Security-Smoke gegen den gebauten Core (echtes HTTP)
+        run: bash scripts/api-security-smoke.sh
+
+  docker:
+    name: Docker Build & Health Check
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -f apps/core/Dockerfile -t yapaja-core:ci .
+
+      - name: Start container
+        run: docker run -d --name core -p 8080:8080 yapaja-core:ci
+
+      - name: Wait for container health
+        run: |
+          timeout 60 bash -c '
+            until [ "$(docker inspect --format="{{.State.Health.Status}}" core)" = "healthy" ]; do
+              sleep 1
+            done
+          '
+
+      - name: Check health endpoint
+        run: curl -f http://localhost:8080/api/v1/health
+
+      - name: Check home page
+        run: curl -fs http://localhost:8080/ | grep -q "Yapaia Go"
+
+      - name: Verify non-root user
+        run: '[ "$(docker exec core whoami)" != "root" ]'
+
+      - name: Check image size
+        run: |
+          SIZE_BYTES=$(docker image inspect --format='{{.Size}}' yapaja-core:ci)
+          SIZE_MB=$((SIZE_BYTES / 1000000))
+          echo "Image size: ${SIZE_MB} MB"
+          [ "$SIZE_MB" -lt 350 ]
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs core
+
+  valhalla-li-build:
+    name: Valhalla LI Graph Build & Route Smoke
+    runs-on: ubuntu-latest
+    # Bewusst KEIN `needs: quality` -- reine Routing-Infra (E03-T1), rührt
+    # keinen App-Code an. Der Liechtenstein-Graph ist winzig (~25s
+    # End-to-End im Spike gemessen), daher als eigener, schneller
+    # per-PR-Gate-Job tragbar statt nur nightly.
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Uebt services/valhalla/build-tiles.sh end-to-end aus: Download der
+      # LI-PBF durch das gis-ops-Image (ADR-014), Graph-Build in
+      # data/valhalla/tiles.new, service_limits-Overrides-Merge, und den
+      # atomischen Swap tiles.new -> tiles (W-17). Beweist Akzeptanz #1+#3.
+      # Die PBF ZUERST holen, mit Zeitlimit und Cache -- siehe
+      # .github/actions/fetch-pbf. Ohne das laedt der Build-Container sie
+      # selbst, und ein stehender Download ist von einem haengenden
+      # Graph-Build nicht zu unterscheiden (zweimal 30 Minuten bis
+      # Job-Abbruch).
+      - name: Liechtenstein-PBF holen
+        uses: ./.github/actions/go-fetch-pbf
+        with:
+          url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+          path: go/.cache/pbf/liechtenstein-latest.osm.pbf
+          # Liechtenstein mit etwas Rand -- nur fuer den Ausweg ueber
+          # planet.osm.ch, falls Geofabrik nicht liefert.
+          bbox: 9.45,47.03,9.65,47.28
+
+      - name: Build Liechtenstein tileset via build-tiles.sh (atomic swap, W-17)
+        run: |
+          chmod +x services/valhalla/build-tiles.sh
+          services/valhalla/build-tiles.sh "$PWD/.cache/pbf/liechtenstein-latest.osm.pbf"
+
+      - name: Verify atomic swap result on disk
+        run: |
+          test -d data/valhalla/tiles || { echo "::error::data/valhalla/tiles fehlt nach dem Swap"; exit 1; }
+          test -f data/valhalla/tiles/valhalla.json || { echo "::error::valhalla.json fehlt im geschwenkten Tiles-Verzeichnis"; exit 1; }
+          test ! -d data/valhalla/tiles.new || { echo "::error::tiles.new haette nach dem Swap nicht mehr existieren duerfen"; exit 1; }
+          test ! -d data/valhalla/tiles.old || { echo "::error::tiles.old haette nach dem Swap aufgeraeumt sein sollen"; exit 1; }
+          echo "Atomarer Swap OK: tiles.new -> tiles, kein Leftover."
+
+      - name: Show effective service_limits (image defaults, informational)
+        run: jq '.service_limits' data/valhalla/tiles/valhalla.json || echo "::warning::service_limits nicht lesbar -- blockiert diesen Job nicht (service_limits-Tuning ist vertagt, siehe services/valhalla/README.md)."
+
+      # Startet Valhalla exakt wie docker-compose.yml es im Normalbetrieb tut
+      # (serve-only, kein Rebuild) -- beweist, dass die Compose-Konfiguration
+      # den von build-tiles.sh geschwenkten Tiles-Stand tatsaechlich servieren
+      # kann.
+      - name: Start Valhalla serving the swapped tiles (as docker-compose.yml does)
+        run: |
+          docker run -d --name valhalla \
+            -p 8002:8002 \
+            -v "$PWD/data/valhalla/tiles:/custom_files" \
+            -e tile_urls= \
+            -e serve_tiles=True \
+            -e force_rebuild=False \
+            -e build_elevation=False \
+            -e build_admins=True \
+            -e build_time_zones=False \
+            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+
+      - name: Wait for /status
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8002/status >/dev/null 2>&1; then
+              echo "Valhalla beantwortet /status nach ~$((i*2))s"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Valhalla kam nicht rechtzeitig hoch (serve-only aus vorgebauten Tiles)"
+              docker logs valhalla 2>&1 | tail -150
+              exit 1
+            fi
+            sleep 2
+          done
+
+      # Beweist Akzeptanz #2: echtes LKW-Routing auf dem LI-Graph mit
+      # Plausibilitaets-Assertion (docs/03: ~3-6 km / 5-12 min fuer
+      # Vaduz->Schaan; hier leicht gelockert gegen Flakes durch
+      # Routen-Umwege, siehe Spike-Ergebnis 3,17 km / 4,2 min).
+      - name: Smoke - truck route Vaduz -> Schaan, plausibility assertion
+        run: |
+          echo "== /status =="
+          curl -sf http://localhost:8002/status | tee status.json
+          echo
+          echo "== /route (costing=truck) =="
+          curl -sf http://localhost:8002/route \
+            -H 'Content-Type: application/json' \
+            -d '{"locations":[{"lat":47.1410,"lon":9.5209},{"lat":47.1665,"lon":9.5093}],"costing":"truck","directions_options":{"units":"kilometers"}}' \
+            | tee route.json
+          echo
+          python3 - <<'PY'
+          import json
+          d = json.load(open("route.json"))
+          s = d["trip"]["summary"]
+          km, minutes = s["length"], s["time"] / 60
+          print(f"Route: {km:.2f} km, {minutes:.1f} min")
+          # docs/03-api-spec.md Plausibilitaet Vaduz->Schaan: ~3-6 km / 5-12 min;
+          # hier gelockert, damit ein alternativer (aber plausibler) Routing-
+          # Umweg den Job nicht flaky macht.
+          assert 2.0 <= km <= 8.0, f"Distanz {km} km ausserhalb des plausiblen Bereichs"
+          assert 3.0 <= minutes <= 20.0, f"Dauer {minutes} min ausserhalb des plausiblen Bereichs"
+          print("PLAUSIBEL - echtes Routing auf dem LI-Strassennetz")
+          PY
+
+      - name: Tempolimits vom echten Valhalla (/trace_attributes)
+        run: |
+          # ─── WARUM DAS HIER STEHT ────────────────────────────────────────
+          # Die Anfrageform habe ich aus Valhallas Quelltext gelesen
+          # (`worker.cc`, `trace_serializer.cc`), aber gegen ein LAUFENDES
+          # Valhalla konnte ich sie beim Bauen nicht ausprobieren. Waere sie
+          # falsch, kaeme einfach nichts zurueck -- und das Tempolimit-Schild
+          # erschiene nie, ohne dass irgendwo ein Fehler stuende. Genau diese
+          # Sorte stiller Ausfall soll hier auffallen, nicht beim Betreiber.
+          #
+          # Geprueft wird die FORM der Antwort, nicht ein konkreter Wert:
+          # welche Strassen in Liechtenstein ein `maxspeed`-Tag tragen, ist
+          # Sache von OpenStreetMap und darf diesen Job nicht flaky machen.
+          # Der Rumpf wird GESCHRIEBEN, nicht zusammengeklebt. Beim ersten
+          # Versuch stand hier ein Here-Doc mit "$SHAPE" darin -- und Valhalla
+          # antwortete `400::Failed to parse json request`. Grund: polyline6
+          # benutzt den Zeichenbereich '?'..'~', und darin liegt auch der
+          # Backslash. In dieser Route kamen drei davon vor; roh in eine
+          # JSON-Zeichenkette gesetzt ergibt das eine ungueltige Escape-Folge.
+          # `json.dump` maskiert sie -- genau das, was im Core `JSON.stringify`
+          # tut. Der Job prueft damit dieselbe Serialisierung wie der Betrieb.
+          python3 - <<'PY1'
+          import json
+          shape = json.load(open("route.json"))["trip"]["legs"][0]["shape"]
+          body = {
+              "encoded_polyline": shape,
+              "costing": "truck",
+              "shape_match": "edge_walk",
+              "units": "kilometers",
+              "filters": {
+                  "attributes": [
+                      "edge.speed_limit",
+                      "edge.begin_shape_index",
+                      "edge.end_shape_index",
+                  ],
+                  "action": "include",
+              },
+          }
+          json.dump(body, open("trace-req.json", "w"))
+          print(f"Geometrie: {len(shape)} Zeichen, davon {shape.count(chr(92))} Backslashes")
+          PY1
+
+          # NICHT `curl -sf ... | tee`: in einer Pipeline zaehlt der Status des
+          # LETZTEN Befehls, also der von `tee`. Ein 400 von Valhalla ging so
+          # unter und tauchte erst weiter unten als ratloser JSON-Fehler auf.
+          # Hier wird der Status ausgelesen und die Antwort mit ausgegeben --
+          # Valhalla schreibt den Grund in den Rumpf.
+          STATUS=$(curl -s -o trace.json -w '%{http_code}' \
+            http://localhost:8002/trace_attributes \
+            -H 'Content-Type: application/json' \
+            -d @trace-req.json)
+          if [ "$STATUS" != "200" ]; then
+            echo "/trace_attributes antwortete mit HTTP $STATUS:"
+            cat trace.json
+            exit 1
+          fi
+
+          python3 - <<'PY2'
+          import json
+          d = json.load(open("trace.json"))
+          edges = d.get("edges")
+          assert isinstance(edges, list) and edges, "keine Kanten in der Antwort -- die Anfrageform stimmt nicht"
+          print(f"Kanten: {len(edges)}")
+
+          # Die Felder, aus denen speedLimits.ts die Abschnitte baut. Fehlen
+          # sie, greift der Filter nicht so, wie der Core es annimmt.
+          with_bounds = [e for e in edges if "begin_shape_index" in e and "end_shape_index" in e]
+          assert with_bounds, "keine Kante nennt begin/end_shape_index -- der Filter wirkt anders als angenommen"
+          print(f"davon mit Grenzen: {len(with_bounds)}")
+
+          limits = [e["speed_limit"] for e in edges if "speed_limit" in e]
+          print(f"davon mit Tempolimit: {len(limits)}  Beispiele: {limits[:5]}")
+          for value in limits:
+              assert isinstance(value, (int, float)) or value == "unlimited", \
+                  f"unerwartete Form eines Tempolimits: {value!r}"
+          print("PLAUSIBEL - /trace_attributes antwortet in der Form, die speedLimits.ts erwartet")
+          PY2
+
+      - name: Dump Valhalla logs on failure
+        if: failure()
+        run: docker logs valhalla 2>&1 | tail -150 || true
+
+  golden-routes-li:
+    name: Golden-Routes LI (safety gate, Merge-Blocker)
+    runs-on: ubuntu-latest
+    # 🔴 Merge-Blocker ab Gate G2 (docs/07 §3b, E03-T5). Independent, self-
+    # contained gate: builds the LI Valhalla graph (gis-ops recipe, same as
+    # valhalla-li-build), starts the CORE against it, and runs the Golden-Route
+    # runner (GOLDEN_REGION=li). Talking to the Core -- not Valhalla directly --
+    # means the profile->truck-costing mapping (W-08) is under test too. This is
+    # also the "echte-LI-Integration" gate left open by E03-T2.
+    # NO retry (vitest.golden.config.ts: retry:0, bail:1) -- a failed safety/
+    # monotonic case HARD-ABORTS with no retry and no tolerance.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Type-safety for the runner itself: e2e/ is not a workspace package, so
+      # `pnpm typecheck` (which is `pnpm -r`) does not cover it. Check it here.
+      - name: Typecheck golden-routes runner
+        run: pnpm exec tsc --noEmit -p e2e/golden-routes/tsconfig.json
+
+      # Build the LI graph exactly like valhalla-li-build (gis-ops image,
+      # atomic swap, W-17), then serve it on :8002 the way docker-compose does.
+      # Die PBF ZUERST holen, mit Zeitlimit und Cache -- siehe
+      # .github/actions/fetch-pbf. Ohne das laedt der Build-Container sie
+      # selbst, und ein stehender Download ist von einem haengenden
+      # Graph-Build nicht zu unterscheiden (zweimal 30 Minuten bis
+      # Job-Abbruch).
+      - name: Liechtenstein-PBF holen
+        uses: ./.github/actions/go-fetch-pbf
+        with:
+          url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+          path: go/.cache/pbf/liechtenstein-latest.osm.pbf
+          # Liechtenstein mit etwas Rand -- nur fuer den Ausweg ueber
+          # planet.osm.ch, falls Geofabrik nicht liefert.
+          bbox: 9.45,47.03,9.65,47.28
+
+      - name: Build Liechtenstein tileset via build-tiles.sh
+        run: |
+          chmod +x services/valhalla/build-tiles.sh
+          services/valhalla/build-tiles.sh "$PWD/.cache/pbf/liechtenstein-latest.osm.pbf"
+
+      - name: Start Valhalla serving the swapped tiles
+        run: |
+          docker run -d --name valhalla \
+            -p 8002:8002 \
+            -v "$PWD/data/valhalla/tiles:/custom_files" \
+            -e tile_urls= \
+            -e serve_tiles=True \
+            -e force_rebuild=False \
+            -e build_elevation=False \
+            -e build_admins=True \
+            -e build_time_zones=False \
+            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+
+      - name: Wait for Valhalla /status
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8002/status >/dev/null 2>&1; then
+              echo "Valhalla /status ready after ~$((i*2))s"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Valhalla did not come up in time"
+              docker logs valhalla 2>&1 | tail -150
+              exit 1
+            fi
+            sleep 2
+          done
+
+      # Build the app so apps/core/dist exists (same `pnpm build` the docker
+      # job uses). The runner drives the built Core over HTTP.
+      - name: Build app
+        run: pnpm build
+
+      # Start the Core against the live LI Valhalla and run the LI golden set.
+      # DB_PATH=:memory: keeps the run stateless (the profiles the runner
+      # creates live in the same long-running process). TILES_DIR is left at
+      # its default (no PMTiles installed) so the coverage check is a no-op and
+      # routing is exercised end-to-end. Core lifecycle stays inside this step
+      # for reliability. GOLDEN_LIVE=1 switches on the route assertions.
+      - name: Run Golden-Routes runner (GOLDEN_REGION=li)
+        run: |
+          DB_PATH=:memory: VALHALLA_URL=http://localhost:8002 PORT=8080 \
+            node apps/core/dist/index.js > core.log 2>&1 &
+          CORE_PID=$!
+          echo "Core started (pid $CORE_PID); waiting for health..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/api/v1/health >/dev/null 2>&1; then
+              echo "Core healthy after ~${i}s"
+              break
+            fi
+            if ! kill -0 "$CORE_PID" 2>/dev/null; then
+              echo "::error::Core process exited before becoming healthy"
+              cat core.log
+              exit 1
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Core did not become healthy in time"
+              cat core.log
+              exit 1
+            fi
+            sleep 1
+          done
+          set +e
+          GOLDEN_LIVE=1 GOLDEN_REGION=li CORE_URL=http://localhost:8080 pnpm golden-routes
+          RC=$?
+          set -e
+          kill "$CORE_PID" 2>/dev/null || true
+          exit $RC
+
+      - name: Dump Core log on failure
+        if: failure()
+        run: tail -200 core.log || true
+
+      - name: Dump Valhalla logs on failure
+        if: failure()
+        run: docker logs valhalla 2>&1 | tail -150 || true
+
+  lite-search-li-build:
+    name: Lite-Suchindex LI Build & Smoke (E05-T5, W-12)
+    runs-on: ubuntu-latest
+    # Bewusst KEIN `needs: quality` -- mirrors `valhalla-li-build`'s reasoning:
+    # eigenstaendige Daten-Pipeline (E05-T5), rührt keinen App-Code auf eine
+    # Weise an, die von `quality` bereits abgedeckt waere. Der LI-PBF ist
+    # winzig, daher als eigener per-PR-Gate-Job tragbar statt nur nightly.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # osmium-tool does the actual PBF parsing (tags-filter + export to
+      # GeoJSONSeq) -- see build-lite-index.sh's header comment for why this
+      # split (battle-tested C++ tool for the PBF format itself, pure/
+      # unit-tested TypeScript for everything downstream).
+      - name: Install osmium-tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+          osmium --version
+
+      # ─── DIESELBE QUELLE WIE DER VALHALLA-JOB ────────────────────────────
+      # Bis 0.20.0 lud dieser Job die PBF bei JEDEM Lauf per `curl` direkt.
+      # Am 2026-09-30 antwortete Geofabrik darauf mit einer Umleitung auf sich
+      # selbst (`curl: (47) Maximum (50) redirects followed`, 274-Byte-
+      # Antworten) -- zweimal hintereinander, waehrend der Valhalla-Job
+      # daneben gruen war. Der holte die Datei naemlich gar nicht erst: er
+      # nimmt sie aus dem Wochen-Cache von `fetch-pbf`.
+      #
+      # Jetzt dieselbe Aktion, derselbe Cache-Schluessel: ein Download je Woche
+      # fuer beide Jobs statt einer je Lauf, mit Zeitlimit und Pruefung, dass
+      # tatsaechlich eine .osm.pbf ankam. Der Name `li.osm.pbf` bleibt, weil
+      # der Regionsname aus ihm abgeleitet wird ("li").
+      - name: Liechtenstein-PBF holen
+        uses: ./.github/actions/go-fetch-pbf
+        with:
+          url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+          path: go/.cache/pbf/liechtenstein-latest.osm.pbf
+          # Liechtenstein mit etwas Rand -- nur fuer den Ausweg ueber
+          # planet.osm.ch, falls Geofabrik nicht liefert.
+          bbox: 9.45,47.03,9.65,47.28
+
+      - name: Als li.osm.pbf bereitlegen
+        run: cp .cache/pbf/liechtenstein-latest.osm.pbf li.osm.pbf
+
+      # Exercises build-lite-index.sh end-to-end: osmium tags-filter + export,
+      # tsx CLI (extract.ts/buildIndex.ts), atomic temp-file+rename swap
+      # (W-17). Beweist Akzeptanz #1 ("LI-Lite-Index baut in CI < 1 min").
+      - name: Build LI lite_search.db via build-lite-index.sh (timed, atomic swap)
+        run: |
+          chmod +x services/valhalla/build-lite-index.sh
+          time services/valhalla/build-lite-index.sh li.osm.pbf
+
+      - name: Verify the index file exists and is non-trivial in size
+        run: |
+          # Seit 0.5.0 eine Datei JE REGION. "li.osm.pbf" -> Region "li".
+          DB_PATH="data/lite-search/lite_search-li.db"
+          test -s "$DB_PATH" || { echo "::error::$DB_PATH fehlt oder ist leer"; exit 1; }
+          ls -la "$DB_PATH"
+
+      # Seit 0.39.0: benannte Firmen/Gebaeude und Hausnummern. Gemeldet war,
+      # dass „Caratec" (eine Firma) nicht zu finden war -- sie stand nie im
+      # Index. Hier wird nachgezaehlt, statt es zu glauben.
+      - name: Firmen und Hausnummern stehen im Index
+        run: |
+          cd apps/core
+          node -e '
+            const Database = require("better-sqlite3");
+            const db = new Database("../../data/lite-search/lite_search-li.db", { readonly: true });
+            const adressen = db.prepare("SELECT count(*) AS n FROM addresses").get().n;
+            const firmen = db.prepare("SELECT count(*) AS n FROM places WHERE kind = \x27poi\x27 AND category IN (\x27company\x27, \x27building\x27, \x27office\x27, \x27craft\x27)").get().n;
+            const format = db.prepare("SELECT value FROM meta WHERE key = \x27format\x27").get();
+            console.log({ adressen, firmen, format });
+            if (adressen < 100) { console.error("::error::zu wenige Hausnummern im Index: " + adressen); process.exit(1); }
+            if (firmen < 10) { console.error("::error::zu wenige benannte Firmen/Gebaeude im Index: " + firmen); process.exit(1); }
+            if (!format || format.value !== "2") { console.error("::error::meta.format fehlt oder falsch"); process.exit(1); }
+          '
+
+      - name: Zwei Regionen liegen nebeneinander (Mehrregionen-Faehigkeit)
+        run: |
+          # Bis 0.4.0 ersetzte "Suche bauen" bei einer Region den Index der
+          # anderen -- vier Laender installieren und in dreien nicht suchen
+          # koennen. Hier wird derselbe Extrakt unter ZWEI Regionsnamen
+          # gebaut; danach muessen BEIDE Dateien dastehen.
+          services/valhalla/build-lite-index.sh li.osm.pbf
+          cp li.osm.pbf zweitland.osm.pbf
+          services/valhalla/build-lite-index.sh zweitland.osm.pbf
+
+          for r in li zweitland; do
+            f="data/lite-search/lite_search-$r.db"
+            test -s "$f" || { echo "::error::$f fehlt -- die Regionen ersetzen sich gegenseitig"; exit 1; }
+            echo "vorhanden: $f ($(du -h "$f" | cut -f1))"
+          done
+
+          # Und der alte Sammelindex darf nicht wieder auftauchen.
+          if [ -e data/lite-search/lite_search.db ]; then
+            echo "::error::lite_search.db wurde neu angelegt -- der Bau schreibt nicht regionsbezogen"
+            exit 1
+          fi
+
+      # ─── UND DASSELBE MIT DEM GEBUENDELTEN WERKZEUG ─────────────────────
+      # Der Schritt darueber laeuft ueber `tsx src/search/lite/cli.ts`. Auf dem
+      # GERAET laeuft aber `dist/lite-index.js` -- das Buendel, das der
+      # Produktionsbau erzeugt. Und genau dort steckte der Fehler, der 0.3.3
+      # ueberlebt hat: der Waechter „laeuft diese Datei als Programm?" verglich
+      # den DATEINAMEN gegen `cli.js`. Gebuendelt heisst sie `lite-index.js`,
+      # die Bedingung war falsch, und das Werkzeug TAT NICHTS -- mit
+      # Rueckgabewert 0.
+      #
+      # Ein Aufrufer haette also „fertig" gemeldet und keinen Index gebaut. Das
+      # ist die teuerste Sorte Fehler in dieser Kette, und keine Pruefung
+      # gegen den Quelltext kann sie sehen. Deshalb wird hier das ARTEFAKT
+      # ausgefuehrt, das ausgeliefert wird.
+      - name: Der ausgelieferte Index-Bauer (dist/lite-index.js) baut denselben Index
+        run: |
+          pnpm --filter @yapaia/core build
+          test -f apps/core/dist/lite-index.js \
+            || { echo "::error::apps/core/dist/lite-index.js fehlt -- fuehrt tsup den Einstiegspunkt 'lite-index'?"; exit 1; }
+
+          # Ohne Argumente MUSS es sich beschweren. Tut es das nicht, ist der
+          # Einstiegspunkt-Waechter wieder tot und das Werkzeug eine Attrappe.
+          if node apps/core/dist/lite-index.js >/dev/null 2>&1; then
+            echo "::error::dist/lite-index.js endet ohne Argumente mit Erfolg -- der Einstiegspunkt-Waechter greift nicht, das Werkzeug tut nichts."
+            exit 1
+          fi
+
+          # Und dann echt bauen, aus denselben GeoJSONSeq-Dateien.
+          WORK="$(mktemp -d)"
+          osmium tags-filter --overwrite -o "$WORK/places.osm.pbf" li.osm.pbf n/place=city,town,village
+          osmium tags-filter --overwrite -o "$WORK/streets.osm.pbf" li.osm.pbf w/highway
+          osmium export --overwrite --geometry-types=point -f geojsonseq \
+            -o "$WORK/places.geojsonseq" "$WORK/places.osm.pbf"
+          osmium export --overwrite --geometry-types=linestring,polygon -f geojsonseq \
+            -o "$WORK/streets.geojsonseq" "$WORK/streets.osm.pbf"
+
+          # Sonderziele: die Filter kommen aus dem Werkzeug selbst, damit
+          # Filter und Normalisierer nicht auseinanderlaufen koennen.
+          mapfile -t POI_FILTERS < <(node apps/core/dist/lite-index.js --print-osmium-filters)
+          test "${#POI_FILTERS[@]}" -gt 0 \
+            || { echo "::error::--print-osmium-filters lieferte nichts"; exit 1; }
+          osmium tags-filter --overwrite -o "$WORK/pois.osm.pbf" li.osm.pbf "${POI_FILTERS[@]}"
+          osmium export --overwrite --geometry-types=point,linestring,polygon -f geojsonseq \
+            -o "$WORK/pois.geojsonseq" "$WORK/pois.osm.pbf"
+
+          node apps/core/dist/lite-index.js \
+            --places "$WORK/places.geojsonseq" \
+            --streets "$WORK/streets.geojsonseq" \
+            --pois "$WORK/pois.geojsonseq" \
+            --out "$WORK/lite_search.db"
+
+          test -s "$WORK/lite_search.db" \
+            || { echo "::error::Das gebuendelte Werkzeug meldete Erfolg, hat aber keinen Index hinterlassen."; exit 1; }
+          ls -la "$WORK/lite_search.db"
+
+          # ─── UND DIE SONDERZIELE SIND AUCH WIRKLICH FINDBAR ──────────────
+          # Nicht „stehen im Index", sondern „kommen aus der Suche zurueck".
+          # Genau dazwischen lag der Fehler beim Einbau: die Eintraege waren
+          # da, die Volltextsuche fand sie, und der Arten-Filter in reader.ts
+          # warf sie danach lautlos weg.
+          python3 - "$WORK/lite_search.db" <<'PY'
+          import sqlite3, sys
+          con = sqlite3.connect(sys.argv[1])
+          cur = con.cursor()
+
+          cur.execute("SELECT COUNT(*) FROM places WHERE kind = 'poi'")
+          total = cur.fetchone()[0]
+          print("Sonderziele im Index:", total)
+          assert total > 0, "kein einziges Sonderziel im Index"
+
+          # Ueber die KATEGORIE gefunden -- der Fall, um den es dem Betreiber
+          # ging: der Laden heisst „REWE", gesucht wird „Supermarkt".
+          for term in ("Supermarkt", "Tankstelle", "Apotheke"):
+              cur.execute(
+                  "SELECT p.name, p.category FROM lite_search "
+                  "JOIN places p ON p.id = lite_search.rowid "
+                  "WHERE lite_search MATCH ? AND p.kind = 'poi' LIMIT 5",
+                  (f'"{term}"',),
+              )
+              rows = cur.fetchall()
+              print(f"  {term}: {rows}")
+              assert rows, f"{term} findet kein Sonderziel"
+          print("PLAUSIBEL - Sonderziele sind ueber ihre deutsche Kategorie auffindbar")
+          PY
+
+      # Beweist Akzeptanz #1 ("findet 'Vaduz' und eine Strasse") direkt gegen
+      # die gebaute SQLite-Datei -- unabhaengig von apps/core, damit dieser
+      # Job auch isoliert aussagekraeftig bleibt (der volle Backend-Pfad ist
+      # bereits durch apps/core/src/search/lite/liteBackend.test.ts abgedeckt).
+      - name: Smoke - "Vaduz" (city) and at least one street are findable via FTS5 trigram MATCH
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          con = sqlite3.connect("data/lite-search/lite_search-li.db")
+          cur = con.cursor()
+
+          cur.execute(
+              "SELECT p.name, p.kind FROM lite_search "
+              "JOIN places p ON p.id = lite_search.rowid "
+              "WHERE lite_search MATCH ? ORDER BY bm25(lite_search) LIMIT 20",
+              ('"Vadu"',),
+          )
+          rows = cur.fetchall()
+          print("Treffer fuer 'Vadu':", rows)
+          names = [r[0] for r in rows]
+          assert "Vaduz" in names, "Vaduz nicht gefunden"
+          # Akzeptanz #1 verlangt nur, dass Vaduz GEFUNDEN wird -- der genaue
+          # kind haengt an OSMs Tagging (Vaduz ist als kleine Hauptstadt real
+          # place=town oder place=city, je nach Datenstand); wir asserten daher
+          # nur, dass es als ORT (nicht als Strasse) im Index landet. Die
+          # kind-Rangfolge (city>town>village>street) ist separat in
+          # ranking.test.ts gegen synthetische Daten bewiesen.
+          #
+          # ALLE Zeilen mit diesem Namen ansehen, nicht eine.
+          # Seit 0.3.6 stehen auch Sonderziele im Index, und in Liechtenstein
+          # heissen mehrere davon woertlich "Vaduz" (Bushaltestelle, Poststelle
+          # ...). Ein dict {name: kind} behaelt davon die LETZTE Zeile und
+          # verglich dann den Ort mit dem kind eines POI -- der Index war
+          # richtig, die Pruefung war es nicht. Namen sind nicht eindeutig;
+          # diese Annahme trug nur, solange es ausser Orten und Strassen
+          # nichts gab.
+          vaduz_kinds = {r[1] for r in rows if r[0] == "Vaduz"}
+          assert vaduz_kinds & {"city", "town", "village"}, (
+              f"Vaduz steht im Index, aber unter keiner Ortsart: {sorted(vaduz_kinds)}"
+          )
+
+          cur.execute("SELECT COUNT(*) FROM places WHERE kind = 'street'")
+          street_count = cur.fetchone()[0]
+          print("Anzahl Strassen im Index:", street_count)
+          assert street_count >= 1, "keine einzige Strasse im Index gefunden"
+
+          cur.execute("SELECT COUNT(*) FROM places WHERE kind IN ('city','town','village')")
+          place_count = cur.fetchone()[0]
+          print("Anzahl Orte im Index:", place_count)
+          assert place_count >= 1, "keine Orte im Index gefunden"
+
+          print("PLAUSIBEL - Lite-Suchindex enthaelt Vaduz (city) und mindestens eine Strasse")
+          PY
+
+      - name: Index size (informational -- docs/07 acceptance #3 "DE < 400 MB" is a nightly/DE-scale claim, not asserted here for the tiny LI extract)
+        run: du -h data/lite-search/lite_search-li.db
+
+      - name: Show build-lite-index.sh output on failure
+        if: failure()
+        run: echo "Siehe vorherige Schritte fuer osmium/tsx-Ausgabe."
+
+  photon-setup:
+    name: Photon Setup — Skript-Fixtures & Xmx-Wiring (E05-T4)
+    runs-on: ubuntu-latest
+    # Bewusst KEIN `needs: quality` -- eigenstaendige Daten-/Infra-Pipeline
+    # (E05-T4), mirrors valhalla-li-build/lite-search-li-build's Begruendung.
+    #
+    # WICHTIG (volle Recherche in services/photon/README.md "Warum kein
+    # LI-only-Index in CI"): weder komoot/photons eigene Dumps
+    # (https://download1.graphhopper.com/public, nur "planet" + eine kleine
+    # Liste GROSSER Laender) noch der von docker-compose.yml genutzte
+    # rtuszik/photon-docker-Spiegel (BASE_URL https://r2.koalasec.org/public,
+    # exakt 16 fest vorgegebene Laender -- Liechtenstein NICHT darunter, nur
+    # als Teil von "switzerland-liechtenstein", und dort nur als
+    # experimentelles JSONL-Dump statt als fertiger Such-Index) bieten einen
+    # Liechtenstein-GROSSEN, schnellen, per-PR-tauglichen Photon-Index. Einen
+    # Photon-Index aus einer rohen OSM-PBF selbst zu bauen braucht offiziell
+    # eine volle Nominatim-Postgres-Importpipeline (schwergewichtig, fuer
+    # einen schnellen per-PR-Gate nicht angemessen -- anders als Valhalla/den
+    # Lite-Suchindex, die direkt aus einer PBF bauen).
+    #
+    # Deshalb prueft DIESER Job alles, was OHNE echte Geodaten belegbar ist:
+    # Skript-Logik (Resume+Checksumme, Akzeptanz #3), Compose-Config
+    # (JAVA_PARAMS-Interpolation, Healthcheck-Wiring), und die tatsaechliche
+    # Xmx-Wirkung auf die im Image gebuendelte JVM (Akzeptanz #2). Der echte
+    # "Vaduz"-Suchtest gegen ein LEBENDES Photon (Akzeptanz #1, E05-T1-
+    # SearchService-Integration) laeuft NIGHTLY (.github/workflows/nightly.yml
+    # Job `photon-li-nightly`, analog zu den "unverified" DE-Golden-Routes)
+    # gegen die naechstkleinere ECHTE Region, "switzerland-liechtenstein" --
+    # NICHT per-PR. "Prefer making the per-PR LI job work" wurde ernst
+    # genommen (siehe README fuer die vollstaendige Abwaegung); das Ergebnis
+    # dieser Recherche ist, dass es per-PR schlicht nicht sauber/schnell
+    # verifizierbar geht.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Script syntax (bash -n)
+        run: |
+          bash -n services/photon/download-index.sh
+          bash -n services/photon/download-index.test.sh
+
+      # Beweist Akzeptanz #3 ("Download-Resume nachgewiesen") + den
+      # Pflicht-Test "Skript-Test mit Abbruch-Fixture" -- komplett offline
+      # gegen einen lokalen Loopback-Server (kein echtes Netzwerk noetig,
+      # laeuft daher identisch lokal wie hier in CI, siehe Kommentarkopf des
+      # Testskripts fuer die genaue Grenze dieser Aussage).
+      - name: download-index.sh fixture test (resume + checksum, local loopback)
+        run: |
+          chmod +x services/photon/download-index.sh services/photon/download-index.test.sh
+          services/photon/download-index.test.sh
+
+      # docker-compose.yml's `core`-Service referenziert `env_file: - .env`,
+      # das (wie in .gitignore) in einem frischen Checkout nicht existiert --
+      # `docker compose config` bricht sonst hart ab. .env.example ist exakt
+      # dafuer da.
+      - name: docker compose config validates (JAVA_PARAMS interpolation, healthcheck wiring)
+        run: |
+          cp .env.example .env
+          PHOTON_XMX=777m docker compose --profile search config | tee compose-config.yml
+          grep -q -- '-Xmx777m' compose-config.yml || { echo "::error::JAVA_PARAMS=-Xmx\${PHOTON_XMX} wurde nicht wie erwartet in die aufgeloeste Compose-Config interpoliert"; exit 1; }
+          grep -q '2322' compose-config.yml
+          grep -q '/status' compose-config.yml
+          echo "PLAUSIBEL - Compose-Config loest photon-Service inkl. Xmx-Env und /status-Healthcheck korrekt auf."
+
+      - name: Pull rtuszik/photon-docker image
+        run: docker pull rtuszik/photon-docker:latest
+
+      # Beweist Akzeptanz #2 ("Xmx wirkt, Container-Limit-Test") DIREKT gegen
+      # die im Image gebuendelte JVM -- unabhaengig davon, ob Photons eigener
+      # Python-Entrypoint mit einem (hier absichtlich leeren) Index ueberhaupt
+      # bis zum Ready-Zustand hochkommt (siehe naechster Schritt fuer diesen
+      # separaten, informativen Teil). `-XX:+PrintFlagsFinal` zeigt den
+      # EFFEKTIVEN Heap-Wert, den die JVM tatsaechlich anwendet, nicht nur die
+      # uebergebene Flag-Syntax.
+      - name: Xmx effective — direct JVM proof (container-limit test)
+        run: |
+          set -e
+          check_xmx() {
+            xmx_flag="$1"; expected_mb="$2"
+            out=$(docker run --rm --entrypoint sh rtuszik/photon-docker:latest -c \
+              "java -Xmx${xmx_flag} -XX:+PrintFlagsFinal -version 2>&1 | grep -iE '\bMaxHeapSize\b'")
+            echo "JAVA_PARAMS=-Xmx${xmx_flag} -> $out"
+            actual_bytes=$(echo "$out" | grep -oE '[0-9]+' | head -n1)
+            expected_bytes=$((expected_mb * 1024 * 1024))
+            low=$((expected_bytes * 90 / 100))
+            high=$((expected_bytes * 110 / 100))
+            if [ -z "$actual_bytes" ] || [ "$actual_bytes" -lt "$low" ] || [ "$actual_bytes" -gt "$high" ]; then
+              echo "::error::-Xmx${xmx_flag} sollte ~${expected_bytes} Bytes MaxHeapSize ergeben (+-10%), tatsaechlich: '${actual_bytes:-<leer>}'"
+              exit 1
+            fi
+            echo "OK: MaxHeapSize=$actual_bytes liegt innerhalb +-10% von $expected_bytes (-Xmx${xmx_flag})"
+          }
+          check_xmx 256m 256
+          check_xmx 1g 1024
+
+      # Zusaetzlicher, INFORMATIVER Beleg: derselbe Xmx-Wert kommt auch ueber
+      # den echten docker-compose-Pfad (JAVA_PARAMS-Env) im Container an.
+      # Ohne echten Index ist unklar, ob/wann Photons Python-Entrypoint die
+      # JVM tatsaechlich startet (README) -- dieser Schritt blockiert den Job
+      # daher NICHT auf einem gesunden /status, sondern nur auf der
+      # Env-Weitergabe selbst.
+      - name: Compose bring-up smoke (env wiring; no real geodata, tolerant of degraded status)
+        run: |
+          PHOTON_XMX=256m docker compose --profile search up -d photon
+          sleep 10
+          echo "-- Container-Status --"
+          docker inspect --format '{{.State.Status}}' yapaja-photon
+          echo "-- Env (JAVA_PARAMS muss ankommen) --"
+          docker inspect --format '{{.Config.Env}}' yapaja-photon | tee env.out
+          grep -q 'JAVA_PARAMS=-Xmx256m' env.out || { echo "::error::JAVA_PARAMS kam nicht wie erwartet im Container an"; exit 1; }
+          echo "-- /status (informativ -- ohne echten Index ist ein Nicht-200 hier erwartet und OK, siehe README) --"
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:2322/status || echo "kein Connect (ebenfalls moeglich ohne Index -- rein informativ)"
+          docker logs yapaja-photon 2>&1 | tail -60
+          docker compose --profile search down
+
+      - name: Dump Photon logs on failure
+        if: failure()
+        run: docker logs yapaja-photon 2>&1 | tail -150 || true

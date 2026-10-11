@@ -1,0 +1,103 @@
+name: CI
+
+# ─── NUR WAS SICH GEÄNDERT HAT ────────────────────────────────────────────────
+# Das Repo enthält mehrere eigenständige Module. Eine Änderung in beat/ soll
+# nicht Gos lange Pipeline (Routing, Browser-Tests, …) starten, eine reine
+# Doku-Änderung gar nichts. Der Job „changes“ schaut, welche Ordner betroffen
+# sind; nur deren Workflows laufen.
+#
+# „Gate“ ist der EINE Check, an dem das Mergen hängt: grün, wenn alle
+# gelaufenen Module grün sind -- übersprungene zählen als erledigt. (Hinge der
+# Merge direkt an den Modul-Checks, blockierte jeder übersprungene.)
+#
+# Wie bisher bei Go nur für Pull Requests: der Squash-Merge auf main hat
+# denselben Baum, den der PR-Lauf gerade geprüft hat.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    name: Was hat sich geändert?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      go_addon: ${{ steps.filter.outputs.go_addon }}
+      beat: ${{ steps.filter.outputs.beat }}
+      satellite: ${{ steps.filter.outputs.satellite }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - '.github/workflows/ci.yml'
+            go:
+              - *shared
+              - 'go/**'
+              - '.github/workflows/go-ci.yml'
+              - '.github/actions/go-fetch-pbf/**'
+            go_addon:
+              - *shared
+              - 'go/yapaja_go/**'
+              - '.github/workflows/go-addon-image.yml'
+            beat:
+              - *shared
+              - 'beat/**'
+              - '.github/workflows/beat.yml'
+            satellite:
+              - *shared
+              - 'satellite/**'
+              - '.github/workflows/satellite.yml'
+
+  go:
+    name: Go
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/go-ci.yml
+
+  go-addon:
+    name: Go Add-on-Image
+    needs: changes
+    if: needs.changes.outputs.go_addon == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/go-addon-image.yml
+
+  beat:
+    name: Beat
+    needs: changes
+    if: needs.changes.outputs.beat == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/beat.yml
+
+  satellite:
+    name: Satellite
+    needs: changes
+    if: needs.changes.outputs.satellite == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/satellite.yml
+
+  gate:
+    name: Gate
+    if: always()
+    needs: [changes, go, go-addon, beat, satellite]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Alle gelaufenen Module grün?
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$RESULTS" | jq -e '[.[].result] | any(. == "failure" or . == "cancelled")' > /dev/null; then
+            echo "::error::Mindestens ein Modul ist rot oder abgebrochen."
+            exit 1
+          fi

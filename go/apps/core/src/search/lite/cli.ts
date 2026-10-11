@@ -1,0 +1,289 @@
+/**
+ * CLI entry point for `build-lite-index.sh` (E05-T5, W-12). Thin glue only
+ * -- all actual logic lives in the unit-tested `extract.ts`/`buildIndex.ts`
+ * modules; this file just wires stdio/argv to them and owns the ONE
+ * filesystem side effect that needs to be atomic: writing to a temp path
+ * and renaming it into place (same "temp file + rename" discipline as
+ * `services/valhalla/build-tiles.sh`'s directory swap, W-17 -- a `rename(2)`
+ * on the same filesystem is atomic, so a reader (the running Core process)
+ * either sees the old complete file or the new complete file, never a
+ * half-written one).
+ *
+ * Usage:
+ *   tsx src/search/lite/cli.ts --places places.geojsonseq --streets streets.geojsonseq \
+ *                              --pois pois.geojsonseq --out data/lite-search/lite_search.db \
+ *                              [--named named.geojsonseq] [--addresses addresses.geojsonseq]
+ *
+ * Run via `services/valhalla/build-lite-index.sh`, never invoked directly
+ * by the app itself.
+ */
+import { createReadStream, existsSync, realpathSync, renameSync, unlinkSync } from 'fs';
+import { createInterface } from 'readline';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import {
+  normalizeAddressFeature,
+  normalizeGeoJsonSeqLine,
+  parseGeoJsonSeqLine,
+  type AddressRecord,
+  type NormalizedRecord,
+} from './extract.js';
+import { appendAddresses, buildLiteIndexFile } from './buildIndex.js';
+import { namedOsmiumFilters, osmiumFilters } from './poiCategories.js';
+import { appendAll } from '@yapaia/shared';
+import { PlaceLocator, type PlacePoint } from './placeLocator.js';
+import { LEGACY_LITE_SEARCH_DB, liteSearchDbPathForRegion } from './paths.js';
+import { readLiteIndexMeta } from './reader.js';
+
+interface CliArgs {
+  places?: string;
+  streets?: string;
+  pois?: string;
+  /** Benannte Objekte beliebiger Art (Firmen, Gebaeude) -- seit 0.39.0. */
+  named?: string;
+  /** Hausadressen -- seit 0.39.0. */
+  addresses?: string;
+  out: string;
+  /** Nur fuer die Auskunft im Index (`meta`): aus welcher Region er stammt.
+   *  Es gibt EINEN Index fuer alle Regionen -- ohne diese Angabe sieht
+   *  niemand, welche gerade drin ist. */
+  region?: string;
+}
+
+function parseArgs(argv: string[]): CliArgs {
+  const args: Partial<CliArgs> = {};
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--places') args.places = argv[++i];
+    else if (arg === '--streets') args.streets = argv[++i];
+    else if (arg === '--pois') args.pois = argv[++i];
+    else if (arg === '--named') args.named = argv[++i];
+    else if (arg === '--addresses') args.addresses = argv[++i];
+    else if (arg === '--out') args.out = argv[++i];
+    else if (arg === '--region') args.region = argv[++i];
+  }
+  if (!args.out) {
+    throw new Error(
+      'Usage: cli.ts --places <geojsonseq> --streets <geojsonseq> --pois <geojsonseq> [--named <geojsonseq>] [--addresses <geojsonseq>] ' +
+        '--out <lite_search.db path> [--region <id>]',
+    );
+  }
+  return args as CliArgs;
+}
+
+async function readNormalizedFile(
+  path: string,
+  sourceKind: 'place' | 'street' | 'poi' | 'named',
+): Promise<{ records: NormalizedRecord[]; skipped: number; total: number }> {
+  const records: NormalizedRecord[] = [];
+  let skipped = 0;
+  let total = 0;
+
+  const rl = createInterface({ input: createReadStream(path, { encoding: 'utf8' }), crlfDelay: Infinity });
+  for await (const line of rl) {
+    if (line.trim().length === 0) continue;
+    total += 1;
+    const record = normalizeGeoJsonSeqLine(line, sourceKind);
+    if (record) records.push(record);
+    else skipped += 1;
+  }
+
+  return { records, skipped, total };
+}
+
+/** Adressen Zeile fuer Zeile -- nie alle auf einmal im Speicher. */
+async function* readAddresses(path: string): AsyncGenerator<AddressRecord> {
+  const rl = createInterface({ input: createReadStream(path, { encoding: 'utf8' }), crlfDelay: Infinity });
+  for await (const line of rl) {
+    const feature = parseGeoJsonSeqLine(line);
+    const address = feature ? normalizeAddressFeature(feature) : null;
+    if (address) yield address;
+  }
+}
+
+/**
+ * Traegt in jeden Datensatz ohne eigene Ortsangabe den naechsten Ort ein und
+ * meldet, wie viele am Ende einen haben.
+ *
+ * `addr:city` aus den Daten hat Vorrang: es ist die Angabe des Erfassers und
+ * damit besser als jede Naeherung. Abgeleitet wird nur, wo nichts steht --
+ * und das ist bei Strassen der Normalfall.
+ *
+ * Die Zahl wird ausgegeben, weil sie beim Bauen die einzige Gelegenheit ist
+ * zu sehen, ob der Ortsbezug ueberhaupt greift. Steht dort 0, waere die
+ * Vorschlagsliste wieder so nichtssagend wie vorher.
+ */
+export function fillLocalities(records: NormalizedRecord[], locator: PlaceLocator | null): number {
+  let withLocality = 0;
+  for (const record of records) {
+    if (!record.locality && locator) {
+      const nearest = locator.nearestName(record.lat, record.lon);
+      if (nearest) record.locality = nearest;
+    }
+    if (record.locality) withLocality += 1;
+  }
+  return withLocality;
+}
+
+export async function runCli(argv: string[]): Promise<void> {
+  // ─── EINE QUELLE FUER DIE KATEGORIEN ──────────────────────────────────────
+  // Das Bau-Skript fragt die osmium-Filter HIER ab, statt sie zu wiederholen.
+  // Zwei gepflegte Listen laufen sonst auseinander -- und zwar lautlos: der
+  // Filter liefert dann Daten, die der Normalisierer verwirft, oder umgekehrt.
+  // Das Ergebnis waere ein Index ohne Sonderziele, ohne eine einzige
+  // Fehlermeldung.
+  if (argv.includes('--print-osmium-filters')) {
+    for (const filter of osmiumFilters()) {
+      console.log(filter);
+    }
+    return;
+  }
+  if (argv.includes('--print-named-filters')) {
+    for (const filter of namedOsmiumFilters()) {
+      console.log(filter);
+    }
+    return;
+  }
+
+  const args = parseArgs(argv);
+  const allRecords: NormalizedRecord[] = [];
+
+  // Die Orte werden ZUERST gelesen -- Strassen und Sonderziele bekommen aus
+  // ihnen ihren Ortsbezug, und der muss vorliegen, bevor sie dran sind.
+  let locator: PlaceLocator | null = null;
+
+  if (args.places) {
+    const { records, skipped, total } = await readNormalizedFile(args.places, 'place');
+    console.warn(`Orte: ${records.length}/${total} uebernommen (${skipped} uebersprungen) aus ${args.places}`);
+    // NICHT `push(...records)` -- siehe appendAll: der Spread macht aus jedem
+    // Datensatz ein Argument, und Rheinland-Pfalz hat mehr davon, als V8
+    // zulaesst („Maximum call stack size exceeded"). Liechtenstein lief durch.
+    appendAll(allRecords, records);
+    locator = new PlaceLocator(records as readonly PlacePoint[]);
+  }
+
+  if (args.streets) {
+    const { records, skipped, total } = await readNormalizedFile(args.streets, 'street');
+    console.warn(`Strassen: ${records.length}/${total} uebernommen (${skipped} uebersprungen) aus ${args.streets}`);
+    console.warn(`  davon mit Ortsangabe: ${fillLocalities(records, locator)}`);
+    appendAll(allRecords, records);
+  }
+
+  if (args.pois) {
+    const { records, skipped, total } = await readNormalizedFile(args.pois, 'poi');
+    console.warn(`Sonderziele: ${records.length}/${total} uebernommen (${skipped} uebersprungen) aus ${args.pois}`);
+    console.warn(`  davon mit Ortsangabe: ${fillLocalities(records, locator)}`);
+    appendAll(allRecords, records);
+  }
+
+  if (args.named) {
+    const { records, skipped, total } = await readNormalizedFile(args.named, 'named');
+    console.warn(`Benannte Firmen/Gebaeude: ${records.length}/${total} uebernommen (${skipped} uebersprungen) aus ${args.named}`);
+    console.warn(`  davon mit Ortsangabe: ${fillLocalities(records, locator)}`);
+    appendAll(allRecords, records);
+  }
+
+  if (allRecords.length === 0) {
+    throw new Error('Keine Datensaetze extrahiert -- Build abgebrochen (leerer Index waere nutzlos).');
+  }
+
+  // ─── SEIT 0.5.0: EINE DATEI JE REGION ─────────────────────────────────────
+  // `--out` bezeichnet weiterhin einen Pfad, aber der eigentliche Zielname
+  // haengt an der Region. Vorher ersetzte "Suche bauen" bei einer Region den
+  // Index der anderen -- wer Deutschland und Frankreich installiert hat, will
+  // in beiden suchen koennen.
+  //
+  // Ohne `--region` bleibt es beim genannten Pfad: der Weg fuer Aufrufer, die
+  // genau eine Datei erwarten (aeltere Skripte, Tests).
+  const outPath = args.region ? liteSearchDbPathForRegion(dirname(args.out), args.region) : args.out;
+
+  const tmpPath = `${outPath}.tmp-${process.pid}`;
+  if (existsSync(tmpPath)) unlinkSync(tmpPath);
+
+  try {
+    buildLiteIndexFile(allRecords, tmpPath, { region: args.region });
+    if (args.addresses) {
+      const n = await appendAddresses(tmpPath, readAddresses(args.addresses));
+      console.warn(`Hausnummern: ${n} uebernommen aus ${args.addresses}`);
+    }
+    // Atomic swap (W-17 discipline): rename(2) on the same filesystem is
+    // atomic -- a concurrent reader of `args.out` (the running Core
+    // process) sees either the complete old file or the complete new file,
+    // never a partial write.
+    renameSync(tmpPath, outPath);
+  } catch (err) {
+    if (existsSync(tmpPath)) unlinkSync(tmpPath);
+    throw err;
+  }
+
+  console.warn(`Lite-Suchindex gebaut: ${outPath} (${allRecords.length} Datensaetze insgesamt)`);
+
+  // ─── DEN UEBERHOLTEN SAMMELINDEX AUFRAEUMEN ──────────────────────────────
+  // Vor 0.5.0 lag alles in EINER Datei ohne Regionsnamen. Die bleibt nach dem
+  // Update absichtlich liegen (sonst waere die Suche bis zum naechsten Bau
+  // weg, und der dauert bei einem grossen Extrakt Stunden). Sobald aber
+  // DIESELBE Region als eigene Datei vorliegt, ist sie doppelt -- und wird
+  // entfernt.
+  //
+  // Nur bei belegter Uebereinstimmung: traegt die alte Datei eine ANDERE
+  // Region oder gar keine Auskunft (vor 0.3.9 gab es keine `meta`-Tabelle),
+  // bleibt sie stehen. Lieber ein Index zu viel -- die Entdopplung im Backend
+  // faengt Doppeltreffer ohnehin ab -- als eine geloeschte Suche, die
+  // stundenlanges Neubauen kostet.
+  if (args.region) {
+    const legacy = join(dirname(args.out), LEGACY_LITE_SEARCH_DB);
+    if (legacy !== outPath && existsSync(legacy)) {
+      const meta = readLiteIndexMeta(legacy);
+      if (meta.region === args.region) {
+        unlinkSync(legacy);
+        console.warn(`Alten Sammelindex entfernt (war dieselbe Region): ${legacy}`);
+      } else {
+        console.warn(
+          `Hinweis: ${legacy} stammt aus einer anderen bzw. unbekannten Region ` +
+            `(${meta.region ?? 'unbekannt'}) und bleibt erhalten.`,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Laeuft dieses Modul gerade ALS Programm, oder wurde es importiert?
+ *
+ * ─── WARUM DAS NICHT MEHR AM DATEINAMEN HAENGT ──────────────────────────────
+ * Hier stand bis 0.3.3:
+ *
+ *     if (process.argv[1]?.endsWith('cli.ts') || process.argv[1]?.endsWith('cli.js'))
+ *
+ * Das stimmte, solange die Datei `cli.ts` hiess -- also im Quelltext und
+ * unter `tsx`. Sobald der Produktionsbau sie als `dist/lite-index.js`
+ * buendelt, endet `argv[1]` auf `lite-index.js`, die Bedingung ist falsch,
+ * und das Programm TUT NICHTS. Es beendet sich mit Code 0.
+ *
+ * Das ist die gefaehrlichste Sorte Fehler in dieser Kette: ein Aufrufer
+ * bekommt „erfolgreich beendet" und keinen Index. Der Bau haette gemeldet,
+ * er sei fertig, die Suche waere leer geblieben, und niemand haette einen
+ * Anhaltspunkt gehabt.
+ *
+ * Der Vergleich laeuft jetzt ueber den PFAD statt ueber den Namen: ist die
+ * Datei, die Node gestartet hat, dieselbe wie diese? Das gilt fuer den
+ * Quelltext, fuer das Buendel und unter jedem Dateinamen. Beim Import aus
+ * einem Test zeigt `argv[1]` auf vitest -- also `false`, wie gehabt.
+ */
+export function isDirectRun(entryPath: string | undefined, moduleUrl: string): boolean {
+  if (!entryPath) {
+    return false;
+  }
+  try {
+    return realpathSync(entryPath) === realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectRun(process.argv[1], import.meta.url)) {
+  runCli(process.argv.slice(2)).catch((err) => {
+    console.error('build-lite-index CLI fehlgeschlagen:', err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  });
+}

@@ -1,0 +1,550 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+// ─── NAMENSRAUM STATT STANDARD-EXPORT ─────────────────────────────────────
+// MapLibre 6 hat den Standard-Export entfernt (`TS1192: has no default
+// export`). Der Aufstieg war noetig, weil 5.x eine kritische XSS-Luecke
+// traegt (GHSA-jrc7-96c5-q579), die es nur in 6.4.1+ behoben gibt. Seit
+// 0.6.10 laeuft er -- was daran zweimal gescheitert ist, steht in
+// `maplibreWorker.ts`.
+import * as maplibregl from 'maplibre-gl';
+import type { StyleSpecification } from 'maplibre-gl';
+import { Protocol } from 'pmtiles';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { mapController, useMapStore } from '../state/mapStore';
+import { fetchRegions, type MapRegionSummary } from './regions';
+import {
+  fetchStyle,
+  buildFallbackStyle,
+  applyDegradationCaps,
+  type StyleOptions,
+} from './styleClient';
+import { applyStyle, trackCoreStyle } from './styleSwitch';
+import { ensureMaplibreWorkerUrl } from './maplibreWorker';
+import { useStyleStore, wirksamesPoiAus } from '../state/styleStore';
+import { useKartenSeite } from '../shell/bedienSeite.js';
+import { useDegradationStore } from '../perf/degrade';
+import { useViewModeStore, syncHeadingToBearing } from './viewMode';
+import { RECENTER_MIN_ZOOM, initializeFollowMe, recenterOnPosition, updateFollowMePosition } from './followMe';
+import { useStartPosition } from '../position/PositionInitializer';
+import { usePosition, usePositionStore } from '../position/positionStore';
+import { pickActiveRegion } from './activeRegion';
+import { useRegionStore } from './regionStore';
+import RegionCoverageNotice from './RegionCoverageNotice';
+import CompassButton from './CompassButton';
+import ViewModeButton from './ViewModeButton';
+import ReCenterButton from './ReCenterButton';
+import UebersichtButton from './UebersichtButton';
+import SonderzieleLayer from './SonderzieleLayer.js';
+import PerfOverlay from '../perf/PerfOverlay';
+import { startPerfWatchdog } from '../perf/perfWatchdog';
+
+/** Identifies which (styleId, options) combination is currently applied to
+ *  the live map, so the live-switch effect can tell "this is the style we
+ *  just initialized with" apart from "something new is needed".
+ *
+ *  ─── HIER STAND AUCH DIE REGION ──────────────────────────────────────────
+ *  Sie musste mit hinein, solange eine feste Wahl im Kartenmenue den
+ *  Kachelsatz umstellen konnte: ohne sie war ein Regionswechsel fuer diesen
+ *  Vergleich unsichtbar, der Stil-Tausch wurde als „schon angewendet"
+ *  uebersprungen, und die Karte behielt den alten Kachelsatz.
+ *
+ *  Seit 0.16.0 geht gar keine Region mehr in den Stil ein — die Karte zeigt
+ *  immer alles Installierte. Ein Parameter, der nur noch `null` sein kann,
+ *  gehoert dann weg und nicht auf `null` gesetzt: er laedt sonst dazu ein,
+ *  ihn wieder zu befuellen, und der Fehler waere derselbe wie in 0.9.1. */
+function styleKey(styleId: string, options: StyleOptions): string {
+  // `poiAus` gehoert dazu: die abgeschalteten Kategorien gehen in den Stil
+  // ein, also ist ein Stil mit anderen Schaltern ein ANDERER Stil. Fehlte er
+  // hier, waere der erste Klick auf eine Kategorie wirkungslos -- der
+  // Vergleich haelte den neuen Stil fuer den schon angewendeten und spraenge
+  // heraus, bevor er ihn holt. Genau diese Sorte stiller Wirkungslosigkeit
+  // hat 0.9.1 die Regionswahl gekostet.
+  return `${styleId}|${options.lang}|${options.labelScale}|${options.poi}|${options.poiAus.join(',')}`;
+}
+
+// Register the `pmtiles://` protocol once per page load. MapLibre's protocol
+// registry (`maplibregl.addProtocol`) is a process-global map keyed by
+// scheme, so this must happen exactly once at module scope rather than per
+// MapView mount (ADR-003: PMTiles).
+const pmtilesProtocol = new Protocol();
+maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+
+declare global {
+  interface Window {
+    /**
+     * Debug/E2E hook: exposes the MapController so Playwright can drive and
+     * assert on the live map (`getMap().getZoom()`, `getCenter()`, …) via
+     * `page.evaluate`. Read-only in intent — production code must still go
+     * through `useMapStore`/`mapController`, never through this global.
+     */
+    __yapaiaMapController?: typeof mapController;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__yapaiaMapController = mapController;
+}
+
+type MapViewStatus = 'loading' | 'no-region' | 'ready';
+
+interface InitialStyle {
+  style: StyleSpecification;
+  key: string;
+}
+
+/**
+ * Renders the MapLibre base map (ADR-002) against a PMTiles region (ADR-003),
+ * styled by the core-served style system (E01-T4: `GET
+ * /api/v1/map/styles/:id`, light/dark/contrast + lang/labelScale/poi
+ * options). All source/tile/style URLs are relative
+ * (`import.meta.env.BASE_URL`), so the app keeps working when served under
+ * an ingress sub-path (W-15).
+ */
+export interface MapViewProps {
+  /**
+   * Bedienelemente anzeigen (Kompass, Ansicht, Zurueck-zur-Position,
+   * Einstellungen, Regionen, Store, Installationspruefung).
+   *
+   * `false` fuer die Einbettung in ein Home-Assistant-Dashboard: dort soll die
+   * Karte etwas ZEIGEN und nicht bedient werden -- Knoepfe in einer
+   * Dashboard-Kachel, die die Navigation des Fahrzeugs umstellen, waeren dort
+   * eine Falle. Vorgabe `true`, damit sich fuer die App selbst nichts aendert.
+   */
+  chrome?: boolean;
+}
+
+export default function MapView({ chrome = true }: MapViewProps = {}): React.ReactElement {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const setMap = useMapStore((state) => state.setMap);
+  const [status, setStatus] = useState<MapViewStatus>('loading');
+  const kartenSeite = useKartenSeite();
+
+  // ─── ZOOM GEGENUEBER DEM PANEL ─────────────────────────────────────────────
+  // Das Seitenpanel liegt auf der Fahrerseite (shell/bedienSeite.ts); MapLibres
+  // Zoomgruppe gehoert auf die andere. Bei einem Wechsel der Haendigkeit wird
+  // sie neu eingesetzt -- MapLibre kennt kein Verschieben.
+  const fertigeKarte = useMapStore((state) => state.map);
+  useEffect(() => {
+    const map = fertigeKarte;
+    if (!map) return undefined;
+    const zoom = new maplibregl.NavigationControl();
+    map.addControl(zoom, kartenSeite === 'right' ? 'top-right' : 'top-left');
+    return () => {
+      map.removeControl(zoom);
+    };
+  }, [fertigeKarte, kartenSeite]);
+  // NUR die Region, mit der die Karte ERZEUGT wurde (fuer `bounds`). Sie wird
+  // nach dem ersten Setzen nie wieder veraendert — sie steckt in den
+  // Abhaengigkeiten von Schritt 2, und ein Wechsel dort wuerde die Karte
+  // zerstoeren und neu bauen. Ein Regionswechsel im Betrieb laeuft
+  // stattdessen ueber den Stil-Tausch in Schritt 3, der die Kamera behaelt.
+  const [initialRegion, setInitialRegion] = useState<MapRegionSummary | null>(null);
+  const [initialStyle, setInitialStyle] = useState<InitialStyle | null>(null);
+  // Nur SETZEN, nicht lesen: die installierten Regionen braucht `MapView`
+  // seit 0.16.0 selbst nicht mehr (es zeichnet ohnehin alle). Sie kommen
+  // hier trotzdem in den Zustand, weil `RegionCoverageNotice` sie liest.
+  const setInstalledRegions = useRegionStore((state) => state.setRegions);
+  const installedRegions = useRegionStore((state) => state.regions);
+  const restoreViewMode = useViewModeStore((state) => state.restoreMode);
+  const position = usePosition();
+  const styleId = useStyleStore((state) => state.styleId);
+  const gespeicherteOptionen = useStyleStore((state) => state.options);
+  const chipFilter = useStyleStore((state) => state.chipFilter);
+  // Ein aktiver Chip in der Kopfzeile filtert, ohne die Einstellung zu ändern.
+  const userStyleOptions = useMemo(
+    () => ({ ...gespeicherteOptionen, poiAus: wirksamesPoiAus(gespeicherteOptionen.poiAus, chipFilter) }),
+    [gespeicherteOptionen, chipFilter],
+  );
+  // Transient performance-degradation caps (E01-T6). These clamp the effective
+  // render options DOWN from the user's persisted choice under low FPS; they
+  // are never persisted and never overwrite `userStyleOptions` (that would
+  // destroy the user's explicit style preference — the bug this replaced).
+  const poiCap = useDegradationStore((state) => state.poiCap);
+  const labelScaleCap = useDegradationStore((state) => state.labelScaleCap);
+  const styleOptions = applyDegradationCaps(userStyleOptions, {
+    poi: poiCap,
+    labelScale: labelScaleCap,
+  });
+  // Tracks the (styleId, options, region) combination already applied to the
+  // live map, so the live-switch effect below can skip the redundant re-fetch
+  // right after mount (the map was just initialized with exactly this style).
+  const appliedStyleKeyRef = useRef<string | null>(null);
+
+  // ─── HIER WURDE DIE „AKTIVE REGION" BEI JEDEM RENDERN BESTIMMT ────────────
+  // Sie steuerte, welcher Kachelsatz gezeichnet wird. Seit 0.16.0 wird immer
+  // alles Installierte gezeichnet, und damit braucht `MapView` die Frage
+  // „in welcher Region stehe ich" gar nicht mehr:
+  //
+  //   * `RegionCoverageNotice` beantwortet sie sich selbst, aus demselben
+  //     Zustand -- es ist der einzige Ort, an dem sie noch zu etwas fuehrt;
+  //   * die Kartenmitte beim allerersten Start kommt aus `initialChoice`
+  //     weiter unten, EINMAL statt bei jedem Positions-Tick.
+  // Reactively track the live Map instance from the store. All map-dependent
+  // effects (view-mode restore, follow-me, bearing sync) depend on `[map]` so
+  // they (re)attach their listeners as soon as the map is registered — never
+  // silently aborting because the map wasn't ready at first mount.
+  const map = useMapStore((state) => state.map);
+
+  // Step 1: discover installed regions, then fetch the initial style JSON
+  // (the persisted/default styleId+options at the time of this mount). No
+  // region installed -> friendly empty state instead of initializing a map
+  // with a broken/missing source; the style fetch never blocks that check.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const regions = await fetchRegions();
+      if (cancelled) {
+        return;
+      }
+      if (regions.length === 0) {
+        setStatus('no-region');
+        return;
+      }
+      setInstalledRegions(regions);
+
+      // Schon beim ersten Stil die Region benennen, statt sie dem Core zu
+      // ueberlassen: liegt eine Position vor (etwa aus einer HA-Entitaet, die
+      // sofort da ist), soll die Karte gar nicht erst mit der falschen Region
+      // aufgehen und dann umschalten.
+      const initialChoice = pickActiveRegion({
+        regions,
+        point: usePositionStore.getState().position,
+      });
+      const initialRegion = initialChoice.region ?? regions[0];
+      setInitialRegion(initialRegion);
+
+      const { styleId: initialStyleId, options: userOptions } = useStyleStore.getState();
+      const { poiCap: initialPoiCap, labelScaleCap: initialLabelScaleCap } =
+        useDegradationStore.getState();
+      const initialOptions = applyDegradationCaps(userOptions, {
+        poi: initialPoiCap,
+        labelScale: initialLabelScaleCap,
+      });
+      // ─── IMMER ALLE REGIONEN ──────────────────────────────────────────
+      // Bis 0.10.0 stand hier `initialRegion.region`, also IMMER eine. Der
+      // Kern kann seit 0.9.1 mehrere Regionen gleichzeitig zeichnen -- diese
+      // Zeile hat das verhindert, und zwar lautlos: gemeldet wurde „Ich habe
+      // Deutschland, Liechtenstein und Schweiz Kacheln gebaut. Sehe aber nur
+      // Deutschland."
+      //
+      // Bis 0.15.3 blieb eine feste Wahl im Kartenmenue als Ausnahme. Seit
+      // 0.16.0 gibt es sie nicht mehr: gewuenscht ist, dass immer alles
+      // Heruntergeladene zu sehen ist. Deshalb geht hier GAR KEINE Region
+      // mehr mit -- und das ist der ganze Punkt, denn jede mitgeschickte
+      // Region verkleinert die Karte lautlos auf diese eine.
+      //
+      // `initialRegion` bleibt fuer alles ANDERE noetig (leerer Zustand,
+      // Kartenmitte beim ersten Start).
+      const fetched = await fetchStyle(initialStyleId, initialOptions);
+      if (cancelled) {
+        return;
+      }
+      setInitialStyle({
+        style: fetched ?? buildFallbackStyle(),
+        key: styleKey(initialStyleId, initialOptions),
+      });
+      setStatus('ready');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Step 2: initialize the map once a region + initial style are known and
+  // the container is mounted. `mapRef` guards against ever having two live
+  // Map instances at once: the map is created here and torn down in the
+  // cleanup below, so React 18 dev StrictMode's mount -> cleanup -> mount
+  // cycle still only ever has at most one live instance.
+  useEffect(() => {
+    if (status !== 'ready' || !initialRegion || !initialStyle || !containerRef.current) {
+      return;
+    }
+
+    // MUSS vor der ersten Karte laufen: ohne die richtige Arbeiter-Adresse
+    // laedt MapLibre 6 weder Kacheln noch Route noch Schrift -- und meldet
+    // dabei nur ein einzelnes „Failed to fetch". Begruendung und Messwerte in
+    // `maplibreWorker.ts`.
+    ensureMaplibreWorkerUrl();
+
+    const newMap = new maplibregl.Map({
+      container: containerRef.current,
+      style: initialStyle.style,
+      // Fits the initial viewport to the installed region's bounds so the
+      // start viewport is plausible (never [0, 0]).
+      bounds: initialRegion.bounds,
+      attributionControl: { customAttribution: '© OpenStreetMap contributors' },
+      // Enables reading back rendered pixels (gl.readPixels) after a frame
+      // for pixel-sample assertions (E01-T4 e2e: dark vs light background).
+      // Negligible cost for a background-canvas map; standard practice for
+      // WebGL content that needs to be inspected/tested from outside.
+      canvasContextAttributes: { preserveDrawingBuffer: true },
+    });
+
+    // Die Zoomgruppe setzt der Effekt „ZOOM GEGENUEBER DEM PANEL" unten --
+    // sie wechselt die Seite mit der Haendigkeit.
+
+    // Missing/dummy vector tiles (e.g. an empty fixture archive) must never
+    // crash the app: log and keep the map interactive.
+    newMap.on('error', (event: { error?: unknown }) => {
+      console.warn('[MapView] MapLibre error event', event.error);
+    });
+
+    trackCoreStyle(initialStyle.style);
+    appliedStyleKeyRef.current = initialStyle.key;
+
+    mapRef.current = newMap;
+    setMap(newMap);
+
+    return () => {
+      setMap(null);
+      mapRef.current = null;
+      appliedStyleKeyRef.current = null;
+      newMap.remove();
+    };
+    // `setMap` is a stable zustand action reference and intentionally
+    // omitted from the dependency array (no react-hooks/exhaustive-deps
+    // lint rule is configured in this repo).
+  }, [status, initialRegion, initialStyle]);
+
+  // Step 3: live style switching. Whenever the effective styleId/options
+  // change to something other than what's currently applied, fetch the new
+  // style and swap it in place (camera + custom layers preserved — see
+  // styleSwitch.ts) instead of recreating the Map. "Effective" options fold in
+  // the user's choice AND any active performance-degradation cap, so recovering
+  // FPS (cap lifted) re-applies the user's full-quality style automatically.
+  // Deps are the primitive effective fields (not the `styleOptions` object,
+  // which `applyDegradationCaps` rebuilds every render) so this fires only on a
+  // real change.
+  //
+  // Seit 2026-09-03 loest das AUCH einen Regionswechsel aus (die Region ist
+  // Teil von `styleKey`). Bewusst hier und nicht in Schritt 2: ein
+  // Stil-Tausch behaelt Kamera und eigene Layer, ein Neuaufbau der Karte
+  // wuerde beides verlieren — waehrend der Fahrt ueber eine Regionsgrenze
+  // waere das ein Sprung mitten in der Navigation.
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+    // KEINE Region -- der Kern zeichnet dann alle installierten (siehe oben).
+    // `activeRegionName` wird weiterhin gebraucht, aber fuer die Frage „in
+    // welcher Region stehe ich", nicht fuer „was wird gezeichnet". Die beiden
+    // zu verwechseln hat 0.9.1 vollstaendig wirkungslos gemacht.
+    const key = styleKey(styleId, styleOptions);
+    if (appliedStyleKeyRef.current === key) {
+      return;
+    }
+    let cancelled = false;
+    void fetchStyle(styleId, styleOptions).then((style) => {
+      if (cancelled) {
+        return;
+      }
+      applyStyle(map, style ?? buildFallbackStyle());
+      appliedStyleKeyRef.current = key;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    map,
+    styleId,
+    styleOptions.poi,
+    styleOptions.labelScale,
+    styleOptions.lang,
+    // Als Zeichenkette und nicht als Array: ein neues Array mit gleichem
+    // Inhalt ist fuer React ein neuer Wert und loeste bei jedem Rendern einen
+    // Stil-Abruf aus.
+    styleOptions.poiAus.join(','),
+    // `activeRegionName` steht hier BEWUSST NICHT mehr: seit 0.16.0 geht die
+    // Region nicht mehr in den Stil ein, also darf ein Regionswechsel auch
+    // keinen Neuaufbau mehr ausloesen. Bliebe es stehen, baute die Karte bei
+    // jeder Grenzueberfahrt ohne Grund neu auf.
+  ]);
+
+  // Restore persisted view mode once the map is registered. Depends on `[map]`
+  // so the persisted mode is applied to the camera as soon as the map exists —
+  // critical for reload-persistence.
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+    restoreViewMode();
+  }, [map, restoreViewMode]);
+
+  // Initialize Follow-Me tracking once the map is registered. Self-cleaning:
+  // the listeners are removed when the map is torn down or the component
+  // unmounts (no double-listener leak).
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+    const cleanup = initializeFollowMe();
+    return cleanup;
+  }, [map]);
+
+  // ─── BEIM ERSTEN LADEN: HERAN AN DIE POSITION ───────────────────────────
+  // Gemeldet: „Wenn die Ansicht das erste Mal geladen wird, wird die ganze
+  // Karte angezeigt. Bitte zoome dann auf den aktuellen Punkt, als ob man
+  // Zentrieren drücken würde." Die Karte startet über der ganzen Region
+  // (`bounds` oben) -- sinnvoll, solange keine Position da ist. Kommt die
+  // erste, geschieht genau das, was der Zentrieren-Knopf tut. Einmal je
+  // Karte: danach bestimmt der Mensch, wohin er schaut.
+  const ersteZentrierung = useRef<maplibregl.Map | null>(null);
+
+  // Update Follow-Me position when position changes.
+  const startPosition = useStartPosition((s) => s.position);
+  useEffect(() => {
+    // Für das erste Heranzoomen genügt auch die beim Start vom Kern geholte
+    // letzte Position (`PositionInitializer`); eine echte Meldung gewinnt.
+    const erste = position ?? startPosition;
+    if (!map || !erste) {
+      return;
+    }
+    if (ersteZentrierung.current !== map) {
+      ersteZentrierung.current = map;
+      // Nur, wenn die Position IN einer installierten Karte liegt: auf ein
+      // leeres Stück Welt heranzuzoomen zeigt nichts, die Übersicht über die
+      // Region ist dann nützlicher.
+      const inKarte = installedRegions.some(
+        (r) =>
+          erste.lon >= r.bounds[0] &&
+          erste.lon <= r.bounds[2] &&
+          erste.lat >= r.bounds[1] &&
+          erste.lat <= r.bounds[3],
+      );
+      if (inKarte) {
+        // Läuft gerade eine Kamerafahrt (etwa das Neigen in die 3D-Ansicht
+        // beim Start), erst danach -- ein Sprung bräche sie ab.
+        const heran = (): void => {
+          if (!recenterOnPosition()) {
+            mapController.setCamera({ center: [erste.lon, erste.lat], zoom: Math.max(map.getZoom(), RECENTER_MIN_ZOOM) });
+          }
+        };
+        if (map.isMoving()) map.once('moveend', heran);
+        else heran();
+        return;
+      }
+    }
+    if (!position) return;
+    // ─── EINE KAMERAFAHRT, MITTE UND WINKEL ZUSAMMEN ────────────────────────
+    // Hier stand seit 0.6.4 zusaetzlich `syncHeadingToBearing()`, damit sich
+    // die Karte nicht erst eine Meldung spaeter dreht. Das war die richtige
+    // Absicht am falschen Ort: die Funktion setzt den Winkel mit einem
+    // SPRUNG, und ein Sprung bricht die Kamerafahrt ab, die
+    // `updateFollowMePosition` gerade gestartet hat.
+    //
+    // Gemessen (1,3 s abgetastet, Kurs-Modus): aendert sich nur die Position,
+    // bewegt sich die Mitte ueber 19 Zwischenstaende und 111 m. Aendert sich
+    // AUCH der Kurs, blieb genau eine Mitte uebrig -- 0 m. Gemeldet als
+    // „die Karte zieht in groben Schritten nach" und „beim Abbiegen dreht sie
+    // in einem Rutsch".
+    //
+    // Der Winkel reist jetzt IN der Fahrt mit (`followMe.ts`), deshalb steht
+    // hier nur noch der eine Aufruf. Wer das Nachdrehen hier wieder
+    // hinzufuegt, wuergt die Verfolgung erneut ab.
+    updateFollowMePosition();
+  }, [map, position, startPosition]);
+
+  // Sync heading to bearing for course modes + lock 2d-north bearing. Attaches
+  // rotate/moveend listeners as soon as the map is registered so both the
+  // heading-follow (course modes) and the bearing=0 lock (2d-north) react to
+  // any rotation — including programmatic `setBearing`.
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+
+    // Initial sync
+    syncHeadingToBearing();
+
+    // Listen to rotate and moveend events to re-sync
+    const handleRotation = (e?: { originalEvent?: unknown }) => {
+      // Eine Drehung mit den Fingern bleibt stehen (siehe `freiGedreht`).
+      if (e?.originalEvent) useViewModeStore.getState().setFreiGedreht(true);
+      syncHeadingToBearing();
+    };
+    map.on('rotate', handleRotation);
+    map.on('moveend', handleRotation);
+
+    return () => {
+      map.off('rotate', handleRotation);
+      map.off('moveend', handleRotation);
+    };
+  }, [map]);
+
+  // Start performance watchdog (FPS meter + auto-degradation) once the map
+  // is registered. Depends on `[map]` so it (re)attaches as soon as the map
+  // is available — critical for proper FPS tracking.
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+    const cleanup = startPerfWatchdog(map);
+    return cleanup;
+  }, [map]);
+
+  if (status === 'loading') {
+    return <div className="w-full h-full" data-testid="map-loading" />;
+  }
+
+  if (status === 'no-region') {
+    return (
+      <div
+        className="w-full h-full relative flex items-center justify-center bg-slate-100 dark:bg-slate-900"
+        data-testid="map-no-region"
+      >
+        <div className="text-center p-6 max-w-sm">
+          <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+            Keine Karte installiert
+          </p>
+          {/* Vorher stand hier „Lade eine Region herunter". Das war eine
+              Anweisung, die nicht ausführbar war: die mitgelieferten
+              Katalogeinträge haben keine fertige Datei zum Herunterladen,
+              die Kacheln werden gebaut (siehe
+              `apps/core/src/map/regions/catalog.ts`). */}
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+            Für dieses Gerät sind noch keine Kartenkacheln vorhanden. Öffne ⚙️ →
+            „Installation prüfen" — dort steht, was genau fehlt und was dagegen zu tun ist.
+          </p>
+        </div>
+        {/* Regionen, Store und Installationspruefung sind auch ohne Karte
+            erreichbar -- seit 0.23 ueber das ⚙-Menue im Seitenpanel. */}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full relative">
+      <div ref={containerRef} className="w-full h-full" data-testid="map-container" />
+      {status === 'ready' && chrome && (
+        <>
+          {/* Entsorgungsstationen und Muellentsorgung. Sie kommen NICHT aus
+              den Kacheln -- das OpenMapTiles-Schema kennt diese Werte nicht --
+              sondern aus dem Suchindex, wo sie schon immer lagen. Hier
+              montiert und nicht bei den Routing-Ebenen: sie haengen an keiner
+              Route, sondern nur an der Karte. */}
+          <SonderzieleLayer />
+          <CompassButton />
+          <ViewModeButton />
+          <ReCenterButton />
+          <UebersichtButton />
+          {/* ─── WAEHREND DER FAHRT NICHT ────────────────────────────────
+              Karteneinstellungen, Regionen, Store und Installationspruefung
+              sind Dinge fuer den Stand, nicht fuer die Fahrt -- und die
+              Einstellungen, der Store und das Profil waren waehrend der Fahrt
+              ohnehin gesperrt (`drive/driveLock.ts`). Stehen blieb eine Reihe
+              Knoepfe, die Platz kostet und nichts anbietet. Gemeldet: „wir
+              haben so viele tolle Informationen dass man während der Fahrt zu
+              viele Dinge sieht." */}
+          {/* ─── HIER STANDEN FUENF RUNDE KNOEPFE ────────────────────────
+              Karte (⚙️), Regionen (🗺️), Store (🧩), Pruefung (🩺) und
+              Testfahrt (🧪) -- jeder mit eigenem Ausklappfenster. Seit 0.23
+              liegen sie im ⚙-Menue des Seitenpanels
+              (shell/EinstellungsMenue.tsx). Gewuenscht: „Es gibt im
+              Ruhemodus nicht viele Menues oder Buttons." */}
+          <PerfOverlay />
+          <RegionCoverageNotice />
+        </>
+      )}
+    </div>
+  );
+}

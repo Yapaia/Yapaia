@@ -1,0 +1,4 @@
+.esphome/
+**/.esphome/
+secrets.yaml
+beispiel-ci.yaml

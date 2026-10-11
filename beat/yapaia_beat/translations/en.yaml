@@ -1,0 +1,85 @@
+configuration:
+  audio_output:
+    name: Audio output
+    description: >-
+      "local" plays through the Home Assistant audio output (speakers on the
+      host) and also provides the MP3 stream. "stream" provides the MP3 stream only.
+  default_volume:
+    name: Initial volume
+    description: Volume on first start (0–100). Afterwards the last volume is remembered.
+  rtl_gain:
+    name: Tuner gain
+    description: '"auto" or a value in dB (e.g. 29.7). Reduce if strong transmitters overload the stick.'
+  ppm_correction:
+    name: Frequency correction (ppm)
+  auto_follow:
+    name: Automatic station following
+    description: >-
+      When reception degrades, Yapaia Beat looks for a better frequency (RDS AF
+      list, PI code) or another DAB channel of the same station.
+  follow_threshold:
+    name: Station following threshold (%)
+  follow_delay_s:
+    name: Station following delay (s)
+  follow_cross_band:
+    name: Allow switching between FM and DAB+
+  follow_full_search:
+    name: Band search while following
+    description: As a last resort, search the whole band for the station (PI code / service ID).
+  logo_lookup_online:
+    name: Look up station logos online
+    description: Search logos on radio-browser.info and cache them locally.
+  country_code:
+    name: Country code
+    description: Two letter country code used for the logo search (e.g. DE, AT, CH).
+  fm_step_khz:
+    name: FM channel step (kHz)
+  fm_scan_threshold_db:
+    name: FM scan sensitivity (dB)
+  fm_deemphasis_us:
+    name: FM de-emphasis (µs)
+    description: 50 µs in Europe, 75 µs in North America.
+  dab_prefilter:
+    name: Fast DAB scan
+    description: Measure the band first and only probe occupied channels.
+  mp3_bitrate:
+    name: MP3 stream bitrate (kbit/s)
+  rtl_device_index:
+    name: RTL-SDR device index
+    description: The stick used for listening. Only relevant with several sticks.
+  second_stick:
+    name: Second stick
+    description: >-
+      If a second RTL-SDR stick is plugged in: "suche" – it scans and follows stations
+      in the background while the radio keeps playing on the first one (also fine if it
+      receives worse; if clearly worse, Beat searches as with one stick).
+      "gleichwertig" – both sticks receive equally well (own antenna or splitter): a new
+      station starts on the free stick first and takes over without a gap. "aus" – do not
+      use the second stick.
+  background_scan_minutes:
+    name: Background scan (minutes)
+    description: >-
+      With a second stick, Beat rescans FM and DAB+ every so many minutes while
+      playing, so the station list follows you on the road. 0 = off.
+  resume_last_station:
+    name: Resume last station
+  standby_minutes:
+    name: Standby after (minutes)
+    description: >-
+      When nobody is listening (host speakers off and no browser/player
+      connected to the stream) reception stops after this time to spare the
+      RTL-SDR stick. It resumes automatically when someone listens again.
+      0 = standby off.
+  announce_music_level:
+    name: Music during announcements (%)
+    description: >-
+      When another Yapaia module speaks (e.g. Yapaia Go's navigation), the
+      music is turned down to this share and the announcement is mixed in.
+      Afterwards it comes back. 0 = music silent.
+  install_integration:
+    name: Install integration automatically
+    description: Installs/updates the Yapaia Beat integration (entities and Lovelace card) in /config/custom_components.
+  log_level:
+    name: Log level
+network:
+  8099/tcp: Web UI & MP3 stream (optional, for external players)

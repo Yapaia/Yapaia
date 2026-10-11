@@ -1,0 +1,55 @@
+/**
+ * Tachoanzeige: die aktuelle Geschwindigkeit.
+ *
+ * Gewünscht: „Ich hätte gerne überhaupt eine Anzeige der Geschwindigkeit."
+ *
+ * Sie hängt an der POSITION, nicht an der Navigation — eine Anzeige, die nur
+ * während einer geplanten Route funktioniert, wäre keine. Die Umrechnung und
+ * die Frage „zeigen oder nicht" stehen in `speedDisplay.ts` und sind dort
+ * ohne Browser geprüft.
+ *
+ * Platz: unten links ÜBER dem Zahnrad. Die anderen Ecken sind belegt
+ * (Kopfzeile oben, Karten-Bedienelemente rechts, Favoritenleiste unten
+ * mittig) — und ein Bedienelement zu verdecken war in diesem Projekt schon
+ * dreimal ein gemeldeter Fehler.
+ */
+
+import { useBedienSeite } from '../shell/bedienSeite.js';
+import React from 'react';
+import { usePosition } from '../position/positionStore.js';
+import { displayedSpeedKmh } from './speedDisplay.js';
+import { FAB_SIZE_PX, STACK_GAP_PX, bottomInsetPx } from '../shell/mapControlLayout.js';
+import { useSchmal } from '../shell/useSchmal.js';
+import { useAnordnung } from '../shell/useAnordnung.js';
+
+export default function SpeedDisplay(): React.ReactElement | null {
+  const anordnung = useAnordnung('tacho');
+  const position = usePosition();
+  const kmh = displayedSpeedKmh(position?.speed ?? null);
+  const schmal = useSchmal();
+  // Auf der Fahrerseite -- dort, wo auch das Seitenpanel liegt; die
+  // Kartenknoepfe (Kompass, Zentrieren) stehen gegenueber.
+  const seite = useBedienSeite();
+  if (kmh === null) return null;
+
+  return (
+    <div
+      ref={anordnung.ref}
+      data-testid="speed-display"
+      // Auf schmalen Schirmen ueber der Fahrtdaten-Leiste, sonst wie bisher.
+      style={{ bottom: schmal ? bottomInsetPx(true, true) + FAB_SIZE_PX + STACK_GAP_PX : undefined, [seite]: 16 }}
+      className={`fixed z-10 flex items-baseline gap-1 rounded-xl bg-white/90 dark:bg-slate-800/90 px-3 py-2 shadow-lg pointer-events-none ${
+        schmal ? '' : 'bottom-20'
+      }`}
+    >
+      <span
+        data-testid="speed-display-value"
+        className="text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100"
+      >
+        {kmh}
+      </span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">km/h</span>
+      {anordnung.griff}
+    </div>
+  );
+}
