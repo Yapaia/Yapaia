@@ -45,7 +45,7 @@ export type KnownBusTopic =
   | 'event/profile_change_pending'
   // E08-T2: profile LIST membership/name changes (create/update/delete --
   // distinct from `event/profile_changed`, which only fires on activate).
-  // `select.yapaja_profile`'s HA discovery config subscribes to this to
+  // `select.yapaia_profile`'s HA discovery config subscribes to this to
   // re-publish its `options` with the live profile-name list.
   | 'event/profile_list_changed'
   // E09-T6 (W-10): a BLOCKED add-on sandbox-escape attempt. Published by
@@ -176,7 +176,7 @@ export interface ProfileChangedPayload {
  * create/update/delete changes the SET of profiles or a profile's `name` --
  * unlike `event/profile_changed` above (which only fires on activation and
  * never touches list membership). No payload data: the only mandated
- * reaction (`MqttBridge` re-publishing `select.yapaja_profile`'s HA
+ * reaction (`MqttBridge` re-publishing `select.yapaia_profile`'s HA
  * discovery `options`) always re-queries `ProfileService#getAll()` fresh
  * rather than trusting a carried list, so there is nothing useful to embed
  * here beyond "something changed, go re-read".

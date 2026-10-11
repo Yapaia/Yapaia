@@ -14,7 +14,7 @@
 
 import { DEFAULT_DRIVE_LOCK_KMH } from './driveLock.js';
 
-const LOCAL_STORAGE_KEY = 'yapaja.driveLock.thresholdKmh';
+const LOCAL_STORAGE_KEY = 'yapaia.driveLock.thresholdKmh';
 const SETTINGS_KEY = 'driveLock';
 
 function isValidThresholdKmh(value: unknown): value is number {

@@ -48,11 +48,11 @@ export async function buildEvilFixtureTarball(
   manifestOverrides: Partial<AddonManifest> = {},
 ): Promise<{ bytes: Buffer; manifest: AddonManifest }> {
   const manifest = {
-    ...(JSON.parse(readFileSync(join(EVIL_FIXTURE_DIR, 'yapaja-addon.json'), 'utf-8')) as AddonManifest),
+    ...(JSON.parse(readFileSync(join(EVIL_FIXTURE_DIR, 'yapaia-addon.json'), 'utf-8')) as AddonManifest),
     ...manifestOverrides,
   };
   const entries: TarEntrySpec[] = [
-    { name: 'yapaja-addon.json', content: JSON.stringify(manifest, null, 2) },
+    { name: 'yapaia-addon.json', content: JSON.stringify(manifest, null, 2) },
     { name: 'ui/index.html', content: readFileSync(join(EVIL_FIXTURE_DIR, 'ui', 'index.html')) },
     { name: 'ui/evil.js', content: readFileSync(join(EVIL_FIXTURE_DIR, 'ui', 'evil.js')) },
     { name: 'service/main.mjs', content: readFileSync(join(EVIL_FIXTURE_DIR, 'service', 'main.mjs')) },
@@ -228,8 +228,8 @@ const TARBALL_MANIFEST = JSON.stringify(minimalManifest('com.example.tarball-att
 export function buildTraversalTarball(): Promise<Buffer> {
   return buildTarball(
     [
-      { name: 'yapaja-addon.json', content: TARBALL_MANIFEST },
-      { name: '../../../../etc/yapaja-pwned.txt', content: 'pwned' },
+      { name: 'yapaia-addon.json', content: TARBALL_MANIFEST },
+      { name: '../../../../etc/yapaia-pwned.txt', content: 'pwned' },
     ],
     { gzip: true },
   );
@@ -239,8 +239,8 @@ export function buildTraversalTarball(): Promise<Buffer> {
 export function buildAbsolutePathTarball(): Promise<Buffer> {
   return buildTarball(
     [
-      { name: 'yapaja-addon.json', content: TARBALL_MANIFEST },
-      { name: '/etc/yapaja-pwned.txt', content: 'pwned' },
+      { name: 'yapaia-addon.json', content: TARBALL_MANIFEST },
+      { name: '/etc/yapaia-pwned.txt', content: 'pwned' },
     ],
     { gzip: true },
   );
@@ -250,7 +250,7 @@ export function buildAbsolutePathTarball(): Promise<Buffer> {
 export function buildSymlinkTarball(): Promise<Buffer> {
   return buildTarball(
     [
-      { name: 'yapaja-addon.json', content: TARBALL_MANIFEST },
+      { name: 'yapaia-addon.json', content: TARBALL_MANIFEST },
       { name: 'ui/db.sqlite', type: 'symlink', linkname: '../../../db.sqlite' },
     ],
     { gzip: true },
@@ -261,8 +261,8 @@ export function buildSymlinkTarball(): Promise<Buffer> {
 export function buildHardlinkTarball(): Promise<Buffer> {
   return buildTarball(
     [
-      { name: 'yapaja-addon.json', content: TARBALL_MANIFEST },
-      { name: 'ui/db.sqlite', type: 'link', linkname: 'yapaja-addon.json' },
+      { name: 'yapaia-addon.json', content: TARBALL_MANIFEST },
+      { name: 'ui/db.sqlite', type: 'link', linkname: 'yapaia-addon.json' },
     ],
     { gzip: true },
   );

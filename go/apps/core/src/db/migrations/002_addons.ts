@@ -9,7 +9,7 @@
  * (E09-T2/T3, actually running add-on service processes) must consult this
  * column before doing anything, never infer "running" from any other state.
  *
- * `manifest` stores the FULL validated `yapaja-addon.json` as JSON text
+ * `manifest` stores the FULL validated `yapaia-addon.json` as JSON text
  * (mirrors the `settings` table's `value` TEXT-blob convention) rather than
  * being column-per-field -- the manifest shape may grow (new optional
  * fields) without a further migration, and the install pipeline is the only

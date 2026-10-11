@@ -13,7 +13,7 @@
  *
  * WO: `<TILES_DIR>/custom-sources.json`. Bewusst neben den Kacheln und
  * nicht in der SQLite-Settings-Tabelle:
- *   - `TILES_DIR` ist im Add-on `/share/yapaja/tiles` und überlebt damit
+ *   - `TILES_DIR` ist im Add-on `/share/yapaia/tiles` und überlebt damit
  *     Add-on-Updates und Neuinstallationen (W-16), genau wie die Kacheln
  *     selbst;
  *   - `listRegions()` betrachtet ausschließlich `.pmtiles`-Dateien, eine

@@ -24,16 +24,16 @@ Release-Pipeline-Stage wie folgt aussehen:
 ```yaml
 - name: Upgrade-E2E (n-1 -> n)
   env:
-    PREV_IMAGE: ghcr.io/<org>/yapaja-core:${{ steps.prev_tag.outputs.tag }}
-    NEW_IMAGE: ghcr.io/<org>/yapaja-core:${{ github.ref_name }}
+    PREV_IMAGE: ghcr.io/<org>/yapaia-core:${{ steps.prev_tag.outputs.tag }}
+    NEW_IMAGE: ghcr.io/<org>/yapaia-core:${{ github.ref_name }}
   run: e2e/upgrade/run-upgrade-test.sh
 ```
 
 ## Manuell ausführen
 
 ```bash
-PREV_IMAGE=ghcr.io/<org>/yapaja-core:v0.9.0 \
-NEW_IMAGE=ghcr.io/<org>/yapaja-core:v1.0.0 \
+PREV_IMAGE=ghcr.io/<org>/yapaia-core:v0.9.0 \
+NEW_IMAGE=ghcr.io/<org>/yapaia-core:v1.0.0 \
   ./e2e/upgrade/run-upgrade-test.sh
 ```
 

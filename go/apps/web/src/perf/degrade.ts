@@ -21,7 +21,7 @@ import type { StyleLabelScale, StylePoiDensity } from '../map/styleClient';
 export type DegradationLevel = 0 | 1 | 2 | 3;
 export type QualityOverride = 'high' | 'auto' | 'low';
 
-const STORAGE_KEY_OVERRIDE = 'yapaja.qualityOverride';
+const STORAGE_KEY_OVERRIDE = 'yapaia.qualityOverride';
 
 // Thresholds (fps and duration)
 const UPGRADE_THRESHOLD_FPS = 25;

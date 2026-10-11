@@ -2,12 +2,12 @@
  * EVIL-FIXTURE, SERVICE-Haelfte (E09-T6, Wargame W-10). TEST-FIXTURE.
  *
  * Laeuft als vom Core gestarteter Node-Kindprozess (`service-host.ts`):
- *   cwd = data/addons/{id}, YAPAJA_DATA_DIR = data/addon-storage/{id},
- *   YAPAJA_TOKEN = scoped Token, gestartet mit `node --permission
+ *   cwd = data/addons/{id}, YAPAIA_DATA_DIR = data/addon-storage/{id},
+ *   YAPAIA_TOKEN = scoped Token, gestartet mit `node --permission
  *   --allow-fs-read=<addon-dir> --allow-fs-read/write=<storage-dir>`.
  *
  * Es versucht systematisch alles Verbotene und schreibt das Ergebnis nach
- * `<YAPAJA_DATA_DIR>/evil-probe.json` -- seinem EINZIGEN erlaubten
+ * `<YAPAIA_DATA_DIR>/evil-probe.json` -- seinem EINZIGEN erlaubten
  * Schreibort. Der Nachweis laeuft also ueber das Dateisystem, nicht ueber die
  * HTTP-Schicht, damit er nicht von genau der Schicht abhaengt, die er testet
  * (gleiche Bauweise wie das E09-T3-Fixture
@@ -20,10 +20,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const API = process.env.YAPAJA_API_URL;
-const TOKEN = process.env.YAPAJA_TOKEN;
-const DATA_DIR = process.env.YAPAJA_DATA_DIR;
-const ADDON_ID = process.env.YAPAJA_ADDON_ID;
+const API = process.env.YAPAIA_API_URL;
+const TOKEN = process.env.YAPAIA_TOKEN;
+const DATA_DIR = process.env.YAPAIA_DATA_DIR;
+const ADDON_ID = process.env.YAPAIA_ADDON_ID;
 
 const results = { addonId: ADDON_ID, startedAt: new Date().toISOString() };
 
@@ -87,7 +87,7 @@ async function run() {
   // --- Vektor: fremdes Storage-Namespace ueber die REST-API --------------
   await attempt(
     'storage_foreign_addon',
-    `${API}/api/v1/addons/com.yapaja.track-recorder/storage/index`,
+    `${API}/api/v1/addons/com.yapaia.track-recorder/storage/index`,
     { method: 'PUT', headers: authHeaders({ 'content-type': 'application/json' }), body: '{"value":"pwned"}' },
   );
   await attempt(
@@ -132,7 +132,7 @@ async function run() {
   await attempt('events_other_addon_namespace', `${API}/api/v1/addons/${ADDON_ID}/events`, {
     method: 'POST',
     headers: authHeaders({ 'content-type': 'application/json' }),
-    body: JSON.stringify({ topic: 'addon/com.yapaja.track-recorder/started', payload: {} }),
+    body: JSON.stringify({ topic: 'addon/com.yapaia.track-recorder/started', payload: {} }),
   });
 
   // --- Vektor: Zugriff auf Core-Only-Routen ------------------------------
@@ -141,7 +141,7 @@ async function run() {
   await attempt('core_security_log_write', `${API}/api/v1/security/events`, {
     method: 'POST',
     headers: authHeaders({ 'content-type': 'application/json' }),
-    body: JSON.stringify({ vector: 'ui.parent_dom_access', addon_id: 'com.yapaja.track-recorder', detail: 'forged' }),
+    body: JSON.stringify({ vector: 'ui.parent_dom_access', addon_id: 'com.yapaia.track-recorder', detail: 'forged' }),
   });
   await attempt('core_auth_token_rotate', `${API}/api/v1/auth/token`, { method: 'POST', headers: authHeaders() });
 

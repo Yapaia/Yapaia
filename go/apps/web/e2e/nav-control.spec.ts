@@ -578,7 +578,7 @@ test.describe('Navigation control end-to-end (E04-T5, Flow 2 + W-19)', () => {
     test.setTimeout(30_000);
     const pageErrors = collectPageErrors(page);
     await page.goto(NAV_CONTROL_CORE_BASE_URL + '/');
-    await page.evaluate(() => localStorage.removeItem('yapaja.anordnung'));
+    await page.evaluate(() => localStorage.removeItem('yapaia.anordnung'));
     await waitForMapReady(page);
     const startResponse = await page.request.post(`${NAV_CONTROL_CORE_BASE_URL}/api/v1/navigation/start`, {
       data: { route: ROUTE, destination: { latlng: ROUTE_POINTS[10], name: 'Anordnung Ziel' } },
@@ -615,7 +615,7 @@ test.describe('Navigation control end-to-end (E04-T5, Flow 2 + W-19)', () => {
       const leisteJetzt = (await leiste.boundingBox())!;
       expect(menue.y + menue.height).toBeLessThanOrEqual(leisteJetzt.y + 2);
     } finally {
-      await page.evaluate(() => localStorage.removeItem('yapaja.anordnung'));
+      await page.evaluate(() => localStorage.removeItem('yapaia.anordnung'));
     }
 
     expect(pageErrors).toEqual([]);

@@ -11,7 +11,8 @@ import { browserPlayer } from '../drive/ansageZiel.js';
 
 interface Stand {
   verfuegbar: boolean;
-  helfer: boolean;
+  /** Ist die Integration „Yapaia" mit Yapaia Go verbunden? */
+  integration: boolean;
   automation: boolean;
   agent: string | null;
   agenten: Array<{ id: string; name: string }>;
@@ -62,7 +63,7 @@ export function maText(s: Stand): string {
 }
 
 interface Ergebnis {
-  helfer: boolean;
+  integration: boolean;
   automation: boolean;
   hinweis?: string;
 }
@@ -110,9 +111,9 @@ export default function SprachEinstellungen(): React.ReactElement {
     try {
       const r = await fetch(url('api/v1/sprache/ha/einrichten'), { method: 'POST' });
       const body = (await r.json()) as { data?: Ergebnis; error?: { message: string } };
-      setErgebnis(body.data ?? { helfer: false, automation: false, hinweis: body.error?.message ?? `HTTP ${r.status}` });
+      setErgebnis(body.data ?? { integration: false, automation: false, hinweis: body.error?.message ?? `HTTP ${r.status}` });
     } catch {
-      setErgebnis({ helfer: false, automation: false, hinweis: 'Yapaia ist nicht erreichbar.' });
+      setErgebnis({ integration: false, automation: false, hinweis: 'Yapaia ist nicht erreichbar.' });
     } finally {
       setRichtetEin(false);
       void laden();
@@ -238,7 +239,8 @@ export default function SprachEinstellungen(): React.ReactElement {
         <h3 className="font-semibold">Sprechen über Home Assistant Assist</h3>
         <p className="text-slate-600 dark:text-slate-300">
           Sprachsatelliten und der Assist-Knopf der Home-Assistant-App hören auch ohne HTTPS zu. Yapaia legt dafür in
-          Home Assistant einen Helfer und die Automation „Yapaia Sprachbefehle" an.
+          Home Assistant die Automation „Yapaia Sprachbefehle" an; sie gibt die Sätze über die Integration „Yapaia" an
+          Yapaia Go weiter.
         </p>
         {laedt && <p className="text-slate-500">Lade …</p>}
         {!laedt && stand && !stand.verfuegbar && (
@@ -248,7 +250,7 @@ export default function SprachEinstellungen(): React.ReactElement {
         )}
         {!laedt && stand?.verfuegbar && (
           <ul className="space-y-1" data-testid="sprach-ha-stand">
-            <li>{stand.helfer ? '✅' : '⬜'} Helfer „Yapaia Sprachbefehl"</li>
+            <li>{stand.integration ? '✅' : '⬜'} Integration „Yapaia" verbunden</li>
             <li>{stand.automation ? '✅' : '⬜'} Automation „Yapaia Sprachbefehle"</li>
           </ul>
         )}
@@ -266,7 +268,7 @@ export default function SprachEinstellungen(): React.ReactElement {
             className={ergebnis.automation ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}
             data-testid="sprach-ha-ergebnis"
           >
-            {ergebnis.automation && ergebnis.helfer
+            {ergebnis.automation && ergebnis.integration
               ? 'Eingerichtet. Sag zum Beispiel „Yapaia, fahre mich nach Magdeburg".'
               : (ergebnis.hinweis ?? 'Das hat nicht geklappt.')}
           </p>

@@ -17,7 +17,7 @@ import {
   type LautsprecherAnsageDeps,
 } from './lautsprecherAnsage.js';
 import type { HaEntityState } from './client.js';
-import type { WebSocketAehnlich } from './commandHelpers.js';
+import type { WebSocketAehnlich } from './wsBefehl.js';
 
 const V = { apiBase: 'http://ha/api', token: 't' };
 const ma = (id: string, name: string, state = 'idle'): HaEntityState => ({

@@ -32,7 +32,7 @@ async function bereitMitPin(page: Page): Promise<{ x: number; y: number }> {
         page.evaluate((pin) => {
           const map = window.__yapaiaMapController!.getMap()!;
           map.jumpTo({ center: [pin.lon, pin.lat], zoom: 15 });
-          const quelle = map.getSource('yapaja-sonderziele') as unknown as { setData: (d: unknown) => void } | undefined;
+          const quelle = map.getSource('yapaia-sonderziele') as unknown as { setData: (d: unknown) => void } | undefined;
           if (!quelle) return 0;
           quelle.setData({
             type: 'FeatureCollection',
@@ -52,7 +52,7 @@ async function bereitMitPin(page: Page): Promise<{ x: number; y: number }> {
             ],
           });
           const p = map.project([pin.lon, pin.lat]);
-          return map.queryRenderedFeatures([p.x, p.y], { layers: ['yapaja-sonderziele-marken'] }).length;
+          return map.queryRenderedFeatures([p.x, p.y], { layers: ['yapaia-sonderziele-marken'] }).length;
         }, PIN),
       { timeout: 10_000 },
     )
@@ -148,8 +148,8 @@ test('0.26: Tipp auf eine Baustelle zeigt die Meldung der Autobahn GmbH', async 
       () =>
         page.evaluate((p) => {
           const map = window.__yapaiaMapController!.getMap()!;
-          const quelle = map.getSource('yapaja-verkehr') as unknown as { setData: (d: unknown) => void } | undefined;
-          if (!quelle || !map.getLayer('yapaja-verkehr-marken')) return 0;
+          const quelle = map.getSource('yapaia-verkehr') as unknown as { setData: (d: unknown) => void } | undefined;
+          if (!quelle || !map.getLayer('yapaia-verkehr-marken')) return 0;
           quelle.setData({
             type: 'FeatureCollection',
             features: [
@@ -168,7 +168,7 @@ test('0.26: Tipp auf eine Baustelle zeigt die Meldung der Autobahn GmbH', async 
             ],
           });
           const pt = map.project([p.lon, p.lat]);
-          return map.queryRenderedFeatures([pt.x, pt.y], { layers: ['yapaja-verkehr-marken'] }).length;
+          return map.queryRenderedFeatures([pt.x, pt.y], { layers: ['yapaia-verkehr-marken'] }).length;
         }, PIN),
       { timeout: 10_000 },
     )

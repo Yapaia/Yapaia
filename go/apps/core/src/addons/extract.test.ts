@@ -69,7 +69,7 @@ describe('extractAddonTarball -- happy path', () => {
     const destDir = join(parent, 'plain');
     const { manifest } = validManifestPair();
     const bytes = await buildTarball(
-      [{ name: 'yapaja-addon.json', content: JSON.stringify(manifest) }],
+      [{ name: 'yapaia-addon.json', content: JSON.stringify(manifest) }],
       { gzip: false },
     );
     const result = await extractAddonTarball({ tarballBytes: bytes, destDir, maxUncompressedBytes: 1024 * 1024 });
@@ -82,7 +82,7 @@ function validManifestPair(): { manifest: { id: string } } {
 }
 
 describe('extractAddonTarball -- rejects manifest-less tarballs', () => {
-  it('rejects a tarball with no yapaja-addon.json at the root', async () => {
+  it('rejects a tarball with no yapaia-addon.json at the root', async () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'no-manifest');
     const bytes = await buildTarball([{ name: 'README.md', content: 'hello' }]);
@@ -97,7 +97,7 @@ describe('extractAddonTarball -- rejects manifest-less tarballs', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'nested-manifest');
     const bytes = await buildTarball([
-      { name: 'nested/yapaja-addon.json', content: '{}' },
+      { name: 'nested/yapaia-addon.json', content: '{}' },
     ]);
     await expect(
       extractAddonTarball({ tarballBytes: bytes, destDir, maxUncompressedBytes: 1024 * 1024 }),
@@ -112,7 +112,7 @@ describe('extractAddonTarball -- ATTACK: path traversal (../)', () => {
     const canary = join(parent, 'tmp', 'evil');
 
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: '../../tmp/evil', content: 'pwned' },
     ]);
 
@@ -128,7 +128,7 @@ describe('extractAddonTarball -- ATTACK: path traversal (../)', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'victim2');
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: '../../../etc/x', content: 'pwned' },
     ]);
     await expect(
@@ -139,7 +139,7 @@ describe('extractAddonTarball -- ATTACK: path traversal (../)', () => {
 
   it('also rejects traversal in dry-run mode (destDir: null)', async () => {
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: '../escape', content: 'pwned' },
     ]);
     await expect(
@@ -153,7 +153,7 @@ describe('extractAddonTarball -- ATTACK: absolute path entry', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'victim3');
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: '/etc/evil', content: 'pwned' },
     ]);
 
@@ -171,7 +171,7 @@ describe('extractAddonTarball -- ATTACK: symlink escape', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'victim4');
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: 'escape-link', type: 'symlink', linkname: '/etc/passwd' },
     ]);
 
@@ -187,7 +187,7 @@ describe('extractAddonTarball -- ATTACK: symlink escape', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'victim5');
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: 'hard-link', type: 'link', linkname: '/etc/passwd' },
     ]);
 
@@ -203,7 +203,7 @@ describe('extractAddonTarball -- ATTACK: symlink escape', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'victim6');
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: 'inner-link', type: 'symlink', linkname: './somewhere-inside' },
     ]);
     await expect(
@@ -217,7 +217,7 @@ describe('extractAddonTarball -- ATTACK: disallowed entry types', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'victim-fifo');
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: 'a-fifo', type: 'fifo' },
     ]);
 
@@ -231,7 +231,7 @@ describe('extractAddonTarball -- ATTACK: disallowed entry types', () => {
     const parent = makeTmpDir();
     const destDir = join(parent, 'victim-chardev');
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify(validManifestPair().manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(validManifestPair().manifest) },
       { name: 'a-device', type: 'character-device' },
     ]);
 

@@ -78,12 +78,12 @@ nötig.
 
 ### systemd (Linux-Mini-PC, empfohlen für Option A)
 
-`/etc/systemd/system/yapaja-kiosk.service`:
+`/etc/systemd/system/yapaia-kiosk.service`:
 
 ```ini
 [Unit]
 Description=Yapaia Go Kiosk
-After=graphical.target network-online.target yapaja-core.service
+After=graphical.target network-online.target yapaia-core.service
 Wants=network-online.target
 
 [Service]
@@ -105,11 +105,11 @@ WantedBy=graphical.target
 ```
 
 ```sh
-sudo systemctl enable --now yapaja-kiosk.service
+sudo systemctl enable --now yapaia-kiosk.service
 ```
 
-`yapaja-core.service` (analog, `ExecStart=docker compose -f
-/opt/yapaja/docker-compose.yml up`, oder direkt `node apps/core/dist/index.js`
+`yapaia-core.service` (analog, `ExecStart=docker compose -f
+/opt/yapaia/docker-compose.yml up`, oder direkt `node apps/core/dist/index.js`
 je nach Deployment) muss **vor** dem Kiosk-Unit starten (`After=`), sonst zeigt
 der erste Kiosk-Start nur einen Verbindungsfehler — Chromiums eigenes
 `Restart=always` fängt das trotzdem irgendwann ab, sobald der Core hochkommt.

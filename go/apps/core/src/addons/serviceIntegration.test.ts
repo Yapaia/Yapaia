@@ -68,7 +68,7 @@ describe('service add-on lifecycle, end to end (E09-T3)', () => {
     // Lay the add-on out exactly as the install pipeline would.
     const dir = join(addonsDir, ADDON_ID);
     mkdirSync(join(dir, 'service'), { recursive: true });
-    writeFileSync(join(dir, 'yapaja-addon.json'), JSON.stringify(MANIFEST));
+    writeFileSync(join(dir, 'yapaia-addon.json'), JSON.stringify(MANIFEST));
     copyFileSync(join(FIXTURE_DIR, 'pos-subscriber.js'), join(dir, 'service', 'main.js'));
 
     server = await buildServer();

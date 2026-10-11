@@ -16,7 +16,7 @@ test.use({ serviceWorkers: 'block' });
 async function bereit(page: Page, basis = CORE_BASE_URL): Promise<void> {
   await page.goto(basis + '/');
   await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 15_000 });
-  await page.evaluate(() => localStorage.removeItem('yapaja.anordnung'));
+  await page.evaluate(() => localStorage.removeItem('yapaia.anordnung'));
   await page.reload();
   await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 15_000 });
 }
@@ -84,7 +84,7 @@ test('ein Knopf lässt sich verschieben und vergrößern, bleibt nach dem Neulad
 test('ein weit hinausgeschobenes Element bleibt im sichtbaren Bereich', async ({ page }) => {
   await bereit(page);
   await page.evaluate(() => {
-    localStorage.setItem('yapaja.anordnung', JSON.stringify({ ruhe: { ansicht: { dx: 5000, dy: -5000, s: 1 } }, fahrt: {} }));
+    localStorage.setItem('yapaia.anordnung', JSON.stringify({ ruhe: { ansicht: { dx: 5000, dy: -5000, s: 1 } }, fahrt: {} }));
   });
   await page.reload();
   await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible({ timeout: 15_000 });

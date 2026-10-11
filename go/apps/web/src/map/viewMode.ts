@@ -6,7 +6,7 @@
  * - 2d-course: pitch 0, bearing = current heading from position
  * - 3d-course: pitch 55, bearing = current heading
  *
- * State is persisted to localStorage (key: yapaja.viewMode).
+ * State is persisted to localStorage (key: yapaia.viewMode).
  * View mode switching animates the camera transition (300ms).
  */
 
@@ -18,7 +18,7 @@ import { useFollowMeStore } from './followMe.js';
 
 export type ViewMode = '2d-north' | '2d-course' | '3d-course';
 
-const STORAGE_KEY = 'yapaja.viewMode';
+const STORAGE_KEY = 'yapaia.viewMode';
 const ANIMATION_DURATION = 300;
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { wsBefehlErgebnis } from './wsBefehl.js';
-import type { WebSocketAehnlich } from './commandHelpers.js';
+import type { WebSocketAehnlich } from './wsBefehl.js';
 
 const V = { apiBase: 'http://ha/api', token: 't' };
 

@@ -12,7 +12,7 @@
  *      TypeScript SOURCE via `alias` (this package is deliberately not a
  *      pnpm workspace member -- see ../README.md -- so there is no
  *      node_modules-linked build of either to depend on).
- *   2. `dist/poi-campsites.tgz` -- the installable tarball: `yapaja-addon.json`
+ *   2. `dist/poi-campsites.tgz` -- the installable tarball: `yapaia-addon.json`
  *      at the TOP LEVEL (required, see `apps/core/src/addons/extract.ts`)
  *      plus the `ui/` directory (index.html + the bundle).
  */
@@ -59,18 +59,18 @@ function bundleUi() {
 function stageAndPack() {
   rmSync(STAGE_DIR, { recursive: true, force: true });
   mkdirSync(STAGE_DIR, { recursive: true });
-  cpSync(join(__dirname, 'yapaja-addon.json'), join(STAGE_DIR, 'yapaja-addon.json'));
+  cpSync(join(__dirname, 'yapaia-addon.json'), join(STAGE_DIR, 'yapaia-addon.json'));
   cpSync(join(__dirname, 'ui'), join(STAGE_DIR, 'ui'), { recursive: true });
 
   const tarballPath = join(DIST_DIR, 'poi-campsites.tgz');
   if (existsSync(tarballPath)) rmSync(tarballPath);
   // Entries are written with paths RELATIVE to STAGE_DIR, naming each
-  // top-level member EXPLICITLY (`yapaja-addon.json`, `ui`) rather than `.`
+  // top-level member EXPLICITLY (`yapaia-addon.json`, `ui`) rather than `.`
   // -- GNU tar's `-C dir .` form emits a leading `./` directory entry, which
   // the install pipeline's tarball-safety check rejects outright (empty/"."
   // entry name, `apps/core/src/addons/extract.ts`). Explicit names also
-  // means `yapaja-addon.json` lands at the tarball's top level, as required.
-  execFileSync('tar', ['czf', tarballPath, '-C', STAGE_DIR, 'yapaja-addon.json', 'ui'], { stdio: 'inherit' });
+  // means `yapaia-addon.json` lands at the tarball's top level, as required.
+  execFileSync('tar', ['czf', tarballPath, '-C', STAGE_DIR, 'yapaia-addon.json', 'ui'], { stdio: 'inherit' });
   console.log(`Built ${tarballPath}`);
 }
 

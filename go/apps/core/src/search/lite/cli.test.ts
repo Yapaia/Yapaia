@@ -194,7 +194,7 @@ describe('runCli', () => {
  */
 describe('isDirectRun — läuft die Datei als Programm?', () => {
   it('erkennt den Direktaufruf unabhängig vom Dateinamen', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-entry-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-entry-'));
     // Genau die zwei Namen, um die es geht: der Quelltext und das Bündel.
     for (const name of ['cli.ts', 'lite-index.js']) {
       const file = join(dir, name);
@@ -209,7 +209,7 @@ describe('isDirectRun — läuft die Datei als Programm?', () => {
   });
 
   it('erkennt den Import (argv[1] ist ein anderer Pfad) als NICHT direkt', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-entry-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-entry-'));
     const module = join(dir, 'lite-index.js');
     const runner = join(dir, 'vitest.js');
     writeFileSync(module, '');

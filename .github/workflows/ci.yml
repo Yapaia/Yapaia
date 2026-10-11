@@ -53,7 +53,7 @@ jobs:
               - '.github/actions/go-fetch-pbf/**'
             go_addon:
               - *shared
-              - 'go/yapaja_go/**'
+              - 'go/yapaia_go/**'
               - 'integration/custom_components/yapaia/**'
               - '.github/workflows/go-addon-image.yml'
             beat:

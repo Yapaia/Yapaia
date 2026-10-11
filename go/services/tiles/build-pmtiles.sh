@@ -90,7 +90,7 @@
 #          Skript, danach die Datei kopieren);
 #       c) die `.pmtiles` auf einem Desktop/Server bauen und per
 #          „Samba share"- oder „File editor"-Add-on nach
-#          `/share/yapaja/tiles/<region>.pmtiles` legen.
+#          `/share/yapaia/tiles/<region>.pmtiles` legen.
 #     Weg (c) ist der einzige, der gar keinen zweiten Rechner voraussetzt,
 #     falls jemand die Datei bereitstellt. Details: docs/installation.md §C.
 #
@@ -101,8 +101,8 @@
 # Env-Overrides:
 #   TILES_DIR          Zielverzeichnis der Kacheln
 #                       (Default: <repo>/data/tiles; im HA-Add-on:
-#                        /share/yapaja/tiles, siehe
-#                        yapaja_go/rootfs/etc/yapaja/init-yapaja-config.sh)
+#                        /share/yapaia/tiles, siehe
+#                        yapaia_go/rootfs/etc/yapaia/init-yapaia-config.sh)
 #   PLANETILER_IMAGE   Container-Image (Default: ghcr.io/onthegomap/planetiler:v0.10.2)
 #   PLANETILER_JAR     Pfad zu planetiler.jar. Ist er gesetzt, laeuft der Bau
 #                      per `java -jar` STATT per Docker -- der einzige Weg
@@ -120,7 +120,7 @@
 #                         * seit 0.10.2 die OSM-Extrakte selbst, als
 #                           `<region>.osm.pbf`. Sie bleiben liegen, weil der
 #                           ROUTINGGRAPH aus genau diesem Verzeichnis gebaut
-#                           wird (`yapaja-build-graph`) und eine installierte
+#                           wird (`yapaia-build-graph`) und eine installierte
 #                           Karte sonst keine Strassendaten mitbringt.
 #   PLANETILER_ARGS    ERSETZT die planetiler-Argumente komplett. Fuer den
 #                       Fall, dass die CLI der verwendeten Version von der
@@ -211,7 +211,7 @@ OUTPUT_FILE="$TILES_DIR/$REGION_ID.pmtiles"
 # JAR-Modus ueberhaupt existiert.
 #
 # Die Folge war der Fehlschlag, mit dem der Kachelbau im Add-on aus der
-# Oberflaeche abbrach: der Wrapper `yapaja-build-pmtiles` setzt
+# Oberflaeche abbrach: der Wrapper `yapaia-build-pmtiles` setzt
 # PLANETILER_JAR korrekt, laedt die JAR nach /share -- und dieses Skript
 # stieg trotzdem mit „docker nicht im PATH gefunden" aus, samt dem Rat,
 # die Kacheln „auf einem anderen Rechner" zu bauen. Der Betreiber sah
@@ -232,7 +232,7 @@ if [ -z "${PLANETILER_JAR:-}" ]; then
 fi
 
 # --- Eingabe beschaffen ------------------------------------------------------
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/yapaja-pmtiles-XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/yapaia-pmtiles-XXXXXX")"
 cleanup() {
   rm -rf "$WORK_DIR"
 }
@@ -264,7 +264,7 @@ mkdir -p "$SOURCES_DIR"
 # „NICHT regionsspezifischen Basisdaten" -- die regionsspezifischen wurden
 # also bewusst weggeworfen.
 #
-# Das hat den Routinggraphen gekostet. `yapaja-build-graph` baut EINEN Graphen
+# Das hat den Routinggraphen gekostet. `yapaia-build-graph` baut EINEN Graphen
 # ueber JEDE `.osm.pbf` in genau diesem Verzeichnis. Eine installierte Karte
 # hinterliess dort nichts -- wer drei Laender installierte und dann „Routing
 # bauen" drueckte, bekam Routing nur fuer das eine Land, dessen Extrakt der
@@ -275,7 +275,7 @@ mkdir -p "$SOURCES_DIR"
 # Der Preis ist Plattenplatz: Deutschland ~4 GB, die Schweiz ~400 MB. Dafuer
 # * deckt „Routing bauen" alles ab, was installiert ist,
 # * laedt der Suchindex-Bau nicht noch einmal dasselbe herunter
-#   (`yapaja-build-lite-index` sucht genau hier -- sein Kommentar
+#   (`yapaia-build-lite-index` sucht genau hier -- sein Kommentar
 #   „Wiederverwendet, was der Kachelbau schon heruntergeladen hat" stimmte
 #   bis hierher schlicht nicht),
 # * und ein zweiter Kachelbau derselben Region laedt gar nichts mehr.
@@ -292,7 +292,7 @@ INPUT_FILE="$SOURCES_DIR/$REGION_ID.osm.pbf"
 # Zeichenkette) ergibt die Bytes 0x0a 0x09 und danach exakt "OSMHeader".
 # Das steht bei Byte 6..14 und braucht kein osmium und kein Python.
 #
-# (Dieselbe Funktion steht in `yapaja_go/rootfs/usr/bin/yapaja-build-graph`.
+# (Dieselbe Funktion steht in `yapaia_go/rootfs/usr/bin/yapaia-build-graph`.
 # `services/tiles/osm-pbf-kopf.test.ts` vergleicht beide Fassungen Zeichen
 # fuer Zeichen, damit sie nicht auseinanderlaufen koennen.)
 ist_osm_pbf() {
@@ -406,7 +406,7 @@ if [ "$DISK_OK" -eq 0 ]; then
   echo "und ein Abbruch wegen voller Platte kostet diese Zeit vollstaendig." >&2
   echo "" >&2
   echo "Moeglichkeiten:" >&2
-  echo "  * Platz schaffen (alte Regionen, Zwischenstaende unter /share/yapaja/tmp)." >&2
+  echo "  * Platz schaffen (alte Regionen, Zwischenstaende unter /share/yapaia/tmp)." >&2
   echo "  * Eine kleinere Region bauen (Bundesland statt Land)." >&2
   echo "  * Die Schaetzung ist konservativ. Wer es besser weiss, setzt" >&2
   echo "    PMTILES_DISK_FACTOR (aktuell ${PMTILES_DISK_FACTOR}) oder" >&2

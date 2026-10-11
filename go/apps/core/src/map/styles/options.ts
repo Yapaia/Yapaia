@@ -3,13 +3,13 @@
  * functions over a style document's `layers` array, composed by
  * `applyStyleOptions`. Each transform is independent and only touches the
  * layers it's responsible for (classified by the naming convention
- * documented in `constants.ts` / `yapaja-light.ts`), so adding a new
+ * documented in `constants.ts` / `yapaia-light.ts`), so adding a new
  * transform later is just "write a pure `(layers) => layers` function and
  * wire it into `applyStyleOptions`" — no other module needs to change.
  *
  * Query params are treated as *optional overrides*: a param that's absent
  * (not merely invalid) leaves that aspect of the style untouched, so a
- * style's own baked-in defaults (e.g. `yapaja-contrast`'s reduced POI) stay
+ * style's own baked-in defaults (e.g. `yapaia-contrast`'s reduced POI) stay
  * intact unless a caller explicitly overrides them.
  */
 
@@ -231,7 +231,7 @@ function applyPoi(
   // ─── `poi` UNGESETZT HEISST „NICHT ANFASSEN" ──────────────────────────────
   // Und zwar auch hier, wo es verlockend wäre, `full` einzusetzen, um einen
   // Sonderfall zu sparen. Das wäre falsch, und der Kopf dieser Datei sagt
-  // warum: `yapaja-contrast` bringt seine reduzierte POI-Auswahl selbst mit.
+  // warum: `yapaia-contrast` bringt seine reduzierte POI-Auswahl selbst mit.
   // Wer nur eine Kategorie abschaltet und die Dichte nie angefasst hat,
   // schickt kein `?poi=` -- und bekäme mit `full` als Vorgabe plötzlich MEHR
   // Symbole als vorher. Ein Schalter, der Dinge einschaltet, ist die

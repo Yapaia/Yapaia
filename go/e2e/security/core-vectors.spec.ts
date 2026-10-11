@@ -53,7 +53,7 @@ let api: APIRequestContext;
 let evilToken = '';
 let ssrfToken = '';
 
-/** `$YAPAJA_DATA_DIR/evil-probe.json` -- what the SERVICE process observed. */
+/** `$YAPAIA_DATA_DIR/evil-probe.json` -- what the SERVICE process observed. */
 function readServiceProbe(): Record<string, { ok?: boolean; status?: number | null; code?: string }> | null {
   const path = join(SECURITY_ADDON_STORAGE_DIR, EVIL_ADDON_ID, 'evil-probe.json');
   if (!existsSync(path)) return null;
@@ -85,7 +85,7 @@ test.beforeAll(async () => {
   const victim = await buildTarball(
     [
       {
-        name: 'yapaja-addon.json',
+        name: 'yapaia-addon.json',
         content: JSON.stringify(minimalManifest(VICTIM_ADDON_ID, ['storage.own'])),
       },
     ],
@@ -102,7 +102,7 @@ test.beforeAll(async () => {
   const ssrf = await buildTarball(
     [
       {
-        name: 'yapaja-addon.json',
+        name: 'yapaia-addon.json',
         content: JSON.stringify(
           minimalManifest(SSRF_ADDON_ID, ['pos.read', `net.fetch:127.0.0.1:${SECURITY_CORE_PORT}`]),
         ),
@@ -487,7 +487,7 @@ test('VEKTOR tarball.path_traversal: `../`- und absolute Einträge werden über 
     expect(outcome.beginStatus).toBe(400);
     expect(outcome.errorCode).toBe('TARBALL_REJECTED');
   }
-  expect(existsSync('/etc/yapaja-pwned.txt')).toBe(false);
+  expect(existsSync('/etc/yapaia-pwned.txt')).toBe(false);
 
   // (b) recorded.
   await expectSecurityEvent(api, 'tarball.path_traversal');

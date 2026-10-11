@@ -30,7 +30,7 @@
  * Basisname der Symbolsammlung. MapLibre haengt selbst `.json`/`.png` an und
  * greift bei hoher Pixeldichte zu `@2x` — beides liegt bereit.
  */
-export const SPRITE_URL = './sprites/yapaja';
+export const SPRITE_URL = './sprites/yapaia';
 
 /**
  * Die Schildformen im Blatt. Muss zu `SHIELDS` in

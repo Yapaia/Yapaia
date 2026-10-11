@@ -59,7 +59,7 @@ describe('getSystemResources (E08-T5, W-12/W-18 plausibility)', () => {
   });
 
   it('creates dataDir if missing (so a fresh install with no tiles yet does not ENOENT) and then reports real statfs of it', async () => {
-    const parent = mkdtempSync(join(tmpdir(), 'yapaja-resources-'));
+    const parent = mkdtempSync(join(tmpdir(), 'yapaia-resources-'));
     tempDirs.push(parent);
     const missingDir = join(parent, 'not-yet-created', 'nested');
 

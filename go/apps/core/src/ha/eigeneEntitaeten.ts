@@ -5,7 +5,7 @@
  * Aus dem Protokoll einer echten Installation:
  *
  *     ha_tracker: konfigurierte Entitaet nicht gefunden -- Quelle bleibt inaktiv
- *     { entityId: "device_tracker.yapaja_vehicle",
+ *     { entityId: "device_tracker.yapaia_vehicle",
  *       verfuegbar: ["device_tracker.ipad_2"] }
  *
  * Yapaia war als seine eigene Positionsquelle eingestellt.
@@ -23,8 +23,8 @@
  * das Protokoll meldet nicht „Kreis", sondern „nicht gefunden".
  *
  * ─── WARUM EINE EIGENE DATEI FUER EINE ZEICHENKETTE ──────────────────────────
- * Weil zwei Stellen dieselbe Entitaet erzeugen (`statesBridge.ts` ueber die
- * HA-API, `mqtt/discovery.ts` ueber `object_id`) und eine dritte sie nun
+ * Weil mehrere Stellen dieselbe Entitaet erzeugen (`statesBridge.ts`,
+ * `mqtt/discovery.ts` ueber `object_id`) und eine weitere sie
  * ausschliessen muss (`position/haTracker`). Stuende der Name dreimal als
  * Literal da, koennte einer davon umbenannt werden, ohne dass die anderen
  * nachziehen -- und der Ausschluss griffe still ins Leere. Genau die Sorte
@@ -38,10 +38,13 @@
 /**
  * Yapaias eigener Fahrzeug-Tracker -- die AUSGABE der Navigation.
  *
- * Er entsteht ueber beide Wege nach Home Assistant, den MQTT-Broker und die
- * HA-API, und heisst in beiden Faellen gleich.
+ * Er ist zugleich der Schluessel, unter dem `buildHaStates` die Position
+ * fuehrt, und die Entitaet, die MQTT anlegt (wer MQTT nutzt).
  */
-export const EIGENER_FAHRZEUG_TRACKER = 'device_tracker.yapaja_vehicle';
+export const EIGENER_FAHRZEUG_TRACKER = 'device_tracker.yapaia_vehicle';
+
+/** Derselbe Standort als Entitaet der Integration „Yapaia" (`yapaia/beschreibung.ts`, `standort`). */
+export const EIGENER_STANDORT = 'device_tracker.yapaia_go_standort';
 
 /**
  * Ob eine Entity-ID eine ist, die Yapaia selbst schreibt.
@@ -51,5 +54,5 @@ export const EIGENER_FAHRZEUG_TRACKER = 'device_tracker.yapaja_vehicle';
  * nachgetragen wird.
  */
 export function istEigeneEntitaet(entityId: string): boolean {
-  return entityId === EIGENER_FAHRZEUG_TRACKER;
+  return entityId === EIGENER_FAHRZEUG_TRACKER || entityId === EIGENER_STANDORT;
 }

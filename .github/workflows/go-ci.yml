@@ -74,10 +74,10 @@ jobs:
     # Abhaengigkeit vom Rest der Suite. Der eigentliche `frenck/action-
     # addon-linter` (Drittanbieter-Action, Schema-Vollpruefung) laeuft
     # bewusst NICHT hier, sondern nightly mit continue-on-error --
-    # Begruendung: yapaja_go/PACKAGING.md "CI strategy". Dieser Job prueft nur
+    # Begruendung: yapaia_go/PACKAGING.md "CI strategy". Dieser Job prueft nur
     # die konkreten, in tasks/E08-home-assistant.md + docs/04 §3 genannten
     # Pflicht-Keys (ingress, slug, arch, map, services, options/schema),
-    # rein in-repo via yapaja_go/config.test.ts (Vitest + js-yaml)
+    # rein in-repo via yapaia_go/config.test.ts (Vitest + js-yaml)
     # -- deterministisch, kein Netzwerk, kann daher gefahrlos Merge-Gate sein.
     timeout-minutes: 10
     steps:
@@ -100,11 +100,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate yapaja_go/config.yaml structure
-        run: npx vitest run yapaja_go/config.test.ts
+      - name: Validate yapaia_go/config.yaml structure
+        run: npx vitest run yapaia_go/config.test.ts
 
-      - name: Lint yapaja_go/ TypeScript (config.test.ts)
-        run: npx eslint yapaja_go --ext .ts
+      - name: Lint yapaia_go/ TypeScript (config.test.ts)
+        run: npx eslint yapaia_go --ext .ts
 
   e2e:
     name: E2E (Playwright ${{ matrix.shard }}/4)
@@ -580,10 +580,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -f apps/core/Dockerfile -t yapaja-core:ci .
+        run: docker build -f apps/core/Dockerfile -t yapaia-core:ci .
 
       - name: Start container
-        run: docker run -d --name core -p 8080:8080 yapaja-core:ci
+        run: docker run -d --name core -p 8080:8080 yapaia-core:ci
 
       - name: Wait for container health
         run: |
@@ -604,7 +604,7 @@ jobs:
 
       - name: Check image size
         run: |
-          SIZE_BYTES=$(docker image inspect --format='{{.Size}}' yapaja-core:ci)
+          SIZE_BYTES=$(docker image inspect --format='{{.Size}}' yapaia-core:ci)
           SIZE_MB=$((SIZE_BYTES / 1000000))
           echo "Image size: ${SIZE_MB} MB"
           [ "$SIZE_MB" -lt 350 ]
@@ -1306,15 +1306,15 @@ jobs:
           PHOTON_XMX=256m docker compose --profile search up -d photon
           sleep 10
           echo "-- Container-Status --"
-          docker inspect --format '{{.State.Status}}' yapaja-photon
+          docker inspect --format '{{.State.Status}}' yapaia-photon
           echo "-- Env (JAVA_PARAMS muss ankommen) --"
-          docker inspect --format '{{.Config.Env}}' yapaja-photon | tee env.out
+          docker inspect --format '{{.Config.Env}}' yapaia-photon | tee env.out
           grep -q 'JAVA_PARAMS=-Xmx256m' env.out || { echo "::error::JAVA_PARAMS kam nicht wie erwartet im Container an"; exit 1; }
           echo "-- /status (informativ -- ohne echten Index ist ein Nicht-200 hier erwartet und OK, siehe README) --"
           curl -sS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:2322/status || echo "kein Connect (ebenfalls moeglich ohne Index -- rein informativ)"
-          docker logs yapaja-photon 2>&1 | tail -60
+          docker logs yapaia-photon 2>&1 | tail -60
           docker compose --profile search down
 
       - name: Dump Photon logs on failure
         if: failure()
-        run: docker logs yapaja-photon 2>&1 | tail -150 || true
+        run: docker logs yapaia-photon 2>&1 | tail -150 || true

@@ -13,14 +13,14 @@
 services:
   core:
     image: ${YAPAIA_CORE_IMAGE:?set YAPAIA_CORE_IMAGE before 'docker compose up'}
-    container_name: yapaja-upgrade-core
+    container_name: yapaia-upgrade-core
     ports:
       - '8080:8080'
     volumes:
       - upgrade-db:/app/data/db
     environment:
       - PORT=8080
-      - DB_PATH=/app/data/db/yapaja.db
+      - DB_PATH=/app/data/db/yapaia.db
       - NODE_ENV=production
 
 volumes:

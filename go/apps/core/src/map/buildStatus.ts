@@ -12,8 +12,8 @@
  * ─── DIE UNBEQUEME WAHRHEIT, DIE HIER SICHTBAR WIRD ─────────────────────────
  * Kacheln liegen PRO REGION (`<region>.pmtiles`). Routinggraph und Suchindex
  * gibt es dagegen nur EINMAL: beide Bauwege ersetzen den vorherigen Stand
- * vollständig (`yapaja-build-graph` tauscht das ganze Verzeichnis,
- * `yapaja-build-lite-index` die ganze Datei). Wer Routing für Region B baut,
+ * vollständig (`yapaia-build-graph` tauscht das ganze Verzeichnis,
+ * `yapaia-build-lite-index` die ganze Datei). Wer Routing für Region B baut,
  * hat danach kein Routing mehr für Region A.
  *
  * Die Oberfläche bietet die Knöpfe aber PRO REGION an und legte damit das

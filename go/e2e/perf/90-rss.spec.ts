@@ -3,7 +3,7 @@
  *
  * WAS HIER EHRLICH MESSBAR IST -- UND WAS NICHT
  * ---------------------------------------------
- * MESSBAR: `yapaja-core`. Der Core dieser Suite ist ein echter, gebauter
+ * MESSBAR: `yapaia-core`. Der Core dieser Suite ist ein echter, gebauter
  * Node-Prozess auf diesem Host; sein RSS wird ueber `/proc/<pid>/stat`
  * gelesen (derselbe Parser wie im Add-on-Watchdog, E09-T3). Der Wert wird
  * NACH der Last der uebrigen Specs erhoben -- deshalb laeuft diese Spec als
@@ -53,7 +53,7 @@ const NOT_MEASURED_REASONS: Readonly<Record<string, string>> = {
     'Diese Zahl ist nur auf echter Hardware erhebbar und steht auf der manuellen ' +
     'Hardware-Checkliste (docs/07 §7).',
   rss_server_total_mb:
-    'Summe aus vier Posten, von denen in dieser Umgebung nur `yapaja-core` messbar ist. ' +
+    'Summe aus vier Posten, von denen in dieser Umgebung nur `yapaia-core` messbar ist. ' +
     'Eine Teilsumme als Gesamtsumme auszuweisen waere irrefuehrend.',
 };
 

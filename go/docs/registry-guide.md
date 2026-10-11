@@ -1,7 +1,7 @@
 # Registry-Guide (E09-T7)
 
 Dieser Guide beschreibt das Repo-Layout der öffentlichen Add-on-Registry
-(`yapaja-addons-registry`), das `index.json`-Schema, wie der Core es lädt und
+(`yapaia-addons-registry`), das `index.json`-Schema, wie der Core es lädt und
 cached, sowie die Review-Checkliste für Einreichungs-PRs. Siehe auch
 docs/05-addon-system.md §5 (Marketplace/Store) und Wargame W-11/W-13
 (docs/08-wargame.md).
@@ -11,7 +11,7 @@ docs/05-addon-system.md §5 (Marketplace/Store) und Wargame W-11/W-13
 Ein separates, öffentliches Git-Repo (nicht Teil dieses Monorepos):
 
 ```
-yapaja-addons-registry/
+yapaia-addons-registry/
 ├── index.json              # DIE Katalog-Datei, siehe §2
 ├── addons/
 │   ├── com.example.poi-campsites/
@@ -27,7 +27,7 @@ yapaja-addons-registry/
 ```
 
 `index.json` liegt im Repo-Root, damit die raw-URL stabil und kurz bleibt
-(z. B. `https://raw.githubusercontent.com/<org>/yapaja-addons-registry/main/index.json`).
+(z. B. `https://raw.githubusercontent.com/<org>/yapaia-addons-registry/main/index.json`).
 Tarballs/Icons/Screenshots können irgendwo im selben Repo (oder via GitHub
 Releases) liegen — `index.json` referenziert sie per absoluter `http(s)`-URL,
 der Core lädt sie unabhängig vom Rest des Repo-Layouts.
@@ -62,7 +62,7 @@ Ein JSON-**Array** von Einträgen (kein umschließendes Objekt). Jeder Eintrag:
 
 | Feld | Pflicht | Bedeutung |
 |---|---|---|
-| `id` | ja | reverse-DNS-artige ID, identisch zum Manifest (`yapaja-addon.json`); muss `ADDON_ID_PATTERN` erfüllen |
+| `id` | ja | reverse-DNS-artige ID, identisch zum Manifest (`yapaia-addon.json`); muss `ADDON_ID_PATTERN` erfüllen |
 | `name` | ja | Anzeigename |
 | `version` | ja | exakte Semver-Version des veröffentlichten Tarballs |
 | `description` | ja | Kurzbeschreibung, im Katalog + Detailansicht angezeigt |
@@ -144,7 +144,7 @@ Sicherheits-Leitplanken des Add-on-Systems):
   für jede Installation nutzlos).
 - [ ] **`core_api`-Range plausibel**: passt zur tatsächlich getesteten
   Core-Version, keine übermäßig weite Range "damit es nie bricht".
-- [ ] **`id` matcht** exakt die `id` im Add-on-Manifest (`yapaja-addon.json`)
+- [ ] **`id` matcht** exakt die `id` im Add-on-Manifest (`yapaia-addon.json`)
   — sonst installiert der Store technisch korrekt, aber Updates würden nie
   gefunden.
 - [ ] **Icon/Screenshots** laden ohne Tracking/Drittanbieter-Cookies (reine

@@ -17,7 +17,7 @@ describe('Profil: Tempo 100 und Spritsorte werden gespeichert', () => {
   let service: ProfileService;
 
   beforeEach(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'yapaja-profil-'));
+    dir = mkdtempSync(join(tmpdir(), 'yapaia-profil-'));
     process.env.DB_PATH = join(dir, 'test.db');
     service = new ProfileService();
     await service.init();

@@ -135,7 +135,7 @@ test('0.30: ⚙ → Sprache & Home Assistant -- ohne Add-on sagt die Seite das; 
       body: JSON.stringify({
         data: {
           verfuegbar: true,
-          helfer: true,
+          integration: true,
           automation: false,
           agent: null,
           agenten: [{ id: 'conversation.openai', name: 'OpenAI' }],
@@ -150,7 +150,7 @@ test('0.30: ⚙ → Sprache & Home Assistant -- ohne Add-on sagt die Seite das; 
     }),
   );
   await page.route('**/api/v1/sprache/ha/einrichten', (r) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { helfer: true, automation: true } }) }),
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { integration: true, automation: true } }) }),
   );
   const patches: unknown[] = [];
   await page.route('**/api/v1/settings', async (r) => {

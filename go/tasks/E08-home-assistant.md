@@ -11,12 +11,12 @@ Auslieferung als HA-Add-on. **Gate-Beitrag G3.**
 - **Pfade:** `apps/core/src/mqtt/`
 
 **Aufgabe:** MQTT-Client (Broker/User/Pass/Prefix aus Settings bzw. Env):
-verbindet mit **LWT** (`yapaja/status offline`, retained), published `online`.
+verbindet mit **LWT** (`yapaia/status offline`, retained), published `online`.
 Bus→MQTT-Mapping exakt nach docs/03 §4 (Topics, Payloads, Retain-Flags,
 Raten: Position 1 Hz fahrend / 0,1 Hz stehend; `extrapolated:true`-Positionen
-werden NICHT als `yapaja/position` publiziert — E02-T5-Stub einlösen).
-Kommando-Subscriber für alle `yapaja/cmd/*`: validieren (shared-Schemata),
-auf Core-Aktionen mappen, IMMER `yapaja/cmd/result` antworten (inkl.
+werden NICHT als `yapaia/position` publiziert — E02-T5-Stub einlösen).
+Kommando-Subscriber für alle `yapaia/cmd/*`: validieren (shared-Schemata),
+auf Core-Aktionen mappen, IMMER `yapaia/cmd/result` antworten (inkl.
 request_id-Durchreichung). Offline-Verhalten (W-06): Reconnect-Backoff 1→60 s,
 Zustands-Topics werden bei Reconnect frisch publiziert (kein Event-Replay),
 Health-Service-Eintrag `mqtt`.
@@ -40,9 +40,9 @@ Reconnect; Unit: Raten-Drossel, extrapolated-Filter.
 
 **Aufgabe:** Discovery-Configs (retained) für ALLE Entitäten der Tabelle in
 docs/04 §1 publizieren: korrekte `component`-Typen, `device`-Block (identifiers
-yapaja_go, name, sw_version, configuration_url), `availability` via
-yapaja/status, device_class/unit/state_class wo sinnvoll, `value_template`s
-für JSON-Payloads. `select.yapaja_profile`-Options dynamisch aus Profilliste
+yapaia_go, name, sw_version, configuration_url), `availability` via
+yapaia/status, device_class/unit/state_class wo sinnvoll, `value_template`s
+für JSON-Payloads. `select.yapaia_profile`-Options dynamisch aus Profilliste
 (bei Profil-CRUD: Discovery-Update). Republish bei `homeassistant/status online`
 (W-07). Prefix `homeassistant` konfigurierbar. Abschaltbar (Setting
 `mqtt.discovery: false`).
@@ -53,7 +53,7 @@ Simulator-Fahrt; 2. HA-Neustart-Simulation → Entitäten wieder da; 3. Button/
 Select in HA steuern die App nachweislich.
 **Pflicht-Tests:** Unit: Config-Payloads gegen eingefrorene Snapshots (jede
 Entität); Integration: status-online-Replay; nightly HA-E2E (Flow 8 erweitert).
-**Plausibilität:** `sensor.yapaja_instruction`-Attribut `icon` ist für jeden
+**Plausibilität:** `sensor.yapaia_instruction`-Attribut `icon` ist für jeden
 ManeuverType ein existierender mdi-Name (Tabellentest gegen mdi-Namensliste).
 
 ---
@@ -85,14 +85,14 @@ destination-query-Integration; HA-Call-Mocks inkl. Fehlerpfade.
 ## E08-T4: HA-Add-on-Packaging
 
 - **Abhängigkeiten:** E08-T1–T3, E00-T3 · **Kontext:** docs/04 §3 KOMPLETT; Wargame W-15/W-16
-- **Pfade:** `yapaja_go/` (bis `feat/gui-install-path`: `ha-addon/`)
+- **Pfade:** `yapaia_go/` (bis `feat/gui-install-path`: `ha-addon/`)
 
 **Aufgabe:** Add-on nach docs/04 §3 bauen: `config.yaml` (ingress, arch,
 map share:rw, services mqtt:need, usb+udev, options/schema: region, mqtt-prefix,
 photon on/off, gps_source, log_level, memory-Tuning), Dockerfile auf Basis des
 Core-Images + s6-overlay-Services (core, valhalla, photon optional, gpsd) mit
 Abhängigkeits-Reihenfolge und sauberem Shutdown. bashio: MQTT-Credentials
-automatisch beziehen. Daten unter `/share/yapaja/` (W-16). Ingress: Core liest
+automatisch beziehen. Daten unter `/share/yapaia/` (W-16). Ingress: Core liest
 `X-Ingress-Path` und setzt `<base href>` dynamisch beim Ausliefern von
 index.html; WS-Pfad relativ. DOCS.md mit RAM-Empfehlung (docs/04 §3).
 

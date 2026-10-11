@@ -12,7 +12,7 @@
  *     (re)published retained (W-07, HA restart).
  *  2. `mqtt.discovery: false` (`discovery.enabled: false`) -> NOT a single
  *     discovery config is published, ever.
- *  3. `select.yapaja_profile`'s `options` reflect the live profile list and
+ *  3. `select.yapaia_profile`'s `options` reflect the live profile list and
  *     update when a profile is added (`event/profile_list_changed`).
  *  4. Publishing to a button's own DECLARED `command_topic`/`payload_press`
  *     actually drives the Core -- proves the discovery config's wiring
@@ -245,28 +245,28 @@ function routePoints(): LatLon[] {
 }
 
 const DEVICE: DiscoveryDevice = {
-  identifiers: ['yapaja_go'],
+  identifiers: ['yapaia_go'],
   name: 'Yapaia Go',
   sw_version: '9.9.9-test',
   configuration_url: 'http://homeassistant.local:8080',
 };
 
 const ALL_DISCOVERY_TOPICS = [
-  'homeassistant/sensor/yapaja_speed/config',
-  'homeassistant/sensor/yapaja_speed_limit/config',
-  'homeassistant/binary_sensor/yapaja_speeding/config',
-  'homeassistant/sensor/yapaja_eta/config',
-  'homeassistant/sensor/yapaja_distance_remaining/config',
-  'homeassistant/sensor/yapaja_instruction/config',
-  'homeassistant/sensor/yapaja_instruction_distance/config',
-  'homeassistant/sensor/yapaja_altitude/config',
-  'homeassistant/sensor/yapaja_nav_state/config',
-  'homeassistant/device_tracker/yapaja_vehicle/config',
-  'homeassistant/sensor/yapaja_destination/config',
-  'homeassistant/button/yapaja_stop/config',
-  'homeassistant/button/yapaja_pause/config',
-  'homeassistant/button/yapaja_resume/config',
-  'homeassistant/select/yapaja_profile/config',
+  'homeassistant/sensor/yapaia_speed/config',
+  'homeassistant/sensor/yapaia_speed_limit/config',
+  'homeassistant/binary_sensor/yapaia_speeding/config',
+  'homeassistant/sensor/yapaia_eta/config',
+  'homeassistant/sensor/yapaia_distance_remaining/config',
+  'homeassistant/sensor/yapaia_instruction/config',
+  'homeassistant/sensor/yapaia_instruction_distance/config',
+  'homeassistant/sensor/yapaia_altitude/config',
+  'homeassistant/sensor/yapaia_nav_state/config',
+  'homeassistant/device_tracker/yapaia_vehicle/config',
+  'homeassistant/sensor/yapaia_destination/config',
+  'homeassistant/button/yapaia_stop/config',
+  'homeassistant/button/yapaia_pause/config',
+  'homeassistant/button/yapaia_resume/config',
+  'homeassistant/select/yapaia_profile/config',
 ];
 
 interface Harness {
@@ -288,7 +288,7 @@ async function buildHarness(discoveryEnabled: boolean): Promise<Harness> {
   subscriber.on('error', () => {});
   await new Promise<void>((resolve) => subscriber.once('connect', () => resolve()));
   await new Promise<void>((resolve, reject) =>
-    subscriber.subscribe(['yapaja/#', 'homeassistant/#'], { qos: 1 }, (err) => (err ? reject(err) : resolve())),
+    subscriber.subscribe(['yapaia/#', 'homeassistant/#'], { qos: 1 }, (err) => (err ? reject(err) : resolve())),
   );
   const records = recordMessages(subscriber);
 
@@ -300,7 +300,7 @@ async function buildHarness(discoveryEnabled: boolean): Promise<Harness> {
   const bridge = new MqttBridge({
     bus,
     brokerUrl,
-    prefix: 'yapaja',
+    prefix: 'yapaia',
     navigationService,
     profileService,
     favoriteService: new StubFavoriteService(),
@@ -313,7 +313,7 @@ async function buildHarness(discoveryEnabled: boolean): Promise<Harness> {
   });
 
   await waitUntil(() => bridge.isConnected());
-  await waitUntil(() => Boolean(latestOf(records, 'yapaja/status')));
+  await waitUntil(() => Boolean(latestOf(records, 'yapaia/status')));
 
   return { brokerCtx, subscriber, records, bus, navigationService, routing, profileService, bridge };
 }
@@ -358,7 +358,7 @@ describe('MqttBridge HA discovery (E08-T2, aedes in-process broker)', () => {
     // same as bridge.integration.test.ts, so `nav/state` is genuinely valid).
     h.routing.seed(buildDriveRoute(routePoints()));
     h.navigationService.start({ route_id: 'drive-route-1' });
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/nav/state')));
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/nav/state')));
     await sleep(200);
 
     const homeassistantRecords = h.records.filter((r) => r.topic.startsWith('homeassistant/'));
@@ -371,23 +371,23 @@ describe('MqttBridge HA discovery (E08-T2, aedes in-process broker)', () => {
 
   it('republishes every discovery config when homeassistant/status = online (W-07, HA restart)', async () => {
     h = await buildHarness(true);
-    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/select/yapaja_profile/config')));
+    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/select/yapaia_profile/config')));
     h.records.length = 0;
 
     h.subscriber.publish('homeassistant/status', 'online', { qos: 1 });
 
-    await waitUntil(() => allOf(h.records, 'homeassistant/select/yapaja_profile/config').length >= 1);
+    await waitUntil(() => allOf(h.records, 'homeassistant/select/yapaia_profile/config').length >= 1);
     await sleep(100);
     for (const discoveryTopic of ALL_DISCOVERY_TOPICS) {
       expect(latestOf(h.records, discoveryTopic), `${discoveryTopic} should have been republished`).toBeDefined();
     }
   });
 
-  it("select.yapaja_profile's options reflect the live profile list and update when a profile is added", async () => {
+  it("select.yapaia_profile's options reflect the live profile list and update when a profile is added", async () => {
     h = await buildHarness(true);
-    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/select/yapaja_profile/config')));
+    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/select/yapaia_profile/config')));
 
-    const initial = latestOf(h.records, 'homeassistant/select/yapaja_profile/config')!;
+    const initial = latestOf(h.records, 'homeassistant/select/yapaia_profile/config')!;
     expect((initial.payload as { options: string[] }).options).toEqual(['Camper']);
 
     h.records.length = 0;
@@ -396,22 +396,22 @@ describe('MqttBridge HA discovery (E08-T2, aedes in-process broker)', () => {
     );
     h.bus.publish('event/profile_list_changed', {});
 
-    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/select/yapaja_profile/config')));
-    const updated = latestOf(h.records, 'homeassistant/select/yapaja_profile/config')!;
+    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/select/yapaia_profile/config')));
+    const updated = latestOf(h.records, 'homeassistant/select/yapaia_profile/config')!;
     expect((updated.payload as { options: string[] }).options).toEqual(['Camper', 'Alkoven 7.5t']);
 
     // Only the select entity was republished -- no other discovery topic.
     const otherDiscoveryTopics = h.records.filter(
-      (r) => r.topic.startsWith('homeassistant/') && r.topic !== 'homeassistant/select/yapaja_profile/config',
+      (r) => r.topic.startsWith('homeassistant/') && r.topic !== 'homeassistant/select/yapaia_profile/config',
     );
     expect(otherDiscoveryTopics).toEqual([]);
   });
 
-  it("a publish to button.yapaja_stop's OWN declared command_topic/payload_press actually stops navigation", async () => {
+  it("a publish to button.yapaia_stop's OWN declared command_topic/payload_press actually stops navigation", async () => {
     h = await buildHarness(true);
-    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/button/yapaja_stop/config')));
+    await waitUntil(() => Boolean(latestOf(h.records, 'homeassistant/button/yapaia_stop/config')));
 
-    const buttonConfig = latestOf(h.records, 'homeassistant/button/yapaja_stop/config')!.payload as {
+    const buttonConfig = latestOf(h.records, 'homeassistant/button/yapaia_stop/config')!.payload as {
       command_topic: string;
       payload_press: string;
     };
@@ -422,12 +422,12 @@ describe('MqttBridge HA discovery (E08-T2, aedes in-process broker)', () => {
 
     h.records.length = 0;
     // Drive the command purely from the discovery config's OWN declared
-    // topic/payload -- not a hardcoded `yapaja/cmd/navigation`/`'stop'`
+    // topic/payload -- not a hardcoded `yapaia/cmd/navigation`/`'stop'`
     // literal -- proving the discovery wiring matches commands.ts for real.
     h.subscriber.publish(buttonConfig.command_topic, buttonConfig.payload_press);
 
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/cmd/result')));
-    expect(latestOf(h.records, 'yapaja/cmd/result')!.payload).toEqual({ cmd: 'navigation', ok: true });
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/cmd/result')));
+    expect(latestOf(h.records, 'yapaia/cmd/result')!.payload).toEqual({ cmd: 'navigation', ok: true });
     expect(h.navigationService.getStatus()).toBe('idle');
   });
 });

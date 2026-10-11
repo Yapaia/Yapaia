@@ -102,7 +102,7 @@ export function validManifest(overrides: Partial<AddonManifest> = {}): AddonMani
   };
 }
 
-/** Builds a well-formed, installable add-on tarball: `yapaja-addon.json` at
+/** Builds a well-formed, installable add-on tarball: `yapaia-addon.json` at
  *  the root plus whatever extra entries the caller wants (e.g. the files a
  *  manifest's `service.entry`/`ui.entry` declare). */
 export async function buildValidAddonTarball(opts: {
@@ -112,7 +112,7 @@ export async function buildValidAddonTarball(opts: {
 } = {}): Promise<{ bytes: Buffer; manifest: AddonManifest }> {
   const manifest = validManifest(opts.manifest);
   const entries: TarEntrySpec[] = [
-    { name: 'yapaja-addon.json', content: JSON.stringify(manifest, null, 2) },
+    { name: 'yapaia-addon.json', content: JSON.stringify(manifest, null, 2) },
     ...(opts.extraEntries ?? []),
   ];
   const bytes = await buildTarball(entries, { gzip: opts.gzip ?? true });
@@ -129,7 +129,7 @@ export async function buildZipBombTarball(uncompressedBytes: number): Promise<Bu
   const manifest = validManifest();
   return buildTarball(
     [
-      { name: 'yapaja-addon.json', content: JSON.stringify(manifest) },
+      { name: 'yapaia-addon.json', content: JSON.stringify(manifest) },
       { name: 'bomb.bin', content: Buffer.alloc(uncompressedBytes, 0) },
     ],
     { gzip: true },

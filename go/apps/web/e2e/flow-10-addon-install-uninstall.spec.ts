@@ -49,7 +49,7 @@ import { oeffneEinstellung } from './support/einstellungen.js';
 // inside the opaque-origin sandboxed add-on iframe, where it throws.
 test.use({ serviceWorkers: 'allow' });
 
-const ADDON_ID = 'com.yapaja.poi-campsites';
+const ADDON_ID = 'com.yapaia.poi-campsites';
 const ADDON_DIR = join(REPO_ROOT, 'addons-examples', 'poi-campsites');
 const MAP_LAYER_ID = `addon:${ADDON_ID}:campsites`;
 

@@ -70,7 +70,7 @@ export function readCoreVersion(packageJsonRaw: string): string {
 }
 
 /**
- * Findet jedes `addons-examples/<name>/yapaja-addon.json`, außer den
+ * Findet jedes `addons-examples/<name>/yapaia-addon.json`, außer den
  * explizit ausgeschlossenen Verzeichnissen.
  */
 export function findReferenceAddonManifests(dir: string): string[] {
@@ -82,7 +82,7 @@ export function findReferenceAddonManifests(dir: string): string[] {
   }
   return entries
     .filter((e) => e.isDirectory() && !EXCLUDED_DIRS.has(e.name))
-    .map((e) => join(dir, e.name, 'yapaja-addon.json'))
+    .map((e) => join(dir, e.name, 'yapaia-addon.json'))
     .filter((path) => existsSync(path));
 }
 

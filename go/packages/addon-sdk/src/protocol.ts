@@ -19,7 +19,7 @@ export const ADDON_PROTOCOL_VERSION = 1;
 
 /** Envelope discriminator so the host/iframe ignore unrelated postMessage
  *  traffic (analytics pings, other embeds, browser-extension chatter). */
-export const ADDON_MESSAGE_NS = 'yapaja-addon';
+export const ADDON_MESSAGE_NS = 'yapaia-addon';
 
 /** The permission scopes an add-on manifest may declare (docs/05 §2 table).
  *  Mirrors `@yapaia/shared` `ADDON_PERMISSION_SCOPES` -- kept as a local type

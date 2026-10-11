@@ -42,7 +42,7 @@ export const SECURITY_ADDON_STORAGE_DIR = join(SECURITY_TMP_DIR, 'addon-storage'
  */
 export const SECURITY_CORE_TOKEN = 'e09t6-security-suite-core-token';
 
-/** The evil fixture's add-on id (must match `addons-examples/evil-fixture/yapaja-addon.json`). */
+/** The evil fixture's add-on id (must match `addons-examples/evil-fixture/yapaia-addon.json`). */
 export const EVIL_ADDON_ID = 'com.example.evil-fixture';
 
 /** A second, innocent add-on the evil one tries to reach into. */

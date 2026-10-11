@@ -103,7 +103,7 @@ describe('security headers on the assembled server (E10-T4)', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    publicDir = mkdtempSync(join(tmpdir(), 'yapaja-sec-headers-'));
+    publicDir = mkdtempSync(join(tmpdir(), 'yapaia-sec-headers-'));
     writeFileSync(
       join(publicDir, 'index.html'),
       '<!doctype html><html><head><title>Yapaia Go</title></head><body></body></html>',

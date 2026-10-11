@@ -26,7 +26,7 @@ export const ZENTRIEREN_VORGABE_S = 0;
 
 /** Neuer Schlüssel (0.36): der alte trug fast überall die frühere Vorgabe
  *  von 10 s -- die soll nicht weitergelten. */
-const SCHLUESSEL = 'yapaja.zentrierenNachS.v2';
+const SCHLUESSEL = 'yapaia.zentrierenNachS.v2';
 
 function lies(): number {
   try {

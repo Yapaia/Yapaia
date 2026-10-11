@@ -1,0 +1,5166 @@
+# Änderungen
+
+Home Assistant zeigt diese Datei im Add-on-Store an, sobald ein Update
+bereitsteht. Sie soll die eine Frage beantworten, die man vor dem Klick auf
+„Aktualisieren" hat: **was ändert sich für mich?**
+
+Deshalb steht hier, was ein Betreiber merkt — nicht die Liste der geänderten
+Dateien. Wo eine Version einen Fehler behebt, den man selbst gesehen hat,
+steht die Meldung dabei, damit man sie wiedererkennt.
+
+---
+
+## 0.45.0
+
+**Neuanfang unter dem Namen Yapaia.** Für eine frische Installation gedacht –
+vorher die alte Version samt Integration in Home Assistant entfernen.
+
+- Alles heißt jetzt **Yapaia**: Add-on-Kennung `yapaia_go`, Daten unter
+  `/share/yapaia`, Dashboard-Dateien unter `/local/yapaia/…`, Karte
+  `custom:yapaia-map-card`, Entity-IDs. Das Add-on kommt aus dem Store
+  `https://github.com/Yapaia/yapaia`.
+- Der Weg zu Home Assistant ist **nur noch die Integration „Yapaia“** (Gerät
+  „Yapaia Go“). Der frühere Weg ohne Broker – geschriebene Zustände über
+  `POST /api/states` und die Bedien-Helfer `input_button.*` – ist entfallen,
+  ebenso die Option „Werte direkt melden“.
+- **MQTT** gibt es weiterhin zusätzlich, jetzt **aus** als Vorgabe.
+- **Sprachbefehle über Assist** laufen über die Aktion `yapaia.go_befehl`:
+  die Automation „Yapaia Sprachbefehle“ (⚙ → Sprache & Home Assistant →
+  einrichten) braucht keinen Helfer mehr.
+- Das **erzeugte Dashboard** und das **ESPHome-Display** nutzen die
+  Entitäten der Integration (`sensor.yapaia_go_tempo`, …).
+
+---
+
+## 0.44.1
+
+- Bringt die Integration „Yapaia“ 0.4.0 mit: Darin ist jetzt auch der
+  **Yapaia Router** (GL.iNet-Mobilfunk mit SIM-Umschaltung nach Land). Nach dem
+  Update Home Assistant einmal neu starten (die Benachrichtigung sagt es).
+  An Go selbst ändert sich nichts.
+
+---
+
+## 0.44.0
+
+**Yapaia Go als Gerät in der Integration „Yapaia“.**
+
+- Go meldet sich bei der gemeinsamen Integration „Yapaia“ an (wie Yapaia Beat).
+  Das Add-on bringt sie mit und legt sie ab, wenn sie fehlt oder älter ist;
+  danach **einmal Home Assistant neu starten** (eine Benachrichtigung sagt es)
+  und „Yapaia Go gefunden“ bestätigen – ohne Adresse, ohne Token.
+- Es entsteht ein echtes Gerät „Yapaia Go“ mit umbenennbaren, bedienbaren
+  Entitäten, die einen Neustart von Home Assistant überstehen: nächste
+  Anweisung (das Symbol zeigt die Abbiegung), Ankunft, Restweg, Ziel, Tempo,
+  Tempolimit (Schild und Fahrzeug), zu schnell, Höhe, Standort auf der Karte,
+  Fahrzeugprofil, ein Textfeld „Ziel eingeben“ und Knöpfe Pause/Weiter/Beenden.
+- Neue Aktionen: `yapaia.go_ziel_setzen` (Adresse, Ort oder Koordinaten),
+  Pausieren/Fortsetzen/Beenden, Profil wählen und `yapaia.go_befehl` für einen
+  Satz wie „Fahre mich nach Magdeburg“.
+- Neue Auslöser für Automationen: „Ziel erreicht“, „Zu schnell“, „GPS
+  verloren“, „Neuberechnung fehlgeschlagen“.
+- Solange die Integration verbunden ist, schreibt Go keine Zustände mehr über
+  `POST /api/states` und die Bedien-Helfer ruhen – nichts erscheint doppelt.
+  Das erzeugte Dashboard nimmt die neuen Entitäten von selbst. MQTT bleibt
+  wählbar.
+- Ansagen ins Radio prüft Go jetzt über die Fähigkeit, die Yapaia Beat meldet
+  („ansage.einmischen“), statt nach dem Namen zu raten.
+- Die Entity-IDs heißen neu `…yapaia_go_…`. Eigene Automationen, die die alten
+  `…yapaia_…`-Entitäten nutzen, bitte einmal umstellen.
+
+---
+
+## 0.43.0
+
+**Ansagen ins Radio über die neue Yapaia-Integration.**
+
+- Yapaia Beat gehört ab 1.14.0 zur gemeinsamen Integration „Yapaia“; seine
+  Ansage-Aktion heißt dort `yapaia.beat_ansage`. Go nutzt jetzt diesen Namen.
+  Mit einem Beat vor 1.14 fällt die Ansage im Radio weg (Go spricht dann wie
+  ohne Beat über den gewählten Lautsprecher) – beide gemeinsam aktualisieren.
+- Erweiterungen, die während des Kartenladens (Start, Stilwechsel) eine Ebene
+  zeichnen, bekamen einen Fehler zurück („Style is not done loading“). Die
+  Ebene erscheint jetzt, sobald die Karte bereit ist.
+
+---
+
+## 0.42.0
+
+**Spritpreise in der Tankstellensuche (Tankerkönig).**
+
+Gewünscht: „Kannst du bitte Tankerkönig einbinden? … Wenn die Verbindung
+steht dann soll bei der Tankstellensuche gleich der aktuelle Preis angezeigt
+werden. Abhängig von der im Profil hinterlegten Spritsorte."
+
+- **Einrichten:** einen kostenlosen Schlüssel auf
+  creativecommons.tankerkoenig.de beantragen und in der Add-on-Konfiguration
+  unter „Online-Dienste" → „Tankerkönig-Schlüssel" eintragen. Die
+  Online-Dienste müssen eingeschaltet sein.
+- **Wo der Preis steht:** neben jeder Tankstelle in der Suchliste (z. B.
+  „Tankstelle" oder „Aral" suchen) und unter „Unterwegs finden" → Tankstelle,
+  in der Liste und in der Vorschau.
+- **Welcher Preis:** nach der Spritsorte des aktiven Fahrzeugprofils —
+  Diesel, oder bei Benzin E5 und E10. Für Autogas, Erdgas, Strom oder ohne
+  Angabe im Profil gibt es keinen Preis (Tankerkönig kennt nur diese drei).
+- **Farbe:** grün = gerade abgefragt (bis 15 Minuten), gelb = bis eine
+  Stunde, grau = älter; grau und durchgestrichen = Tankstelle hat gerade zu.
+  Tankerkönig sagt bei der Umkreissuche nicht, wann sich ein Preis zuletzt
+  geändert hat; die Farbe zeigt deshalb, wie alt unsere Abfrage ist.
+  Tankstellen müssen jede Änderung binnen fünf Minuten melden — ein grüner
+  Preis stimmt also.
+- **Ohne Verbindung, Schlüssel oder Schalter erscheint kein Preis** — keine
+  Fehlermeldung, die Suche bleibt wie bisher.
+- Nur deutsche Tankstellen. Hinaus geht nur die Gegend der gefundenen
+  Tankstellen, auf etwa 5 km gerundet; dieselbe Gegend wird höchstens alle
+  fünf Minuten abgefragt.
+
+---
+
+## 0.41.0
+
+**Karte drehen und Satellitenbilder.**
+
+Gewünscht: „Würde gerne die Karte mit zwei drehenden Fingern auch drehen
+können" und „können wir auch Satellitenkarten einbinden?"
+
+- **Drehen mit zwei Fingern** (am Rechner: rechte Maustaste oder Strg +
+  Ziehen). Die Karte konnte das immer, aber die Nordansicht hat jede Drehung
+  sofort wieder auf Norden gestellt. Jetzt bleibt eine Drehung von Hand
+  stehen. Zurück nach Norden: der Kompass-Knopf; auch Zentrieren und ein
+  Wechsel der Ansicht richten die Karte wieder aus.
+- **Neuer Kartenstil „Satellit (online)"** — Satellitenbilder mit Straßen und
+  Namen aus der Offline-Karte darüber. Die Bilder sind Sentinel-2 cloudless
+  (EOX, frei nutzbar unter CC BY 4.0): Landschaft, Orte, Seen und Wald gut
+  erkennbar, einzelne Häuser nicht — 10 m je Bildpunkt. Die bekannten
+  hochauflösenden Dienste (Google, Esri, Bing) erlauben das Einbinden in
+  eigene Anwendungen nicht ohne Vertrag. Braucht Internet; ohne bleibt der
+  Hintergrund dunkel, Straßen und Namen bleiben. Auswählbar im Kartenmenü
+  wie die anderen Stile.
+
+---
+
+## 0.40.0
+
+**Eine Karte über alle Länder, inkrementell gebaut, mit sichtbarer Routing-Lücke.**
+
+Gemeldet: „Liechtenstein wird bei mir aber nicht dargestellt. Können wir
+insgesamt nur eine einzige Ansicht haben …" — „gibt es eine Möglichkeit
+inkrementell die Karte, Routen und Suchindex aufzubauen? Wenn ich jetzt noch
+beispielsweise Österreich dazu lade dann würde ich gerne nur Österreich bauen"
+— „ich kann nicht in die Schweiz fahren … Kaiseraugst … nicht anfahrbar."
+
+- **Liechtenstein wird wieder gezeichnet.** Eine Karte wurde weggelassen, wenn
+  ihr Umriss-Rechteck in dem einer anderen lag — gedacht für „Rheinland-Pfalz
+  liegt in Deutschland". Liechtensteins Rechteck liegt aber im Schweizer.
+  Jetzt entscheidet die Herkunft laut Katalog (Teilgebiet eines Landes);
+  Nachbarländer werden immer nebeneinander gezeichnet.
+- **„Fehlendes bauen“ statt „Alles bauen“.** Gebaut wird nur, was fehlt oder
+  älter ist als seine Karte: Kommt Österreich dazu, entsteht nur dessen
+  Suchindex neu. **Das Routing ist die Ausnahme:** Es ist ein Netz über alle
+  Karten, sonst endet jede Route an der Grenze — es wird neu gebaut, sobald
+  eine Karte dazukommt, wegfällt oder aktualisiert wurde. „Alles neu bauen“
+  gibt es weiterhin.
+- **Fehlt eine Karte im Routing, steht das jetzt da.** In „Was ist gebaut?“
+  unter Routing („Fehlt: switzerland“), am Ende eines Baus als Warnung, und in
+  der Routing-Fehlermeldung statt des irreführenden „Überprüfe
+  Fahrzeugabmessungen“. Bei dir stand dort „enthält: germany, liechtenstein“ —
+  die Schweiz fehlte im Routing, deshalb waren Kaiseraugst und Reinach nicht
+  erreichbar. **„Fehlendes bauen“ baut das Routing jetzt mit der Schweiz neu.**
+  Klappt der Download des Schweizer Extrakts nicht, sagt der Bau das.
+
+---
+
+## 0.39.1
+
+**Suche: der nächste Treffer zuerst, und schneller.**
+
+Gemeldet nach 0.39.0: „Sie braucht allerdings etwas länger. Ca 1, vielleicht
+2 Sekunden. Allerdings zeigt sie nicht immer das nächste an. Bspw Rewe ist
+vielleicht 2km vom aktuellen Standort ... Während die Suche Treffer anzeigt
+die weiter weg sind." Und: „ziolkowski 8 ... Da kommt dann aber
+ziolkowskizehn in 500km. Wieso kommt dieses andere Ziel in der Liste?"
+
+- **Der nächste zuerst.** Bei gleich gutem Namen entscheidet jetzt die
+  Entfernung. Vorher gewann innerhalb von 25 km der kürzere Name — „Rewe To
+  Go“ in 13 km vor „REWE Familie Appel“ in 2 km, und nach zehn Einträgen war
+  die Liste voll.
+- **Schneller.** Die Suche fragt nicht mehr dreimal je Karte nach den „besten“
+  Treffern (das Sortieren kostete jedes Mal mehrere hundert Millisekunden),
+  sondern zählt zuerst und holt bei überschaubarer Zahl alle Treffer auf
+  einmal. Gemessen an einem Testindex mit 2,5 Mio. Einträgen: etwa halb bis
+  ein Drittel so lang.
+- **Mit Hausnummer gilt die Adresse.** Wer „Ziolkowski 8“ tippt, sucht eine
+  Straße. Läden und Lokale, deren Name zufällig genauso beginnt
+  („ZiolkowskiZEHN“), stehen dann hinter den Straßen.
+- „Was ist gebaut?“ lädt sich nach einem fertigen Bau selbst neu — vorher
+  stand dort weiter „Älterer Index“, obwohl der Neubau durch war.
+
+Kein Neubau nötig.
+
+---
+
+## 0.39.0
+
+**Suche findet Firmen, nahe Läden und Hausnummern.**
+
+Gemeldet: „Wenn ich jetzt wieder nach Firmennamen wie Rewe oder Caratec suche
+findet er sie nicht. Kann die Suche alle Parameter wie Name Straße Hausnummer
+Ort plz usw prüfen?"
+
+- **Der nahe REWE kommt zuerst.** Die Offline-Suche holte bisher nur die
+  landesweit „besten“ Treffer, und das waren bei „Rewe“ kurze Straßennamen
+  wie „Rewenweg“ oder „Drewer“ in der Schweiz und in Ostfriesland. Jetzt wird
+  zusätzlich im Umkreis deiner Position gesucht (30 und 150 km), und bei
+  gleich guten Treffern gewinnt der nähere. **Das wirkt sofort nach dem
+  Update, ohne Neubau.**
+- **Firmen und benannte Gebäude.** Caratec stand auf der Karte, aber nie im
+  Suchindex: Firmen (`office`), Handwerksbetriebe (`craft`), Läden aller Art,
+  Werke, Gewerbegebiete und benannte Gebäude kommen jetzt hinein — alles, was
+  einen Namen hat.
+- **Hausnummern.** „Hauptstraße 80“ führt auf das Haus statt auf die
+  Straßenmitte. „12 a“ und „12A“ sind dieselbe Nummer; ohne passende Nummer
+  bleibt es bei der Straße. Postleitzahl und Ort stehen dabei.
+- Im Add-on fehlten bei den Orten noch die Ortsteile („Sondernheim“) — jetzt
+  wie im Repository-Werkzeug dabei.
+
+**Für Firmen und Hausnummern muss der Suchindex einmal neu gebaut werden:**
+in der Kartenverwaltung „Routing und Suche bauen“. Ein älterer Index wird in
+der Übersicht „Was ist gebaut?“ entsprechend markiert. Der Index wird
+durch die Hausnummern deutlich größer (grob 50–100 MB je Bundesland) und der
+Bau dauert länger.
+
+---
+
+## 0.38.1
+
+- **Alle Sprachausgaben nehmen denselben schnellen Weg:** Antworten der
+  Sprachsteuerung (🎤 in der App und Assist von Home Assistant) gingen noch
+  über Yapaia Beat in den Stream, mit Sekunden Verzögerung. Jetzt bekommt
+  sie der Browser, in dem Beats Player spielt, wie die Abbiege-Ansagen,
+  und mischt sie sofort ein. Der Browser meldet sich dafür alle paar
+  Sekunden beim Kern. Bestätigt er eine Ansage nicht binnen 2 s, mischt
+  Beat wie bisher
+- Ob ein Browser einmischen darf, hängt nicht mehr am Namen des Players.
+  So bleibt es dabei, auch wenn man ihn in Music Assistant umbenennt
+  (Beat 1.10 nennt ihn „Yapaia Browser“)
+
+## 0.38.0
+
+- **Ansagen sofort, wenn das Radio über Music Assistant läuft:** Im Test
+  kam eine von Yapaia Beat eingemischte Ansage 5–7 s zu spät, weil Music
+  Assistant vom Radio einige Sekunden auf Vorrat hält. Spielt das Radio
+  über Beats Player in diesem Browser („Music Assistant in diesem
+  Browser“, z. B. „Yapaia iPad“), mischt jetzt der Browser selbst die
+  Ansage ein. Sie kommt, sobald Home Assistant die Sprache erzeugt hat, und
+  die Musik läuft leiser weiter. Braucht Yapaia Beat 1.9
+- **Neue Einstellung „Läuft das Radio über Music Assistant“** unter ⚙ →
+  Sprache & Home Assistant. Gewünscht war, die Verzögerung vor oder nach
+  die Ansage legen zu können:
+  - *Im Browser einmischen* (Vorgabe): sofort, Musik läuft leiser weiter
+  - *Beat mischt*: Musik läuft weiter, die Ansage kommt einige Sekunden später
+  - *Music Assistant spricht sofort*: die Musik pausiert und kommt einige
+    Sekunden später wieder
+- „Ansage ins Radio testen“ nimmt den Weg über den Browser, wenn er gilt,
+  und sagt, nach wie vielen Sekunden die Ansage gesprochen war
+
+## 0.37.5
+
+- **Beat mischt jetzt wirklich, wenn es auf dem gewählten Player spielt:**
+  Im Test mit 0.37.4 zeigte Go „Yapaia Beat … mischt die Ansage ins Radio“,
+  die Testansage ging aber doch direkt an Music Assistant. Das Radio
+  verstummte deshalb ganz und kam erst Sekunden später wieder. Go las
+  den Zustand von Beat ohne die Angabe, auf welchem Player es spielt. Jetzt
+  mischt Beat, und die Musik läuft leiser weiter
+
+## 0.37.4
+
+- **Gong abschaltbar:** Unter ⚙ → Sprache & Home Assistant gibt es den
+  Schalter „Gong vor Ansagen über Music Assistant“. Go schickt die Ansage
+  dafür direkt als Ansage an den Player (`media_player.play_media` mit
+  `announce`) statt über `tts.speak`, sonst lässt sich Music Assistant den
+  Gong nicht abgewöhnen
+- **Radio läuft weiter:** Spielt Yapaia Beat gerade auf dem Player, der
+  unter „Ansagen über“ gewählt ist, mischt Beat die Ansage ins Radio. Bisher
+  ging sie direkt an Music Assistant, das für eine Ansage das Radio anhält
+  und danach neu startet – im Test dauerte das lange oder das Radio blieb
+  stumm. Braucht Yapaia Beat 1.8.1
+
+## 0.37.3
+
+- **Ansagen über Music Assistant mit älter eingerichteter Stimme:** Im Test
+  stand dort „expected 'all' or 'none' at 'target.entity_id'. Got
+  'google_translate'“. Die Stimme war mit dem Namen ihrer Plattform
+  eingetragen („google_translate“), die Aktion `tts.speak` braucht aber ihre
+  Entität (`tts.google_translate_en_com`). Go nimmt jetzt die passende
+  Entität selbst. Gibt es keine, spricht Go über die alte Aktion
+  `tts.google_translate_say`
+- An Yapaia Beat gibt Go eine so eingetragene Stimme nicht mehr weiter.
+  Beat nimmt dann die Standardstimme von Home Assistant, statt die Ansage
+  abzulehnen
+
+## 0.37.2
+
+- **Ansagen über Music Assistant: Go sagt jetzt, warum es nicht klappt.**
+  Bisher stand dort nur „media_player.… hat die Ansage nicht angenommen“.
+  Jetzt kommt der Grund von Home Assistant dazu, ebenso welche Stimme und
+  Sprache Go verwendet hat
+- **Sprache passend zur Stimme:** Auch eine in Go eingestellte Sprache wird
+  in die Schreibweise der Stimme gebracht (z. B. „de“ → „de-DE“ bei Home
+  Assistant Cloud). Mit der falschen Schreibweise lehnt Home Assistant die
+  Ansage ab
+- Eine Ansage, die Music Assistant gerade spricht, gilt nicht mehr als
+  Fehler, nur weil die Antwort von Home Assistant erst nach dem Sprechen
+  kommt
+
+## 0.37.1
+
+- **Sehen, ob Ansagen über Music Assistant laufen:** Unter ⚙ → Sprache &
+  Home Assistant steht jetzt „So kommen Ansagen gerade an“: über Music
+  Assistant (mit Player), über Yapaia Beat ins Radio gemischt, oder Yapaia
+  spricht selbst. Darunter steht, ob Music Assistant gefunden wurde, und
+  wenn nicht, warum. Meist ist der Grund, dass Music Assistant seine Player
+  nicht an Home Assistant weitergibt. Abhilfe: In Music Assistant unter
+  Einstellungen → Wiedergabegeräte den Player wählen, „Dieses
+  Wiedergabegerät für Home Assistant freigeben“ einschalten und speichern.
+  Passend dazu zeigt Yapaia Beat 1.7.1 Music-Assistant-Player mit 🎵 an
+
+## 0.37.0
+
+**Ansagen über Music Assistant.**
+
+Je nachdem, was installiert ist, wählt Yapaia den besten Weg:
+
+1. Nur Yapaia Go: Yapaia spricht selbst (Browser oder Home-Assistant-TTS).
+2. Mit Yapaia Beat: Beat mischt die Ansage ins Radio.
+3. Mit Music Assistant: die Ansage geht an Music Assistant — läuft dort
+   Musik, wird sie kurz pausiert bzw. bei Snapcast und Sonos leiser
+   gemischt und läuft danach weiter.
+4. Mit Beat und Music Assistant: Spielt Beat (ab 1.7) auf einem
+   Music-Assistant-Player, laufen Radio und Ansage gemeinsam darüber —
+   ohne die Verzögerung des Browser-Streams.
+
+- Neu unter **⚙ → Sprache & Home Assistant → „Ansagen über"**: Automatisch
+  oder ein bestimmter Music-Assistant-Player. Automatisch nimmt ohne Beat
+  den Music-Assistant-Player, wenn es genau einen gibt.
+- Stimme und Sprache für die Ansage fragt Yapaia bei Home Assistant ab
+  (Sprache des Systems), damit nichts mit Akzent vorgelesen wird.
+- **Bildschirm anpassen:** Gemeldet: die Leiste lag über Suche und Chips,
+  die man dadurch nicht verschieben konnte. Die Leiste lässt sich jetzt am
+  Griff ⠿ wegziehen.
+
+---
+
+## 0.36.0
+
+- **Position verschiebbar:** Im **Bildschirm anpassen** (Ruhe & Planung
+  sowie Navigation) gibt es jetzt ein Fadenkreuz „Position". Dorthin ziehen,
+  wo der eigene Standort auf der Karte sitzen soll — die Karte zentriert
+  sich ab dann dort statt in der Mitte bzw. im unteren Viertel.
+  „Zurücksetzen" holt den Standard zurück.
+- **Beim ersten Laden heran an die Position:** Statt der ganzen Karte
+  zoomt Yapaia auf den aktuellen Standort, als hätte man „Zentrieren"
+  gedrückt. Dafür holt die App beim Start die letzte bekannte Position vom
+  Kern — ein stehendes Fahrzeug meldet sonst oft lange nichts Neues. Liegt
+  die Position außerhalb der installierten Karten, bleibt die Übersicht.
+- **Kein automatisches Zurückspringen mehr:** Gemeldet: „Wenn ich auf der
+  Karte hin und her suche, springt er immer wieder nach ein paar Sekunden
+  zur aktuellen Position." Das automatische Zentrieren ist jetzt aus — im
+  Ruhemodus wie während der Navigation. Zurück geht es mit dem
+  Zentrieren-Knopf ⌖. Wer es doch möchte, stellt es unter ⚙ → Karte &
+  Darstellung wieder ein.
+
+---
+
+## 0.35.0
+
+- „Ansage ins Radio testen" zeigt, wie lange Home Assistant gebraucht hat,
+  die Sprache zu erzeugen (mit Yapaia Beat ab 1.6.3). Gemeldet: die Ansage
+  kommt erst nach ~7 s. Ein Teil davon ist das Erzeugen der Sprache, der
+  andere der Vorrat des Browsers — den baut Beat 1.6.3 ab; die angezeigte
+  Dauer zeigt, wie groß der erste Teil ist.
+- Die „lustige" Aussprache behebt Yapaia Beat 1.6.3: Ansagen kommen in der
+  Sprache von Home Assistant (Deutsch) statt der Standardsprache der Stimme.
+
+---
+
+## 0.34.0
+
+- **„Ansage ins Radio testen" nennt den echten Grund.** Gemeldet: der Test
+  zeigte nur „HTTP 500". Mit Yapaia Beat ab 1.6.2 steht dort, was Beat
+  sagt — etwa „Niemand hört Yapaia Beat gerade zu" (das Radio im Browser
+  war beim Wechsel zu Go verstummt, das behebt Beat 1.6.2) oder ein Fehler
+  der Sprachausgabe.
+- Das Freischalten des Tons beim ersten Tippen in Go lässt Beat im selben
+  Browser danach weiterspielen.
+
+---
+
+## 0.33.0
+
+**Ansagen und Radio im Browser vertragen sich.**
+
+- Gemeldet: Läuft Yapaia Beat im Browser auf dem iPad und Yapaia spricht,
+  wird das Radio leise und bleibt danach stumm; „Ansagen sind an" wurde
+  verschluckt. Ursache: Spricht Yapaia selbst im Browser, hält iPadOS den
+  Radio-Ton im selben Browser an.
+- Der Knopf **Ansagen an** spricht jetzt — wie alle anderen Ansagen — über
+  Yapaia Beat, wenn das Radio läuft.
+- Muss Yapaia doch selbst sprechen, sagt es Yapaia Beat (ab 1.6.1) Bescheid,
+  und das Radio spielt genau nach der Ansage weiter.
+- Neu unter **⚙ → Sprache & Home Assistant: „Ansage ins Radio testen"**.
+  Spricht eine Testansage über Yapaia Beat und sagt in Klartext, warum es
+  nicht klappt — etwa „Home Assistant neu starten" (nach dem Update von
+  Beat) oder „keine Sprachausgabe eingerichtet".
+
+---
+
+## 0.32.0
+
+**Ansagen kommen ins Radio, statt es zu unterbrechen.**
+
+- Gemeldet: „Go hat Beat angehalten. Das ging gut. Allerdings geht er von
+  alleine nicht wieder an." Das Anhalten und Wiederstarten aus 0.31 ist
+  entfernt.
+- Stattdessen: Läuft **Yapaia Beat (ab 1.6)**, mischt es Yapaias Ansagen
+  selbst ein — die Musik wird leiser, die Ansage kommt darüber, danach wird
+  die Musik wieder lauter. Nichts wird gestoppt, das Radio läuft durch. Das
+  gilt für Abbiege-Ansagen (im Browser und über Home Assistant),
+  Bordhinweise und Antworten auf Sprachbefehle aus der App.
+- Läuft Beat nicht, spricht Yapaia wie bisher selbst.
+- Abschaltbar unter **⚙ → Sprache & Home Assistant → „Ansagen und
+  Radio"**. Wie leise die Musik wird, stellt man in den Optionen von
+  Yapaia Beat ein (`announce_music_level`, Standard 20 %).
+- Antworten über einen Sprachsatelliten (Assist) spricht weiter der
+  Satellit selbst.
+
+---
+
+## 0.31.0
+
+**„Finde den nächsten Aldi" — und das Radio macht für Ansagen Pause.**
+
+- **Sprachbefehle mit Namen:** „Finde den nächsten Aldi", „Wo ist der
+  nächste Lidl?", „Fahr mich zum nächsten Bauhaus", „Wo ist hier ein
+  Edeka?". Gesucht wird in der Offline-Suche im Umkreis von 25 km — mit
+  Route zuerst, was voraus an der Strecke liegt. Bisher kannte Yapaia nur
+  Kategorien (Tankstelle, Stellplatz …) und sagte bei einem Namen „nicht
+  verstanden". Wie gewohnt: „Ja" führt hin, „die zweite" nimmt den nächsten.
+- **Über Home Assistant Assist** hören die Sätze „Finde den nächsten …" und
+  „Wo ist hier ein …" jetzt auch ohne „Yapaia" davor. Dafür einmal **⚙ →
+  Sprache & Home Assistant → Neu einrichten** tippen.
+- **Radio während Ansagen:** Gemeldet: „Der Sound von Yapaia Beats Radio wird
+  unterbrochen." Eine Ansage auf demselben Lautsprecher ersetzte den
+  Radio-Stream — danach war Stille. Jetzt hält Yapaia das Radio an, bevor es
+  spricht, und startet es danach wieder: bei Abbiege-Ansagen (im Browser und
+  über Home Assistant), Bordhinweisen und Antworten auf Sprachbefehle. War
+  das Radio aus, bleibt es aus. Abschaltbar unter ⚙ → Sprache & Home
+  Assistant → „Radio während Ansagen".
+
+---
+
+## 0.30.0
+
+**Sprachbefehle — Stufe 2: über Home Assistant Assist sprechen, auch ohne
+HTTPS. Optional mit der KI aus Home Assistant.**
+
+- **⚙ → Sprache & Home Assistant → „In Home Assistant einrichten"**: Yapaia
+  legt in Home Assistant den Helfer „Yapaia Sprachbefehl", den Sensor
+  „Yapaia Antwort" und die Automation „Yapaia Sprachbefehle" an — ohne
+  YAML.
+- Danach geht es über **Sprachsatelliten** und den **Assist-Knopf der
+  Home-Assistant-App**: „Yapaia, fahre mich nach Magdeburg", „Wo ist die
+  nächste Tankstelle?", „Stoppe die Navigation" … Assist spricht Yapaias
+  Antwort; „Ja" startet die Route.
+- **KI für freie Sätze:** Auf derselben Seite lässt sich ein
+  Gesprächsagent aus Home Assistant wählen (OpenAI, Claude, Google, Ollama
+  …). Er wird nur gefragt, wenn die eingebauten Befehle einen Satz nicht
+  verstehen, und übersetzt nur — ausgeführt wird von Yapaia, eine Route
+  startet erst nach „Ja". Ohne KI geht alles Eingebaute weiter offline.
+- Nutzt Assist selbst eine KI, muss dort „Befehle bevorzugt lokal
+  verarbeiten" eingeschaltet sein.
+- **Aktivierungswort „Yapaia":** Anleitung in
+  `docs/aktivierungswort-yapaia.md` — sofort mit dem vorhandenen Wort
+  („Okay Nabu, Yapaia …"), oder „Yapaia" als eigenes Wort für openWakeWord
+  trainieren.
+
+## 0.29.0
+
+**Sprachbefehle — Stufe 1: Yapaia versteht gesprochene und getippte
+Befehle, ohne Internet und ohne KI.**
+
+Gewünscht: „Bitte fahre mich zur Ziolkowskistraße nach Magdeburg", „Wo ist
+die nächste Tankstelle?", „Stoppe Navigation", „Lies mir die nächste
+Verkehrsinfo auf der Route vor".
+
+- **🎤-Knopf** neben der Suche und während der Fahrt oben in der
+  Knopfspalte. Er öffnet das Sprachfenster: sprechen (wo der Browser das
+  Mikrofon freigibt) oder tippen. Yapaia antwortet kurz und liest die
+  Antwort vor.
+- Verstanden werden u. a.:
+  - **Ziel**: „Fahre mich nach …", „Navigiere zur … in …", „Bring uns zum …"
+    — Yapaia sucht, rechnet die Route mit dem aktiven Fahrzeug und zeigt
+    sie. **Gestartet wird erst nach „Ja" / „Los".**
+  - **Nächste Tankstelle, Entsorgung, Frischwasser, Stellplatz, Camping,
+    Parkplatz, Supermarkt, Gas, Toilette** — voraus auf der Route, sonst in
+    der Nähe; „die zweite" wählt den nächsten Treffer.
+  - **Stopp, Pause, Weiter**, **„Wann sind wir da?"**, **„Lies die
+    Verkehrsmeldungen vor"** (die nächste oder „alle"), **„Ansagen aus/an"**,
+    **„Hilfe"**.
+- Was nicht verstanden wird, sagt Yapaia so — es wird nicht geraten.
+- **Mikrofon im Browser:** Browser geben es nur über **HTTPS** frei. Über
+  `http://…:8123` (auch in der Home-Assistant-App) bleibt das Fenster ein
+  Eingabefeld. Sprechen ohne HTTPS kommt mit der nächsten Version über
+  Home Assistant Assist (Sprachsatelliten und Assist-Knopf der HA-App).
+- Schnittstelle für eigene Automationen: `POST /api/v1/sprache {"text": "…"}`.
+
+## 0.28.0
+
+**Bildschirm anpassen: Knöpfe und Fenster selbst verschieben und
+vergrößern.**
+
+Gewünscht: „… eine Funktion, in der der User sich die Screens (Ruhemodus,
+Navigation usw.) selber konfigurieren kann … die einzelnen Objekte an
+gewünschte Stellen verschieben und vielleicht auch in der Größe ändern."
+
+- **Ruhe & Planung:** ⚙ → „Bildschirm anpassen". **Navigation:** im
+  Fahrtmenü „Bildschirm anpassen" — der Knopf erscheint nur im Stand bzw.
+  unter 10 km/h.
+- Jedes Element bekommt einen blauen Rahmen: **ziehen** verschiebt, der
+  **blaue Punkt** an der Ecke ändert die Größe (60 – 200 %). „Zurücksetzen"
+  holt die Standardanordnung zurück, „Fertig" beendet.
+- Anpassbar: Fahrtleiste (Ankunft/Restzeit/km — das Fahrtmenü klappt über
+  ihr auf und folgt ihr), Abbiegeanzeige, Tacho, Tempolimit-Schild,
+  Verkehrsbox, Routenfenster sowie die Knöpfe Kompass, Zentrieren,
+  Übersicht und Ansicht.
+- Gespeichert **je Gerät**. Nach einer Drehung oder auf einem kleineren
+  Fenster holt Yapaia ein Element zurück ins Bild, statt es draußen zu
+  lassen.
+
+## 0.27.0
+
+**Rückmeldungen zu 0.26: Suche mit Hausnummer, Verkehr nur an der Route,
+Fahrtanzeige gegenüber dem blauen Punkt, Zentrieren einstellbar.**
+
+- **Suche:** „Ziolkowskistraße 8" (ohne Ort) zeigt wieder die Straßen statt
+  nur der Läden darin. Die Hausnummer wurde zwar ignoriert, verdarb aber die
+  Rangfolge. Derselbe Laden als Punkt und als Fläche erscheint nur noch
+  einmal.
+- **Verkehrsmeldungen:**
+  - Auf der Karte nur noch Meldungen **auf oder direkt an der Route**
+    (bis 600 m daneben) — nicht mehr die ganze Autobahn.
+  - Neue Textbox **„Verkehr auf der Route"**: die nächsten fünf Meldungen
+    vor dir, die nächste zuerst, mit Entfernung entlang der Route.
+    Einklappbar.
+  - Ein Tipp auf eine Marke zeigt die Meldung, statt die Alternativroute
+    darunter auszuwählen und herauszuzoomen.
+- **Fahrtleiste (Ankunft, Restzeit, km) und Fahrtmenü** liegen auf der
+  Kartenseite, gegenüber dem blauen Punkt — in 0.26 verdeckte das Menü ihn.
+- **Zurück zur eigenen Position nach …**: neuer Regler unter ⚙ → Karte &
+  Darstellung, von 5 s bis 2 min oder **aus** (dann bleibt die Karte, bis
+  du ⌖ drückst). Vorher fest 10 s. Je Gerät gespeichert.
+
+## 0.26.0
+
+**Suche findet Straße + Ort, Fahrtmenü auf der Fahrerseite, Zwischenziele
+während der Fahrt.**
+
+- **Suche:**
+  - „ziolkowskistrasse" findet die „Ziolkowskistraße" — ss/ß und ae/ä,
+    oe/ö, ue/ü sind gleichwertig.
+  - **Straße + Ort** („Ziolkowskistraße Magdeburg") findet die Straße in
+    diesem Ort. Vorher fielen die Straßen weg und nur Läden blieben: im
+    Suchindex trägt eine Straße den nächsten Ortsteil („Neue Neustadt"),
+    nicht die Stadt.
+  - Die vielen Abschnitte derselben Straße in einem Ort sind **ein**
+    Treffer (vorher achtmal „Ziolkowskistraße, Ilmenau").
+  - Hausnummer und „Str." stören nicht. Gefahren wird zur Straße;
+    Hausnummern stehen nicht im Suchindex.
+  - Gilt sofort, ein neuer Suchindex ist nicht nötig.
+- **Kopfzeile:** Die POI-Chips stehen neben der Suche, die Kopfzeile geht
+  über die ganze Breite.
+- **Fahrtmenü** auf der Fahrerseite statt in der Mitte. Darin jetzt die
+  **Zwischenziele** mit ↑ ↓ ✕ — umsortieren und entfernen während der
+  Fahrt, die Route wird neu berechnet.
+- **Baustellen und Sperrungen** (gelbe und rote Marken an Autobahnen, von
+  der Autobahn GmbH, nur bei geplanter Route und eingeschaltetem „online")
+  sind antippbar und zeigen die Meldung.
+
+## 0.25.0
+
+**Routenplanung im Seitenpanel, Fahrzeuge in den Einstellungen — Schritt 4,
+damit ist die neue Aufteilung komplett.**
+
+Gewünscht: „Wir können unser Camper-Profil in den Einstellungen
+konfigurieren und dann für die Navigation auswählbar machen aus der Liste
+der Profile."
+
+- **Fahrzeuge** anlegen, bearbeiten und löschen: ⚙ → Fahrzeuge. Der
+  Fahrzeug-Knopf oben im Panel ist weg.
+- **Fahrzeug wählen** beim Planen: Das Routenfenster hat oben eine Auswahl
+  mit allen Fahrzeugen (Name, Höhe, Gewicht). Ein Wechsel aktiviert das
+  Fahrzeug und rechnet die Route sofort mit seinen Maßen neu.
+- **Das Routenfenster** sitzt auf breiten Bildschirmen im Seitenpanel auf
+  der Fahrerseite, unter Suche und Chips; die Karte daneben bleibt frei.
+  Auf dem Telefon und auf einem Tablet hochkant bleibt es unten — dort
+  würde es sonst die Kartenmitte verdecken.
+
+## 0.24.0
+
+**Pins auf der Karte sind antippbar — Schritt 3 der neuen Aufteilung.**
+
+Gewünscht: „Wenn man ein Ziel ausgewählt hat, kann man die Route suchen
+bzw. dann die Navigation starten. Oder auch nur die Infos (Internet
+vorausgesetzt) zu dem markierten Punkt lesen."
+
+- **Ein Tipp auf ein Symbol** (Stellplatz, Tankstelle, Entsorgung …) öffnet
+  im Seitenpanel eine **Ortskarte**: Name, Art, Adresse und Entfernung
+  (Luftlinie). Ein Tipp daneben auf die leere Karte schließt sie wieder.
+  Ein Ziel setzt weiterhin nur der lange Druck.
+- **Route** berechnet den Weg dorthin mit dem gewählten Fahrzeug.
+  **☆ Favorit** merkt sich den Ort.
+- **Infos aus dem Internet**, wenn „online" in der Add-on-Konfiguration
+  eingeschaltet ist: Öffnungszeiten, Website, Telefon, Gebühr und
+  Ausstattung aus OpenStreetMap, ein Auszug aus Wikipedia und Bilder von
+  Wikimedia Commons. Bilder aus der Umgebung statt vom Ort selbst sind als
+  „in der Nähe" beschriftet. Hinaus gehen nur Koordinaten und Name des
+  angetippten Ortes — nie die eigene Position.
+- Ohne „online" steht in der Karte, wie es mehr Infos gibt.
+
+## 0.23.0
+
+**Neue Aufteilung im Stil von Google Maps — Schritt 1 und 2.**
+
+Gewünscht: Menüs und Suche im Drittel auf der Fahrerseite, der Rest frei
+für die Karte; im Ruhezustand wenige Knöpfe; das meiste passiert erst, wenn
+man auf die Suche tippt.
+
+- **Seitenpanel auf der Fahrerseite** (Linkslenker links, Rechtslenker
+  rechts; einstellbar unter ⚙ → Karte & Darstellung → Gerät). Auf großen
+  Bildschirmen 380 Punkte breit. Oben ⚙ und die Suche, darunter das
+  Fahrzeug und die POI-Chips.
+- **Das ⚙-Menü** ersetzt die fünf runden Knöpfe (Karte, Regionen, Store,
+  Prüfung, Testfahrt). Oben steht „Yapaia Go", darunter die Bereiche; ein
+  Tipp öffnet den Bereich, ← führt zurück.
+- **Favoriten und Verlauf** erscheinen jetzt, wenn du in die Suche tippst —
+  die Leiste am unteren Rand ist weg.
+- Zoom, Kompass, Zentrieren, Übersicht und das Tempolimit-Schild liegen auf
+  der Seite gegenüber dem Panel; der Tacho auf der Fahrerseite.
+
+Als Nächstes: Pins auf der Karte antippbar mit Infos (auch Wikipedia und
+Bilder) und die Routenplanung im Panel mit Fahrzeugwahl.
+
+---
+
+## 0.22.0
+
+**POI-Chips, Zwischenziele auf der Karte, Übersicht auf Knopfdruck,
+Spritsorte im Profil.**
+
+- **POI-Chips unter der Suche** — wie bei Google Maps. Ein Tipp auf
+  „⛽ Tankstelle" zeigt nur noch Tankstellen; mehrere Chips zeigen die Summe;
+  alle aus = wieder die Auswahl aus den Einstellungen. Welche Kategorien als
+  Chip oben stehen, legst du im Kartenmenü unter „Sonderziele" mit dem 📌
+  fest. Die Einstellungen selbst ändert ein Chip nicht.
+- **Zwischenziele als nummerierte Pins** (1, 2, …) auf der Karte, orange —
+  so sieht man in der Routenübersicht, wo sie liegen.
+- **Knopf „ganze Route" ↔ „eigene Position"** (🗺️ / 📍) rechts auf dem
+  Bildschirm, sobald eine Route geplant ist oder läuft. Die Übersicht bleibt
+  stehen, bis du zurückschaltest.
+- **Zentrier-Knopf nur, wenn nötig**: er erscheint, sobald die Karte nicht
+  auf deiner Position steht (nach Verschieben oder Suchen), und verschwindet
+  wieder, wenn sie dort ist.
+- **„Unterwegs finden": erst ansehen, dann entscheiden.** Ein Tipp auf einen
+  Treffer zeigt ihn auf der Karte (violette Markierung). Mit ◀ ▶ blätterst du
+  durch die anderen Treffer, „Als Zwischenziel" fügt ihn ein, „Liste" führt
+  zurück, ✕ schließt.
+- **Spritsorte im Fahrzeugprofil** (Diesel, Benzin, Autogas, Erdgas,
+  Elektro) — für später, um Tankstellen passend anzuzeigen.
+- **Behoben: die Tempo-100-Zulassung ging beim Speichern verloren.** Sie wurde
+  nie in die Datenbank geschrieben; nach dem nächsten Laden war sie weg, und
+  über 3,5 t warnte Yapaia auf der Autobahn bei 80 statt 100. Bitte im Profil
+  einmal neu setzen, falls dein Fahrzeug sie hat.
+
+---
+
+## 0.21.1
+
+**Die Anzeige passt immer in den sichtbaren Platz.**
+
+Gemeldet: „Die Ränder sind abgeschnitten. Kannst du bitte die Anzeige so
+bauen, dass sie immer in den verfügbaren Platz passt? Auch wenn ein Browser
+mehr Platz braucht oder die Auflösung des Screens geringer ist."
+
+Home Assistant zeigt Yapaia in einem eingebetteten Rahmen. Auf dem iPad ist
+dieser Rahmen höher als das, was davon auf dem Bildschirm steht — die
+Kopfzeile mit der Suche lag oben halb außerhalb, der Zoom-Knopf fehlte, das
+Zahnrad unten war angeschnitten. 0.21.0 hatte das nur verkleinert.
+
+- Yapaia misst jetzt selbst, welcher Teil seines Rahmens wirklich zu sehen
+  ist, und legt **alle** Bedienelemente dort hinein — Kopfzeile, Knöpfe,
+  Leisten, Menüs und Dialoge. Scrollt oder ändert sich die Ansicht (Drehen,
+  Adressleiste, Bildschirmtastatur), zieht Yapaia mit.
+- Menüs und Listen sind höchstens so hoch wie der sichtbare Teil, nicht wie
+  der ganze Rahmen.
+- Direkt im Browser geöffnet ändert sich nichts.
+
+---
+
+## 0.21.0
+
+**Symbole auf der Karte, Kartenstil je Hell und Dunkel, Schriftgröße frei
+einstellbar.**
+
+- **POI-Symbole und Straßenschilder erscheinen jetzt.** Gemeldet: „Ich
+  erkenne nicht auf Anhieb, wo bspw. ein Womo-Stellplatz ist." Die Symbole
+  (Wohnmobilstellplatz, Camping, Tankstelle, Wasser, Entsorgung …) und die
+  gelben/blauen Straßenschilder gab es schon — sie wurden aber nie
+  gezeichnet: die Kartenbibliothek verlangt seit dem Umstieg auf MapLibre 6
+  eine absolute Adresse für die Symbolgrafik und hat die bisherige still
+  verworfen. Jetzt erscheint jede Kategorie mit eigenem Symbol, der Name
+  steht darunter.
+- **Kartenstil je Thema.** Im Kartenmenü unter „Kartenstil" gibt es jetzt zwei
+  Reiter, ☀️ Hell und 🌙 Dunkel. Für jeden lässt sich einer der Stile wählen;
+  beim Wechsel zwischen Hell und Dunkel (automatisch, nach Sonnenstand oder
+  von Hand) wird der jeweils gewählte gezeigt. Eine Wahl wird dabei nie mehr
+  überschrieben. Vorher bekam man nach einer eigenen Wahl z. B. ein dunkles
+  Design mit heller Karte.
+- **Label-Größe als Schieberegler** von 80 % bis 200 % (vorher nur 100 %
+  oder 120 %). Die Karte zieht nach, sobald der Regler kurz stillsteht.
+- **Suchzeile verschwand.** Auf dem iPad verschob sich die ganze Ansicht nach
+  dem Antippen im Kartenmenü um ein Stück nach oben, und die Kopfzeile mit
+  der Suche lag außerhalb des Bildes. Die Seite kann jetzt nicht mehr
+  verrutschen, und das Kartenmenü passt in die sichtbare Höhe.
+
+Hinweis: Wer bisher einen anderen Stil als „Hell" gewählt hatte, findet nach
+dem Update wieder die Vorgaben (Hell/Dunkel) und wählt einmal neu.
+
+---
+
+## 0.20.2
+
+**Der USB-GPS-Empfänger wird auch gefunden, wenn er nach dem Start anders heißt.**
+
+**Gemeldet:** „Es scheint, wir bekommen keine GPS-Daten." Die Prüfung zeigte:
+eingetragen war `…u-blox.com_u-blox_7_-_GPS_GNSS_Receiver-if00`, gefunden
+wurde `…u-blox.com_01a7-if00` — derselbe Empfänger. Linux benennt manche
+Sticks je nach Start unterschiedlich: kommen beim Hochfahren die Textangaben
+des Sticks nicht sauber an, steht statt „u-blox_7" die Produktnummer im Namen.
+
+- Fehlt das eingetragene Gerät, nimmt Yapaia jetzt **denselben Empfänger unter
+  dem anderen Namen** — aber nur, wenn es eindeutig ist: gleicher Hersteller,
+  gleiche Schnittstelle, der Name sagt selbst „GPS/GNSS/u-blox", und es gibt
+  genau einen solchen Treffer. Ein Zigbee- oder Z-Wave-Stick wird weiterhin
+  nie geöffnet.
+- **Tipp:** Am sichersten ist ein **leeres** Feld „USB-Gerät". Dann sucht
+  Yapaia den Empfänger bei jedem Start selbst, egal wie er gerade heißt.
+- Sicherheit: der Webserver (fastify) ist auf 5.12.5 aktualisiert; vier als
+  „hoch" eingestufte Lücken der Vorversion sind damit geschlossen.
+
+---
+
+## 0.20.1
+
+**Der USB-GPS-Empfänger ist nach einem Neustart schneller da.**
+
+> „wenn Home Assistant startet braucht der gpsd immer recht lange bis er
+> gestartet hat."
+
+Zwei Wartezeiten haben sich beim Hochfahren addiert, beide ohne Grund:
+
+- **Die Suche nach dem Empfänger** sah fest alle 15 Sekunden nach. Meldet sich
+  der USB-Empfänger — wie beim Booten üblich — erst kurz nach dem Add-on, lag
+  er bis zu 15 s ungenutzt herum. Jetzt wird in den ersten 90 Sekunden jede
+  Sekunde nachgesehen, danach wie bisher alle 15 s.
+- **Yapaia selbst** versuchte gpsd nach einem Fehlschlag in immer größeren
+  Abständen zu erreichen: 1, 2, 4, 8, 16, dann 30 Sekunden. War gpsd nach
+  17 s bereit, merkte Yapaia es erst nach 31 s. Jetzt liegen höchstens
+  5 Sekunden zwischen zwei Versuchen — gpsd läuft im selben Add-on, ein
+  Versuch kostet praktisch nichts.
+
+Zusammen spart das beim Start bis zu etwa 40 Sekunden.
+
+**Was sich nicht beschleunigen lässt:** die Zeit, die der Empfänger selbst bis
+zur ersten Position braucht. Nach längerer Stromlosigkeit muss er die Bahndaten
+der Satelliten erst neu empfangen; das dauert bei freiem Himmel etwa eine halbe
+Minute, unter Bäumen oder in der Halle länger. Empfänger mit eigener
+Stützbatterie behalten diese Daten einige Stunden und haben dann oft schon nach
+wenigen Sekunden eine Position.
+
+---
+
+## 0.20.0
+
+**Unterwegs finden: die nächste Tankstelle, der nächste Stellplatz — voraus
+auf der Strecke.**
+
+Im **Fahrtmenü** (Tipp auf die Fahrtdaten) gibt es jetzt den Abschnitt
+**„Unterwegs finden"**: ⛽ Tankstelle · 🅿️ Parkplatz · 🚐 Stellplatz ·
+⛺ Campingplatz · 🛒 Supermarkt · 🚽 Entsorgung · 💧 Frischwasser ·
+🔥 Gasflaschen · 🚻 Toilette.
+
+Ein Tipp zeigt die **drei nächsten Treffer, an denen man vorbeikommt**:
+voraus auf der Route und höchstens 2 km daneben, bis 80 km weit. Zum Beispiel:
+„Aral — in 12 km an der Strecke". Ein weiterer Tipp nimmt einen Treffer als
+**nächsten Halt**. Ohne laufende Route sucht Yapaia im Umkreis von 25 km.
+
+Findet sich nichts, sagt Yapaia **warum**: „keine an der Strecke" ist etwas
+anderes als „ohne Position lässt sich nicht suchen".
+
+Das ist die erste Stufe des **Sprach-Copiloten** (`docs/ideen-ki.md`,
+Idee 1): Später beantwortet er „Wir brauchen Diesel" mit genau dieser Suche.
+Sie funktioniert aber schon jetzt, ohne KI und offline, aus dem installierten
+Suchindex.
+
+---
+
+## 0.19.0
+
+**Das Wohnmobil meldet sich: Bordsensoren.**
+
+Erste Stufe von Idee 4 aus `docs/ideen-ki.md` — noch ohne KI, mit festen
+Regeln, und dafür vorhersagbar und offline.
+
+Yapaia liest aus Home Assistant **Grauwasser, Frischwasser, Bordbatterie und
+Außentemperatur** und meldet sich, wenn eine Schwelle erreicht ist:
+
+- **Grauwasser voll** → mit der nächsten **Entsorgungsstation voraus auf der
+  Route**: „Entsorgung Musterhof — in 12 km an der Strecke". Ein Tipp auf
+  **„Als nächsten Halt"**, und sie wird angefahren.
+- **Frischwasser knapp** → ebenso, mit der nächsten Frischwasser-Zapfstelle.
+- **Batterie niedrig** → Hinweis, für die Nacht besser einen Platz mit Strom.
+- **Frost** → Erinnerung an den Frostschutz der Wasseranlage.
+
+Während der Fahrt wird ein neuer Hinweis **einmal angesagt** (wenn die Ansagen
+an sind). Mit **„Später"** verschwindet er und kommt erst wieder, wenn eine
+andere Station die nächste ist — nicht bei jedem Prozentpunkt. Im **Fahrtmenü**
+bleibt er nachlesbar.
+
+Ohne Route sucht Yapaia die Station im Umkreis von 25 km; mit Route nur
+**voraus** und höchstens 2 km neben der Strecke.
+
+### Einrichten
+
+In der **Add-on-Konfiguration** gibt es die neue Gruppe **„Bordsensoren"**:
+dort die Entitäten eintragen, die eure Werte liefern (zum Beispiel
+`sensor.grauwasser_fuellstand`), und bei Bedarf die Schwellen anpassen
+(Vorgabe: Grauwasser ab 80 %, Frischwasser bis 20 %, Batterie bis 30 %,
+Frost bis 1 °C). Leer gelassene Sensoren werden nicht beachtet. Danach das
+Add-on neu starten.
+
+Füllstände und Batterie werden in **Prozent** erwartet, die Temperatur in °C.
+
+---
+
+## 0.18.0
+
+**Aufgeräumte Fahransicht, Kreisel auf dem Display, kurze Verkehrshinweise
+und eine Anleitung für eigene Karten.**
+
+### Während der Fahrt nur noch, was man braucht
+
+> „wir haben so viele tolle Informationen dass man während der Fahrt zu viele
+> Dinge sieht."
+
+Während einer Navigation sind **Suchleiste, Fahrzeugwahl, Favoriten-Schublade
+und die Knöpfe für Karteneinstellungen, Karten, Store und Installationsprüfung
+ausgeblendet**. Beim Suchen und Planen ist alles wie bisher da.
+
+**Tipp auf die Fahrtdaten** (Ankunft · Restzeit · Entfernung) öffnet das
+**Fahrtmenü**:
+
+- **⏸ Pause**, **⏹ Stopp** und **🔊 Ansagen an/aus** — zwei Tipps statt
+  dreier großer Knöpfe, die dauernd im Bild standen.
+- **Zwischenstopp einschieben:** eure Favoriten und die letzten Ziele. Ein
+  Tipp, und der Ort wird der **nächste** Halt — der Parkplatz oder die
+  Tankstelle, bevor es weitergeht.
+- **Fahrzeug:** das Profil wechseln — mit derselben Rückfrage „Mit '…' neu
+  berechnen?" wie bisher. (Die Fahrzeugwahl in der Kopfzeile ist während der
+  Fahrt ausgeblendet.)
+
+Ist die Fahrt pausiert, steht **▶ Fortsetzen** direkt auf der Karte.
+
+### Der blaue Punkt sitzt auf der Fahrerseite
+
+Während der Fahrt steht die eigene Position jetzt in der **Mitte des unteren
+Viertels**: links bei einem Linkslenker, rechts bei einem Rechtslenker. So
+zeigt der größte Teil des Bildes die Straße voraus.
+
+Die Seite stellt ihr unter **Karteneinstellungen → Lenkrad (LHD/RHD)** ein.
+Vorgabe ist **Rechtslenker** — für ein deutsches Wohnmobil also einmal auf
+**Linkslenker (LHD)** umstellen. Die Einstellung hat bisher die Fahrknöpfe auf
+die andere Seite gelegt; die liegen jetzt im Fahrtmenü.
+
+### Kreisel auf dem ESP-Display
+
+> „wenn ich auf einen Kreisel zu fahre zeigt der ESP komische Symbole an.
+> Besser wären sowas wie ein viertelkreis, Halbkreis etc. oder eine
+> zusätzliche Nummerierung wann man den Kreisel wieder verlassen muss."
+
+Das Display zeigt jetzt **den Bogen, den man im Kreisel fährt** — ein Viertel
+für rechts, die Hälfte für geradeaus, drei Viertel für links —, einen Pfeil in
+die Richtung der Ausfahrt und **die Nummer der Ausfahrt** in der Mitte.
+
+Bisher bekam jeder Kreisel dasselbe Bild mit einem Pfeil nach rechts oben,
+auch der, den man nach links verlässt.
+
+**Dafür die ESP-Konfiguration neu aufspielen:** `yapaia-nav-display.yaml`
+enthält einen neuen Sensor (`yapaia_kreisel`). Mit der alten Konfiguration
+bleibt das bisherige Symbol.
+
+### Der Verkehrshinweis bleibt nicht mehr stehen
+
+> „Zusätzlich sehe ich eine Anzeige dass die verkehrsinformationen 17 Minuten
+> alt sind. Die war die ganze Zeit über sichtbar, für längere Zeit."
+
+Ein Hinweis wie „Verkehrsdaten für A5 sind etwa 17 Minuten alt" steht jetzt
+**zehn Sekunden** und verschwindet dann. Er kommt nur wieder, wenn eine
+**andere** Straße betroffen ist — nicht jede Minute, in der das Alter um eins
+wächst. Die Warnung, dass für eine Autobahn gar **keine** Daten vorliegen,
+bleibt stehen, lässt sich aber antippen und wegwischen.
+
+### Eigene Karten, Routen und Suche
+
+Neue Anleitung: **`docs/eigene-karten.md`**. Sie beantwortet, welche Dateien
+Yapaia für Karte, Routing und Suche braucht, welche Formate von Bekannten
+passen (und welche nicht — OsmAnd, Organic Maps, Garmin), wie man sie baut und
+wo sie auf dem Gerät hingehören.
+
+---
+
+## 0.17.3
+
+**Schildertexte und Spurführung — wie bei Maps.**
+
+Gewünscht nach der Probefahrt:
+
+> „Was mir bei Maps noch gefällt ist die Anzeige was auf den Schildern auf der
+> Straße steht wenn man abbiegt. Und auch welche Spur man wählen sollte."
+
+### Was auf dem Schild steht
+
+An Abfahrten und Autobahnkreuzen zeigt das Abbiege-Feld jetzt eine **blaue
+Tafel** — Ausfahrtsnummer, Straße, Ziele: `61 · A 65 · Landau · Neustadt`.
+Damit lässt sich die Ansage gegen das Schild prüfen, das man gerade vor sich
+hat.
+
+Wird es auf dem Telefon eng, fällt zuerst das Ziel weg, das auf den Schildern
+**am seltensten** wiederholt wird — nicht einfach das letzte in der Liste.
+
+### Welche Spur
+
+Etwa **500 m vor dem Abbiegen** erscheint darunter eine Spurleiste. Alle Spuren
+bleiben sichtbar (sonst ginge das Zählen „zweite von rechts" nicht), die
+richtige ist **weiß hervorgehoben**.
+
+Hervorgehoben wird nur die Spur, auf der man **ohne weiteren Wechsel**
+durchkommt. Spuren, von denen aus man zwar abbiegen *kann*, sich aber vorher
+noch einmal einfädeln müsste, bleiben blass — mit sieben Metern Fahrzeug ist
+genau dieses Einfädeln kurz vor der Ausfahrt das, was man vermeiden will.
+
+### Wo es nichts zeigt
+
+Beides hängt an den Kartendaten. Auf deutschen Autobahnen sind Schilder und
+Spurmarkierungen (`turn:lanes`) gut erfasst, auf Landstraßen oft nicht. Wo es
+keine Daten gibt, erscheint **nichts** — keine leere Tafel und keine geratene
+Spur.
+
+> **Voraussichtlich kein Neubau nötig.** Valhallas Bauanleitung kennt keinen
+> Schalter für Schilder oder Spuren — beides wird beim Bau des Routings immer
+> mit abgelegt, sofern OSM es hergibt. Neu ist nur, dass Yapaia die Spuren jetzt
+> *anfordert* (ohne ausdrückliche Anfrage liefert Valhalla sie gar nicht).
+> Bereits gespeicherte Routen zeigen noch nichts; die nächste neu berechnete
+> schon. Erscheint an einer bekannten Autobahnabfahrt trotzdem nie etwas, ist
+> das eine Rückmeldung wert.
+
+---
+
+## 0.17.2
+
+**Nach der ersten echten Probefahrt: der linke Abbiegepfeil war kaputt, der
+Zoom zeigt die Abbiegung jetzt rechtzeitig, und die Karte pulsiert nicht mehr.**
+
+### Der linke Pfeil auf dem ESP-Display
+
+Gemeldet, mit Foto:
+
+> „Links und rechts Pfeil auf dem Display sind unterschiedlich. Der rechts
+> Pfeil ist besser, so sollte der linke auch aussehen."
+
+Dem linken Pfeil fehlte der **waagerechte Arm** — Dreieck und Balken standen
+unverbunden nebeneinander. Betroffen waren vier Pfeilarten (links abbiegen,
+leicht links, Auffahrt links, Wenden links) und der linke Kreisverkehr.
+
+Ursache: ESPHome zeichnet bei negativer Breite **gar nichts**, lautlos. Die
+Arme werden mit einem Vorzeichen gezeichnet — bei Linksabbiegern also negativ.
+
+Beide Pfeile sind jetzt exakte Spiegelbilder, und die Lücke zwischen Arm und
+Spitze ist auf beiden Seiten geschlossen.
+
+> Die Prüfung hatte das nie gesehen, obwohl sie die Pfeile abfragt: in ihr
+> stand die Behauptung, ESPHome zeichne negative Breiten „nach links". Das ist
+> falsch. Sie bildet jetzt ab, was das Gerät wirklich tut — und findet den
+> Fehler damit von selbst.
+
+### Der Zoom zeigt die Abbiegung rechtzeitig
+
+> „Der Zoom ist nicht smart genug. Man kann die nächste Abbiegung nicht gut
+> erkennen. […] in Abhängigkeit der Entfernung, nicht wenn man noch 10km vor
+> sich hat. Aber wenn man recht nah ist."
+
+Bisher gab es zwei feste Schwellen (250 m, 150 m); dazwischen und darüber
+entschied allein das Tempo. Auf der Autobahn hieß das: weit herausgezoomt, bis
+die Abfahrt auf 250 m heran war — bei 120 km/h siebeneinhalb Sekunden vorher.
+
+Jetzt wird die Frage umgedreht: **welche Stufe holt die Abbiegung gerade ins
+Bild?** Das lässt sich ausrechnen, aus Bildhöhe, geografischer Breite und der
+Lage des Fahrzeugs im unteren Bilddrittel.
+
+| Lage | vorher | jetzt |
+|---|---|---|
+| Abfahrt in 800 m, 120 km/h | Stufe 14 – Abfahrt außer Sicht | Stufe 14,5 – Abfahrt bei 2/3 Höhe |
+| Abbiegung in 200 m | Stufe 17 – klebt am oberen Rand (95 %) | Stufe 16,5 – bei 67 %, mit Strecke dahinter |
+| Abbiegung in 10 km | Stufe 14 | Stufe 14 – **unverändert** |
+
+Die Rechnung kann nur **heranholen, nie heraus**: ist die Abbiegung weit,
+entscheidet weiter das Tempo. Genau der Halbsatz „nicht wenn man noch 10 km vor
+sich hat".
+
+Nebenbei passt sich der Zoom damit auch an die **Größe der Anzeige** an — auf
+einem Telefon hochkant wird gröber gezoomt als auf einem Tablet quer, weil
+weniger Strecke ins Bild passt.
+
+### Die Karte pulsiert nicht mehr
+
+> „Auch die Führung der Route ist noch irgendwie hakelig. Der blaue Punkt folgt
+> der blauen Linie aber es läuft nicht unbedingt smooth. Schwer zu beschreiben."
+
+Die Kamerafahrt lief mit einer Ein-/Ausblendkurve: langsam los, schnell in der
+Mitte, langsam ans Ziel. Für **eine** Bewegung richtig — beim Folgen reiht sich
+aber eine Bewegung je Positionsmeldung an die nächste. Jede bremste am Ende auf
+null ab, die nächste beschleunigte wieder aus dem Stand: die Karte **pulsierte
+im Sekundentakt**, obwohl das Fahrzeug gleichmäßig fuhr.
+
+Beim Folgen läuft sie jetzt gleichförmig. Ein einzelner Sprung — der
+Zurück-zur-Position-Knopf, ein Ziel aus der Suche — bremst weiterhin ab; dort
+soll man sehen, dass die Bewegung ankommt.
+
+---
+
+## 0.17.1
+
+**Ein Ziel auf der Karte braucht jetzt einen langen Druck — und das ESP-Display
+kann die Ankunft als Restzeit anzeigen.**
+
+### Ein kurzer Tipper setzt kein Ziel mehr
+
+Gemeldet:
+
+> „Wenn man auf die Karte tippt übernimmt er ja die Position und markiert sie
+> als roten Punkt. Bspw als nächstes Ziel. Kannst du das bitte ändern dass das
+> nur mit einem Long press der Fall ist? Oftmals passiert das wenn man auf der
+> Karte sucht, dass ein neues Ziel gewählt wird."
+
+Ein Wischer, der um zwei Bildpunkte danebengeht, ist für den Browser ein Klick.
+Gegen eine Bewegungsschwelle allein ist das nicht zu trennen; gegen die **Dauer**
+schon. Ein Ziel setzt jetzt, wer **eine halbe Sekunde auf die Karte drückt**.
+
+Wer trotzdem kurz tippt, bekommt keine Stille, sondern den Satz
+**„Ziel setzen: lange auf die Karte drücken"**. Ohne ihn wäre die Änderung aus
+Sicht des Bedienenden von einem Defekt nicht zu unterscheiden.
+
+**Was ein kurzer Tipper weiterhin tut**, weil er dort schon die zweite bewusste
+Handlung ist:
+
+- eine **Alternativroute** auswählen (man zielt auf eine sichtbare Linie),
+- **Startpunkt** und **Zwischenziel** bestätigen, wenn deren Modus über den
+  jeweiligen Knopf läuft.
+
+Am Schreibtisch tut es weiterhin auch der **Rechtsklick**.
+
+> **Warum nicht einfach auf den Browser gehört?** Viele Geräte melden einen
+> langen Fingerdruck von selbst als „Kontextmenü". Ob sie das tun, wann, und ob
+> der Browser stattdessen seine eigene Textauswahl aufmacht, entscheidet das
+> Gerät. Hätte Yapaia sich allein darauf verlassen, gäbe es auf einem Tablet,
+> das es nicht meldet, überhaupt keinen Weg mehr zu einem Ziel. Der Druck wird
+> deshalb selbst gemessen; das Kontextmenü zählt daneben weiter.
+
+### Das ESP-Display: Ankunftszeit oder Restzeit
+
+Gewünscht:
+
+> „Bitte baue einen Schalter in das yaml ein um die eta zwischen der
+> Ankunftszeit und der verbleibenden Restzeit umzuschalten."
+
+Neuer Schalter **„Restzeit statt Ankunft"** (in Home Assistant beim Display-Gerät,
+neben „Waage erzwingen" und „Waage als Fahrzeug"). Aus bleibt die Uhrzeit — ein
+Update stellt niemandem ungefragt die Anzeige um.
+
+Angezeigt wird `32 min`, über einer Stunde `1:35 h`, kurz vor dem Ziel `gleich`.
+
+> **Zur Meldung „die eta ist unterschiedlich zwischen den Anzeigen":** Beide
+> Anzeigen lesen denselben Wert — im Kern gibt es nur **eine** Rechnung, und
+> daraus entsteht `sensor.yapaia_eta`. Unterschiedlich ist die **Darstellung**:
+> Home Assistant zeigt einen Zeitstempel-Sensor als Countdown („in 13 Minuten"),
+> das Display zeigte eine Uhrzeit. Zwei verschiedene Größen nebeneinander lassen
+> sich nicht vergleichen, auch wenn sie denselben Augenblick meinen. Mit dem
+> Schalter auf „Restzeit" stehen auf beiden Anzeigen dieselben Minuten.
+>
+> Die Restzeit wird dabei auf dem Display **aus derselben Ankunftszeit gerechnet**
+> und nicht getrennt geholt. Damit kann sie der Uhrzeit nie widersprechen, sie
+> läuft auch zwischen zwei Meldungen weiter, und der Schalter wirkt mit jeder
+> Yapaia-Fassung, die `eta` liefert.
+
+---
+
+## 0.17.0
+
+**Jede Sonderziel-Kategorie lässt sich einzeln an- und abschalten.**
+
+Gewünscht:
+
+> „Kann ich die einzelnen sonderziele auch an und abschalten? Zapfstellen
+> brauche ich eher selten und dann stören sie bspw."
+
+Bisher gab es dafür genau einen Schalter — „POI-Dichte" mit den Stufen voll /
+reduziert / aus. Der beantwortet die Frage nicht: wer nur die Zapfstellen
+loswerden wollte, hatte die Wahl zwischen *allen* Symbolen und *keinen*. Und
+mit „keine" verliert man auch die Stellplätze, also genau das, wofür die
+Symbole da sind.
+
+**Wo es steht.** Karten-Einstellungen (⚙️) → neuer Abschnitt **„Sonderziele"**.
+Dreizehn Kästchen, dazu „Alle an" und „Alle aus". Die Reihenfolge ist die der
+Karte, nicht das Alphabet: was bei Gedränge stehen bleibt, steht auch in der
+Liste oben.
+
+| | |
+|---|---|
+| Wohnmobilstellplatz | Campingplatz |
+| Entsorgungsstation | Frischwasser-Zapfstelle |
+| Tankstelle | Ladesäule |
+| Parkplatz | Einkaufen |
+| Essen und Trinken | Sehenswürdigkeit |
+| Müllentsorgung | Dusche |
+| Wasser und Entsorgung | |
+
+**„POI-Dichte" bleibt** — sie ist etwas anderes. Die Dichte ist eine Frage an
+das *Gerät* („wie viel Zeichenarbeit verträgt es"), und nur deshalb darf die
+Leistungsüberwachung sie bei niedriger Bildrate selbsttätig herunterdrehen.
+Welche Kategorien man sehen *will*, ist eine Frage an den Fahrer, und die
+beantwortet jetzt niemand mehr ungefragt mit.
+
+**Bestehende Einstellungen bleiben, wie sie sind.** Gespeichert wird, was
+*abgeschaltet* ist — nicht, was an ist. Wer bisher nichts eingestellt hat,
+sieht weiterhin alles. Und wenn eine spätere Fassung eine Kategorie
+hinzufügt, ist sie da und nicht weg: ein ungewolltes Symbol klickt man weg,
+ein fehlendes bemerkt man erst, wenn man daran vorbeigefahren ist.
+
+> **Vier der dreizehn brauchen den Suchindex.** Entsorgung, Frischwasser, Müll
+> und Dusche kennt das Kartenschema gar nicht; sie kommen aus
+> `lite_search-<region>.db`. Ohne gebauten Index bleiben sie leer — auch
+> eingeschaltet. Dieser Satz steht jetzt auch im Menü, denn ein Schalter ohne
+> Daten ist sonst von einem kaputten Schalter nicht zu unterscheiden.
+
+---
+
+## 0.16.5
+
+**Das ESP-Display zeigt beim Fahren keine Tempolimit-Zahlen mehr. Zu schnell
+ist jetzt ein roter Ring am Displayrand.**
+
+Gewünscht:
+
+> „Bitte entferne bei der Navigationsanzeige das speedlimit als Zahl. Es
+> langt wenn es überschritten wird einen roten Ring am Displayrand
+> anzuzeigen. Der braucht nicht zu dick zu sein aber eben gut wahrnehmbar.
+> Dafür könnte dann die km/h Anzeige mehr in die Mitte rutschen und etwas
+> größer werden."
+
+Was sich in der Fahransicht ändert:
+
+- **Das runde Verkehrszeichen ist weg**, und mit ihm die kleine Zahl daneben,
+  die die Grenze für das eigene Fahrzeug anzeigte.
+- **Bei Übertretung liegt ein roter Ring auf dem Displayrand**, vier
+  Bildpunkte dick.
+- **Das Tempo steht jetzt groß und mittig** statt klein am linken Rand. Die
+  Ankunftszeit rückt eine Schriftgröße herunter — sie ist die Nebenauskunft,
+  und bei dreistelligem Tempo bräuchten beide sonst denselben Platz.
+
+**Die Fahrzeuggrenze geht dabei nicht verloren.** Die Warnung schlägt seit
+0.14.0 an der *niedrigeren* der beiden Grenzen an — dem Schild und dem, was
+das eingestellte Fahrzeug darf. Der Ring trägt damit beides. Was verloren
+geht, ist die Auskunft „was darf ich hier eigentlich", und das ist der
+bewusst bezahlte Preis: auf einem 240 Punkte großen Glas stand diese Zahl
+neben einer zweiten, und wer sie wirklich braucht, findet sie im Dashboard.
+
+Der Ring erscheint **auch ohne laufende Route** — dort, wo man die meiste
+Zeit fährt.
+
+> **Keine Frage an das Display:** „Auf dem Display lese ich 40 m zur nächsten
+> Abbiegung, das Dashboard sagt 37 m." Das ist Absicht, kein Rundungsfehler.
+> Das Display rundet auf volle zehn Meter, weil „37 m" eine Genauigkeit
+> behauptet, die GPS nicht hat — und weil die letzte Ziffer sonst im
+> Sekundentakt flackert. Das Dashboard zeigt den Rohwert.
+
+---
+
+## 0.16.4
+
+**Das Gewicht lässt sich jetzt auf zehn Kilogramm genau eintragen — und
+eintippen.**
+
+Gemeldet:
+
+> „Mein Womo wiegt 3,49to. Was man nur durch die schieberegler nicht
+> einstellen kann. Man kann keine Werte über die Tastatur eingeben und die
+> Regler gehen in 10er Schritten."
+
+Zwei Ursachen, beide behoben:
+
+1. **Die Schrittweite war 0,1 t.** Jetzt 0,01 t — zehn Kilogramm, dieselbe
+   Feinheit, die Höhe, Breite und Länge schon immer hatten.
+2. **Das Zahlenfeld ließ sich nicht betippen.** Es formatierte bei *jedem*
+   Tastendruck neu: wer „3.49" tippt, erzeugt unterwegs „3." — daraus wurde
+   3, und das Feld schrieb „3.00" zurück, mitten in die Eingabe hinein. Jetzt
+   gilt beim Tippen das Getippte; formatiert wird erst beim Verlassen des
+   Feldes.
+
+**Warum das mehr ist als Bequemlichkeit.** Bei 3,5 t liegt die Grenze, an der
+sich die zulässigen Höchstgeschwindigkeiten ändern. Mit 0,1er-Schritten wählt
+jemand mit **3,55 t** naheliegend 3,5 — und bekommt damit die Grenzen der
+*leichteren* Klasse. Das ist die gefährliche Richtung: zu viel erlaubt.
+
+> Für 3,49 t war das Ergebnis übrigens nie falsch: 3,5 t zählt selbst noch zur
+> leichten Klasse („über 3,5 t" heißt über, nicht ab). Wer aufrundete, bekam
+> trotzdem die richtigen Limits. Ärgerlich war es dennoch — und für die
+> Nachbarn oberhalb der Grenze eben nicht nur ärgerlich.
+
+Nebenbei: Felder zeigen jetzt so viele Nachkommastellen, wie sie einstellen
+können. Bei der Durchschnittsgeschwindigkeit (ganze km/h) stand vorher
+„80.00" — eine Genauigkeit, die die Zahl nicht hat.
+
+---
+
+## 0.16.3
+
+**Zwei Schalter für die Wasserwaage — und eine zweite Ansicht.**
+
+Gewünscht, nachdem die Waage endlich lief:
+
+> „Könntest du bitte einen Schalter einfügen der zwischen zwei Anzeigen
+> umschalten kann. Der Wasserwaage und einer die das Auto von der Seite und
+> von hinten zeigt. […] Bitte füge noch einen weiteren Schalter ein der
+> zwischen der navigationsanzeige und der Waage umschaltet. Parallel zu der
+> Geschwindigkeit."
+
+Beide sind da. Sie erscheinen in Home Assistant als gewöhnliche Schalter und
+lassen sich damit auch aus einer **Automatisierung** heraus stellen:
+
+| Schalter | Was er tut |
+|---|---|
+| **Waage als Fahrzeug** | Libelle ⇄ Fahrzeugansicht |
+| **Waage erzwingen** | öffnet die Waage unabhängig vom Tempo |
+
+---
+
+**Die Fahrzeugansicht zeigt Millimeter, nicht nur Grad.**
+
+Von der Seite (vorne/hinten) und von hinten (links/rechts), dazu jeweils der
+Höhenunterschied in Millimetern. Das ist der eigentliche Zweck: **ein Grad
+sagt niemandem, wie dick der Keil sein muss.**
+
+Gerechnet wird über die Auflagepunkte. Die eigenen Maße gehören in die
+`navi.yaml`:
+
+```yaml
+substitutions:
+  radstand_mm: "4035"     # für vorne/hinten
+  spurweite_mm: "1810"    # für links/rechts
+```
+
+> **Das Bild übertreibt, die Zahl nicht.** Bei 1,5 Grad wäre die Neigung über
+> neunzig Bildpunkte gerade zwei Punkte hoch — massstabsgetreu gezeichnet sähe
+> ein schiefes Fahrzeug aus wie ein gerades. Der *Bildwinkel* wird deshalb
+> gestreckt, genau wie bei der Libelle die Blase schon am Rand steht, sobald
+> der eingestellte Bereich erreicht ist. Die **Zahlen bleiben exakt**.
+
+Gefunden wurde das übrigens nicht von einem Test, sondern beim Hinsehen: das
+neue Werkzeug `esphome/test/bild.mjs` zeichnet die Anzeige vergrössert als
+Text. Alle Prüfungen waren grün, die Zahlen stimmten — und die Anzeige war
+trotzdem nutzlos.
+
+---
+
+**„Waage erzwingen" wirkt parallel zur Geschwindigkeit, nicht an ihrer Stelle.**
+
+Das ist wichtig für den genannten Zweck — „diesen Schalter später mit einem
+Signal vom Rückwärtsgang koppeln": beim Rangieren *steht* das Fahrzeug nicht,
+es fährt langsam rückwärts.
+
+Dazu der Einwand aus derselben Rückmeldung: „Vielleicht ist das besser als nur
+die Geschwindigkeit damit die Anzeige an einer Ampel nicht umschaltet." Der
+stimmt, und er lässt sich nicht durch eine höhere Schwelle lösen — an einer
+roten Ampel steht das Fahrzeug wirklich. Wer die Waage nur beim Rangieren
+will:
+
+```yaml
+substitutions:
+  wasserwaage_bei_stillstand: "false"
+```
+
+Dann öffnet allein der Schalter. Vorgabe bleibt `true`, damit sich für
+bestehende Geräte nichts ändert.
+
+---
+
+## 0.16.2
+
+**Das ESP32-Display sagt jetzt selbst, ob überhaupt Werte ankommen.**
+
+Gemeldet, zum zweiten Mal: „Das Display vom esp zeigt immer noch kein Wert aus
+HA." — und dazu die richtige Rückfrage: „Oder kann es sein dass die Werte,
+obwohl sie in ha sind, [nicht] beim esp ankommen?"
+
+Genau das ließ sich bisher nicht nachsehen. Die alte Meldung nannte **eine**
+mögliche Ursache (den Entitätsnamen), sagte aber nicht, *welche* der Entitäten
+betroffen ist — und schon gar nicht, ob überhaupt eine ankommt.
+
+Das sind zwei sehr verschiedene Lagen, und sie waren nicht zu unterscheiden:
+
+| | |
+|---|---|
+| **einzelne** Werte fehlen | ein Entitätsname stimmt nicht |
+| **alle** fehlen | das Gerät ist in Home Assistant gar nicht eingebunden |
+
+Kommt gar nichts an, zeigt das Display jetzt **von allein** eine Liste aller
+erwarteten Werte und dahinter, ob sie ankommen — statt der alten Sackgasse.
+Darunter steht der Befund: „Nichts kommt an / ESPHome in HA einbinden".
+
+Wer die Liste sehen will, obwohl nur einzelne Werte fehlen, stellt in der
+`navi.yaml` `diagnose: "true"` ein. Dann steht dort zusätzlich, wie viele von
+acht Werten ankommen.
+
+> **Die Falle, um die es dabei geht:** „Gerät online" im ESPHome-Dashboard
+> heißt **nicht**, dass Home Assistant verbunden ist. Das Dashboard spricht
+> direkt mit dem Gerät; die Zustände schiebt die ESPHome-**Integration** in
+> Home Assistant. Kennt die das Gerät nicht oder hat den falschen Schlüssel,
+> bleibt es „online" und bekommt trotzdem nie einen Wert. Die README nennt
+> jetzt den Weg dorthin: Einstellungen → Geräte & Dienste → ESPHome.
+
+Ein Hinweis zum Lesen der Liste: sind auch die **Neigungswerte** leer, kann es
+nicht an Yapaias Entitätsnamen liegen — die Neigungssensoren hängen an einem
+ganz anderen Gerät.
+
+---
+
+## 0.16.1
+
+**Frischwasser-Zapfstellen und Duschen sind jetzt auf der Karte — und in der Suche.**
+
+Sie fehlten bisher an **beiden** Stellen, und das aus zwei verschiedenen
+Gründen.
+
+Das OpenMapTiles-Schema, aus dem die Kacheln gebaut werden, kennt
+`amenity=water_point` und `amenity=shower` nicht (nachgezählt in dessen
+`layers/poi/mapping.yaml`: beide **0×**). Sie können also in keiner Kachel
+stehen — genau wie die Entsorgungsstation, die seit 0.13.0 deshalb aus dem
+Suchindex kommt.
+
+Nur war bei diesen beiden auch der Suchindex leer: die Filterliste, mit der
+er gebaut wird, sammelte sie ebenfalls nicht ein. Es fehlte also nicht bloß
+ein Weg, sondern die Daten selbst.
+
+**Warum `water_point` neben `drinking_water` steht und nicht darin.** Die
+beiden sehen sich ähnlich und sind es nicht:
+
+| | |
+|---|---|
+| `drinking_water` | eine Stelle, an der man **trinkt** — ein Brunnen, ein Wasserhahn am Spielplatz |
+| `water_point` | eine Zapfstelle, die dafür gemacht ist, einen **Tank** zu füllen |
+
+Für ein Wohnmobil ist das der Unterschied zwischen „hier kann ich einen Becher
+füllen" und „hier kann ich weiterfahren". Beide unter einem Begriff zu führen
+hieße, den selteneren und wichtigeren im häufigeren verschwinden zu lassen.
+Deshalb heißt der neue Eintrag **„Frischwasser-Zapfstelle"** und nicht
+„Trinkwasser".
+
+Auf der Karte bekommen beide ein eigenes Symbol: ein Wasserhahn mit Tropfen
+für die Zapfstelle, eine Brause für die Dusche. Die Zapfstelle steht in der
+Rangfolge direkt hinter der Entsorgungsstation — nicht weil sie wichtiger
+wäre als eine Tankstelle, sondern weil es davon wenige gibt und beide meist
+zum selben Halt gehören.
+
+> **Wichtig für bestehende Installationen:** Ein bereits gebauter Suchindex
+> enthält diese Ziele **nicht**. Sie erscheinen erst, nachdem der Index neu
+> gebaut wurde — „Karten verwalten" (🗺️) öffnen und **„Alles bauen"**
+> drücken. Die Kacheln müssen dafür *nicht* neu gebaut werden.
+
+---
+
+## 0.16.0
+
+**Die Karte zeigt jetzt immer alles, was installiert ist.**
+
+Gewünscht:
+
+> „Der Anwender soll immer alles angezeigt bekommen was er runtergeladen hat.
+> Kacheln und Suche bezieht sich immer auf alles was runtergeladen wurde.
+> Weiße Flecken sind nur da wenn eine Karte nicht geladen wurde. Auch die
+> Auswahl der Region ist dann unnötig da ja immer alles angezeigt wird."
+
+Die **Auswahl „Angezeigte Region" im Kartenmenü ist entfallen.** Sie konnte
+nur eines: die Karte auf eine Region verkleinern. Ihr bester Zustand war
+„unberührt" — und ein Bedienelement, für das das gilt, gehört weg und nicht
+auf eine tiefere Menüebene.
+
+Damit ist eine weiße Fläche ab sofort **eindeutig**: dort ist keine Karte
+installiert. Vorher konnte sie auch heißen, dass eine Auswahl aktiv war, von
+der man nichts mehr wusste.
+
+Kacheln und Suche spannten schon vorher über alle Karten (seit 0.9.1 bzw.
+0.5.0) — es gab nur diese eine Zeile, die es wieder einschränken konnte.
+
+---
+
+**Eine Kartenliste statt zwei, und drei Knöpfe statt sechs.**
+
+> „Das bedeutet der Anwender klickt bei einer Karte nur noch auf
+> ‚installieren' (sofern nicht installiert), ‚Update' (bei installierten
+> Karten zum Update) oder ‚löschen' falls bereits installiert."
+
+Genau so ist es jetzt. Vorher gab es zwei Abschnitte („Installierte Regionen"
+und „Verfügbare Regionen") und bis zu vier Knöpfe je Eintrag. Eine Karte
+wanderte beim Installieren vom einen Abschnitt in den anderen und wechselte
+dabei ihre Knöpfe — wer sie dort suchte, wo sie zuletzt stand, fand sie nicht.
+
+Ob hinter **„Installieren"** ein Download oder ein Kachelbau steckt,
+entscheidet die Karte selbst. Für Sie ist es dieselbe Handlung; nur die Dauer
+unterscheidet sich (Minuten gegenüber Stunden).
+
+Eine **selbst nach `/share/yapaia/tiles/` gelegte Karte** wird jetzt als
+solche ausgewiesen. Sie wird gezeichnet, aber für sie lässt sich weder Routing
+noch Suche bauen — es gibt keine OpenStreetMap-Quelle. Das stand bisher
+nirgends, und der Bau übersprang sie stillschweigend.
+
+---
+
+**Ein Knopf, der alles wieder zusammenbaut — mit Restzeit.**
+
+> „Dann gibt es noch einen gemeinsamen Knopf der nach einer neuen Installation
+> oder Update alles wieder neu baut für eine gemeinsame Anzeige. […] Wenn
+> möglich mit einer geschätzten Zeit wann die Aktion fertig ist. Sollte sich
+> entsprechend des Bau-Fortschritts aktualisieren."
+
+**„Alles bauen"** ersetzt die früheren Knöpfe „Routing bauen" und „Suche
+bauen" an jeder einzelnen Karte. Er baut den Routinggraphen einmal über alle
+Karten und danach je Karte den Suchindex — alles in **einem** Vorgang, der
+auch einen Seitenwechsel übersteht.
+
+Die Anzeige sagt, im wievielten von wie vielen Schritten er steht und woran er
+gerade arbeitet.
+
+**Zur Restzeit, und warum sie manchmal fehlt.** Ein Kachel- oder Routingbau
+hat keinen messbaren Fortschritt: die Ausgabe von planetiler und Valhalla
+lässt sich nicht zuverlässig in eine Prozentzahl übersetzen. Eine Restzeit
+daraus zu rechnen wäre eine erfundene Zahl mit einer Einheit dahinter — also
+schlimmer als keine, weil sie überprüfbar aussieht.
+
+Was sich messen lässt, ist, **wie lange derselbe Schritt beim letzten Mal
+gedauert hat.** Genau daraus entsteht die Angabe. Deshalb:
+
+| Was dasteht | Was es heißt |
+|---|---|
+| „noch etwa 40 Min." | Jeder verbleibende Schritt wurde schon einmal gemessen. |
+| „mindestens noch 15 Min." | Ein Schritt läuft zum ersten Mal. Es dauert **länger**. |
+| „dauert länger als beim letzten Mal" | Der laufende Schritt hat seine gemessene Dauer überschritten. |
+| „Restzeit noch unbekannt" | Erster Lauf — es gibt nichts, woraus sich etwas ableiten ließe. |
+
+Die Unterscheidung zwischen einer Schätzung und einer **Untergrenze** ist
+dabei der Punkt. Eine Untergrenze fällt immer zu kurz aus; wer sie für eine
+Schätzung hält, plant falsch.
+
+Die Messwerte liegen in `bauzeiten.json` neben dem Kartenverzeichnis. Nach
+einem halben Jahr gelten sie nicht mehr — bis dahin hat sich meist etwas
+geändert, das die Dauer beeinflusst. Die Datei ist nie wichtig: fehlt sie oder
+ist sie kaputt, fehlt nur die Restzeitangabe.
+
+**„Löschen" ist während eines Baus absichtlich nicht gesperrt.** Ein Bau kann
+Stunden dauern und hängenbleiben; wäre Löschen dann blockiert, käme man an
+keine Karte mehr heran, bis das Add-on neu startet.
+
+---
+
+## 0.15.3
+
+**Die Wasserwaage erscheint jetzt auch ohne Tempowert.**
+
+Gemeldet mit Foto: Das Display zeigte „Kein Wert aus Home Assistant", obwohl
+die Neigungssensoren Werte lieferten.
+
+Der Grund war eine falsche Kopplung von mir. Die erste Fassung verlangte ein
+**bekanntes** Tempo — und `sensor.yapaia_speed` hatte keines. Damit fiel alles
+durch bis zur Fahrzustandsmeldung. Die Wasserwaage hängt aber an einem ganz
+anderen Gerät; sie von Yapaias Tempowert abhängig zu machen war falsch.
+
+Jetzt gibt es zwei Wege hinein:
+
+1. **Tempo bekannt und unter der Schwelle** — wie bisher, auch während einer
+   Navigation. Wer an der Ampel hält, sieht kurz die Libelle.
+2. **Tempo unbekannt und es wird nicht navigiert** — dann ist „geparkt" die
+   bei weitem wahrscheinlichste Lage.
+
+Der Zusatz „nicht navigierend" im zweiten Weg schützt den Fall, den die erste
+Fassung vermeiden wollte: fällt auf der Autobahn das GPS aus, läuft die
+Navigation weiter, und dann bleibt die Route stehen.
+
+Ein Gerät **ohne** Neigungssensoren zeigt weiterhin die gewohnte Anzeige —
+nicht dauerhaft eine Meldung über Sensoren, die es gar nicht hat.
+
+---
+
+**Die Kartenliste sagt jetzt, welche Regionen wirklich gezeichnet werden.**
+
+Gemeldet: „Ich habe Deutschland neu bauen lassen aber Liechtenstein wird nicht
+auf der Karte angezeigt."
+
+Yapaia lässt eine Region weg, deren Ausdehnung vollständig in einer anderen
+liegt — sonst wäre jede Straße doppelt gezeichnet. Die Regel ist richtig. Sie
+war nur **stumm**: die Funktion, die darüber Auskunft gibt, existierte seit
+0.9.0 und wurde nie aufgerufen.
+
+`GET /api/v1/map/regions` liefert jetzt zusätzlich `gezeichnet` und `verdeckt`.
+
+> **Zu Liechtenstein konkret:** nachgerechnet liegt es **nicht** in
+> Deutschland — Deutschlands Südspitze ist 47,27°, Liechtenstein reicht von
+> 47,05° bis 47,27°. An dieser Regel kann es also nicht liegen. Fehlt es
+> trotzdem, ist die Karte entweder nicht installiert oder nicht gebaut. Genau
+> das lässt sich an der Liste jetzt ablesen, statt es zu raten.
+
+---
+
+## 0.15.2
+
+**Das ESP32-Display heißt jetzt `navi`.**
+
+Die Substitution `geraetename` steht auf `navi` statt `yapaia-nav-display`.
+Damit heißt das Gerät im Netz `navi.local` — so, wie es in der ESPHome-
+Installation ohnehin schon geführt wurde — und passt zum Schlüsselnamen
+`navi__api_key` aus 0.15.1.
+
+Zwei Dinge ändern sich sichtbar:
+
+- der **Hostname** (`navi.local`),
+- die **Rückfall-SSID**, die das Gerät ohne WLAN öffnet: jetzt „navi Fallback".
+
+Wer den Namen ändert, sollte prüfen, ob der Eintrag in der `secrets.yaml` noch
+passt. ESPHome sucht schlicht nach dem Namen, der in der `key:`-Zeile steht —
+findet es ihn nicht, bricht der Bau ab und sagt es.
+
+---
+
+## 0.15.1
+
+**Der API-Schlüssel des ESP32-Displays steht jetzt in `secrets.yaml`.**
+
+In `secrets.yaml` gehören damit drei Zeilen:
+
+```yaml
+wifi_ssid: "..."
+wifi_password: "..."
+navi__api_key: "..."      # 32 Byte base64
+```
+
+Den Wert erzeugt der ESPHome Device Builder beim Anlegen des Geräts; er steht
+dort unter `api: → encryption: → key:` und lässt sich von da übernehmen.
+
+Ein Geräteschlüssel gehört in die Installation und nicht in den Quelltext —
+dort stünde er im Repository, wäre auf jedem Gerät derselbe und läge offen.
+
+Heißt Ihr Gerät anders als `navi`, wählen Sie einen anderen Namen und tragen
+ihn in der `key:`-Zeile ein.
+
+### Damit das nicht wieder auseinanderläuft
+
+Neu ist eine Prüfung, die festhält: **jeder `!secret`-Verweis der
+Konfiguration muss auch in der Anleitung stehen.** Genau das war bis 0.13.1
+nicht der Fall — die Datei verlangte `yapaia_display_api_key` und
+`yapaia_display_ota_password`, beide gab es nirgends, und wer die Datei
+übernahm, bekam Verweise ins Leere. Bemerkt hat man es erst beim Übersetzen
+auf dem eigenen Gerät.
+
+---
+
+## 0.15.0
+
+**Das ESP32-Display wird beim Parken zur digitalen Wasserwaage.**
+
+Unter **2 km/h** wechselt die runde Anzeige auf eine Libelle: eine Blase, zwei
+Ringe, ein Fadenkreuz — und darunter die Neigung in Grad für links/rechts und
+vorne/hinten. Steht das Wohnmobil innerhalb der Toleranz, wird der Ring grün
+und es steht **„steht gerade"** da.
+
+Sobald es wieder schneller wird, ist die Navigationsanzeige zurück.
+
+### Was Sie einstellen müssen
+
+Die Neigung kommt aus einem **anderen Gerät** als der Rest der Anzeige (bei
+mir ein MPU6050). Alle Einstellungen stehen deshalb an einer Stelle, oben in
+`substitutions`:
+
+| Einstellung | Vorgabe |
+| --- | --- |
+| `entity_neigung_lr` / `entity_neigung_vh` | die beiden Entitäten in Grad |
+| `wasserwaage_ab_kmh` | 2 |
+| `wasserwaage_gerade_grad` | 0,5 |
+| `wasserwaage_bereich_grad` | 5 |
+| `neigung_lr_vorzeichen` / `neigung_vh_vorzeichen` | 1 |
+
+**Die Vorzeichen müssen Sie einmal prüfen.** Welches Vorzeichen welche Seite
+meint, hängt vom Einbau des Sensors ab. Heben Sie eine Seite an: wandert die
+Blase zur **angehobenen** Seite, stimmt es — wie bei einer echten Libelle.
+Sonst das Vorzeichen auf `-1` setzen. Raten wäre hier besonders ärgerlich, denn
+eine spiegelverkehrte Wasserwaage schickt den Auffahrkeil unter das falsche Rad.
+
+### Wann sie bewusst nichts zeigt
+
+- **Ohne Neigungswerte** steht dort „Keine Neigungswerte" und keine Blase. Eine
+  Blase in der Mitte hieße „steht gerade" — ausgerechnet die beruhigende
+  Behauptung, bei der niemand nachsieht.
+- **Bei unbekanntem Tempo** bleibt es bei der Navigationsanzeige. Unbekannt
+  heißt nicht „vermutlich steht es"; sonst erschiene die Wasserwaage mitten
+  auf der Autobahn, sobald das GPS aussetzt.
+
+---
+
+## 0.14.1
+
+**Das Tempolimit steht jetzt auch da, wenn keine Route läuft.**
+
+Von den zehn Yapaia-Entitäten war `speed_limit` die letzte, die ohne Route zu
+Unrecht leer blieb. Ankunftszeit und Abbiegehinweis gibt es ohne Ziel
+wirklich nicht — ein Tempolimit braucht aber kein Ziel, sondern nur eine
+Straße.
+
+Für ein fest verbautes Display ist das der Unterschied zwischen nützlich und
+Zierde: ohne Route fährt man die meiste Zeit. Das runde Verkehrszeichen war
+längst gezeichnet, es bekam nur nie einen Wert.
+
+Zusammen mit 0.13.1 (Tacho aus dem GPS) und 0.14.0 (Fahrzeuggrenze) heißt
+das: **Yapaia kann jetzt auch ohne Fahrt mit Ziel vor zu schnellem Fahren
+warnen.**
+
+### Wie es funktioniert
+
+Yapaia merkt sich die letzten Positionen als kurze Fahrtlinie und lässt sie
+von der Karte zuordnen. Eine Linie und kein einzelner Punkt — denn ein Punkt
+hat keine Richtung, und neben einer Autobahn verläuft oft eine Nebenstraße.
+
+### Wann Yapaia bewusst schweigt
+
+Ein **falsches** Tempolimit ist schlimmer als gar keines: ein leeres Schild
+sagt „weiß ich nicht", eine 100 auf einer Landstraße sagt etwas Falsches mit
+Nachdruck. Deshalb bleibt die Anzeige leer, wenn
+
+- das **GPS zu ungenau** ist (schlechter als 30 m). Aus Ihrem Gerät gemeldet
+  wurden 53 m — auf dieser Strecke liegen Autobahn, Auffahrt und
+  Parallelstraße nebeneinander;
+- das Fahrzeug **steht** (ohne Bewegung keine Richtung);
+- die letzte Auskunft **älter als 30 Sekunden** ist. Bei 100 km/h sind das
+  800 Meter — sie könnte von einer anderen Straße stammen;
+- die Karte diese Stelle **nicht kennt**, etwa auf einem Feldweg.
+
+Woran es gerade liegt, steht als Attribut `stand_ohne_route` an
+`binary_sensor.yapaia_speeding`. Ohne diese Angabe sähe „konnte nicht
+nachsehen" genauso aus wie „hier ist nichts ausgeschildert".
+
+Während einer Route gilt weiterhin der Wert aus der Route.
+
+---
+
+## 0.14.0
+
+**Die Tempowarnung gilt jetzt für IHR Fahrzeug, nicht für einen PKW.**
+
+Bisher kannte Yapaia nur das **ausgeschilderte** Limit — und das ist das Limit
+für einen PKW. Auf einer deutschen Autobahn ohne Begrenzung steht gar kein
+Schild. Die Warnung blieb dort auch bei 130 km/h aus, obwohl ein Wohnmobil
+über 3,5 t nur 80 fahren darf. Eine Übertretung um fünfzig, die als „alles in
+Ordnung" durchging.
+
+### Was Sie einstellen müssen
+
+Im **Fahrzeugprofil** gibt es einen neuen Schalter: **Tempo-100-Zulassung**.
+
+> Nur ankreuzen, wenn es in den Fahrzeugpapieren steht. Über 3,5 t entscheidet
+> das über 80 oder 100 km/h auf der Autobahn. Bis 3,5 t ändert es nichts.
+
+Das Gewicht steht bereits im Profil. Aus beidem ergibt sich, was Ihr Fahrzeug
+fahren darf — Yapaia rät nichts.
+
+### Beide Zahlen bleiben sichtbar
+
+Das runde Verkehrszeichen zeigt weiterhin nur das, was **ausgeschildert** ist.
+Die Fahrzeuggrenze steht klein **daneben**, und zwar nur dann, wenn sie etwas
+Neues sagt — also wenn sie niedriger ist als das Schild oder es gar keines
+gibt.
+
+Ein Verkehrszeichen behauptet, dass es draußen steht. Eine 80 im runden Schild
+auf einer unbegrenzten Autobahn wäre diese Behauptung, und wer hinsieht, würde
+das Zeichen am Straßenrand suchen.
+
+Gewarnt wird ab der **niedrigeren** der beiden. Ist nur eine bekannt, gilt
+diese. Ist keine bekannt, wird nicht gewarnt — eine unbekannte Grenze ist
+keine Übertretung.
+
+### Neu in Home Assistant
+
+`sensor.yapaia_speed_limit_vehicle` — was Ihr Fahrzeug hier darf.
+`binary_sensor.yapaia_speeding` trägt jetzt zusätzlich, **woran** die Warnung
+hängt: am Schild oder am Fahrzeug.
+
+### Ein Vorbehalt, der dazugehört
+
+Die hinterlegten Grenzen sind meine beste Lesart der StVO und **keine
+Rechtsauskunft**. Am wenigsten sicher ist der Fall „über 3,5 t bis 7,5 t auf
+der Autobahn" — dort hängt es an der Einstufung in den Fahrzeugpapieren.
+Deshalb ist die Tempo-100-Angabe Ihre und nicht meine Vermutung. Wer seine
+Papiere danebenlegt und eine Zahl anders findet: sie stehen alle an einer
+einzigen Stelle, in `routing/fahrzeugTempo.ts`.
+
+Das ESP32-Display muss neu geflasht werden, damit es die zweite Zahl anzeigt.
+
+---
+
+## 0.13.2
+
+**Die ESP32-Anzeige lässt sich jetzt ohne Nacharbeit übernehmen.**
+
+Gemeldet mit Bildschirmfoto aus dem laufenden Gerät: im ESPHome Device
+Builder sehen die beiden Blöcke so aus —
+
+```yaml
+api:
+  encryption:
+    key: <vom Device Builder eingetragen>
+
+ota:
+  - platform: esphome
+```
+
+In der mitgelieferten Datei standen dagegen zwei Verweise auf Einträge in
+`secrets.yaml`: einer für den API-Schlüssel, einer für ein OTA-Passwort.
+
+Für eine von Hand gepflegte Konfiguration ist das richtig. Für den Device
+Builder ist es falsch: **der erzeugt den Schlüssel selbst** und trägt ihn
+direkt ein, ein OTA-Passwort vergibt er gar nicht — und **keinen** der beiden
+Einträge legt er in `secrets.yaml` an. Wer die Datei also übernahm, bekam zwei
+Verweise auf etwas, das es nicht gab, und musste beides von Hand nachtragen,
+bevor überhaupt etwas übersetzte.
+
+Beide Blöcke sind jetzt so, wie der Device Builder sie anlegt. In
+`secrets.yaml` gehören nur noch `wifi_ssid` und `wifi_password`.
+
+Ein echter Schlüssel steht weiterhin **nicht** im Projekt — er gehört zur
+Installation, und ein mitgelieferter wäre auf jedem Gerät derselbe. An seiner
+Stelle steht ein Platzhalter, den der Device Builder überschreibt. Damit das
+beim nächsten Abgleich mit einem laufenden Gerät nicht versehentlich kippt,
+schlägt jetzt eine Prüfung an, sobald etwas an dieser Stelle wie ein echter
+Schlüssel aussieht.
+
+---
+
+## 0.13.1
+
+**Tempo und Höhe auch ohne laufende Route — und das ESP-Display zeigt sie.**
+
+Aus den Entwicklerwerkzeugen gemeldet, alle Yapaia-Entitäten nebeneinander:
+
+| Entität | Zustand |
+| --- | --- |
+| `device_tracker.yapaia_vehicle` | Position auf zehn Nachkommastellen |
+| `sensor.yapaia_nav_state` | `idle` |
+| `sensor.yapaia_speed` | **unknown** |
+| `sensor.yapaia_altitude` | **unknown** |
+
+Das GPS lieferte also gerade eine Position, und im selben Augenblick stand
+beim Tempo „unbekannt". Beides zugleich.
+
+Der Grund: Tempo und Höhe wurden ausschliesslich aus dem Navigationszustand
+gelesen, und den gibt es nur, solange eine Route läuft. Die GPS-Position liegt
+dagegen immer an und bringt Geschwindigkeit und Höhe von sich aus mit — als
+Pflichtfelder. **Die Angabe war da, sie wurde nur nicht abgeholt.**
+
+Jetzt springt das GPS ein, sobald kein Routenwert vorliegt. Während der
+Navigation gilt weiterhin der Wert aus der Route, damit Tacho und
+Tempo-Überschreitung nicht aus verschiedenen Töpfen kommen.
+
+**Ehrlich bleibt es trotzdem:**
+
+- Ohne Satellitenfix bleibt beides „unbekannt" — eine Zahl, die aussieht wie
+  eine Messung, ist schlimmer als ein ehrliches Fragezeichen.
+- Die **Höhe** braucht einen 3D-Fix. Mit einem 2D-Fix könnte der letzte
+  bekannte Wert aus einem anderen Tal stammen; vor einer Passhöhe ist das
+  keine Kleinigkeit. Das Tempo dagegen reicht ein 2D-Fix.
+- **Stillstand ist eine Null**, kein fehlender Wert.
+
+### Das runde ESP32-Display
+
+Es zeigt jetzt ohne Route den **Tacho gross** und den Zustand klein darunter —
+vorher stand auf einem fest verbauten Bildschirm dauerhaft nur „Keine Route".
+
+Ausserdem ein Fehler behoben, der noch nicht aufgetreten ist: die Prüfung auf
+einen fehlenden Wert kannte „leer" und „unavailable", aber nicht **„unknown"**
+— und genau das schickt Home Assistant für einen Sensor ohne Wert. Das Gerät
+hätte daraus die feste Aussage „Keine Route" gemacht: behauptet, es sei alles
+in Ordnung, während es in Wahrheit gar nichts wusste.
+
+---
+
+## 0.13.0
+
+**Entsorgungsstationen stehen jetzt auf der Karte.**
+
+Für ein Wohnmobil ist das die wichtigste Adresse überhaupt, und sie fehlte.
+Im Quelltext stand seit 0.9.0 dazu:
+
+> Eine Entsorgungsstation führen unsere Kacheln nicht … Für ein Wohnmobil ist
+> das die schmerzlichste Lücke dieser Liste, und sie lässt sich nur beim
+> Kachelbau schliessen.
+
+Die erste Hälfte stimmt: das Kartenschema, aus dem die Kacheln gebaut werden,
+kennt `amenity=sanitary_dump_station` überhaupt nicht — nachgezählt, kein
+einziges Vorkommen. Kein Kachelbau der Welt hätte daran etwas geändert.
+
+Die zweite Hälfte war falsch. Die Stationen lagen die ganze Zeit im
+**Suchindex**: er wird aus derselben OSM-Datei gefiltert, und
+`sanitary_dump_station` steht seit jeher auf seiner Liste. Wer „Entsorgung"
+in die **Suche** tippte, fand sie. Wer auf die **Karte** sah, nicht. Es hat
+nie ein Datensatz gefehlt, sondern ein Weg von der einen Datei zur anderen.
+
+Den gibt es jetzt. Auf der Karte erscheinen:
+
+| Symbol | Was es ist |
+| --- | --- |
+| Petrolfarbener Pfeil in eine Wanne | **Entsorgungsstation** — Abwasser und Chemietoilette |
+| Graue Tonne mit Deckel | **Müllentsorgung** |
+
+Beide sind bewusst keine weitere Variante des blauen Wassertropfens: auf einem
+Stellplatz stehen sie oft direkt daneben, und dann müssen sie im Vorbeifahren
+auseinanderzuhalten sein.
+
+**Voraussetzung:** der Suchindex der Region muss gebaut sein — derselbe, der
+auch die Suche speist. Ist er es nicht, sagt Yapaia das, statt eine leere
+Karte zu zeigen. Genau dafür gibt es die Auskunft: eine Karte ohne Symbol kann
+heißen „hier gibt es keine" oder „ich konnte nicht nachsehen", und für jemanden
+mit vollem Abwassertank ist das ein erheblicher Unterschied.
+
+**Was weiterhin fehlt:** Frischwasser-Zapfstellen (`amenity=water_point`) und
+Duschen. Sie fehlen im Kartenschema **und** im Suchindex, also gibt es sie
+derzeit an keiner Stelle. Das steht hier, damit niemand es für ein Versehen
+hält.
+
+---
+
+## 0.12.2
+
+**Das Optionen-Menü ist aufgeräumt.**
+
+Zweimal gemeldet, wörtlich gleich:
+
+> „Das options Menü ist überfrachtet. Man kann die oberen Einträge nicht mehr
+> lesen."
+
+Beim ersten Mal habe ich nur die Höhe begrenzt und das Menü scrollbar gemacht.
+Der Inhalt blieb derselbe — er lief nur nicht mehr oben aus dem Bild. Das war
+ein Symptom-Fix, und er hat die Meldung nicht beendet.
+
+Jetzt ist das Menü nach **Häufigkeit** geteilt:
+
+| sofort sichtbar | zugeklappt |
+| --- | --- |
+| **Kartenstil** — der Grund, aus dem man dieses Menü öffnet | **Darstellung** — Hell/Dunkel, Sprache, Schriftgröße, POI-Dichte |
+| **Angezeigte Region** — unterwegs im Grenzgebiet mehrmals am Tag | **Gerät** — Links-/Rechtshänder, Einrichtungs-Assistent |
+
+Nichts ist verschwunden: jede Klappe geht mit einem Tipp auf die Überschrift
+wieder auf, und die ganze Zeile schaltet — nicht nur das kleine Dreieck. Im
+fahrenden Fahrzeug ist ein 12-Punkte-Ziel nicht zu treffen.
+
+„Angezeigte Region" bleibt bis zu vier installierten Karten offen; das ist der
+Normalfall, und dort soll der Wechsel **ein** Tipp sein. Ab der fünften Karte
+klappt die Liste zu, damit sie nicht alles andere aus dem Bild schiebt.
+
+Statt „überfrachtet" gibt es jetzt eine Zahl: das Menü zählt beim Öffnen seine
+Bedienzeilen und darf vierzehn nicht überschreiten. Vorher waren es
+fünfundzwanzig. Ein Test hält das fest, damit es nicht ein drittes Mal
+zuwächst.
+
+---
+
+## 0.12.1
+
+**Der ESP32 sagt jetzt, was ihm wirklich fehlt.**
+
+Gemeldet mit Foto: Das Display zeigte **„Keine Verbindung"** — während dasselbe
+Gerät in ESPHome als *Gerät online* mit IP-Adresse dastand.
+
+Beides stimmte. Die Verbindung war da; es fehlte der **Wert**. Der Satz zeigte
+damit genau dorthin, wo nichts zu finden war: zum Router, zum WLAN, zur API.
+
+### Was tatsächlich fehlt
+
+Die Entität heißt in Home Assistant sehr wahrscheinlich anders, als die
+ESP-Konfiguration sie sucht. Home Assistant vergibt die Entity-ID aus Geräte-
+*plus* Entitätsnamen; ältere Installationen haben deshalb
+`sensor.yapaia_go_nav_state` statt `sensor.yapaia_nav_state` — und eine
+Registrierung benennt nichts um.
+
+Yapaias Lovelace-Dashboard löst das seit Langem, indem es zur Laufzeit
+*nachsieht*. Die ESP-Konfiguration konnte das nie: ESPHome löst die Namen beim
+Übersetzen auf. Sie hatte die Namen fest verdrahtet.
+
+### Was sich ändert
+
+* **Die Meldung sagt, was los ist:** „Kein Wert aus Home Assistant" und
+  darunter, wo man nachsieht. Zwei Zeilen, weil eine nicht reicht.
+* **Die Entitätsnamen stehen an einer Stelle**, ganz oben in der
+  Konfiguration unter `substitutions:` — mit der Anleitung daneben, wie man
+  die richtigen findet (Entwicklerwerkzeuge → Zustände → Filter `yapa`).
+* `esphome/README.md` hat einen eigenen Abschnitt dazu.
+
+Das ist dieselbe Fehlerklasse, die dieses Projekt seit Monaten verfolgt: eine
+Meldung, die einen Zustand beschreibt, den sie nicht hat — und die Suche in
+die falsche Richtung lenkt.
+
+---
+
+## 0.12.0
+
+**Baustellen und Sperrungen stehen auf der Karte.**
+
+Sobald eine Route über eine Bundesautobahn führt, holt Yapaia die Meldungen
+für genau diese Autobahnen und zeichnet sie ein: ein bernsteinfarbener
+Leitkegel für Baustellen, ein roter Balken für Sperrungen.
+
+* **Nur mit Route, nur bei Änderung.** Ohne Route wird nicht gefragt. Ändern
+  sich die Autobahnen nicht, wird auch nicht neu gefragt — die Position
+  kommt im Sekundentakt, die Strecke nicht.
+* **Nur Autobahnen.** Die Schnittstelle der Autobahn GmbH führt ausschließlich
+  Bundesautobahnen; eine Anfrage nach der B9 käme als leere Liste zurück und
+  wäre von „dort ist nichts los" nicht zu unterscheiden.
+* **Sperrungen gewinnen.** Überdecken sich zwei Symbole, bleibt die Sperrung
+  stehen. Eine Baustelle kostet Zeit, eine Sperrung die ganze Strecke.
+
+### Und der Hinweis, der die Lücken nennt
+
+Über der Karte erscheint ein Satz, wenn etwas **fehlt**:
+
+> Für A3 liegen gerade keine Verkehrsdaten vor — dort kann etwas sein, das
+> hier nicht steht.
+
+Ist alles da, steht dort nichts. Ein Hinweis, der bei jeder Fahrt erscheint,
+wird nach drei Tagen nicht mehr gelesen.
+
+Der Satz ist der eigentliche Punkt: Eine Karte ohne Baustellensymbole kann
+zweierlei heißen — es ist nichts gemeldet, oder es konnte niemand nachsehen.
+Für jemanden, der auf eine gesperrte Autobahn zufährt, ist das der ganze
+Unterschied. Genauso wird gesagt, wenn die Daten aus dem Zwischenspeicher
+stammen und wie alt sie sind.
+
+---
+
+## 0.11.2
+
+**Der ESP32-Bildschirm bleibt nicht mehr schwarz.**
+
+Nach dem erfolgreichen Flashen meldete das Gerät:
+
+> `[E][display:016]: Could not allocate buffer for display!`
+> `[E][component:204]: display was marked as failed`
+
+Alles andere lief weiter — nur der Bildschirm blieb dunkel.
+
+### Die Ursache, nachgerechnet
+
+Der Bildpuffer war mit **115 200 Byte** angesetzt (240 × 240 bei 16 Bit
+Farbe, ESPHomes Voreinstellung) und musste **am Stück** in den
+Arbeitsspeicher passen. Der ESP32-C3 auf diesem Board hat 400 KB und kein
+PSRAM; nach dem Start von WLAN und der verschlüsselten API ist der freie
+Speicher zerstückelt. Ein zusammenhängender Block dieser Größe ist dort die
+Ausnahme.
+
+Mit `color_palette: 8BIT` sind es **57 600 Byte** — die Hälfte. Der Preis
+sind 256 statt 65 536 Farben, und den merkt diese Anzeige nicht: dunkler
+Grund, weißer Text, ein blauer Pfeil, rot für zu schnell, grün für gut.
+Farbverläufe gibt es keine.
+
+### Das Unangenehme daran
+
+In `esphome/README.md` stand dieser Fallstrick schon beschrieben — *„Das
+geht, ist aber neben WLAN und API knapp"* — und ausgeliefert wurde trotzdem
+die riskante Voreinstellung. Ein dokumentierter Fallstrick, in den man
+anschließend selbst hineinlaufen lässt, ist keine Dokumentation.
+
+Die Puffergröße wird jetzt bei jedem Testlauf nachgerechnet und schlägt an,
+bevor etwas auf ein Gerät kommt. Der dort empfohlene Ausweg (`GRAYSCALE`)
+war außerdem der schlechtere: gleiche Puffergröße, aber zusätzlich ohne
+Farbe — und die Tempo-Warnung soll rot sein.
+
+### Und wenn das WLAN nicht will
+
+Die zweite Meldung in Ihrem Protokoll (`Probe Request Unsuccessful`) kommt
+nicht von dieser Konfiguration, sondern vom Netz. `esphome/README.md` hat
+dafür jetzt einen eigenen Abschnitt: was sich aus dem Protokoll ablesen
+lässt und in welcher Reihenfolge sich die vier häufigen Ursachen prüfen
+lassen.
+
+---
+
+## 0.11.1
+
+**Die ESP32-Anzeige lässt sich jetzt übersetzen.**
+
+Gemeldet beim Versuch, das Display zu flashen — der Bau brach nach über
+tausend Schritten ab:
+
+> `no match for call to '(…<lambda(esphome::sensor::Sensor&)>)`
+> `(esphome::homeassistant::HomeassistantSensor* const&)'`
+
+Eine Hilfsfunktion in der Zeichenroutine erwartete eine Referenz, bekam aber
+einen Zeiger. **Das war mein Fehler, und schlimmer: meine eigene Prüfung hat
+ihn durchgelassen.**
+
+### Warum die Prüfung ihn nicht gefunden hat
+
+Es gibt seit Längerem eine Prüfung, die die Zeichenroutine auf einem
+gewöhnlichen Rechner übersetzt und ausführt — genau damit so etwas nicht erst
+auf dem Gerät auffällt. Sie hat anstandslos durchgewinkt.
+
+Der Grund war kein übersehener Fall, sondern ein **falsches Modell**: Die
+Prüfung bildete `id(name)` als Objekt ab. ESPHome setzt dort aber die
+C++-Variable selbst ein, und die ist ein **Zeiger**; nur `id(name).` wird zu
+`name->`. Deshalb übersetzte `hilfsfunktion(id(name))` in der Prüfung und auf
+dem Gerät nicht.
+
+Eine Prüfung, die eine Annahme nachbaut statt der Wirklichkeit, prüft die
+Annahme. Sie ist dann schlimmer als keine, weil sie Sicherheit gibt, die es
+nicht gibt.
+
+### Was jetzt anders ist
+
+Die Prüfung bildet ESPHomes Umschreibung nach — nachgelesen in dessen
+Quelltext, nicht geraten. Sie bricht außerdem ab, wenn in der Konfiguration
+eine Kennung auftaucht, die sie nicht kennt: sonst entstünde beim nächsten
+neuen Sensor genau dieselbe Lücke noch einmal.
+
+Und die Prüfumgebung steht jetzt selbst unter Aufsicht. Mit dem alten Stand
+der Zeichenroutine erzeugt sie exakt dieselbe Fehlermeldung, die auf Ihrem
+Gerät stand.
+
+---
+
+## 0.11.0
+
+**Verkehrsmeldungen: Yapaia kann jetzt Baustellen und Sperrungen abrufen.**
+
+Die Grundlage steht — Yapaia holt Baustellen und Sperrungen von der Autobahn
+GmbH für die Autobahnen, die auf Ihrer Strecke liegen. **Auf der Karte
+erscheinen sie noch nicht**; das ist der nächste Schritt. Was jetzt schon
+funktioniert, ist der Teil darunter, und der ist der schwierigere.
+
+### Was daran wichtig ist
+
+* **Nichts geht ohne Ihren Schalter hinaus.** Wie schon bei der Prüfung: ist
+  `online` → `enabled` aus, wird die Schnittstelle nicht einmal angefasst.
+* **Es wird nicht bei jeder Kartenbewegung nachgefragt.** Antworten werden
+  fünf Minuten zwischengespeichert. Im Wohnmobil hängt Yapaia am
+  Mobilfunkanschluss — das ist kein Nebenthema.
+* **Ohne Netz gilt die letzte bekannte Lage.** Wer auf der A61 steht und
+  gerade kein Netz hat, bekommt die zwanzig Minuten alte Baustellenmeldung
+  statt einer leeren Karte. Eine Baustelle steht Wochen; zwanzig Minuten
+  ändern daran nichts. **Das Alter wird dabei immer mitgesagt.**
+* **Eine Lücke sieht nicht wie Ruhe aus.** Antwortet eine der Autobahnen
+  nicht, steht das ausdrücklich da: *„Für A3 liegen KEINE Daten vor — dort
+  kann etwas sein, das hier nicht steht."*
+
+Der letzte Punkt ist der eigentliche Grund für den ganzen Aufwand. Eine leere
+Karte kann zweierlei heißen: „hier ist nichts" oder „ich konnte nicht
+nachsehen". Für jemanden, der auf eine gesperrte Autobahn zufährt, ist das
+der ganze Unterschied.
+
+---
+
+## 0.10.4
+
+**Ein laufender Bau bleibt sichtbar, auch wenn Sie die Seite verlassen.**
+
+Gemeldet während des ersten großen Routingbaus:
+
+> „Wenn man von Yapaia woandershin wechselt und dann wieder aufruft sind die
+> aktuellen Fortschrittsinformationen vom Bau nicht mehr sichtbar."
+> Und beim nächsten Druck auf „bauen": „Es läuft bereits ein Bau."
+
+Beides stimmte gleichzeitig — und das war der ganze Fehler. Der Bau lief
+ungestört weiter; Yapaia merkte sich nur **im Speicher des Browsers**, welcher
+Vorgang zu welcher Region gehört, und der ist beim Verlassen der Seite weg.
+Danach wusste das Add-on alles und zeigte nichts.
+
+Bei einem Vorgang, der Stunden dauert, ist „läuft er noch?" die Frage, auf die
+es ankommt. Ab jetzt hängt sich die Anzeige beim Öffnen wieder an den
+laufenden Bau an — mit Fortschrittsbalken, Statuszeile und unter der richtigen
+Region.
+
+### Und die Meldung, die nach einem Absturz aussah
+
+Im Fortschrittstext stand
+
+> `[32;1m[INFO][0m invalid_argument thrown for condition (2025 Sep 19- Oct 15)`
+
+Das sind **Terminal-Farbcodes**. Valhalla färbt seine Protokollzeilen ein; auf
+einer Kommandozeile ist das unauffälliges Grün, im Browser sichtbarer
+Zeichensalat — ausgerechnet rund um das Wort, auf das es ankommt.
+
+Die Codes sind jetzt weg, der Text bleibt. Und der Text sagt: **INFO**. Es ist
+keine Fehlermeldung. Valhalla konnte eine zeitlich begrenzte Beschränkung aus
+den OpenStreetMap-Daten (ein Datumsbereich) nicht lesen und überspringt sie —
+der Bau läuft dabei normal weiter.
+
+---
+
+## 0.10.3
+
+**Die Prüfung der Online-Dienste sagt jetzt, was sie wirklich gefunden hat.**
+
+Ihr erster echter Lauf auf dem Gerät hat funktioniert — und dabei einen
+Fehler in der Prüfung selbst aufgedeckt. Sie meldete:
+
+> Autobahn A61 — parking_lorry: 60 Einträge, **alle brauchbar**.
+> Beispiel: „A61 | undefined" — ohne Koordinaten
+
+Sechzig LKW-Parkplätze, von denen **kein einziger** auf eine Karte gezeichnet
+werden kann. „Alle brauchbar" war für eine Navigations-App schlicht falsch,
+und das Gesamturteil zählte sie obendrein als Erfolg mit.
+
+### Was sich ändert
+
+* **Ohne Koordinaten heißt ohne Koordinaten.** Einträge, die zwar einen Text
+  haben, aber keinen Ort, werden getrennt gezählt und benannt. Das
+  Gesamturteil rechnet sie nicht mehr als Erfolg.
+* **Die Prüfung nennt jetzt den Aufbau des Dienstes.** Wo etwas nicht aufgeht,
+  steht darunter eine Zeile mit den Feldnamen, die wirklich ankamen. Damit
+  lässt sich beantworten, *warum* Koordinaten fehlen, statt es zu vermuten.
+
+Es stehen dort nur **Feldnamen und Typen, niemals Werte** — die Zeile ist zum
+Weitergeben gedacht, und für den Aufbau braucht die Werte niemand.
+
+### Warum das so gebaut ist
+
+Die LKW-Parkplätze sind für ein Wohnmobil kein Nebenthema: über 7,5 Tonnen
+sind sie nachts oft die einzige Fläche, auf der man legal steht. Ich könnte
+raten, wie dieser eine Dienst seine Orte ablegt — die Entwicklungsumgebung
+kommt an die Schnittstelle nicht heran. Raten hat dieses Projekt schon einmal
+eine Woche gekostet. Deshalb fragt die Prüfung stattdessen Ihr Gerät.
+
+**Wenn Sie mögen:** Lassen Sie die Prüfung noch einmal laufen und schicken Sie
+mir die neue Zeile unter `parking_lorry`. Dann kann ich die Parkplätze auf die
+Karte bringen, ohne zu raten.
+
+---
+
+## 0.10.2
+
+**Ein Knopf, ein Routinggraph, alle installierten Karten.**
+
+### Die Ursache, die 0.10.1 nur sichtbar gemacht hat
+
+0.10.1 hat ausgerechnet, dass ein Routingbau die anderen Länder verliert, und
+davor gewarnt. Das war ehrlicher als vorher — aber es war keine Lösung: Sie
+bekamen eine Warnung und keinen Weg. Wer drei Länder wollte, konnte nichts
+tun.
+
+Der Grund lag beim **Kartenbau**: Er lud seinen OSM-Extrakt in ein
+temporäres Verzeichnis und löschte ihn am Ende wieder. Der Routinggraph wird
+aber aus genau diesen Extrakten gebaut. Eine installierte Karte hinterließ
+also **keine Straßendaten** — sie sah aus wie eine Karte und war beim Routen
+nicht vorhanden.
+
+### Was sich ändert
+
+* **Der Kartenbau behält seinen Extrakt.** Jede Region, deren Karte Sie
+  bauen, bringt ab sofort auch ihre Straßendaten mit.
+* **„Routing bauen" deckt alles ab.** Der Bau lädt die Extrakte nach, die
+  noch fehlen — für jede installierte Karte, nicht nur für die, deren Knopf
+  Sie gedrückt haben. Egal, welchen Sie drücken: danach routet Yapaia über
+  alle Länder, auch über die Grenze.
+* **Nichts wird doppelt geladen.** Liegt ein Extrakt schon da, bleibt er
+  liegen. Auch der Suchindex-Bau benutzt ihn jetzt wirklich — bisher stand
+  das nur im Quelltext.
+* **Die Warnung hat einen Knopf.** Wenn eine Karte gar keine Quelle hat (eine
+  von Hand nach `/share` gelegte `.pmtiles` etwa), erscheint weiterhin eine
+  Rückfrage. Sie ist jetzt gelb statt rot und hat „Trotzdem bauen" daneben.
+
+### Und ein Fehler, der noch nie aufgetreten ist
+
+Eine **abgebrochene Übertragung** war die gefährlichste Datei im System: Eine
+halb geladene `.osm.pbf` existiert, ist nicht leer — und jeder spätere
+Routingbau hätte sie genommen. Mit einem Land, dem die Hälfte fehlt, und ohne
+eine einzige Fehlermeldung; Sie hätten es erst gemerkt, wenn eine Route
+mitten im Nichts endet.
+
+Beide Bauwege prüfen den Dateikopf jetzt, verwerfen eine unvollständige Datei
+und laden sie neu. Dasselbe gilt für eine URL, die statt der Datei eine
+HTML-Fehlerseite liefert.
+
+### Was das an Platz kostet
+
+Die Extrakte bleiben jetzt liegen: Deutschland rund 4 GB, die Schweiz rund
+400 MB, Liechtenstein wenige MB. Das ist der Preis dafür, dass ein Routingbau
+alles abdeckt und kein zweiter Download nötig wird.
+
+---
+
+## 0.10.1
+
+**Vier gemeldete Fehler — zwei davon haben die Navigation lahmgelegt.**
+
+### 1. Routing nur noch für ein Land
+
+> „Das routing funktioniert nicht mehr. Es erscheint eine Fehlermeldung
+> ‚no edges found near location'. Liegt das daran dass nur das routing für
+> Liechtenstein angezeigt wird?"
+
+**Ja, genau daran — und es war kein Bedienfehler.**
+
+Es gibt **einen** Routinggraphen, nicht einen je Region. Er wird über alle
+OSM-Extrakte gebaut, die im Zwischenlager liegen. Und dort liegt ein Extrakt
+**nur, wenn für diese Region schon einmal „Routing bauen" gedrückt wurde**:
+Der Kartenbau lädt seinen Extrakt in ein temporäres Verzeichnis und löscht
+ihn am Ende wieder.
+
+Eine installierte Karte enthält also **keine** Straßendaten für die
+Routenberechnung. Wer drei Länder installiert und beim kleinsten auf „Routing
+bauen" drückt, verliert das Routing für die anderen beiden — und die Knöpfe
+stehen pro Region und legen genau das Gegenteil nahe.
+
+**Ab sofort fragt Yapaia vorher.** Bevor ein Routingbau startet, rechnet es
+aus, was danach im Graphen liegt, was verloren geht und welche installierten
+Karten ohne Routing bleiben — und nennt es beim Namen, statt hinterher mit
+„no edges found near location" zu überraschen.
+
+**Was Sie tun müssen:** einmal **„Routing bauen" bei jeder Region**, die Sie
+befahren wollen. Der Graph sammelt danach alles ein, was schon da ist — Sie
+verlieren also nichts, was Sie einmal gebaut haben. Fangen Sie mit dem
+größten Land an.
+
+### 2. Nur eine Kartenregion sichtbar
+
+> „Die Schweiz und Liechtenstein erscheinen immer noch nicht auf der Karte.
+> Nur Deutschland ist zu sehen."
+
+0.9.1 hatte den Kern beigebracht, alle Regionen gleichzeitig zu zeichnen. Die
+Oberfläche hat es nur nie verlangt: Sie schickte **immer** eine Region mit —
+auch im Modus „Automatisch", wo sie die Region der aktuellen Position
+einsetzte. Die ganze Änderung lief damit ins Leere, lautlos, weil eine gültige
+Region eine gültige Karte ergibt. Sie ist nur kleiner, als sie sein müsste.
+
+Im Kartenmenü heißt die Vorgabe jetzt **„Alle"** und zeigt, was sie zeigt. Die
+feste Wahl heißt jetzt **„nur ‹Region›"**.
+
+### 3. Der Knopf für die Online-Prüfung fehlte
+
+> „Online Dienste habe ich enabled aber wie führe ich nun deine Prüfung aus?
+> Ich sehe den Knopf nicht."
+
+Es gab ihn nicht — 0.10.0 hatte die Prüfung nur als Schnittstelle. Jetzt steht
+sie in der **Installationsprüfung** (das Stethoskop-Symbol), unter
+„🌐 Online-Dienste". Je Dienst eine Zeile mit Statuscode, Befund im Klartext
+und der **anklickbaren Adresse** — der kürzeste Weg von „Yapaia sagt X" zu
+„stimmt X?" ist, selbst nachzusehen.
+
+### 4. Das Kartenmenü war oben abgeschnitten
+
+> „Das options Menü ist überfrachtet. Man kann die oberen Einträge nicht mehr
+> lesen."
+
+Der Grund war keine fehlende Aufräumaktion, sondern eine fehlende Grenze: Die
+Klappe sitzt unten links und wächst nach **oben** — ohne Höhenbegrenzung wuchs
+sie aus dem Bildschirm heraus. Alles über der Oberkante war weder lesbar noch
+erreichbar. Jetzt bleibt sie im Bild und lässt sich blättern.
+
+---
+
+## 0.10.0
+
+**Online-Dienste: der Anfang, und zwar von der ehrlichen Seite.**
+
+> „Neben Kartendaten denke ich auch an sowas wie Verkehrsinfos, Staus,
+> Blitzer, Baustellen, Umleitungen oder Tankstellen und ihre Preise, usw."
+
+Yapaia kann jetzt bei bestehender Verbindung die offene Schnittstelle der
+**Autobahn GmbH des Bundes** abfragen: Baustellen, Sperrungen, Warnungen,
+Rastanlagen und LKW-Parkplätze. Ohne Schlüssel, ohne Anmeldung, ohne Konto.
+
+### Ausgeschaltet als Vorgabe
+
+Yapaia ist eine **Offline**-Navigation. Karten, Routing, Suche und Ansagen
+funktionieren ohne jede Internetverbindung, und das ist der Sinn der Sache:
+auf einem Stellplatz im Funkloch nützt die schönste Online-Karte nichts.
+
+Dass dieses Add-on plötzlich fremde Server anfragt, soll deshalb eine
+**Entscheidung** sein und nicht die Folge eines Updates. Der Schalter steht in
+der Add-on-Konfiguration unter **„Online-Dienste" → „Online-Dienste
+erlauben"**.
+
+Was dabei hinausgeht: die Anfrage selbst. **Keine Position, keine Route, keine
+Gerätekennung.** Fällt die Verbindung aus, fällt nur das weg — die Navigation
+merkt es nicht.
+
+### Warum in dieser Version noch keine Baustelle auf der Karte steht
+
+Weil ich die Schnittstelle nicht selbst aufrufen kann. Die
+Entwicklungsumgebung, in der Yapaia gebaut wird, lässt keine dieser Adressen
+durch; ich habe sieben Kandidaten geprüft, keiner antwortete.
+
+Genau in dieser Lage ist der gpsd-Fehler aus 0.8.9 entstanden: drei plausible
+Diagnosen, alle falsch, weil geraten statt gemessen wurde. Was am Ende geholfen
+hat, war nicht die vierte Vermutung, sondern das System dazu zu bringen,
+selbst zu antworten.
+
+Deshalb kommt dieses Mittel **vorweg** statt hinterher. In Yapaia gibt es eine
+Prüfung, die jeden Dienst wirklich aufruft und berichtet:
+
+- die aufgerufene Adresse — zum Selbstnachsehen im Browser
+- Statuscode und Dauer
+- ob überhaupt eine Antwort in Maschinenform kam
+- wie viele Einträge kamen und wie viele davon unbrauchbar waren
+- **einen Beispieleintrag, so wie Yapaia ihn verstanden hat**
+
+Der letzte Punkt ist der wichtige: daran sieht man in einer Minute, ob die
+Annahme stimmte — statt in einer Version.
+
+Yapaia rät dabei bewusst nicht. Findet es in einer Antwort mehrere mögliche
+Listen, sagt es das und nennt die Namen zur Auswahl, statt sich eine
+auszusuchen.
+
+### Was als Nächstes kommt
+
+Sobald die Prüfung auf einer echten Installation gelaufen ist und zeigt, wie
+die Antworten wirklich aussehen: die Meldungen auf der Karte und entlang der
+Route. Danach Spritpreise und — mit deutlichem Hinweis auf § 23 Abs. 1c StVO
+und ausgeschaltet als Vorgabe — ortsfeste Messanlagen.
+
+---
+
+## 0.9.1
+
+**Alle installierten Kartenregionen werden gleichzeitig gezeichnet.**
+
+> „Ich habe Deutschland, Liechtenstein und Schweiz Kacheln gebaut. Sehe aber
+> nur Deutschland. Wie kann ich alle Kacheln gleichzeitig sehen? Bzw auch
+> länderübergreifend fahren kann?"
+
+Die Karte hatte bisher **genau eine** Kachelquelle. Welche Region darin
+landete, entschied ein Parameter in der Adresszeile — und weil die Oberfläche
+nie einen mitschickte, war es immer die **alphabetisch erste**. Wer
+Deutschland und die Schweiz gebaut hatte, sah Deutschland, und es gab nicht
+einmal einen Umschalter.
+
+Jetzt werden alle installierten Regionen gezeichnet. Für ein Wohnmobil ist
+eine Grenze der Normalfall, nicht der Sonderfall.
+
+### Regionen, die ineinander liegen
+
+„Einfach alle zeichnen" geht nicht: Wer `germany` **und** `rheinland-pfalz`
+installiert hat, hätte jede Straße doppelt und jeden Ortsnamen zweimal —
+doppelte Beschriftung verdrängt sich gegenseitig, das Ergebnis flackert.
+
+Yapaia lässt deshalb eine Region weg, die **vollständig** in einer anderen
+liegt. Rheinland-Pfalz wird also nicht zusätzlich gezeichnet, solange
+Deutschland installiert ist. Die Kacheln bleiben liegen und gelten sofort
+wieder, wenn Sie Deutschland entfernen.
+
+Nicht gelöst: zwei Regionen, die sich nur **teilweise** überschneiden. Dort
+wird im gemeinsamen Bereich weiterhin doppelt gezeichnet.
+
+### Was Sie tun sollten
+
+- **Löschen Sie `rheinland-pfalz`**, wenn Sie `germany` haben. Die Daten sind
+  doppelt vorhanden, und der Routinggraph verarbeitet sie sonst auch doppelt —
+  das kostet Bauzeit und Speicher ohne jeden Gewinn.
+- **Bauen Sie den Routinggraphen einmal neu**, nachdem Sie ein Land ergänzt
+  haben. Ein Klick auf „Routing bauen" bei *irgendeiner* Region genügt: es
+  werden immer alle vorhandenen Extrakte eingesammelt.
+
+### Zur Einordnung: Routing und Suche konnten das längst
+
+| | seit | Verhalten |
+|---|---|---|
+| **Routing** | 0.4.0 | **ein** Graph über alle Extrakte — Grenzübertritte inbegriffen |
+| **Suche** | 0.5.0 | **ein Index je Region**, gesucht wird in allen gleichzeitig |
+| **Karte** | 0.9.1 | alle Regionen gleichzeitig |
+
+Die Karte war der letzte Teil, der noch einspurig dachte.
+
+Ein Klick auf „Suche bauen" bei einer weiteren Region **löscht die bereits
+gebauten nicht** — jede Region bekommt ihre eigene Indexdatei.
+
+---
+
+## 0.9.0
+
+**Orte mit Symbol: Stellplätze, Campingplätze, Tankstellen, Parkplätze, Supermärkte, Essen, Sehenswürdigkeiten.**
+
+> „Können wir auch poi's wie bei Google Maps einfügen? Restaurants, Womo
+> Stellplätze, Parkplätze, Campingplätze, Supermärkte, Sehenswürdigkeiten
+> usw?"
+
+Bisher zeigte die Karte zu jedem Ort nur den Namen — ein Bäcker sah aus wie
+ein Stellplatz. Jetzt gibt es neun Kategorien mit eigenem Zeichen:
+
+| | |
+|---|---|
+| 🟥 Wohnmobilstellplatz | 🟩 Campingplatz |
+| 🟦 Tankstelle | 🟩 Ladesäule |
+| 🟪 Parkplatz | 🟧 Einkaufen |
+| 🟥 Essen und Trinken | 🟪 Sehenswürdigkeit |
+| 🟦 Wasser und Sanitär | |
+
+**Stellplatz und Campingplatz sind getrennt.** In den Kartendaten liegen
+beide unter demselben Oberbegriff; für ein Wohnmobil sind es zwei
+verschiedene Dinge, und Yapaia unterscheidet sie jetzt.
+
+**Wird es eng, gewinnt das Wichtigere.** Auf einer vollen Innenstadtkarte
+passt nicht jedes Zeichen nebeneinander. Yapaia lässt dann den Stellplatz
+stehen und die Eisdiele weg — nicht umgekehrt, und nicht zufällig.
+
+Orte ohne eigene Kategorie (Apotheke, Bank, Bäcker) zeigen weiterhin ihren
+Namen. Es geht nichts verloren, es kommt nur etwas dazu.
+
+### Ein stiller Fehler, dabei gefunden
+
+Die Einstellung **„POI-Dichte: reduziert"** — im Kartenstil „Kontrast" die
+Vorgabe — filterte auf eine Liste, in der `supermarket` stand. Diesen Wert
+gibt es in den Kartendaten nicht; Supermärkte liegen dort unter einem anderen
+Namen. Wer „reduziert" gewählt hatte, bekam also **keinen einzigen
+Supermarkt** zu sehen, obwohl die Einstellung genau das versprach. Nichts
+schlug fehl, nichts stand im Protokoll.
+
+Die Liste ist jetzt dieselbe, die auch die Symbole bestimmt, und kann
+deshalb nicht mehr davon abweichen.
+
+### Was Yapaia nicht zeigen kann, und warum
+
+Eine **Entsorgungsstation** für Grau- und Schwarzwasser führen die
+Kartendaten nicht — sie kommt in keiner Quelltabelle des Kachelbaus vor. Für
+ein Wohnmobil ist das die schmerzlichste Lücke dieser Liste. Sie lässt sich
+nicht in der Karte schließen, sondern nur beim Erzeugen der Kacheln. Das
+steht hier, damit niemand es für ein Versehen hält.
+
+---
+
+## 0.8.15
+
+**Gerahmte Straßenschilder: blau, gelb, weiß.**
+
+> „Du kannst auch gerne die gerahmten Schilder mit den Bezeichnungen der
+> Straßen einbauen. Blau und gelb. Das sieht toll aus."
+
+Seit 0.8.14 standen die Nummern als Fettschrift auf der Karte. Jetzt stehen
+sie auf einem Schild:
+
+| Straße | Schild |
+|---|---|
+| Autobahn | blau, weißer Rand, weiße Schrift |
+| Bundes- und Kraftfahrstraße | gelb, schwarzer Rand, schwarze Schrift |
+| Landes- und Kreisstraße | weiß, schwarzer Rand, schwarze Schrift |
+
+Das Schild **wächst mit der Nummer**: „A 5" und „A 61" sind verschieden
+breit, und ein Schild je Nummer wäre aussichtslos. Dehnen darf sich dabei nur
+ein schmaler Streifen in der Mitte — sonst würden die runden Ecken bei
+längeren Nummern zu Ellipsen. Schild und Nummer bleiben immer aufrecht, auch
+wenn die Straße quer verläuft.
+
+Die Farbe richtet sich nach der Straßenklasse, nicht nach dem Buchstaben in
+der Nummer: „A" heißt nicht in jedem Land Autobahn, die Klasse ist dagegen
+europaweit dieselbe Angabe.
+
+### Für Neugierige
+
+Die Bilder entstehen ohne Bildbearbeitung und ohne zusätzliche Abhängigkeit —
+aus demselben Grund, aus dem auch die Schriftzeichen im Repo liegen: das
+Add-on baut auf Ihrem Gerät, und jeder Schritt dort ist eine Stelle mehr, an
+der eine Installation scheitern kann.
+
+### Zu „GPS über USB"
+
+> „Du kannst usb: true vielleicht umlabeln … Dem User ist es egal ob das usb
+> oder uart heisst. Aber er steckt seinen gps Empfänger über den usb Port
+> ein."
+
+Genau so ist es bereits, und deshalb ändert sich hier nichts: Was Sie in der
+Konfiguration lesen, heißt **„usb — ein GPS-Empfänger am USB-Anschluss"** und
+bleibt so. `uart` und `usb` sind dagegen Berechtigungen, die Home Assistant
+dem Add-on gibt; sie stehen in keiner Oberfläche und tragen Namen, die Home
+Assistant vergibt. Beide bleiben gesetzt — die Berechtigung eines laufenden
+Empfängers wegzunehmen bringt nichts ein und könnte ihn nach einem Update
+stumm machen.
+
+---
+
+## 0.8.14
+
+**Die schnellste Route nimmt wieder die Autobahn. Und A 61 / B 9 stehen auf der Karte.**
+
+### Gemeldet
+
+> „Kannst du prüfen warum die schnellste Route nicht über die Autobahn A61
+> geht. Die kürzeste aber schon. Ich hätte angenommen eine Autobahn ist
+> schneller und nicht nur kürzer"
+
+Die Annahme war richtig. Der Fehler saß in einer einzigen Zeile.
+
+### Was passiert ist
+
+Yapaia hat die **Reisegeschwindigkeit** aus dem Fahrzeugprofil (Vorgabe
+85 km/h) als Valhallas `top_speed` verschickt. Die Einheit stimmte — beides
+km/h. Die Bedeutung nicht.
+
+`top_speed` ist für Valhalla die **Höchstgeschwindigkeit des Fahrzeugs**, und
+sie wirkt an zwei Stellen auf die Wahl der Straße:
+
+1. Jede Kante wird auf diesen Wert gedeckelt. Die A 61 wurde also mit 85 km/h
+   gerechnet — ihr Zeitvorteil war damit schon weg.
+2. Jede Straße, die **schneller** ist als dieser Wert, bekommt zusätzlich
+   einen Aufschlag von `(Tempo − top_speed) × 0,05`.
+
+Zusammen ergab das für die Betriebsart „schnellste" (Kosten je Meter, je
+niedriger desto lieber):
+
+| | mit 85 | ohne |
+|---|---|---|
+| Landstraße 80 | **1,00×** | 1,00× |
+| Bundesstraße 100 | 1,77× | **0,80×** |
+| Autobahn 130 | 3,43× | 1,06× |
+
+Die Reihenfolge war exakt umgekehrt: je schneller die Straße, desto teurer.
+„Schnellste" hat deshalb zuverlässig die langsamste Straße gesucht.
+
+**Warum „kürzeste" die A 61 trotzdem nahm:** Valhalla steigt in dieser
+Betriebsart aus der Rechnung aus, *bevor* die Aufschläge angewendet werden.
+Die Strafe kam dort nie an. Die Ungereimtheit, die aufgefallen ist, war also
+kein Zufall — sie war die Naht zwischen den beiden Zweigen, und sie hat den
+Fehler sichtbar gemacht.
+
+Die **Ankunftszeit** verliert dadurch nichts: sie wird ohnehin getrennt aus
+der Reisegeschwindigkeit gerechnet. Die wirkt weiter auf die Zeitangabe — nur
+nicht mehr auf die Wahl der Straße.
+
+### Ehrlich dazu
+
+Getestet ist die Rechnung, nicht die Fahrt: in dieser Umgebung läuft kein
+Valhalla. Die Zahlen oben stammen aus Valhallas Quelltext, nachgerechnet und
+festgehalten. **Die Probe ist die echte Route.** Sollte die A 61 weiterhin
+nicht genommen werden, ist der nächste Hebel schon benannt und liegt bereit.
+
+### „Ausgewogen" hat bisher gar nichts getan
+
+Dabei herausgekommen: die Betriebsart setzte `use_highways` auf 0,5 — und das
+ist Valhallas **Vorgabe**. „Ausgewogen" und „Schnellste" haben dieselbe Route
+geliefert. Jetzt steht dort 0,25, also spürbar weniger Lust auf Umwege zur
+Autobahn, aber weit entfernt von „meiden".
+
+### Straßennummern auf der Karte
+
+> „Ich habe eben gesehen dass es keine Straßenbeleuchtungen gibt. Also die
+> Straßennamen sind sichtbar. Aber sowas wie A61 für Autobahnen um B9 für
+> Bundesstraßen sehe ich nicht."
+
+Die Nummer steht in den Kacheln in einem eigenen Feld (`ref`), nicht im
+Namen. Die Beschriftung las nur den Namen — und eine Autobahn hat in
+OpenStreetMap meist gar keinen. Für sie gab es also nichts zu zeichnen.
+
+Neu ist eine eigene Ebene für die Nummern. Sie erscheint **früher** als die
+Straßennamen (ab Zoomstufe 7 statt 13): „wo ist die A 61" ist eine Frage der
+Übersicht, nicht eine der Zoomstufe, auf der man ohnehin schon darauf steht.
+
+Echte Schilder mit Rahmen — blau für Autobahn, gelb für Bundesstraße —
+bräuchten Bilddateien, die der Kartenstil bisher nicht mitbringt. Bis dahin:
+Fettschrift mit kräftigem Rand.
+
+---
+
+## 0.8.13
+
+**Yapaia bietet sich nicht mehr selbst als Positionsquelle an.**
+
+### Gesehen
+
+Im Protokoll einer laufenden Installation:
+
+```
+ha_tracker: konfigurierte Entitaet nicht gefunden -- Quelle bleibt inaktiv
+  entityId: "device_tracker.yapaia_vehicle"
+  verfuegbar: ["device_tracker.ipad_2"]
+```
+
+Eingetragen war Yapaias **eigener** Fahrzeug-Tracker.
+
+### Warum das keine Fehlbedienung war
+
+Die Auswahlliste unter „Gerät der Companion App" wird aus Home Assistant
+gefüllt — aus allen `device_tracker.*`, die Koordinaten tragen. Yapaias
+Fahrzeug-Tracker trägt Koordinaten, also stand er mit drin, unter dem Namen
+„Yapaia Go Vehicle". Von allen Einträgen klang er am meisten nach „das
+Fahrzeug, um das es geht".
+
+Gewählt ergibt das einen Kreis: Yapaia schreibt seine Position nach Home
+Assistant und liest sie von dort als Eingabe zurück. Eine neue Position
+entsteht dabei nirgends.
+
+### Was sich ändert
+
+- **Der eigene Fahrzeug-Tracker steht nicht mehr in der Auswahl.** Er ist die
+  Ausgabe der Navigation, keine Quelle.
+- **Eine bereits gespeicherte Wahl wird erkannt.** Das Aufräumen der Liste
+  allein hätte nichts genützt: eine gespeicherte Entity-ID läuft gar nicht
+  durch diese Liste. Wer den Eintrag vorher gewählt hat, behält ihn.
+- **Die Meldung stimmt jetzt.** Bisher hieß es „nicht gefunden" beziehungsweise
+  „liefert keine Koordinaten" — beides zeigt in die falsche Richtung, man sucht
+  dann nach einer fehlenden Entität statt nach einer falschen Wahl. Die
+  Gesundheitsprüfung sagt jetzt „Kreis" und nennt, was stattdessen wählbar ist.
+- **Darf Yapaia selbst suchen** (`gps_source: companion_app` ohne
+  Entity-ID), räumt es die unbrauchbare Eintragung von allein aus dem Weg und
+  nimmt den richtigen Tracker. Eine Installation bleibt nicht wegen einer Wahl
+  stehen, die es heute gar nicht mehr zu treffen gibt.
+
+Nebenbei behoben: sobald Yapaia einmal gesendet hatte, gab es **zwei**
+Tracker mit Koordinaten — und bei mehreren wird bewusst keiner geraten. Die
+automatische Einrichtung hätte sich damit in jeder Installation selbst
+stillgelegt.
+
+### Wenn Sie betroffen sind
+
+Nichts weiter tun. Nach dem Update steht die Warnung mit dem richtigen Grund
+in der Gesundheitsprüfung, und das Auswahlfeld dort zeigt nur noch echte
+Geräte.
+
+---
+
+## 0.8.12
+
+**Sprachansagen: die Tonfreigabe wird jetzt geholt, und der Schalter antwortet.**
+
+### Gemeldet
+
+> „Was mir auch auffällt, dass keine Ansagen mehr über Audio ausgegeben werden."
+
+### Was Browser tun, und warum das hier stört
+
+Ton wird erst freigegeben, **nachdem** der Mensch etwas angetippt hat. Auf
+einem iPad besonders streng: eine Sprachausgabe ausserhalb einer Nutzeraktion
+wird stillschweigend geschluckt, und ein frisch angelegter Klangkontext startet
+gesperrt.
+
+Für eine Navigation ist das genau verkehrt herum. Die Ansage kommt, wenn 200 m
+bis zur Abbiegung übrig sind — nicht, wenn jemand tippt. Wer die Seite lädt,
+das Ziel per Favorit startet und danach die Hände ans Lenkrad legt, fährt
+stumm, und nichts auf dem Bildschirm sagt, warum.
+
+Yapaia holt die Freigabe jetzt beim **ersten Antippen irgendwo in der App** —
+einmalig, mit einer stummen Äusserung. Danach darf die App von sich aus reden.
+
+### Der Ansagen-Schalter bestätigt hörbar
+
+Schalten Sie **🔊 Ansagen an** ein, sagt Yapaia „Ansagen sind an." Damit ist
+die Frage sofort beantwortet, die vorher offen blieb: sind die Ansagen aus, ist
+der Ton gesperrt, oder war nur gerade nichts anzusagen? Der Klick ist zugleich
+eine Nutzeraktion, holt also auch die Freigabe.
+
+### ⚠️ Was das NICHT behebt
+
+**Ansagen entstehen nur beim Fahren.** Sie kommen, wenn die Entfernung zur
+nächsten Abbiegung 2000 m, 500 m, 200 m oder 0 m unterschreitet. Steht das
+Fahrzeug — oder liegt der Empfänger auf der Fensterbank —, wird nichts
+unterschritten und es gibt nichts anzusagen. Das ist kein Fehler.
+
+Zum Ausprobieren ohne Fahrt: **Ansagen aus- und wieder einschalten.** Kommt die
+Bestätigung hörbar, ist der Tonweg in Ordnung, und es fehlte schlicht die
+Fahrt. Kommt sie nicht, liegt es am Gerät (Stummschalter, Lautstärke, oder eine
+Sprachausgabe, die dieser Browser nicht hat).
+
+---
+
+## 0.8.11
+
+**Die Karte dreht sich nicht mehr, wenn das Fahrzeug steht.**
+
+### Gemeldet
+
+> „Der Sensor liegt ruhig auf der Fensterbank aber die Anzeige der Karte dreht
+> sich andauernd."
+
+### Warum das passiert ist
+
+Drei aufeinanderfolgende Messungen desselben, unbewegten Empfängers:
+
+| Zeit | Richtung | Tempo |
+|---|---|---|
+| 22:58:24 | 170,5° | 0,025 m/s |
+| 23:00:33 | 39,6° | 0,016 m/s |
+| 23:00:38 | 187,0° | 0,036 m/s |
+
+Die Richtung springt über 150°, während sich das Gerät mit zwei bis vier
+**Zentimetern je Sekunde** „bewegt".
+
+**Das ist kein Fehler Ihres Empfängers.** GPS misst keine Himmelsrichtung — es
+misst Positionen und leitet die Richtung aus der *Bewegung* zwischen zweien ab.
+Steht das Gerät, ist die gemessene Bewegung reines Rauschen, und die Richtung
+daraus ist eine Zufallszahl. Jeder GPS-Empfänger tut das; ein Kompass wäre
+etwas anderes, den hat der VK-162 nicht.
+
+Yapaia hat diese Zahl genommen und die Karte danach gedreht.
+
+### Was sich ändert
+
+Unter **3,6 km/h** meldet Yapaia „Richtung unbekannt" statt einer erfundenen.
+Die Karte behält dann einfach ihre Ausrichtung — sie dreht sich erst wieder,
+wenn Sie wirklich fahren.
+
+Gewählt wurde „unbekannt" und nicht „die letzte weiterreichen": eine Richtung,
+die niemand gemessen hat, gehört nicht in Werte, die auch nach MQTT und in
+Home-Assistant-Entitäten gehen.
+
+Die Regel sitzt an der einen Stelle, durch die **alle** Positionsquellen
+laufen — USB-Empfänger, Companion App, Browser und Testfahrer. Alle vier leiten
+die Richtung aus Bewegung ab, alle vier rauschen im Stand.
+
+### Die Warnungen im Protokoll
+
+Die sind alle harmlos, der Vollständigkeit halber:
+
+| Meldung | Bedeutung |
+|---|---|
+| `PPS: o=priority setting failed` | gpsd darf im Container keine Echtzeit-Priorität setzen. Betrifft nur die Zeitgenauigkeit über einen PPS-Anschluss, den der VK-162 gar nicht hat. |
+| `KPPS: … kernel PPS unavailable` | dasselbe, andere Stelle. |
+| `NMEA0183: TXT: Warning: PASH/PGRM/PSRF/… inv format` | gpsd tastet beim Start verschiedene Herstellerprotokolle ab. Es hat danach richtig entschieden — im Protokoll steht `"driver":"u-blox"`. |
+| `UBX-ACK-NAK, class: 06, id: 01` | gpsd wollte Meldungsraten setzen, der u-blox 7 lehnt einige ab. gpsd nimmt dann die vorhandenen. |
+
+---
+
+## 0.8.10
+
+**Der USB-GPS-Empfänger läuft. Es fehlte ein einziger Schlüssel im Manifest.**
+
+### Die Ursache
+
+0.8.9 hat gpsd zum Reden gebracht, und damit stand es da:
+
+```
+gpsd:ERROR: SER: device open of /dev/serial/by-id/usb-u-blox_AG_-… failed:
+                 Operation not permitted(1) — retrying read-only
+gpsd:ERROR: initial GPS device … open failed
+gpsd:ERROR: can't run with neither control socket nor devices open
+```
+
+**Sichtbar ist nicht geöffnet.** Das Add-on deklarierte `usb: true` und
+`udev: true` — damit *erscheint* der Empfänger unter `/dev/serial/by-id/`. Die
+Installationsprüfung listete ihn, die Gerätewahl wählte ihn aus, das Protokoll
+meldete „benutze /dev/serial/by-id/usb-u-blox_AG_-…". **Öffnen** durfte der
+Container ihn trotzdem nicht.
+
+Dafür gibt es einen eigenen Schlüssel: **`uart`**. Er bildet die seriellen
+Geräte des Wirts in den Container ab, mitsamt den Rechten, sie zu öffnen. Zum
+Vergleich: das ESPHome-Add-on, das über USB-Seriell flasht, deklariert
+`uart: true` und gar kein `usb`.
+
+Der steht jetzt drin.
+
+### Was Sie tun müssen
+
+Nach dem Update das Add-on **neu starten**. Geräterechte werden beim Start des
+Containers vergeben.
+
+Danach sollte im Protokoll stehen:
+
+```
+INFO: gpsd: benutze /dev/serial/by-id/usb-u-blox_AG_-… (…)
+```
+
+— **einmal**, nicht im Sekundentakt. Und die Installationsprüfung meldet unter
+**Positionsquelle** „gpsd erreichbar unter 127.0.0.1:2947".
+
+### Läuft Home Assistant in einer VM?
+
+Dann wird der Empfänger **zweimal** durchgereicht, und die beiden Stufen
+scheitern unterschiedlich:
+
+| Stufe | Wer | Wie es aussieht, wenn sie fehlt |
+|---|---|---|
+| 1. Wirt → VM | der Hypervisor (Proxmox: *Hardware → Add → USB Device*) | das Gerät taucht gar nicht auf; die Geräteliste der Prüfung ist leer |
+| 2. VM → Add-on-Container | `uart: true` in diesem Add-on | das Gerät **wird** genannt, gpsd meldet aber `Operation not permitted` |
+
+Der Fehler oben war immer Stufe 2. Wäre Stufe 1 das Problem gewesen, gäbe es
+nichts zu benennen. Auf Proxmox funktionieren „Use USB Vendor/Device ID" und
+„Use USB Port" beide — bei einem GPS-Stick ist die Vendor/Device-ID meist die
+bessere Wahl, weil sie dem Empfänger über Steckplätze hinweg folgt.
+
+### Der Test, der die ganze Zeit grün war
+
+Es gab eine Zusicherung namens „declares usb + udev for GPS-receiver
+passthrough". Sie war immer erfüllt — während das Add-on den Empfänger nicht
+öffnen konnte. Sie prüfte das, was dastand, und nicht das, worauf es ankommt.
+
+Jetzt prüft sie `uart`, mit der Begründung daneben.
+
+---
+
+## 0.8.9
+
+**gpsd startete und starb sofort — und das Protokoll las sich wie Erfolg.**
+
+### Gemeldet
+
+Im Add-on-Protokoll stand, im Sekundentakt:
+
+```
+[23:51:37] INFO: gpsd: benutze /dev/serial/by-id/usb-u-blox_AG_-…
+[23:51:38] INFO: gpsd: benutze /dev/serial/by-id/usb-u-blox_AG_-…
+[23:51:39] INFO: gpsd: benutze /dev/serial/by-id/usb-u-blox_AG_-…
+```
+
+Dazu vom Kern: `connect ECONNREFUSED 127.0.0.1:2947`.
+
+Beides zusammen ergibt die Antwort, und sie stand nirgends: der Empfänger
+**wurde** gefunden. gpsd startete, beendete sich sofort, s6 startete den Dienst
+neu, die Gerätesuche lief erneut und meldete wieder Erfolg. Eine Schleife, die
+jede Sekunde nach Erfolg aussieht.
+
+Die vorherige Vermutung — ein fehlender Schrägstrich im Gerätepfad — war
+falsch. Sie erklärte die Meldung, aber nicht den Verlauf.
+
+### Was sich ändert
+
+**Das Protokoll sagt jetzt, dass gpsd gestorben ist.** Mit Exit-Code, und mit
+dem ausdrücklichen Hinweis, dass es *nicht* an der Gerätewahl liegt — genau
+diese Verwechslung hat hier Zeit gekostet.
+
+**Die Neustartschleife wird erkannt.** Läuft gpsd weniger als ein paar Sekunden,
+meldet Yapaia das als Schleife und **bremst auf eine Meldung pro halbe Minute**,
+statt das Protokoll im Sekundentakt zuzuschreiben.
+
+**gpsd wird mit `-D 2` gestartet**, damit es selbst sagen kann, woran es
+scheitert. Vorher starb es stumm.
+
+**Fehlt gpsd im Image ganz**, steht das jetzt da — mitsamt dem `PATH`, in dem
+gesucht wurde. Genau dieser Fall ist in diesem Add-on schon einmal vorgekommen:
+`osmium` fehlte, der Suchindex-Bau brach auf dem Gerät ab, und jede Prüfung war
+grün.
+
+**Die Prüfung beim Bauen.** gpsd stand nicht in der Liste der Werkzeuge, die im
+Image nachgesehen werden. Jetzt steht es dort — und es wird zusätzlich
+**gestartet**: Ein Programm, das sich beim bloßen Start verabschiedet, fällt
+damit beim Bauen auf und nicht erst im Fahrzeug.
+
+### Was das für Sie heißt
+
+Der Grund, warum gpsd bei Ihnen stirbt, steht nach dem Update im Protokoll —
+in einer Zeile, die mit `ERROR: gpsd:` beginnt, und in der Installationsprüfung
+unter **Positionsquelle**.
+
+---
+
+## 0.8.8
+
+**Zwei Aufräumarbeiten, die bestehende Konfigurationen brechen dürfen.**
+
+### ⚠️ Bitte vor dem Update lesen
+
+Diese Version **entfernt Rücksichtnahmen auf ältere Konfigurationen**. Das ist
+ausdrücklich abgesprochen — zum jetzigen Zeitpunkt gibt es nur eine
+Testinstallation. Wenn Sie das hier trotzdem lesen und Yapaia anderswo
+betreiben: **prüfen Sie nach dem Update Ihre Einstellungen.**
+
+### Die Positionsquelle heißt nur noch `companion_app`
+
+In der Quellen-Liste standen **zwei Knöpfe, die dasselbe bedeuten**:
+`companion_app` und `ha_tracker`. Der zweite ist der Name bis 0.8.2 und stand
+nur noch da, damit ein Update keine bestehende Installation still ohne
+Positionsquelle lässt. Auf der Konfigurationsseite war davon nichts zu sehen —
+man las zwei Möglichkeiten und musste raten, worin sie sich unterscheiden.
+
+Jetzt gibt es nur noch `companion_app`. **Stand bei Ihnen `ha_tracker`, wählen
+Sie die Quelle einmal neu.**
+
+Nicht betroffen: `Position.source` heißt in der Schnittstelle weiterhin
+`ha_tracker`. Das ist kein Schalter, sondern Übertragungsformat — es steht in
+`nav/state`, in den MQTT-Nutzlasten und in den Home-Assistant-Entitäten. Wer
+darauf eine Automatisierung gebaut hat, behält sie.
+
+### Optionen werden nur noch an ihrer Stelle gelesen
+
+Seit 0.8.4 liegen die selten angefassten Optionen in aufklappbaren Gruppen
+(`search.photon_enabled` statt `photon_enabled`). Bis 0.8.7 las Yapaia
+zusätzlich die alte, flache Stelle, damit ein Update keine Werte verliert.
+
+Auch das entfällt. Die zweite Stelle hatte schon einen Fehler getragen: den
+Wert `"null"` für einen fehlenden Schlüssel gab sie unverändert weiter. Eine
+Rücksichtnahme, die selbst Fehler einschleppt und niemandem mehr nützt, ist
+kein Gewinn.
+
+---
+
+## 0.8.7
+
+**Wenn gpsd nicht startet, steht jetzt da, warum.**
+
+### Gemeldet
+
+> „Heute habe ich den VK-162 GPS Empfänger angeschlossen. Yapaia meldet mir
+> einen Fehler. Der VK-162 scheint aber korrekt erkannt zu werden. Gpsd aber
+> nicht?"
+
+Beides stimmte. Der Empfänger war da — die Prüfung listete ihn sogar auf. Und
+gpsd lief trotzdem nicht. Warum, war aus der Meldung nicht zu erkennen: dort
+stand „gpsd ist eingeschaltet, antwortet aber nicht unter 127.0.0.1:2947" und
+darunter eine Liste möglicher Ursachen zum Durchprobieren.
+
+### Die Ursache: ein fehlender Schrägstrich
+
+Im Feld **USB-Gerät** stand
+
+```
+dev/serial/by-id/usb-u-blox_AG_-_…
+```
+
+statt `/dev/serial/by-id/…`. Beim Abtippen aus der Prüfmeldung geht der
+führende Schrägstrich leicht verloren, und im Eingabefeld ist er nicht zu
+sehen. Ohne ihn ist das ein *relativer* Pfad — was er bedeutet, hängt am
+Arbeitsverzeichnis des Dienstes, und er zeigt ins Leere.
+
+**Yapaia berichtigt das jetzt selbst** und sagt dabei, dass es berichtigt hat,
+damit es in der Konfiguration auch dauerhaft stimmt. Nach dem Update läuft Ihr
+VK-162, ohne dass Sie etwas ändern müssen — den Schrägstrich sollten Sie
+trotzdem bei Gelegenheit ergänzen.
+
+### Der eigentliche Fehler war ein anderer
+
+Die genaue Begründung **gab es die ganze Zeit**. Der gpsd-Dienst schreibt seit
+0.8.2 in Klartext, welches Gerät er genommen hat oder warum keines — nur
+landete das ausschließlich im Add-on-Protokoll. In der Installationsprüfung,
+wo man hinsieht, stand die allgemeine Meldung.
+
+Der Dienst hinterlegt seine Begründung jetzt so, dass die Prüfung sie lesen
+kann. Bei einem toten gpsd steht sie **ganz oben** in der Handlungsanweisung:
+
+> Der gpsd-Dienst meldet: gps_device ist auf '/dev/ttyUSB9' gesetzt, aber dort
+> liegt nichts. Es wird kein anderes Gerät genommen …
+
+Statt einer Liste zum Durchprobieren also die Antwort.
+
+### Nebenbei: zwei veraltete Namen
+
+Die Prüfung riet weiterhin, die Quelle auf **`ha_tracker`** zu stellen. So hieß
+sie bis 0.8.2; seit 0.8.3 heißt sie **`companion_app`**. Der Hinweis schickte
+Sie zu einer Einstellung, die in der Oberfläche anders heißt. Ebenso hieß es
+„unter `gps_device` eintragen", während das Feld inzwischen **USB-Gerät**
+heißt.
+
+---
+
+## 0.8.6
+
+**Die Karte kann dunkel — und die Add-on-Konfiguration bestimmt, womit ein
+neues Gerät startet.**
+
+### Gewünscht
+
+> „Bitte füge noch einen darkmode für die Karten hinzu. In der Konfiguration
+> auswählbar hell - dunkel - Auto (system)."
+
+### Neu: **Erscheinungsbild → Design**
+
+Unter **Erscheinungsbild** steht jetzt eine Option mit vier Werten:
+
+| Wert | Was passiert |
+| --- | --- |
+| `light` | immer hell |
+| `dark` | immer dunkel |
+| `system` | folgt der Hell/Dunkel-Einstellung des Geräts |
+| `sun` | folgt der Sonne an Ihrem Standort |
+
+`system` ist der Wert, den iPhone und iPad im Kontrollzentrum umschalten —
+das Gerät wird dunkel, Yapaia wird mit dunkel. `sun` richtet sich statt­dessen
+nach Sonnenauf- und -untergang an der aktuellen Position; im Fahrzeug ist das
+meist das Bessere, weil es dunkel wird, wenn es draußen dunkel wird, egal was
+am Tablet eingestellt ist.
+
+### Es ist eine Vorgabe, keine Fernsteuerung
+
+Die Option gilt für Geräte, die **in Yapaia noch nichts gewählt haben**. Wer
+dort unter **Design** auf einen Modus tippt, behält ihn — die Add-on-Option
+übersteuert das nicht. So kann das iPad am Armaturenbrett dauerhaft der Sonne
+folgen, während das Telefon hell bleibt.
+
+Umgekehrt heißt das: Ändern Sie die Option, wirkt sie sofort auf jedes Gerät,
+das noch nie etwas gewählt hat — auch auf eines, das Yapaia schon einmal
+geöffnet hatte. Das bloße Öffnen zählt nicht als Wahl.
+
+### Im Design-Umschalter: vier Knöpfe statt drei
+
+**Hell**, **Dunkel**, **System** und **Sonne** — dazu eine Zeile, die sagt,
+wonach sich der gewählte Modus richtet. „Auto" hieß bisher der Sonnenmodus;
+er heißt jetzt **Sonne**, weil „Auto" nicht verriet, wonach automatisch.
+
+Die dunkle Karte selbst ist keine umgedrehte helle: sie hat eine eigene
+Palette, damit Straßen auch bei Nacht auseinanderzuhalten sind.
+
+---
+
+## 0.8.5
+
+**49 europäische Länder stehen zur Auswahl.**
+
+### Gewünscht
+
+> „Wir können noch die Option von Karten anderer europäischer Länder
+> bereitstellen. Wichtig wären bspw. Auch Schweiz, Österreich, Frankreich bzw.
+> Die an Deutschland angrenzenden Länder."
+
+Der Katalog kannte bisher drei Einträge: Liechtenstein, Rheinland-Pfalz und
+Deutschland. Jetzt sind es 49 — alle deutschen Nachbarn (Österreich, Schweiz,
+Frankreich, Niederlande, Belgien, Luxemburg, Dänemark, Polen, Tschechien) und
+dazu der Rest Europas von Albanien bis zur Ukraine.
+
+Zu finden in Yapaia unter **Regionen**. Dort wird auch gebaut — das ist ein
+Vorgang mit Fortschrittsanzeige, keine Einstellung in der Add-on-Konfiguration.
+
+### Groß oder klein — die Anzeige sagt es
+
+Jeder Eintrag ist markiert, ob der Kachelbau auf einer HAOS-VM neben Home
+Assistant läuft oder ob er woanders gebaut werden sollte. Frankreich, Italien,
+Spanien, Großbritannien und Polen gehören zur zweiten Gruppe: der Bau belegt
+die VM sonst stundenlang und scheitert am Ende womöglich am Speicher.
+
+### Die Adressen werden jetzt nachgeprüft
+
+Der Katalog trug früher schon einmal Adressen, die es gar nicht gab — die
+Oberfläche bot dann einen Knopf an, der sicher fehlschlug. Bei 49 Einträgen ist
+ein Tippfehler in einem Ländernamen eine Frage der Zeit, und er fällt sonst
+erst auf, nachdem Sie „Karte bauen" gedrückt haben.
+
+Ein wöchentlicher Prüflauf fragt deshalb jede einzelne Adresse ab. Ein falscher
+Eintrag ist damit ein roter Job bei uns statt ein vergeblicher Bauauftrag bei
+Ihnen.
+
+---
+
+## 0.8.4
+
+**Die Konfigurationsseite hat jetzt echte, aufklappbare Abschnitte.**
+
+### ⚠️ Bitte vor dem Update lesen
+
+Diese Version **verschiebt Optionen in der gespeicherten Konfiguration**.
+Yapaia liest zwar beide Formen — erst die neue, dann die alte —, aber ob der
+Supervisor Ihre bisherigen Werte über den Schemawechsel rettet, liegt nicht in
+unserer Hand.
+
+**Notieren Sie sich vorher bitte diese Werte** und sehen Sie nach dem Update
+kurz nach, ob sie noch stehen:
+
+| Einstellung | Wo sie jetzt steht |
+|---|---|
+| Region | offen, ganz oben |
+| Positionsquelle, USB-Gerät, Gerät der Companion App | offen, darunter |
+| Adresssuche (Photon) ein/aus und ihr Speicher | Block **Suche** |
+| Speicher für die Routenberechnung | Block **Routing** |
+| Werte direkt melden / über MQTT, MQTT-Präfix | Block **Home Assistant** |
+| Testfahrer, Protokollstufe | Block **Erweitert** |
+
+### Was sich ändert
+
+Bis 0.8.3 standen zwölf Felder untereinander, und die Gruppe klebte als Text im
+Etikett („Position — Quelle"). Das war ein Ersatz: ich hatte angenommen, echte
+Abschnitte seien in einer Add-on-Konfiguration nicht möglich.
+
+Das stimmte nicht — das Add-on „Terminal & SSH" macht es mit seinem Block
+„Server" vor. Jetzt gilt dieselbe Form hier:
+
+* **Offen sichtbar bleibt, was man wirklich einstellt:** Region,
+  Positionsquelle, USB-Gerät, Gerät der Companion App.
+* **Alles Übrige liegt in vier aufklappbaren Blöcken:** Suche, Routing, Home
+  Assistant, Erweitert.
+
+### Mindestens Home Assistant 2025.10
+
+Verschachtelte Konfiguration gibt es erst ab dieser Version. Das Add-on sagt es
+dem Supervisor jetzt ausdrücklich — lieber eine klare Meldung „zu alt" als eine
+Konfigurationsseite, auf der die Hälfte der Einstellungen fehlt.
+
+---
+
+## 0.8.3
+
+**Die Companion App heißt jetzt so — und die Prüfung sagt endlich die
+Wahrheit.**
+
+### Gemeldet
+
+> „Irgendwie bekomme ich von der Companion App keinen Standort mehr. In der
+> Konfiguration ist ha_tracker ausgewählt."
+
+Beim Nachsehen kamen **drei** Stellen zusammen, an denen Yapaia dazu etwas
+Falsches oder gar nichts sagte.
+
+### Die Installationsprüfung las die falsche Einstellung
+
+Seit 0.7.1 wählt man das Gerät der Companion App **in Yapaia** aus (in der
+Installationsprüfung selbst). Die Prüfung las aber weiterhin nur die
+Add-on-Option. Wer also in der Oberfläche gewählt hatte, bekam bei mehreren
+Geräten weiter die Meldung „Yapaia rät nicht, welches gemeint ist" — obwohl
+längst eines benutzt wurde. Eine Diagnose, die etwas anderes sagt als das
+laufende System, ist schlimmer als keine. Beide lesen jetzt dasselbe.
+
+### Die Liste der Positionsquellen hatte eine leere Zeile
+
+In der Quellen-Übersicht kannte die Oberfläche nur Browser, USB-GPS und
+Simulator. Die Companion App lieferte der Kern zwar mit, sie erschien aber als
+Eintrag **ohne Beschriftung**. Wer nachsehen wollte, ob sie liefert, fand eine
+leere Zeile. Jetzt steht dort „Companion App".
+
+### `ha_tracker` heißt `companion_app`
+
+Der alte Name beschrieb den Weg (eine `device_tracker`-Entität), nicht die
+Sache. **Ihre bestehende Einstellung bleibt gültig** — `ha_tracker` wird
+weiterhin akzeptiert und intern auf den neuen Namen umgeschrieben. Sie müssen
+nichts ändern.
+
+Unverändert bleibt die Bezeichnung in den Home-Assistant-Entitäten und in den
+MQTT-Nutzlasten (`source: ha_tracker`). Dort ist sie Übertragungsformat, und
+wer darauf eine Automatisierung gebaut hat, soll sie behalten.
+
+### Die Konfigurationsseite ist aufgeräumt
+
+Die zwölf Optionen standen in beliebiger Reihenfolge da und trugen ihre rohen
+Schlüssel als Beschriftung: „photon_xmx_mb", „ha_device_tracker",
+„valhalla_memory_mb". Wer die Seite zum ersten Mal öffnete, musste für jedes
+einzelne Wort in die Dokumentation.
+
+Jetzt stehen sie in Gruppen — **Karte, Suche, Routing, Position, Home
+Assistant, System** — und jede trägt einen verständlichen Namen samt
+Erklärung, auf Deutsch und Englisch.
+
+Zwei Dinge dazu, damit die Erwartung stimmt:
+
+* **Echte Überschriften kennt die Add-on-Konfiguration nicht.** Home Assistant
+  zeichnet die Optionen einfach untereinander. Die Gliederung entsteht deshalb
+  aus der Reihenfolge und aus dem Gebiet im Namen („Position — Quelle").
+  Abschnitte gingen nur über verschachtelte Schlüssel — und die würden jede
+  bestehende Konfiguration ungültig machen.
+* **Karten installieren bleibt in Yapaia.** Das ist kein Schalter, sondern ein
+  langer Vorgang mit Fortschritt (Herunterladen, Kacheln bauen,
+  Routinggraph). Die Beschreibung der Option „Karte — Region" sagt jetzt
+  ausdrücklich, wo es steht, damit niemand danach sucht.
+
+### Wenn weiterhin keine Position kommt
+
+Die häufigste Ursache ist banal: **es gibt mehr als ein Gerät mit der Companion
+App.** Yapaia rät dann bewusst nicht, welches Ihr Fahrzeug ist — das zweite
+könnte das Telefon einer anderen Person sein. Öffnen Sie die
+Installationsprüfung; unter „Positionsquelle" steht, was gefunden wurde, und
+direkt darunter wählen Sie das richtige Gerät aus. Die Wahl gilt sofort, ohne
+Neustart.
+
+---
+
+## 0.8.2
+
+**USB-GPS: Yapaia greift nicht mehr nach dem falschen Stecker.**
+
+### Der Anlass
+
+Eine Frage zum **VK-162**, einem verbreiteten USB-GPS-Empfänger. Die Antwort
+ist ja, der funktioniert — der Empfänger trägt einen u-blox-7-Chip, meldet
+sich als serielles Standardgerät, und gpsd läuft im Add-on ohnehin mit. Beim
+Nachsehen kam allerdings etwas anderes ans Licht.
+
+### Zwei Fehler, die beim Nachsehen auffielen
+
+**Yapaia nahm das erste serielle Gerät, das es fand.** Auf einem
+Home-Assistant-Rechner ist das oft nicht der GPS-Empfänger, sondern der
+Zigbee-Koordinator (SkyConnect, Sonoff, ConBee) oder der Z-Wave-Stick: die
+melden sich unter genau denselben Namen, und das Add-on bekommt sie alle
+durchgereicht. gpsd hätte dann auf einem Funk-Koordinator herumgeschrieben,
+der einem anderen Add-on gehört.
+
+Jetzt wird nicht mehr geraten. Ein Gerät, das sich selbst als GNSS-Empfänger
+ausweist, gewinnt. Gibt es nur ein einziges serielles Gerät, ist es das. Sind
+mehrere da und keines sagt „GPS", fasst Yapaia **keines** an und sagt, welche
+zur Wahl stehen.
+
+**Die Installationsprüfung verwies auf eine Einstellung, die es nicht gab.**
+Seit 0.3.1 stand dort „tragen Sie das Gerät unter `gps_device` ein" — das Feld
+existierte nie. Jetzt gibt es es.
+
+### Neu: `gps_device`
+
+In der Add-on-Konfiguration, normalerweise leer zu lassen. Wenn die
+Installationsprüfung danach fragt, tragen Sie den Pfad ein:
+
+```
+/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_7_-_GPS_GNSS_Receiver-if00
+```
+
+**Bitte diesen langen Pfad und nicht `/dev/ttyACM0`.** Die Nummer verschiebt
+sich, sobald ein anderer USB-Stick dazukommt oder wegfällt; der Name bleibt.
+
+Welche Pfade es auf Ihrem Gerät gibt, zeigt die Installationsprüfung in Yapaia
+jetzt selbst an — kein SSH, keine Kommandozeile.
+
+---
+
+## 0.8.1
+
+**Die Oberfläche auf dem Telefon.**
+
+### Gemeldet
+
+> „Bisher habe ich immer auf einem 13-Zoll-iPad getestet und da ist GUI ganz
+> ok. Auf kleinen screens sieht es nicht mehr gut aus."
+
+Auf einem iPhone im Hochformat (390 Bildpunkte breit) lagen **acht** Paare von
+Bedienelementen übereinander: die Abbiegeanweisung unter dem Tempolimit-Schild,
+die Fahrtdaten quer über Tacho *und* Pause/Stopp, die Karteneinstellung auf der
+Fahrtdaten-Kachel.
+
+### Was sich ändert
+
+Unterhalb von 480 Bildpunkten ordnet sich der Fahrmodus neu — so, wie man es
+von einer Navigation auf dem Telefon kennt:
+
+* **Unten eine Leiste über die ganze Breite** mit Ankunft, Restzeit und
+  Entfernung. Darüber, der Reihe nach, Favoriten, Pause/Stopp, die Ansagentaste
+  und die Kartenknöpfe. Nichts liegt mehr auf etwas anderem.
+* **Die Abbiegeanweisung steht links statt mittig.** Mittig blieben auf dem
+  Telefon 142 Bildpunkte, und „Bergstraße" wurde zu „Bergs…". Links sind es
+  238 — der Straßenname passt wieder hinein.
+
+### Drei Fehler, die auf jedem Bildschirm da waren
+
+Beim Nachmessen sind drei Überlappungen aufgefallen, die es auch auf dem iPad
+und am Monitor schon gab — nur hat sie nie jemand geprüft:
+
+* **„Favoriten & Verlauf" lag auf den Fahrtdaten.** Beide sitzen unten in der
+  Mitte, beide bündig am Rand. Die Schublade steht jetzt darüber.
+* **Der Profil-Dialog lag unter der Favoriten-Schublade.** „Speichern" war am
+  unteren Rand verdeckt.
+* **„© OpenStreetMap contributors" lag unter dem Verfolgen-Knopf.** Die
+  Namensnennung ist eine Auflage der Kartenlizenz, kein Beiwerk — der untere
+  Streifen gehört jetzt ihr.
+
+---
+
+## 0.8.0
+
+**Routenoptionen, deutsche Anweisungstexte, und der blaue Punkt folgt der
+Straße.**
+
+### Sie können jetzt wählen, wonach gesucht wird
+
+Im Routenpanel stehen drei Schaltflächen:
+
+| | |
+|---|---|
+| **Schnellste** | Kürzeste Fahrzeit. Das ist, was Yapaia bisher immer gerechnet hat, und bleibt die Vorgabe. |
+| **Kürzeste** | Kürzeste Strecke. Zeit spielt keine Rolle mehr — eine Ortsdurchfahrt kann die Autobahn schlagen. |
+| **Ausgewogen** | Ein Mittelweg: die Autobahn wird genommen, wenn sie sich lohnt, aber ein langer Umweg dorthin nicht mehr. |
+
+**Wichtig: die Maße Ihres Fahrzeugs gelten in allen dreien unverändert.** Die
+Wahl entscheidet nur, welche *erlaubte* Route genommen wird — nie, ob eine
+verbotene erlaubt wird.
+
+Die Wahl wird gemerkt und gilt auch für Routen, die über Home Assistant oder
+MQTT ausgelöst werden.
+
+### Und die Reihenfolge Ihrer Zwischenziele
+
+Ab zwei Zwischenzielen erscheint **„↕ Reihenfolge optimieren"**. Wer vier
+Stellplätze eintippt, tippt sie selten in der günstigsten Folge ein. Gerechnet
+wird das mit denselben Fahrzeugmaßen und Vermeidungen wie jede andere Route.
+
+Kommt dabei etwas Unvollständiges heraus, bleibt Ihre Reihenfolge unangetastet
+— geraten wird hier nichts, Sie fahren diese Reihenfolge schließlich ab.
+
+### Die nächste Anweisung steht jetzt auf Deutsch
+
+Gemeldet: *„Der Text der nächsten Anweisung ist auf Englisch."* Im Dashboard
+stand „Enter the roundabout and take the 2nd exit onto B 44."
+
+Die Routenanfrage schickte keine Sprache mit, und ohne Angabe antwortet der
+Routendienst auf Englisch. Dass es in der App selbst nicht auffiel, hat einen
+eigenen Grund: die **gesprochenen** Ansagen baut Yapaia selbst auf Deutsch. Der
+englische Satz wurde nur dort sichtbar, wo er unverändert durchgereicht wird —
+im Dashboard.
+
+### Der blaue Punkt schneidet keine Kurven mehr ab
+
+Gemeldet: *„bei scharfen Abbiegungen … eine sanfte Kurve … folgt nicht exakt
+der Straße sondern mittelt irgendwie."*
+
+Nicht der Simulator hat gemittelt, sondern die Anzeige. Damit sich der Punkt
+flüssig bewegt (0.6.6), wandert er zwischen zwei Positionsmeldungen — und zwar
+bisher auf der **Luftlinie**. Vor der Ecke liegt eine Meldung, dahinter die
+nächste; die Gerade dazwischen schneidet die Kurve ab. Im Zeitraffer des
+Simulators liegen zwei Meldungen mehrere hundert Meter auseinander, dann
+schneidet diese Linie ganze Kreuzungen.
+
+Jetzt wandert der Punkt **entlang der Route**. Er bewegt sich genauso flüssig,
+bleibt dabei aber auf der Straße.
+
+---
+
+## 0.7.2
+
+**Die Entfernung bis zur nächsten Abbiegung steht jetzt nicht mehr still.**
+
+Gemeldet: *„Die Strecke bis zur nächsten Abbiegung wird nicht geupdated. Die
+anderen Werte wohl schon."*
+
+Genau so war es, und der Grund erklärt auch, warum ausgerechnet dieser eine
+Wert betroffen war. Tempo, Ankunftszeit und Reststrecke kommen aus dem
+**Fahrzustand**, den Yapaia jede Sekunde neu meldet. Die Abbiege-Entfernung
+kam dagegen aus der **Ansage** — und eine Ansage entsteht nur, wenn eine
+Ansage-Schwelle fällt. Zwischen zwei Ansagen änderte sich der Wert deshalb
+nie. Er war nicht kaputt, er war aus der falschen Quelle.
+
+**Dasselbe betraf den Anweisungstext, und das war das Schlimmere:** Nach einer
+Abbiegung blieb die gerade absolvierte Anweisung stehen, bis für die nächste
+eine Ansage fiel. Bei drei Kilometern bis zum nächsten Manöver sind das
+Minuten, in denen das Dashboard eine Anweisung zeigte, die längst erledigt
+war. Eine falsche Anweisung ist schlimmer als eine alte Zahl.
+
+Beides kommt jetzt aus dem Fahrzustand und läuft im selben Takt wie alles
+andere. **Das galt für beide Kanäle** — MQTT und HA-intern hatten denselben
+Fehler.
+
+**Was Sie dafür tun müssen: nichts.** Nach dem Update meldet Yapaia die
+Entitäten neu an, und die Kacheln laufen. Wer eigene Automationen auf
+`sensor.yapaia_instruction_distance` gebaut hat, bekommt dort jetzt einen Wert,
+der sich tatsächlich bewegt.
+
+**Für eigene MQTT-Basteleien:** Es gibt ein neues Topic `yapaia/nav/maneuver`
+mit `{type, instruction, street_names, distance_m, icon}` — dieselben Felder
+wie `yapaia/nav/instruction`, aber als Zustand im Sekundentakt statt als
+Ereignis. `yapaia/nav/instruction` bleibt unverändert und ist weiterhin das
+Richtige für Ansage-Automationen („sag das über den Lautsprecher").
+
+---
+
+## 0.7.1
+
+**Bedienen geht jetzt auch ohne MQTT — und die Position darf aus der
+Companion-App kommen.**
+
+Gefragt: *„Im Grunde sollte möglichst — also sofern technisch überhaupt
+möglich — alles funktionieren. Der User wählt ja seinen Kanal aus."*
+
+**In 0.7.0 stand hier das Gegenteil**, und das war zu früh aufgegeben: Pause,
+Weiter, Beenden und die Profilauswahl gebe es nur mit MQTT. Für den Weg, den
+0.7.0 nahm, stimmt das auch — eine Entität, die das Add-on über die
+HA-API *schreibt*, ist eine Anzeige und nimmt nichts entgegen. Es gibt aber
+einen zweiten Weg:
+
+**Yapaia legt sich seine Bedienelemente selbst an.** Beim Start entstehen in
+Home Assistant vier Helfer, und Yapaia hört auf sie:
+
+| Helfer | Was er tut |
+|---|---|
+| `input_button.yapaia_pause` | Navigation anhalten |
+| `input_button.yapaia_weiter` | weiterfahren |
+| `input_button.yapaia_beenden` | Fahrt beenden |
+| `input_select.yapaia_profil` | Fahrzeugprofil wechseln |
+
+Sie erscheinen unter *Einstellungen → Geräte & Dienste → Helfer* und lassen
+sich wie jeder andere Helfer in Dashboards, Automationen und Sprachbefehle
+einbauen. **Das erzeugte Dashboard benutzt sie von selbst**, wenn es die
+MQTT-Knöpfe nicht gibt — die Steuerungskacheln sind also wieder da.
+
+Haben Sie **beides**, MQTT und den internen Kanal, ändert sich nichts: dann
+gelten die MQTT-Entitäten, und die Helfer ruhen. Zwei Sätze Knöpfe für
+dieselbe Sache wären nur Verwirrung. Damit das nicht wie ein Defekt aussieht,
+**steht es im Kopf der Dashboard-Datei**.
+
+**Was beim Anlegen schiefgehen kann, geht leise schief:** Klappt es nicht
+(fehlende Rechte etwa), versucht das Add-on es **genau einmal** und läuft
+normal weiter — ein Versuch pro Sekunde wäre Dauerlast ohne Aussicht auf ein
+anderes Ergebnis. Die Helfer bleiben dann aus; im Protokoll steht, warum.
+
+**Ein Neustart des Add-ons beendet die Fahrt nicht.** Das klingt
+selbstverständlich, ist es hier aber nicht: der Zustand eines `input_button`
+ist der *Zeitpunkt* des letzten Drucks — auch wenn der von gestern ist. Wer
+den ersten gelesenen Wert für einen Druck hält, drückt beim Hochfahren alle
+drei Knöpfe auf einmal. Der erste gelesene Wert zählt deshalb nie als Befehl.
+
+---
+
+**Und die Positionsquelle: die Companion-App ist jetzt auswählbar.**
+
+Gefragt: *„Richte das bitte ein. Aktuell nutze ich die companion App."*
+
+Das ging schon vorher — über ein Freitextfeld in der Add-on-Konfiguration, in
+das eine Entity-ID gehört. Also eine Angabe, die man nicht weiß, sondern erst
+unter *Entwicklerwerkzeuge → Zustände* suchen muss. Eine Einrichtung, die aus
+einem Textfeld und einem Ratespiel besteht, ist keine.
+
+Jetzt steht in Yapaia Go unter **🩺 Installationsprüfung** eine **Auswahlliste
+mit den `device_tracker`, die Ihr Home Assistant wirklich kennt** — Ihr iPhone,
+Ihr iPad, was auch immer Standorte meldet. Auswählen genügt: **die Wahl gilt
+sofort**, ohne Neustart des Add-ons. Das Feld in der Add-on-Konfiguration
+bleibt und dient weiter als Vorgabe; die Auswahl in der Oberfläche gewinnt.
+
+---
+
+## 0.7.0
+
+**Yapaia meldet seine Werte jetzt auch ohne MQTT-Broker an Home Assistant.**
+
+Gefragt: *„Kannst du bitte die Möglichkeit ha interne Kommunikation
+hinzufügen? Ohne Mqtt."*
+
+Bis hierher galt: kein Broker, keine Entitäten. Das stand nirgends, und
+sichtbar wurde es erst als Wand aus „Entität nicht gefunden" im Dashboard.
+Jetzt gibt es **zwei Wege**, und beide haben einen eigenen Schalter in der
+Add-on-Konfiguration:
+
+| Option | Was sie tut |
+|---|---|
+| **`mqtt_enabled`** (Vorgabe: an) | Der Weg über einen MQTT-Broker (Mosquitto). Vollwertige Entitäten mit Gerät und Verlauf — und als **einziger** Weg auch die bedienbaren: Pause/Weiter/Beenden und die Profilauswahl. |
+| **`ha_internal`** (Vorgabe: an) | Der Weg ohne Broker. Das Add-on schreibt die Werte direkt über die Home-Assistant-API. Dieselben Entity-IDs (`sensor.yapaia_speed` …), lesbar von Automationen, Vorlagen, **ESPHome** und jedem Dashboard. |
+
+**Beide zugleich ist erlaubt und sinnvoll.** Sie streiten sich nicht: solange
+MQTT verbunden ist, hält sich der interne Kanal zurück — zwei Schreiber auf
+derselben Entität ergäben ein Flackern, bei dem niemand mehr sagen kann,
+welcher Wert gilt. **Fällt der Broker aus, übernimmt der interne Kanal**, und
+die Werte laufen weiter.
+
+Nach dem Update ist der interne Kanal **eingeschaltet**. Wenn Sie keinen
+Broker haben, erscheinen die Entitäten also von selbst, und das fertige
+Dashboard zeigt Zahlen statt Warnungen.
+
+**Was der interne Weg nicht kann, und das gehört dazu:**
+
+- **Keine Befehle.** Eine so geschriebene Entität kann nichts entgegennehmen.
+  Pause/Weiter/Beenden und die Profilauswahl gibt es nur mit MQTT — das
+  erzeugte Dashboard **lässt diese Kacheln jetzt weg**, statt tote Knöpfe zu
+  zeigen. Ein Knopf, der nichts tut, ist schlimmer als ein fehlender: er
+  behauptet, er würde.
+  *(Nachtrag: **0.7.1 hebt das auf.** Über selbst angelegte Helfer geht die
+  Bedienung auch ohne Broker — siehe oben.)*
+- **Kein Gerät, keine Registrierung.** Die Entitäten tauchen nicht unter
+  „Geräte" auf und lassen sich in der Oberfläche nicht umbenennen.
+- **Sie verschwinden beim Neustart von Home Assistant** — bis zum nächsten
+  Schreiben. Damit das nicht bei stehendem Fahrzeug für immer bedeutet,
+  schreibt das Add-on alle fünf Minuten auch unveränderte Werte noch einmal.
+
+**Und die Installationsprüfung (🩺) sagt jetzt die Wahrheit.** Sie meldete
+bisher „Yapaia meldet keine Entitäten an Home Assistant", sobald kein Broker
+da war. Mit dem internen Kanal stimmt das nicht mehr; jetzt nennt sie beide
+Wege, welcher gerade greift, und was auf dem internen fehlt.
+
+Nebenbei: `services: mqtt:need` ist zu `mqtt:want` geworden. „need" hieß „ohne
+das hier ergibt dieses Add-on keinen Sinn" — das stimmt seit dieser Version
+nicht mehr, und wer MQTT ausschaltet, soll nicht trotzdem einen Broker
+vorhalten müssen.
+
+---
+
+## 0.6.11
+
+Vier Dinge aus einer Rückmeldung mit Bildschirmfotos — drei davon waren Fehler
+in 0.6.9.
+
+**Die Kachel zeigt jetzt die Route, nicht nur die Karte.**
+
+Sie heißt „Karte mit Route" und zeigte die Karte. Die blaue Linie zeichnet
+Yapaia aus dem Speicher des Browsers, und den füllt sie nach einem frischen
+Start nur, wenn sie **weiß**, dass gerade gefahren wird. Dieses Wissen kommt
+über die Verbindung, die in der Anwendung die Fahroberfläche aufbaut — und die
+gibt es in der Kachel bewusst nicht. Also blieb die Route aus. Die Kachel holt
+sich den Fahrzustand jetzt selbst; Bedienelemente bekommt sie deswegen keine.
+
+Damit stimmt auch der Ausschnitt: auf Ihrem Bild stand die Kachel auf ganz
+Deutschland mit einem Punkt darin. Sie zoomt auf das Fahrzeug, sobald die
+Fahrt läuft — dasselbe Mitziehen wie in der Anwendung, es fehlte ihr nur der
+Fahrzustand dazu.
+
+**„Navigation fortsetzen?" kommt nicht mehr bei jedem Dashboard-Wechsel.**
+
+Gemeldet: *„Ich habe die Navigation direkt in Yapaia Go gestartet, wechsle dann
+zum Dashboard … wenn ich wieder zurück gehe werde ich gefragt ob ich die
+Navigation fortsetzen möchte. Es sieht aus als ob die Navigation gestoppt
+wird."*
+
+**Sie wurde nie gestoppt** — die Frage ist sogar der Beweis dafür: sie
+erscheint ausschließlich, wenn das Add-on eine laufende Navigation meldet. Home
+Assistant wirft beim Wechsel auf ein anderes Dashboard das Yapaia-Fenster weg
+und baut es beim Zurückkommen neu auf; für die App ist das ein Neustart, und
+sie stellte pflichtschuldig ihre Sicherheitsfrage. Was als Schutz nach einem
+Absturz gedacht war, las sich als „deine Fahrt wurde abgebrochen".
+
+Der Browser weiß, welcher Fall vorliegt. Nach einem **echten Neuladen** wird
+weiterhin gefragt; ein neu geöffnetes Fenster steigt direkt wieder ein.
+
+**Umlaute in der Dashboard-Vorlage.**
+
+In Ihrem Dashboard stand „NÃ¤chste Anweisung". Home Assistant liefert die Datei
+ohne Angabe des Zeichensatzes aus, Safari nimmt dann den falschen an, und aus
+jedem Umlaut werden zwei Zeichen — kopiert wurde also schon kaputter Text. Die
+Datei sagt jetzt selbst, dass sie UTF-8 ist. **Bitte holen Sie sich die Vorlage
+nach dem Update noch einmal** (`/local/yapaia/dashboard.txt`).
+
+**Und die Vorlage sagt jetzt, warum sie leer bleibt.**
+
+Bei Ihnen stand in fast jeder Kachel „Entität nicht gefunden" — und nirgends,
+woran es liegt. Am Anfang der Datei steht jetzt der Befund:
+
+```
+# ─── Was beim Erzeugen gefunden wurde ───
+# Home Assistant ist erreichbar (342 Entitäten gelesen),
+# aber es gibt dort KEINE EINZIGE Yapaia-Entität.
+#
+# Das heißt fast immer: das Add-on ist mit keinem MQTT-Broker verbunden.
+```
+
+**Das ist mit hoher Wahrscheinlichkeit auch Ihr Fall.** Ohne MQTT-Broker meldet
+Yapaia *gar keine* Entitäten an Home Assistant — dann ist nicht das Dashboard
+leer, sondern es gibt nichts anzuzeigen. Die Karte oben funktioniert trotzdem,
+sie kommt direkt aus dem Add-on. Nachsehen können Sie es in Yapaia Go unter
+🩺 **Installationsprüfung**, Zeile „MQTT / Home-Assistant-Anbindung". Fehlt der
+Broker, hilft das **Mosquitto-Add-on** aus dem Add-on-Store.
+
+**Noch ein Zusammenhang, den man kennen muss:** die Zahlen im Dashboard leben
+nur, solange das Add-on Positionen bekommt. Steht `gps_source` auf `none`, kommt
+die Position **aus dem Browser** — schließen Sie Yapaia, hört sie auf, und das
+Dashboard friert ein. Für ein Dashboard, das ohne offenes Yapaia weiterläuft,
+braucht es eine Quelle im Add-on selbst: `usb` (GPS-Empfänger) oder
+`ha_tracker` (Companion-App). Mit dem eingebauten Testfahrer läuft es ohnehin
+weiter, der sitzt im Add-on.
+
+---
+
+## 0.6.10
+
+**Die Kartenbibliothek ist auf Version 6 — die kritische Sicherheitslücke ist
+damit weg, ohne Ausnahmegenehmigung.**
+
+Für Sie ändert sich am Bildschirm nichts. Für das Projekt schon: Yapaia lief
+seit 0.6.8 mit einer **befristeten Ausnahme** im Sicherheits-Gate. Die
+Kartenbibliothek MapLibre 5 trägt eine als *kritisch* eingestufte Lücke
+(GHSA-jrc7-96c5-q579), behoben erst ab Version 6.4.1. Der Aufstieg war zweimal
+versucht worden und beide Male gescheitert: keine Straßennamen mehr auf der
+Karte, und Tipper auf die Route trafen nicht. Die Ausnahme wäre am
+**15.11.2026** abgelaufen — danach hätte kein Update mehr gebaut werden können.
+
+Jetzt läuft Version 6.9.0, und die Ausnahmeliste ist **leer**.
+
+**Was zweimal danebenging, war nie das, wonach es aussah.** Es sah nach zwei
+Fehlern aus (Schrift kaputt, Antippen kaputt) und war einer. MapLibre 6 wird
+nur noch als ES-Modul ausgeliefert und startet einen eigenen Hintergrund-
+Prozess für alles, was Daten verarbeitet: Kacheln, Route, Schriftzeichen. Wo
+diese Datei liegt, rechnet sich MapLibre aus dem eigenen Ablageort aus — was
+stimmt, solange niemand die Bibliothek mit einbaut. Yapaia tut genau das, und
+damit suchte MapLibre die Datei an einer Stelle, an der sie nie lag. Die
+einzige Spur davon war eine einzelne Zeile in der Browserkonsole.
+
+Im Browser nachgemessen, vorher und nachher:
+
+| | vorher | nachher |
+|---|---|---|
+| Datenquelle geladen | nein | ja |
+| Merkmale in der Quelle | 0 | 2 |
+| Anfragen nach Schriftzeichen | 0 | 200 OK |
+| Textbildpunkte auf der Karte | 0 | 2154 |
+
+Alle 164 Browser-Prüfungen laufen jetzt auf Version 6 durch — vorher waren es
+fünf rote. Die Datei liegt zusätzlich im Offline-Vorrat; ohne das wäre die
+Karte genau dort leer geblieben, wo dieses Programm zu Hause ist.
+
+**Eine Einschränkung, die dazugehört:** MapLibre 6 verlangt WebGL 2. Geräte,
+die nur WebGL 1 können (iPads vor iOS 15, sehr alte Android-Tablets), zeigen
+die Karte damit nicht mehr. Auf Ihrem iPad ist das kein Thema.
+
+---
+
+## 0.6.9
+
+**Das iPad geht während der Fahrt nicht mehr in den Sperrbildschirm.**
+
+Gefragt: *„Nach gewisser Zeit geht das iPad in den Sperrbildschirm. Bitte
+verhindere dies bei der Nutzung von Yapaia. Quasi analog zu Maps, das kann
+auch immer offen bleiben."*
+
+Solange Yapaia zu sehen ist, bleibt der Bildschirm an — in der App **und** in
+der Dashboard-Kachel. Kein Schalter, nichts einzustellen.
+
+Der gerade Weg dorthin (`navigator.wakeLock`) steht Browsern allerdings nur
+über **HTTPS** zur Verfügung. Ihr Home Assistant läuft über einfaches HTTP im
+LAN, also gibt es diese Schnittstelle auf dem iPad **gar nicht** — egal wie
+neu das iOS ist. Yapaia hält den Bildschirm deshalb zusätzlich auf dem Weg
+wach, den auch andere Web-Anwendungen nehmen: mit einem 2 × 2 Bildpunkte
+großen, stummen, endlos laufenden Video (zusammen 2 KB, ohne Tonspur — es
+unterbricht Ihre Musik nicht). Beide Wege sind geprüft, auch offline: das
+Video liegt im Zwischenspeicher der App.
+
+**Die Karte im eigenen Dashboard funktioniert jetzt.**
+
+Gemeldet: *„Die Möglichkeit die Karte in einem eigenen Dashboard anzuzeigen
+klappt nicht."* Sie hatte zwei Fehler, von denen jeder für sich schon
+gereicht hätte:
+
+1. **Der Add-on-Name war falsch geraten.** In der Karte stand fest
+   `yapaia_go`. So heißt das Add-on aber nur, wenn es aus dem eingebauten
+   Store käme. Bei einem eigenen Repository stellt der Supervisor eine
+   Prüfsumme voran (`abc12345_yapaia_go`). Die Kachel suchte also ein Add-on,
+   das es unter diesem Namen nicht gibt. Sie sucht jetzt selbst — und lässt
+   sich notfalls über `addon:` von Hand sagen, wie es heißt.
+2. **Die Anmeldung wurde weggeworfen.** Die Karte holte sich eine Sitzung
+   beim Supervisor und legte sie dann nicht ab. Ohne dieses Cookie beantwortet
+   Home Assistant jeden Aufruf im Rahmen mit „nicht erlaubt", und die Kachel
+   bleibt leer. Die Sitzung wird jetzt gesetzt — und jede Minute verlängert,
+   damit ein Dashboard, das im Wohnmobil stundenlang offen steht, nicht
+   irgendwann still ausgeht.
+
+**Und es gibt ein fertiges Dashboard zum Einfügen.**
+
+Gefragt: *„Kannst du ein ha Lovelace Dashboard für mich erstellen in dem die
+Karte mit Route und eigener Position angezeigt wird sowie weitere Karten für
+die nächste richtungsanzeige, aktuelle Geschwindigkeit und Entfernungen bzw
+eta."*
+
+Das Add-on legt es beim Start unter **`/local/yapaia/dashboard.yaml`** ab —
+und Wort für Wort dasselbe noch einmal als `dashboard.txt`, weil Safari eine
+`.yaml`-Datei je nach Home-Assistant-Fassung herunterlädt statt sie
+anzuzeigen, und auf einem iPad ist sie damit praktisch weg.
+
+Öffnen Sie also `http://<ihr-ha>:8123/local/yapaia/dashboard.txt`,
+kopieren Sie den Inhalt, und dann:
+
+1. Einstellungen → Dashboards → ⋮ → Ressourcen → Ressource hinzufügen
+   URL `/local/yapaia/yapaia-map-card.js`, Typ **JavaScript-Modul**
+   *(einmalig — ohne diesen Schritt bleibt die Kartenkachel leer)*
+2. Einstellungen → Dashboards → Dashboard hinzufügen → Neu von Grund auf
+3. Im neuen Dashboard: Stift → ⋮ → Rohkonfigurationseditor
+4. Alles ersetzen, speichern.
+
+Drin sind: die Karte mit Route und eigener Position, die nächste Anweisung mit
+Richtungspfeil und Entfernung, ein Tacho, eine Warnung bei zu hohem Tempo,
+Ziel/Reststrecke/Ankunft/Tempolimit/Zustand sowie Fahrzeugprofil und die
+Schaltflächen Pause/Weiter/Beenden.
+
+**Warum die Datei erzeugt und nicht einfach mitgeliefert wird:** weil die
+Namen der Entitäten nicht feststanden. Die Dokumentation nannte seit jeher
+`sensor.yapaia_speed` — Home Assistant hat sie aber aus Geräte- **plus**
+Entitätsnamen gebildet, also etwa `sensor.yapaia_go_speed`. Ein fest
+mitgeliefertes Dashboard hätte bei Ihnen in jeder Kachel „Entität nicht
+verfügbar" gezeigt. Das Add-on sieht deshalb 30 Sekunden nach dem Start in
+Home Assistant nach, welche Entitäten es **wirklich** gibt, und trägt genau
+die ein.
+
+Ab dieser Version gibt Yapaia die Namen zudem selbst vor
+(`sensor.yapaia_speed`, `sensor.yapaia_eta` …), damit sie nicht mehr am
+Anzeigenamen des Geräts hängen. **Ihre bestehenden Entitäten werden dadurch
+nicht umbenannt** — Home Assistant behält einmal vergebene Namen, und Ihre
+Automatisierungen laufen unverändert weiter. Nur neue Installationen bekommen
+die kurzen Namen.
+
+---
+
+## 0.6.8
+
+**Die Karte zieht jetzt wirklich mit — und dreht sich in die Kurve, statt zu springen.**
+
+Gemeldet: *„Der blaue Punkt bewegt sich flüssig auf der Karte allerdings auch
+aus dem Zentrum der Karte hinaus. Wenn die Karte nachzieht passiert das in
+groben Schritten"* und *„wenn man abbiegt fährt man nicht smooth um die Kurve
+sondern die Karte dreht sich in einem Rutsch auf die neue Richtung."*
+
+Beides hatte **eine** Ursache, und die hatte ich mir in 0.6.4 selbst
+eingebaut. Seither drehte Yapaia die Karte direkt nach dem Nachführen der
+Position nach — aber mit einem **Sprung**. Und ein Sprung bricht eine gerade
+laufende Kamerafahrt ab.
+
+Im Browser nachgemessen, über 1,3 Sekunden abgetastet:
+
+| Fall | Bewegung der Kartenmitte |
+|---|---|
+| nur die Position ändert sich | 19 Zwischenstände, **111 m** zurückgelegt |
+| Position **und** Kurs ändern sich | **1 Stand, 0 m** — abgewürgt |
+
+Da sich der Kurs beim Fahren praktisch dauernd um ein paar Grad ändert, wurde
+die Verfolgung fast bei jeder Meldung abgebrochen: der Punkt lief weiter, die
+Karte blieb stehen und holte erst beim nächsten Mal grob auf. Und das
+Abbiegen war kein Drehen, sondern eben jener Sprung.
+
+Jetzt reisen Mitte, Zoomstufe und Kartenwinkel **in derselben Kamerafahrt**
+mit — eine Bewegung, ein Zeitfenster, nichts, was etwas anderes abbricht.
+Dieselbe Messung ergibt danach 20 Zwischenstände und 111 m Weg, und der
+Winkel dreht sich über die ganze Strecke mit.
+
+Ein Test hält das fest: er misst nicht mehr nur, wo die Karte *ankommt*,
+sondern ob sie unterwegs überhaupt **fährt**. Genau diese Sorte Fehler ist
+zweimal passiert — in 0.6.4 hier, in 0.6.5 mit der 3D-Neigung.
+
+**Aus dem dünnen Strich am Positionspunkt ist ein Richtungspfeil geworden.**
+
+Gemeldet: *„Der blaue Punkt hat oft eine schmale blaue Linie die
+wahrscheinlich das aktuelle heading anzeigt. Können wir das ändern?"* Es war
+eine 20 Pixel lange Linie der Stärke 2 — im Augenwinkel während der Fahrt
+kaum als Richtung zu lesen. Jetzt sitzt dort ein gefüllter Pfeil, wie man ihn
+aus Autonavigationen kennt.
+
+**Und dabei kam ein alter Fehler ans Licht: der Genauigkeitsring war seit
+jeher dreimal zu klein.**
+
+Der Pfeil kam sichtbar zu groß heraus. Beim Nachrechnen stellte sich heraus,
+dass die Umrechnung „Meter je Bildpunkt" gleich zweifach danebenlag: die
+geografische Breite fehlte (auf 47° sind das 32 %), und sie rechnete mit
+256er Kacheln, während MapLibre 512er verwendet (glatt der Faktor 2).
+
+Der Genauigkeitsring **teilt** durch diesen Wert, war also um dasselbe Maß zu
+klein: eine Ungenauigkeit von 8 m erschien als Radius von 6,7 statt 19,8
+Bildpunkten — vollständig unter dem Positionspunkt verborgen. Der Ring war
+die ganze Zeit da; zu sehen war er nie. Ab jetzt zeigt er, wie genau die
+Position wirklich ist.
+
+### Eine Sicherheitsmeldung, offen benannt
+
+Die Kartenbibliothek MapLibre hat in der von uns verwendeten Version eine
+gemeldete Lücke (XSS in ihrer HTML-Bereinigung). Behoben ist sie erst in
+einer neuen Hauptversion — und die **zerbricht die Karte**: keine Straßennamen
+mehr, und Tipper auf die Route treffen nicht. Eine Karte ohne Beschriftung im
+Fahrzeug wäre schlimmer als diese Lücke, denn Yapaia füttert den betroffenen
+Pfad gar nicht: es gibt keine Popups, und der einzige HTML-Text ist eine feste
+Zeile aus unserem eigenen Quelltext.
+
+Die Meldung ist deshalb mit Begründung und **Ablaufdatum** hinterlegt — die
+Prüfung im Bauprozess schlägt von selbst wieder an, wenn bis dahin nichts
+passiert ist. Der Umstieg auf die neue Hauptversion ist die eigentliche
+Arbeit und steht an.
+
+---
+
+## 0.6.7
+
+**Das Logo ist da — und der Name wird richtig geschrieben: Yapaia.**
+
+Im Add-on-Store steht jetzt das Logo, das Symbol erscheint als App-Icon auf
+dem Startbildschirm, und in der Kopfzeile der Karte sitzt das Emblem neben
+dem Namen.
+
+Überall, wo der Name zu **lesen** ist, steht ab jetzt **Yapaia** mit i: in
+der Oberfläche, im Add-on-Store, in Meldungen und in der gesamten
+Dokumentation.
+
+### Was absichtlich „Yapaia" bleibt
+
+Nicht jedes Vorkommen ist nur ein Wort. An einigen hängt etwas, das Ihnen
+gehört — sie umzubenennen würde es stilllegen. Diese bleiben deshalb:
+
+| Bleibt | Warum |
+|---|---|
+| Add-on-Kennung `yapaia_go` | Daran erkennt Home Assistant das Add-on. Eine Änderung ließe Ihre Installation verschwinden; Sie müssten neu installieren und alle Einstellungen erneut setzen. |
+| Datenordner `/share/yapaia/` | Dort liegen Ihre heruntergeladenen Karten. Ein neuer Pfad hieße: alles noch einmal laden. |
+| Entitäten `sensor.yapaia_…` | Ihre Verläufe, Automationen und Dashboards hängen an genau diesen Namen. |
+| MQTT-Themen `yapaia/…` | Dasselbe, eine Ebene tiefer. |
+| Datenbank `yapaia.db` | Ihre Favoriten, Ihr Verlauf, Ihre Profile. |
+| Dashboard-Karte `yapaia-map-card.js` | Die Ressource, die Sie in Ihrem Dashboard eingetragen haben. |
+| Add-on-Schnittstelle `YAPAIA_TOKEN` u. a. | Vertrag mit installierten Add-ons. |
+| Repository-Name | Von Ihnen so benannt. |
+
+Wenn Sie eines davon trotzdem umbenannt haben möchten, sagen Sie welches —
+es geht, kostet aber jeweils genau das, was in der Spalte rechts steht.
+
+---
+
+## 0.6.6
+
+**Der blaue Punkt springt nicht mehr — er fährt.**
+
+Gemeldet: *„Die Navigation wirkt immer noch abgehakt und nicht smooth. Der
+blaue Punkt springt immer von Punkt zu Punkt anstelle sich flüssig zu
+bewegen."* Mit dem Verdacht, der Simulator liefere zu grobe Punkte.
+
+Erst nachgemessen. Der Verdacht stimmt **halb**:
+
+- Bei **einfacher Geschwindigkeit** meldet der Simulator eine Position pro
+  Sekunde, und Yapaia gibt höchstens eine pro Sekunde weiter — also genau so
+  oft wie ein echter GPS-Empfänger. Bei 50 km/h sind das Sprünge von 13,9 m.
+  Mit echtem GPS hätten Sie dasselbe gesehen.
+- Im **Zeitraffer** stimmt er dagegen ganz: bei 32× entstehen 32 Positionen
+  je Sekunde, durchgelassen wird eine. Jede Meldung liegt dann rund 440 m
+  weiter.
+
+Der eigentliche Fehler war aber ein anderer, und Ihr zweiter Satz trifft ihn:
+*auch dann sollte die Anzeige eher flüssig zum nächsten Punkt fahren.* Seit
+0.6.1 **gleitet die Kamera** zur neuen Position — der Punkt sprang dorthin.
+Zwei Dinge, die sich verschieden schnell bewegen: genau das sieht man als
+Haken.
+
+Jetzt wandert der Punkt zwischen zwei Meldungen dorthin, im selben Takt wie
+die Kamera. Auch seine Ausrichtung dreht mit, und zwar über die kürzere
+Seite — von 350° auf 10° sind zwanzig Grad, nicht dreihundertvierzig.
+
+Der Preis, offen gesagt: der Punkt zeigt, wo Sie vor bis zu einer Sekunde
+waren. Die Alternative wäre, nach vorne zu *raten* — und eine geratene
+Position, die schon hinter der Abzweigung liegt, ist im Fahrzeug gefährlicher
+als eine, die eine Sekunde nachhinkt.
+
+---
+
+## 0.6.5
+
+**Der Blick geht jetzt nach vorn.**
+
+Gemeldet: *„kurz vor der Abfahrt nach rechts bin ich noch recht weit
+rausgezoomt. Da wäre es besser wenn man genau die Straßen und Abfahrten
+sieht."*
+
+Erst nachgemessen: der automatische Zoom **griff** bereits. Bei 222 m zum
+Abbiegepunkt stand die Karte auf Stufe 16,99, bei 445 m auf 15,99. Die Stufe
+war also da — sie war nur zu weit weg.
+
+Der Grund war nicht die Stufe, sondern die **Lage**. Das Fahrzeug saß in der
+Bildmitte, und damit zeigte die gesamte untere Bildhälfte Strecke, die schon
+hinter Ihnen lag. Auf einem Tablet quer sind das bei Stufe 17 nur 281 m
+Sicht nach vorn — Ihre Abfahrt in 206 m saß fast am oberen Rand. Und einfach
+näher heranzugehen hätte es *schlimmer* gemacht: auf Stufe 18 wären mittig
+nur 141 m voraus sichtbar gewesen, die Abfahrt läge außerhalb des Bildes.
+
+Deshalb sitzt das Fahrzeug während der Fahrt jetzt im **unteren Viertel**.
+Aus derselben Stufe 17 werden damit 422 m Sicht nach vorn statt 281 m. Nach
+dem Ende der Fahrt rückt es wieder in die Mitte — dort geht es ums Umsehen,
+nicht ums Vorausschauen.
+
+**Und unmittelbar vor dem Abbiegen eine Stufe näher.**
+
+Erst durch die Verschiebung wird das überhaupt tragbar: ab 150 m vor dem
+Abbiegepunkt geht die Karte auf Stufe 18, und es sind immer noch 211 m
+sichtbar. Spuren und Abfahrten sind damit doppelt so groß im Bild.
+
+---
+
+## 0.6.4
+
+**Der blanke Bildschirm: Ursache gefunden und behoben.**
+
+Gemeldet: *„nach kurzer Zeit verschwindet die gesamte Anzeige und man sieht
+nur noch einen blanken Screen"* — und beim nächsten Versuch *„es ist gleich
+gecrasht"*. Der Absturzbildschirm aus 0.6.1 hat den Text geliefert:
+*„Maximum call stack size exceeded."*
+
+Es lag an der **Fahrtrichtung**, und nur an ihr.
+
+In den Kurs-Modi (*Karte dreht mit*) dreht Yapaia die Karte dem Fahrzeug nach.
+Vor jedem Drehen wird geprüft, ob es überhaupt nötig ist — sonst würde sich
+die Kamera endlos selbst nachjustieren. Diese Prüfung verglich den GPS-Kurs
+(0–360°) mit dem Kartenwinkel. MapLibre speichert den aber **gewickelt**: aus
+200° wird intern −160°. Nachgemessen im Browser:
+
+| gesetzt | gelesen |
+|---|---|
+| 179° | 179° |
+| 181° | −179° |
+| 200° | −160° |
+| 270° | −90° |
+
+Die Prüfung las daraus einen Unterschied von 360° und drehte wieder. Und
+wieder. Die Kamerabewegung meldet ihr Ende sofort, was die Prüfung erneut
+auslöst — bis der Aufrufstapel voll war und Home Assistant nur noch eine leere
+Fläche zeigte.
+
+Getroffen hat es **jede Fahrt Richtung Westen** (Kurs über 180°). Deshalb
+„nach kurzer Zeit": das war der Moment, in dem die Route nach Westen drehte.
+Auf dem iPad fällt das früher um als auf einem PC — darum war es dort so
+zuverlässig zu sehen.
+
+Die Prüfung rechnet jetzt auf dem Kreis statt auf der Zahlengeraden: 359° und
+1° sind zwei Grad auseinander, nicht 358. Ein Test fährt jede Himmelsrichtung
+ab, in beiden Kurs-Modi.
+
+**Die Karte dreht jetzt sofort mit, nicht eine Meldung später.**
+
+Dabei aufgefallen: das Nachdrehen hing allein daran, dass die Kamera *aus
+einem anderen Grund* bewegt wurde. Seit die Verfolgung in 0.6.1 flüssig
+animiert, kam dieses Signal erst am Ende der Animation — die Karte drehte
+sich gemessen eine ganze Positionsmeldung zu spät. Und im Stand, wenn sich
+der Kartenmittelpunkt gar nicht ändert, drehte sie überhaupt nicht mit.
+
+---
+
+## 0.6.3
+
+**Die abgefahrene Strecke wird grau.**
+
+Gemeldet: *„Die abgefahrene Strecke bleibt weiterhin blau."* Das war der
+letzte offene Punkt aus der Testfahrt. Die Linie sah nach der halben Strecke
+aus wie am Anfang — in beide Richtungen gleich. Wer im Fahren kurz aufsieht,
+soll aber auf einen Blick erkennen, wohin es **weitergeht**.
+
+Jetzt liegt hinter dem Fahrzeug ein gedämpftes Grau, vor ihm das gewohnte
+Blau. Die Trennstelle wandert mit — sie sitzt genau dort, wo Sie gerade sind,
+und zwar auf dem Meter: die Anzeige rechnet nichts eigenes aus, sondern nimmt
+den Fortschritt, den Yapaia ohnehin schon aus dem Kartenabgleich kennt.
+
+Im Zweifel bleibt alles blau. Solange nicht sicher ist, wie weit die Fahrt
+gediehen ist (kurz nach einer Neuberechnung etwa), wird nichts eingegraut:
+grau heißt „liegt hinter Ihnen", und was noch kommt, darf nie so aussehen.
+
+**Nach dem GPS-Simulator kommt die echte Ortung zurück.**
+
+Dabei aufgefallen, und es hätte jeden getroffen, der den Simulator einmal
+benutzt: Beim Start klemmt Yapaia die Positionsquelle auf den Simulator fest,
+damit dessen Fahrt auch wirklich ankommt. Beim **Beenden** wurde diese Klemme
+nicht wieder gelöst. Danach sendete der Simulator nichts mehr — und jede
+andere Quelle war gesperrt. Ergebnis: keine Position mehr, bis das Add-on neu
+startet. Dieselbe Wirkung wie das *„GPS inaktiv"* aus 0.5.6, nur durch eine
+andere Tür.
+
+Gefunden hat das ein Test, der nach dem Beenden eigene Positionen schicken
+wollte und abgewiesen wurde. Eine Pause lässt die Klemme weiterhin stehen —
+pausiert heißt „steht still", nicht „fertig".
+
+---
+
+## 0.6.2
+
+**Der Absturzbildschirm sagt jetzt auch, WO es passiert ist.**
+
+Der erste echte Bericht bestand aus einer Zeile: *„Maximum call stack size
+exceeded."* Das sagt, **was** passiert ist — eine Endlosschleife oder eine zu
+tiefe Verschachtelung —, aber nicht **wo**. React liefert dazu die
+Komponentenspur mit; die stand bisher nur im Browser-Protokoll, an das auf
+einem Tablet im Fahrzeug niemand herankommt.
+
+Jetzt steht sie mit auf dem Bildschirm, zusammen mit der Fehlerspur und einem
+Knopf zum Kopieren.
+
+**Ich habe die Ursache noch nicht.** Der Fehler tritt auf dem iPad auf (Safari
+hat einen deutlich kleineren Aufrufstapel als andere Browser), und Safari lässt
+sich in meiner Testumgebung nicht ausführen — im automatisierten Browser läuft
+dieselbe Fahrt fehlerfrei durch. Wenn es wieder passiert: bitte den Text
+kopieren und mir schicken. Mit der Komponentenspur ist die Stelle meist in
+Minuten gefunden.
+
+**Was ich versucht und wieder verworfen habe:** die Komponentennamen im
+ausgelieferten Programm zu erhalten, damit in der Spur „TripInfoPanel" statt
+„a" steht. Das hat die Anwendung zerlegt (`ReferenceError: f is not defined`) —
+vier Tests sind daran rot geworden. Lesbare Namen sind es nicht wert, das
+Programm kaputtzumachen; die Einstellung ist wieder draußen, und im Quelltext
+steht jetzt, warum.
+
+---
+
+## 0.6.1
+
+Vier Dinge aus deiner Testfahrt.
+
+**Behoben: der blanke Bildschirm.**
+
+> „Nach kurzer Zeit verschwindet die gesamte Anzeige und man sieht nur noch
+> einen blanken Screen. Nur die HA Menüs sind noch da."
+
+Yapaia war nicht hängen geblieben, sondern **abgeräumt**. Geht beim Zeichnen
+etwas schief und fängt es niemand auf, entfernt React die ganze Oberfläche —
+das ist seine Regel: lieber nichts zeigen als etwas Falsches. Nur gab es hier
+nirgends eine Stelle, die das auffängt. Aus jedem Fehler wurde deshalb ein
+leerer Rahmen, ohne Hinweis und ohne Weg zurück.
+
+Jetzt erscheint stattdessen eine Meldung mit dem **echten Fehlertext**, einem
+großen „Neu laden"-Knopf und dem wichtigsten Satz zuerst: *die Navigation läuft
+weiter*. Sie liegt im Yapaia-Dienst, nicht in der Anzeige — die Ansagen kommen
+also weiter, während du den Knopf suchst.
+
+**Das ist eine Auffangstelle, keine Ursachenbehebung.** Ich konnte deinen
+Absturz nicht nachstellen: eine simulierte Fahrt über 120 Sekunden im
+32-fachen Zeitraffer läuft hier ohne einen einzigen Fehler durch. Wenn es
+wieder passiert, steht jetzt der Fehlertext auf dem Bildschirm — bitte gib ihn
+mir, dann finde ich die Ursache.
+
+**Behoben: die fehlende blaue Linie nach dem Fortsetzen.**
+
+> „Bei Bestätigung wird weiter navigiert aber die blaue Streckenlinie fehlt
+> jetzt."
+
+Die Linie wird aus dem Speicher des Browsers gezeichnet, und der ist nach
+einem Neuladen leer — während die Fahrt im Dienst unverändert weiterläuft.
+Genau deshalb kam ja die Rückfrage und die Ansagen liefen weiter: alles war da,
+nur die Linie nicht. Jetzt holt sich die Anzeige die laufende Route zurück.
+
+**Behoben: das ruckelige Abfahren.**
+
+> „Das Abfahren der Route passiert sprunghaft. Der Route wird nicht flüssig
+> gefolgt sondern immer in Schritten."
+
+Die Karte wurde bei jeder Positionsmeldung **gesetzt** statt bewegt — ein
+Sprung pro Sekunde. Jetzt gleitet sie, und zwar genau so schnell, wie die
+Meldungen eintreffen: im Zeitraffer schneller, in Echtzeit über eine Sekunde.
+
+**Behoben: die Übersicht beim Losfahren.**
+
+> „Insbesondere bei Start ist noch recht weit rausgezoomt."
+
+Die Ursache war nicht die Zoomstufe, sondern der Zeitpunkt: im Stand wäre die
+Stufe schon die nächste gewesen, der automatische Zoom hing aber an der
+*nächsten* Positionsmeldung. Beim Losfahren blieb also die Planungsübersicht
+stehen — mitsamt der ersten Abbiegung. Jetzt wird beim Start sofort
+herangeholt.
+
+**Noch offen: die abgefahrene Strecke bleibt blau.** Das habe ich in dieser
+Version nicht angefasst — es braucht ein Aufteilen der Linie am Fortschritt,
+und ich wollte lieber vier Dinge fertig ausliefern als fünf halb.
+
+---
+
+## 0.6.0
+
+**Die Suche findet jetzt, was du meinst.**
+
+> „Ich habe beispielsweise den Eschenweg in Sondernheim (Germersheim) gesucht.
+> Der wurde nicht gefunden […] Ich habe dann direkt nach Sondernheim gesucht,
+> das wurde nicht gefunden. Ich habe eschenweg 2 eingegeben und das wurde auch
+> nicht gefunden. Bitte erstelle eine smarte Suche, die über alle Aspekte einer
+> Adresse Ergebnisse liefert."
+
+Bevor ich etwas geändert habe, habe ich deine Beispiele **gemessen** — mit
+einem echten Index und Daten, die so getaggt sind wie Germersheim in OSM:
+
+| Suche | vorher | jetzt |
+|---|---|---|
+| `Sondernheim` | 0 Treffer | ✅ |
+| `eschenweg` | 1 Treffer | ✅ |
+| `eschenweg 2` | 0 Treffer | ✅ |
+| `Eschenweg Germersheim` | 0 Treffer | ✅ |
+| `76726` (PLZ) | 0 Treffer | ✅ |
+
+Zwei Ursachen, die nichts miteinander zu tun hatten:
+
+**1. Ortsteile waren gar nicht im Index.** Aufgenommen wurden nur Städte,
+Gemeinden und Dörfer. Sondernheim ist ein Stadtteil von Germersheim — in den
+Kartendaten eine eigene Kategorie, die beim Bauen still herausfiel. Sondernheim
+war also nicht schwer zu finden, sondern nicht vorhanden. Jetzt sind Ortsteile,
+Stadtviertel, Stadtbezirke und Weiler dabei.
+
+**2. Jede Suche aus mehr als einem Wort scheiterte.** Die gesamte Eingabe wurde
+als *ein zusammenhängendes Stück Text* gesucht. „Eschenweg" enthält weder „g 2"
+noch „g G" — also fiel „Eschenweg Germersheim" durch, obwohl beide Angaben
+stimmen. Das hattest du gar nicht gemeldet, es ist aber der größere der beiden
+Fehler. Jetzt muss jedes Wort vorkommen, und die zweite Angabe **grenzt ein**:
+gibt es zwei Eschenwege, bleibt mit „Germersheim" dahinter nur einer übrig.
+
+**Ort, Straße und PLZ zählen jetzt mit.** Sie waren ausdrücklich aus der Suche
+ausgenommen — mit der Sorge, „Beethoven" würde sonst jeden Laden in der
+Beethovenstraße finden statt der Straße selbst. Die Sorge ist berechtigt, aber
+die Antwort darauf ist eine Rangfolge, kein Weglassen: die Straße steht oben,
+die Läden darin sind trotzdem auffindbar.
+
+**Neu: das „x" in der Suchzeile.**
+
+> „Bitte integriere ein 'x' in der Suchzeile, um den aktuellen Text wieder
+> komplett löschen zu können."
+
+Es tritt an die Stelle der Lupe, sobald etwas dasteht, und ist 44 Punkte groß —
+ein kleines Kreuz trifft im fahrenden Fahrzeug niemand. Vorher ging das nur mit
+der Escape-Taste, auf einem Tablet also gar nicht.
+
+**Neu: die Trefferliste beginnt mit dem nächsten Ergebnis.**
+
+> „Bitte sortiere die Ergebnisse der Suche nach Entfernung. Das nächste
+> Ergebnis nach oben."
+
+Die Entfernung stand schon bei jedem Treffer — sortiert wurde die Liste
+nirgends. Man sah also, wie weit alles weg ist, und musste sich das nächste
+selbst heraussuchen.
+
+**Wichtig für dich: Punkt 1 und 3 brauchen einen neuen Suchindex.** Die
+Mehrwortsuche wirkt sofort; Ortsteile und die Suche über Ort/Straße/PLZ stehen
+erst im neu gebauten Index. „Suche bauen" in den Karten-Einstellungen. Ein
+alter Index funktioniert unverändert weiter — ein Schemawechsel darf hier
+niemanden zum stundenlangen Neubau zwingen.
+
+---
+
+## 0.5.9
+
+**Neu: Zwischenziele.**
+
+> „Bitte füge die Möglichkeit von Zwischenzielen ein. Bei Routenplanung bzw.
+> auch während aktiver Navigation soll man Zwischenziele einfügen und in der
+> Reihenfolge sortieren können."
+
+Im Ziel-Fenster gibt es jetzt einen Abschnitt „Zwischenziele". Knopf drücken,
+auf die Karte tippen — die Station hängt sich hinten an. Mit den Pfeilen ↑ ↓
+sortierst du sie, mit ✕ nimmst du sie wieder weg. Jede Änderung berechnet die
+Strecke sofort neu.
+
+**Auch während der Fahrt.** Der Zwischenziel-Knopf wirkt auch bei laufender
+Navigation — anders als ein normaler Kartentipper, der seit 0.5.4 absichtlich
+nichts mehr tut. Der Unterschied: hier drückst du erst einen Knopf und tippst
+dann, das sind zwei bewusste Handlungen statt eines verrutschten Wischers. Die
+laufende Fahrt wird dabei **nicht** neu gestartet, sondern auf die neue Strecke
+übergeben — Ansagen und Ankunftszeit laufen weiter.
+
+**Und ein Fehler, den ich dabei gefunden habe und der Folgen beim Fahren
+hatte.** Im Programm stand seit Monaten der Vermerk, schon besuchte
+Zwischenziele würden bei einer Neuberechnung herausgenommen. Das passierte
+nicht. Wer an einer Station vorbei war und dann falsch abbog, wurde von der
+Neuberechnung **zurückgeschickt** — eine Wendeaufforderung ohne Anlass. Jetzt
+fällt weg, was hinter dir liegt.
+
+Im Zweifel bleibt eine Station aber stehen: liegt sie weit neben der Strecke,
+lässt sich nicht sicher sagen, ob du dort warst. Ein zu Unrecht behaltenes
+Zwischenziel siehst du auf der Karte und kannst es wegnehmen; ein zu Unrecht
+gelöschtes verschwindet still, und du merkst es erst, wenn du daran vorbei
+bist.
+
+**Ebenfalls behoben:** Die Zwischenziele wurden beim Start der Navigation gar
+nicht mitgegeben. Selbst wenn man sie hätte setzen können, wäre bei der ersten
+automatischen Neuberechnung jede Station stillschweigend weggefallen.
+
+Und: hängst du eine Station an, bevor der erste GPS-Fix da ist (unmittelbar
+nach dem Start), wird die Neuberechnung jetzt **nachgeholt**, sobald die
+Position eintrifft. Vorher wäre in diesem Fenster stillschweigend nichts
+passiert — die Liste hätte die neue Absicht gezeigt, gefahren worden wäre die
+alte Strecke.
+
+---
+
+## 0.5.8
+
+**Neu: eine Testfahrt, die die geplante Route von selbst abfährt.**
+
+> „Bitte füge einen GPS-Simulator ein, der die gewählte Route dann zum Test
+> abfährt. Die jeweilige Fahrgeschwindigkeit sollte der entsprechenden
+> Höchstgeschwindigkeit entsprechen. Und es sollte eine Art fast forward
+> geben, um die benötigte Zeit zu verkürzen. (2x, 4x, 8x, 16x, 32x und
+> zurück) eventuell als Schieberegler."
+
+Ein Knopf mit einem Kolben (🧪) rechts an der Karte. Route planen, „Route
+abfahren" drücken — Yapaia fährt sie ab, Abschnitt für Abschnitt mit dem dort
+geltenden Tempolimit. Pause, Weiter, Stopp. Der Zeitraffer ist ein
+Schieberegler mit den Stufen 1×, 2×, 4×, 8×, 16×, 32×, und er lässt sich
+**während der Fahrt** verstellen, ohne dass die Strecke von vorn beginnt.
+
+**Was ich dir dazu sagen muss: der Motor dafür war schon da.** Er konnte eine
+Strecke abspielen, kannte Abschnitts-Tempi und den Zeitraffer — seit Monaten.
+Erreichbar war er trotzdem nirgends: kein Knopf im Browser, niemand hat die
+Tempolimits der Route je in Abschnitts-Tempi übersetzt, und im Add-on
+antwortete er auf **jede** Anfrage mit „verboten". Drei Lücken, jede für sich
+unauffällig, zusammen eine Funktion, die es auf dem Papier gab und in
+Wirklichkeit nicht.
+
+**Wo kein Tempolimit bekannt ist, steht das da.** Das Panel zeigt zum Beispiel
+`3/120 Abschnitte ohne Limit` — dort wird mit einem Ersatzwert gefahren. Eine
+halb geratene Fahrt darf nicht aussehen wie eine belegte, sonst glaubt man den
+Zeiten hinterher.
+
+**Der Simulator ist ab Werk gesperrt, und das bleibt so.** Er ersetzt die echte
+GPS-Position für das ganze Add-on — auf einem fahrenden Fahrzeug darf das nicht
+aus Versehen passieren. Einschalten: Einstellungen → Add-ons → Yapaia Go →
+Konfiguration → Haken bei `gps_simulator` → Add-on neu starten. Ohne Haken
+erscheint der Knopf gar nicht erst. Kein SSH nötig, wie gewohnt.
+
+**Nebenbei aufgeräumt:** Die vier Knöpfe an der rechten oberen Kante hatten
+jeder seine eigene, von Hand geratene Höhe in vier verschiedenen Dateien —
+genau die Ausgangslage, aus der die Überlappungen entstanden sind, die du
+gemeldet hattest. Ein fünfter Knopf mit einer fünften geratenen Zahl hätte den
+Fehler wiederholt; sie stehen jetzt in einer gemeinsamen Reihe.
+
+---
+
+## 0.5.7
+
+**Neu: Ankunftszeit, Restzeit und Entfernung stehen jetzt auf der Karte.**
+
+> „Bitte füge bei aktiver Navigation weitere Infos ein. Entfernung,
+> geschätzte Dauer, geschätzte Ankunftszeit."
+
+Diese drei Werte hat Yapaia Go die ganze Zeit berechnet — sie waren nur
+nirgends zu sehen. Sie standen ausschließlich als Bausteine für ein selbst
+zusammengestelltes Dashboard bereit; wer keines gebaut hatte, bekam sie nie
+zu Gesicht. Jetzt stehen sie während der Fahrt unten in der Mitte.
+
+Fehlt ein Wert, steht dort ein Gedankenstrich und keine Null. Eine erfundene
+Ankunftszeit ist im Fahrzeug schlechter als eine fehlende, weil man sich
+danach richtet.
+
+**Neu: Die Karte zoomt während der Fahrt von selbst.**
+
+> „Füge bei der Navigation einen automatischen Zoom ein."
+
+Langsam heißt nah dran (man muss die Spur sehen), schnell heißt weiter weg
+(man will sehen, was kommt). Kurz vor einer Abbiegung holt die Karte immer
+heran, egal wie schnell du fährst.
+
+**Der Zoom stellt sich nie gegen dich.** Sobald du die Karte selbst anfasst,
+hält er zehn Sekunden lang still — dieselbe Pause, die auch das Mitziehen
+der Karte aussetzt. Und er arbeitet in Stufen statt stufenlos: eine stetig
+nachgeführte Karte zittert bei jeder Positionsmeldung ein Stück, was im
+fahrenden Fahrzeug besonders unangenehm ist.
+
+**Nebenbei behoben: ein Fehler in unserer eigenen Testtechnik.** Zwei
+Testdateien teilten sich denselben Testserver und liefen gleichzeitig — die
+eine sah dann die Fahrt der anderen. Das ist nichts, was du gemerkt hättest,
+aber es hätte irgendwann einen Fehler durchgelassen.
+
+---
+
+## 0.5.6
+
+**Behoben: „GPS-Signal verloren", obwohl das Wohnmobil nur stand.**
+
+> „Du hast den GPS-Timeout eingestellt, wenn sich das Gerät nicht bewegt, und
+> es wird GPS inaktiv angezeigt. Die Idee war gut, aber auch verwirrend. Denn
+> wenn das Wohnmobil länger an einem Ort steht, sieht es so aus, als ob man
+> kein GPS-Empfang hat."
+
+**Dein Vorschlag mit den Zeitstempeln allein löst es nicht** — das muss ich
+dazusagen. Bisher wird das Alter über die Ankunftszeit gemessen; nähme ich
+stattdessen den Zeitstempel des Fixes selbst, altert genau derselbe Wert.
+Sobald keine Daten mehr kommen, wird beides gleich alt, und der Hinweis
+erschiene weiterhin.
+
+Die Frage ist eine andere: **was unterscheidet „steht geparkt, Empfang
+einwandfrei" von „Empfang weg"?** Antwort: ob das Ausbleiben überhaupt
+überrascht.
+
+- Quellen wie die Home-Assistant-App melden, *wenn es etwas zu melden gibt*.
+  Steht das Fahrzeug, gibt es nichts — Ausbleiben ist der Normalfall.
+- Fuhr das Fahrzeug gerade noch und die Daten hören auf, ist das wirklich ein
+  Grund zur Warnung.
+
+Deshalb entscheidet jetzt die Zeit **zusammen mit** dem letzten bekannten
+Bewegungszustand. Erkannt wird Stillstand an der gemeldeten Geschwindigkeit —
+und, falls die Quelle keine liefert (der Browser-Standort oft nicht), am
+Abstand zum vorherigen Fix.
+
+Im Stand steht künftig **kein** Warnbanner mehr. Der GPS-Status im Dashboard
+sagt dann „GPS aktiv (Fahrzeug steht)". Bei Fahrt ohne Daten kommt die
+Warnung unverändert — dafür ist sie da.
+
+**Eine Lücke bleibt bewusst offen:** steht das Fahrzeug und der Empfang fällt
+*wirklich* aus, merkt die Anzeige das nicht. Eine Verfallszeit („nach 15
+Minuten wieder warnen") hätte genau deinen Fehler zurückgebracht — über Nacht
+geparkt, morgens leuchtet die Warnung. Auffallen würde es an der Stelle, an
+der es zählt: eine Navigation ohne Position beginnt gar nicht erst und sagt
+das auch.
+
+---
+
+## 0.5.5
+
+**Behoben: Knöpfe und Anzeigen lagen übereinander.**
+
+> „Wir haben viele Knöpfe und Anzeigen auf der Karte, die sich teilweise
+> überlappen. Bspw. wenn die Navigation aktiv ist, liegen die neuen Buttons
+> über der Zentrierung. Die nächste Abbiegung über der Suchzeile. Oder aber
+> auch die Karteneinstellung über den Zoom-Einstellungen der Karte."
+
+Gemessen waren es **fünf** Stellen — die vierte und fünfte hatte ich selbst
+noch nicht gesehen:
+
+| | |
+|---|---|
+| Abbiege-Anzeige über der Suchzeile | bis zu 5878 Bildpunkte² |
+| Ansagen-Taste über dem Ansichtsmodus | 1536 |
+| Tempolimit-Schild über den Zoom-Reglern | 1728 |
+| Ansagen-Taste über der Zentrierung | 768 |
+| Regionen-Knopf über den Zoom-Reglern | 391 |
+
+Die Ursache war, dass **jedes Element seine Position selbst gewählt hat** —
+verteilt über ein Dutzend Dateien, keines kannte seine Nachbarn.
+
+Jetzt stehen die Positionen an einer Stelle. Die drei Karten-Knöpfe rechts
+bilden eine Spalte: während der Fahrt rücken sie über die Fahrt-Bedienung,
+ohne Fahrt rutschen sie nach unten. Die Abbiege-Anzeige beginnt unter der
+Suchzeile, und alles am rechten Rand lässt die Zoom-Regler frei.
+
+Damit das so bleibt, misst ein Test jetzt die **echten** Kästen im Browser
+und vergleicht sie paarweise — in zwei Fenstergrößen, mit und ohne
+Navigation. Er kann nicht von der Gestaltung abdriften, weil er sie ausliest.
+
+---
+
+## 0.5.4
+
+**Behoben: ein Tipper auf die Karte warf die laufende Route weg.**
+
+> „Wenn die Navigation aktiv ist und man auf die Karte klickt, dann wird in
+> den Zielsetzen-Modus gewechselt. Die Route verschwindet und man sieht den
+> roten Zielpunkt auf der Stelle."
+
+Jeder Tipper während der Fahrt — auch ein verrutschter Schwenk — ersetzte die
+laufende Route durch einen Zielpunkt. Ohne Rückfrage, ohne Weg zurück.
+
+**Während einer Fahrt bewirkt ein Tipper neben die Route jetzt nichts.**
+Bewusst kein Rückfrage-Dialog: ein Dialog über der Karte ist im Fahrzeug
+gefährlicher als der ignorierte Tipper. Wer während der Fahrt woandershin
+will, hat „Stopp" und die Suche — beides absichtliche Handlungen. Eine
+*getroffene* Alternative gilt weiterhin: das ist ein Wechsel, kein Verwerfen.
+
+---
+
+**Behoben: knapp danebengetippt hieß „alle Routen weg".**
+
+> „Wenn ich hier nicht genau treffe, bin ich wieder in der Zieleingabe. Der
+> rote Punkt als Ziel erscheint und alle vorgeschlagenen Routen sind weg."
+
+Der Treffertest fragte **genau einen Bildpunkt** ab. Eine Fingerkuppe ist
+keinen Punkt breit — und der Fehlschlag blieb nicht folgenlos, sondern setzte
+ein neues Ziel und verwarf damit die berechneten Alternativen.
+
+Jetzt zählt ein Bereich von 18 Bildpunkten um den Finger als Treffer. Das ist
+ungefähr eine Fingerkuppe auf einem Tablet — und dieses Gerät wird mit dem
+Finger bedient, im Fahrzeug, oft in Bewegung.
+
+---
+
+## 0.5.3
+
+**Neu: Yapaia Go fragt einmal nach, ob die Maße deines Fahrzeugs stimmen.**
+
+Beim ersten Start legt das Add-on ein Profil „Camper" an — **3,00 m hoch,
+2,20 m breit, 6,50 m lang, 3,5 t**. Diese Zahlen sind **geraten**. Sie müssen
+es sein: die App kann dein Fahrzeug nicht kennen.
+
+Nur sah man ihnen das nicht an. Sie gingen genau wie gemessene Werte in die
+Routenplanung. Und der Weg daran vorbei stand offen:
+
+- der Fahrzeug-Schritt im Einrichtungsassistenten ließ sich **überspringen**;
+- losfahren durfte man schon, sobald der **Haftungshinweis** bestätigt war —
+  über die Maße sagte der nichts.
+
+Wer also den Hinweis bestätigt und den Fahrzeug-Schritt übersprungen hat, ist
+mit geratenen Maßen navigiert. Bei einem 3,20-m-Wohnmobil plant die Route dann
+mit 3,00 m: **20 cm zu niedrig**, und aufgefallen wäre es unter einer Brücke.
+
+Ab dieser Version fragt Yapaia Go **einmal** nach — mit den Zahlen im Klartext,
+damit ein falscher Wert sofort auffällt:
+
+> Routen werden gerade für **3,00 m hoch · 2,20 m breit · 6,50 m lang · 3,5 t**
+> geplant. Diese Werte sind eine Voreinstellung — sie wurden nie bestätigt.
+
+„Maße stimmen" beantwortet das dauerhaft. Wer die Maße im Fahrzeugprofil
+speichert, hat sie damit ebenfalls bestätigt — dann erscheint die Frage gar
+nicht erst.
+
+**Was das für dich heißt:** Nach dem Update kommt die Frage einmal, auch wenn
+du deine Maße längst eingetragen hast. Ob das jemals jemand bestätigt hat, war
+bis jetzt nirgends gespeichert, und eine Vermutung wäre hier der falsche Weg —
+gerade bei dieser Frage. Ein Klick, und sie ist weg.
+
+Zwei Dinge ausdrücklich **nicht**: Die Navigation wird **nicht** gesperrt, und
+während einer laufenden Fahrt erscheint die Frage **nicht** — ein Dialog über
+der Karte ist im Fahrzeug gefährlicher als die Frage, die er stellt.
+
+---
+
+## 0.5.2
+
+**Behoben: das Add-on konnte nicht sagen, welche Version es ist.**
+
+Unter ⚙️ und in der Schnittstelle stand als Version immer:
+
+```
+"version": "0.0.0"
+```
+
+Nicht manchmal — **immer**, auf jedem Gerät, seit es diese Anzeige gibt. Der
+Pfad zur Versionsdatei zielte eine Ebene zu hoch, und die Absicherung
+drumherum machte aus dem Fehlschlag stillschweigend eine Zahl, die wie eine
+Auskunft aussah.
+
+Das klingt klein, war es aber nicht: wer meldet „bei mir geht das nicht",
+nennt zuerst seine Version — und diese Angabe war wertlos. Auch die Anzeige in
+Home Assistant selbst (Gerät „Yapaia Go", Feld *Softwareversion*) stand auf
+0.0.0.
+
+Jetzt steht dort die Add-on-Version, dieselbe, die der Store anzeigt.
+
+Zwei Tests hatten das übersehen — der eine prüfte einen selbstgebauten
+Ersatzserver statt des echten, der andere hielt die 0.0.0 für eine Eigenart
+der Testumgebung. Beide sind ersetzt; und der Bau des Add-on-Images prüft
+jetzt am laufenden Container nach, dass die Version wirklich durchkommt.
+
+---
+
+## 0.5.1
+
+**Behoben: die Suche fand nichts — weil sie deinen Index nicht mehr lesen
+konnte.**
+
+> „Der Suchindex klappt nicht. Habe Speyer eingegeben, aber es wird nichts
+> angezeigt."
+
+Speyer stand in deinem Index. Gelesen wurde er trotzdem nicht: ich habe der
+Index-Tabelle mit 0.3.6 und 0.3.9 neue Spalten hinzugefügt, und die Abfrage
+verlangte sie ohne Rückfall. Gegen einen älteren Index brach sie ab —
+
+```
+no such column: p.category
+```
+
+— und daraus wurde nach oben ein „Nichts gefunden". Die Suche war also nach
+dem Update **vollständig tot**, für jeden mit einem älteren Index, ohne dass
+irgendwo stand, woran es lag. Jetzt wird gelesen, was da ist; fehlende
+Angaben sind leer statt tödlich. Kein Neubau nötig.
+
+---
+
+**Behoben: die Karte endete an einer unsichtbaren Grenze.**
+
+> „Wenn ich hier aus Rheinland-Pfalz rauszoome, ist nichts daneben."
+
+Bei mehreren installierten Regionen wurde die **kleinste** gewählt, die zur
+Position passt. Mit Deutschland *und* Rheinland-Pfalz gewann Rheinland-Pfalz,
+und die Karte hörte mitten im Land auf. Meine Begründung dafür war schlicht
+falsch: die kleinere Datei hat kein feineres Detail, sie deckt nur weniger ab.
+
+Jetzt gewinnt die **größte** passende Region — das gibt die zusammenhängende
+Karte. Und ohne Positionsfix startet die App ebenfalls in der größten Region
+statt in Liechtenstein.
+
+Wer eine bestimmte Region sehen will, wählt sie weiterhin unter ⚙️ →
+„Angezeigte Region" fest; diese Wahl gewinnt gegen alles.
+
+---
+
+**Neu: Tempoanzeige und Tempolimit-Schild.**
+
+> „Ich hätte gerne überhaupt eine Anzeige der Geschwindigkeit. Die Warnung für
+> eine Überschreitung kann auch gerne sein, dass die Anzeige im aktuellen
+> Tempolimit, als entsprechendes Verkehrsschild, rot wird."
+
+- **Tempo** steht unten links — immer, sobald es eine Position gibt, nicht
+  erst während einer Navigation.
+- **Das Tempolimit-Schild** gab es schon, es blieb nur immer leer: Valhallas
+  Routenabfrage liefert keine Limits. Sie werden jetzt über einen zweiten
+  Aufruf nachgetragen und erscheinen als rundes Schild.
+- **Zu schnell:** das Schild wird rot (mit 3 km/h Toleranz — ohne sie flackert
+  es bei konstanter Fahrt am Limit, und ein flackerndes Warnsignal wird
+  ignoriert).
+
+Zwei Ehrlichkeiten dazu: OSM-Tempolimits sind lückenhaft — wo keins getaggt
+ist, erscheint **kein** Schild statt einer geratenen Zahl. Und eine Autobahn
+ohne Limit zeigt ebenfalls keins, statt eine Richtgeschwindigkeit als Limit
+auszugeben.
+
+Scheitert die Tempolimit-Abfrage, bleibt die Route trotzdem: ein fehlendes
+Schild darf keine fehlende Fahrt bedeuten.
+
+---
+
+**Besser lesbar: der Fortschritt beim Bauen.**
+
+> „Das ist irgendwie undurchsichtig."
+
+Auf der Regionskarte stand während des Downloads so etwas:
+
+```
+ 13 4607M   13  635M    0     0  8641k      0  0:09:06  0:01:15  0:07:51
+```
+
+Das ist die Fortschrittstabelle des Download-Werkzeugs, unverändert
+durchgereicht. Der Inhalt stimmte sogar — er war nur nicht zu lesen. Jetzt
+steht dort:
+
+> Kartendaten werden geladen: 635 MB von 4607 MB (13 %), noch etwa 7 Min.
+
+Die Zahlen kommen unverändert aus dem Download; geschätzt wird nichts. Kann
+das Werkzeug die Restzeit noch nicht abschätzen, steht auch keine da.
+
+Das ist erst ein Teil der Antwort: der Balken bleibt beim Kachel- und
+Suchbau unbestimmt, weil sich die Phasen nicht ehrlich in einen Prozentwert
+übersetzen lassen. Was gerade passiert, steht aber daneben.
+
+## 0.5.0
+
+**Mehrere Länder gleichzeitig — Suche und Routing.**
+
+Bis jetzt gab es **einen** Suchindex und **einen** Routinggraphen für alles.
+„Suche bauen" bei einer Region ersetzte den Index der anderen; dasselbe beim
+Routing. Wer Liechtenstein und Rheinland-Pfalz installiert hatte, konnte immer
+nur in einer von beiden suchen und routen.
+
+Ab jetzt:
+
+- **Suche: ein Index je Region.** Gesucht wird in allen gleichzeitig. Steht
+  eine Stadt in zwei Landesextrakten — Basel liegt im schweizerischen *und* im
+  deutschen —, erscheint sie trotzdem nur einmal in der Liste.
+- **Routing: ein Graph über alle vorhandenen Länder.** Das ist nicht nur
+  bequemer, sondern nötig: eine Route von Freiburg nach Basel führt über die
+  Grenze, und das geht nur, wenn beide Seiten im **selben** Graphen liegen.
+  Für ein Wohnmobil ist das der Normalfall.
+
+**Was das für dich heißt**
+
+Der bestehende Suchindex bleibt gültig und wird weiter gelesen — die Suche ist
+nach dem Update also nicht weg. Sobald du eine Region neu baust, entsteht ihr
+eigener Index; der alte Sammelindex wird dann entfernt, wenn er dieselbe
+Region enthielt.
+
+Beim **Routing** ist ein Neubau nötig, sobald ein Land dazukommt: der Graph
+wird über alle vorhandenen Extrakte gebaut. Heruntergeladene Extrakte werden
+dafür aufbewahrt und wiederverwendet, damit nicht jedes Mal alles neu geladen
+wird.
+
+Ehrlich zum Preis: der Graph-Bau dauert so lange wie die Summe aller Länder,
+und ein neues Land bedeutet einen kompletten Neubau.
+
+Die Übersicht „Was ist gebaut?" zeigt jetzt jede Region einzeln und beim
+Routing, welche Länder in dem einen Graphen stecken.
+
+## 0.4.0
+
+**Neu: die Karte mit Route lässt sich in eigene Dashboards legen.**
+
+> „Die Idee des Navi in HA war ja, die Navigation oder auch nur Teile davon in
+> User eigene Dashboards zu integrieren."
+
+Alle **Zahlen** gab es schon als Entitäten — nächste Abbiegung, Entfernung
+zum Ziel, ETA, Tempo, Ziel, Fahrzeugposition. Dafür reichen die
+Standard-Karten von Home Assistant, dort ändert sich nichts.
+
+Was fehlte, war die **Karte selbst mit eingezeichneter Route**. Die gibt es
+jetzt als eigene Dashboard-Karte.
+
+**Einrichtung** (einmalig, ohne SSH):
+
+1. Add-on aktualisieren und starten — die Kartendatei wird dabei automatisch
+   nach `www/yapaia/` gelegt.
+2. Einstellungen → Dashboards → ⋮ → **Ressourcen** → *Ressource hinzufügen*
+   URL `/local/yapaia/yapaia-map-card.js`, Typ **JavaScript-Modul**.
+3. Im Dashboard *Karte hinzufügen* → „Yapaia Go — Karte".
+
+Als YAML:
+
+```yaml
+type: custom:yapaia-map-card
+height: 400      # optional
+title: Route     # optional
+```
+
+Die Karte zeigt **nur an** — keine Knöpfe, keine Einstellungen, keine Suche.
+Bedienelemente in einer Dashboard-Kachel, die die laufende Navigation
+umstellen, wären eine Falle; das ist Absicht und wird geprüft.
+
+Dafür darf das Add-on jetzt in die Home-Assistant-Konfiguration schreiben —
+ausschließlich für diese eine Datei in `www/yapaia/`. Anders wäre sie nur
+über SSH oder Datei-Editor zu installieren.
+
+---
+
+**Große Karten: der Platzbedarf wird jetzt VOR dem Bau geprüft.**
+
+Bisher wurde nur der Download gemessen. Beim Bauen fällt ein Vielfaches an —
+der Extrakt, die Zwischenstände (der größte Posten) und die entstehende
+Karte. Ging der Platz mittendrin aus, war die Zeit weg, und die Meldung kam
+aus dem Innenleben des Kartenbauers und sagte nicht, dass schlicht die Platte
+voll war.
+
+Jetzt bricht der Bau vorher ab und nennt Zahlen:
+
+```
+FEHLER: zu wenig freier Speicherplatz fuer diesen Bau.
+  Verzeichnis:       /share/yapaia/tiles
+  frei:              18000 MB
+  geschaetzt noetig: 38048 MB  (Extrakt 4500 MB x 8 + 2048 MB Reserve)
+```
+
+Die Schätzung ist bewusst großzügig und **nicht gemessen** — ein
+Deutschland-Bau war hier nicht durchzuführen. Wer es besser weiß, setzt
+`PMTILES_DISK_FACTOR` oder `PMTILES_DISK_MARGIN_MB`. Kann die Prüfung den
+freien Platz nicht ermitteln, wird sie übersprungen statt den Bau zu
+verhindern.
+
+## 0.3.9
+
+**Die Suchvorschläge sagen jetzt, welcher Treffer gemeint ist.**
+
+> „Wenn ich bspw Rewe eintippe und er mehrere Rewe in meinem Umkreis findet,
+> dann gib bitte die Adresse und ungefähre Entfernung mit an. Wenn ich bspw
+> Beethoven eintippe, gib bitte den Ort mit an."
+
+Unter jedem Vorschlag steht jetzt, **wo** er liegt — bei Sonderzielen die
+Adresse aus den Kartendaten, sonst der Ort. Rechts steht wie bisher die
+Entfernung von der eigenen Position.
+
+```
+🛒  REWE
+    Kaiserstraße 7, Worms                        1,2 km
+🛒  REWE
+    Mannheim                                    38,4 km
+
+🛣️  Beethovenstraße
+    Worms                                        0,8 km
+🛣️  Beethovenstraße
+    Mannheim                                    37,9 km
+```
+
+Vorher stand dort der Name ein zweites Mal — drei REWE-Filialen sahen aus wie
+dreimal dasselbe.
+
+Trägt ein Eintrag keinen Ort in den Daten (bei Straßen die Regel), wird der
+nächstgelegene Ort genommen. Ist keiner in der Nähe, bleibt die Zeile leer,
+statt einen Ort zu behaupten, der 80 km weg ist.
+
+**Dafür muss der Suchindex einmal neu gebaut werden** — die Ortsangaben
+entstehen beim Bauen.
+
+---
+
+**Neu: „Was ist gebaut?"**
+
+> „Nach der (erfolgreichen) Erstellung sehe ich nicht, dass bereits etwas
+> erstellt wurde und wann."
+
+In „Kartenregionen verwalten" (🗺️) steht jetzt ganz oben eine Übersicht:
+welche Karten es gibt, seit wann, und wie groß — dazu Routing und Suche mit
+Zeitpunkt und Anzahl der Einträge.
+
+Dabei wird eine Sache ausdrücklich benannt, die vorher niemand sehen konnte:
+**Routing und Suche gibt es nur je einmal, nicht pro Region.** Beide Bauwege
+ersetzen den vorherigen Stand vollständig. Wer Routing für Rheinland-Pfalz
+baut, hat danach kein Routing mehr für Liechtenstein. Die Übersicht sagt
+deshalb, aus welcher Region der jeweilige Stand kommt.
+
+---
+
+**Für große Karten: der Speicher für den Kartenbau richtet sich jetzt nach dem
+Gerät.**
+
+Er stand fest auf 2 GB — passend für eine 8-GB-Maschine und Liechtenstein, zu
+wenig für einen großen Extrakt. Jetzt werden 40 % des vorhandenen
+Arbeitsspeichers genommen, höchstens 8 GB (bei 16 GB also rund 6,5 GB). Der
+Rest bleibt bewusst frei: der Kartenbau legt seine Zwischenstände als Dateien
+ab und lebt vom Dateisystem-Cache — zu viel Speicher für das Programm macht
+den Bau *langsamer*.
+
+Wer es selbst festlegen will, setzt `PLANETILER_XMX`; das gewinnt.
+
+**Hinweis zum Platzbedarf:** die Vorabprüfung misst bisher nur, ob die
+*heruntergeladene* Datei passt — nicht, was beim Bauen zusätzlich anfällt.
+Für Deutschland ist das ein Vielfaches (Zwischenstände plus fertige Karte).
+Wer wenig freien Platz hat, sollte das im Blick behalten.
+
+## 0.3.8
+
+**Behoben: die Suche fand nichts mehr — auch nach erneutem Bauen nicht.**
+
+> „Die Suche geht gar nicht mehr. Auch nach neuem Bauen."
+
+Auf der Karte stand „Beethovenstraße", die Suche danach meldete „Nichts
+gefunden". Das war kein Fehler im Index: der war richtig gebaut. Er wurde nur
+nie gelesen.
+
+Der Neubau schreibt den Index in eine neue Datei und schiebt sie über die
+alte. Das Add-on hatte die alte Datei aber schon offen — und ein geöffneter
+Zugriff bleibt bei der alten Datei, auch wenn längst eine andere unter dem
+Namen liegt. Die Meldung „ab sofort nutzbar, ohne Neustart" stimmte deshalb
+nur, solange noch niemand gesucht hatte. Wer zuerst die Suche für
+Liechtenstein gebaut, einmal gesucht und danach die für Rheinland-Pfalz
+gebaut hatte, bekam für immer Antworten aus dem Liechtensteiner Index. Ein
+erneuter Neubau half nie: er tauscht die Datei, nicht den offenen Zugriff.
+
+Das Add-on sieht jetzt vor jeder Suche nach, ob die Datei ausgetauscht wurde,
+und öffnet dann die neue. Ein Neustart ist weiterhin nicht nötig — jetzt
+stimmt es auch.
+
+**Noch zu wissen:** es gibt **einen** Suchindex, nicht einen pro Region.
+„Suche bauen" bei einer Region ersetzt den Index der anderen. Bei zwei
+installierten Regionen findet die Suche also immer nur in der zuletzt
+gebauten. Das ist eine echte Einschränkung, keine Nachwirkung dieses Fehlers
+— sie stand nur bisher hinter ihm.
+
+**Für Entwickler:** das Add-on-Image wird jetzt in CI gebaut und *im
+Container* geprüft (Werkzeuge, Bau-Skripte, Schriftzeichen, Dienste,
+Startskripte, laufender Core). Bisher wurde genau dieses Image in keinem Job
+gebaut — der Grund, warum Verpackungsfehler regelmäßig erst nach dem Update
+auf dem Gerät auffielen.
+
+## 0.3.7
+
+**Die Karte sieht jetzt wie eine Karte aus — und es gibt fünf Stile zur
+Auswahl.**
+
+> „Die Karten sehen irgendwie langweilig aus. Die von Maps oder Karten sind
+> viel ansprechender."
+
+Das lag nicht am Geschmack, sondern an zwei Lücken. Beide waren still: nichts
+war kaputt, es fehlte einfach.
+
+**Erstens wurde fast nichts gezeichnet.** Die Kacheln enthalten sechzehn
+Ebenen — Wasser, Wald, Wiesen, Äcker, Parks, Gebäude, Bahnlinien, Grenzen,
+die ganze Straßenhierarchie. Gezeichnet wurden **drei**: eine graue Linie für
+jede Straße, Ortsnamen, POI-Namen. Der Rest der Daten lag ungenutzt im
+Archiv. Jetzt sind sie da: Flüsse und Seen, Wald und Grünflächen, Gebäude,
+Autobahn bis Feldweg in eigenen Farben und Breiten, Wege gestrichelt,
+Bahnstrecken, Landesgrenzen — und **Straßennamen**, die bisher ganz fehlten.
+
+**Zweitens stand auf der Karte kein einziges Wort.** Ohne eine Schriftquelle
+zeichnet die Kartenbibliothek keinen Buchstaben — die Ebenen für Ortsnamen
+gab es, sichtbar wurde davon nie etwas, und gemeldet wurde es nirgends. Die
+Schriftzeichen sind jetzt im Add-on enthalten (Noto Sans, dieselbe Schrift
+wie auf üblichen Karten), inklusive Umlaute, Akzente, Griechisch und
+Kyrillisch. Nichts davon wird nachgeladen: es funktioniert ohne Netz.
+
+**Die fünf Stile** stehen unter ⚙️ → „Kartenstil":
+
+| | |
+|---|---|
+| **Yapaia Hell** | heller Tagesstil |
+| **Yapaia Dunkel** | für die Nacht, eigene Farben statt einfach invertiert |
+| **Yapaia Natur** | Landschaft und Wege treten hervor — für die Suche nach Stell- und Campingplätzen |
+| **Yapaia Kontrast** | kräftige Straßen, ruhige Flächen, große Beschriftung |
+| **Yapaia Reduziert** | nur das Nötige, für lange Fahrten ohne Ablenkung |
+
+**Behoben: „Deutsch" bei der Beschriftung löschte die ganze Beschriftung.**
+Unter ⚙️ → „Sprache der Labels" führte die Wahl „Deutsch" oder „English" dazu,
+dass **gar kein** Name mehr erschien — die Einstellung fragte ein Feld ab, das
+es in den Kacheln nicht gibt. Wer sie eingestellt hatte, behält seine Wahl;
+sie wirkt jetzt richtig. Deutsche Namen fallen dabei auf den Originalnamen
+zurück, statt zu verschwinden.
+
+Ein Neubau von Karten oder Suchindex ist **nicht** nötig — die Änderungen
+betreffen nur die Darstellung.
+
+## 0.3.6
+
+**Die Suche findet jetzt auch Sonderziele — über den Namen und über die Art.**
+Bisher kannte der Index nur Orte und Straßen. Wer „Supermarkt" tippte, fand
+nichts, denn der Laden heißt in den Kartendaten „REWE"; wer „Arzt" tippte,
+fand nichts, denn die Praxis heißt „Dr. Müller".
+
+Ab jetzt führen **beide** Wege zum Ziel: der Name **und** das deutsche Wort
+für die Art. Aufgenommen ist, was auf einer Wohnmobilfahrt zählt —
+Campingplatz, Wohnmobilstellplatz, Entsorgungsstation, Trinkwasser, Toilette,
+Tankstelle, Ladesäule, Supermarkt, Bäckerei, Apotheke, Arzt, Krankenhaus,
+Tierarzt, Restaurant, Bank, Baumarkt, Gasflaschen und einiges mehr. Auch
+umgangssprachlich: „Klo" findet die Toilette, „Sprit" die Tankstelle.
+
+Ein Campingplatz **ohne Namen** in den Daten wird trotzdem gefunden — er
+heißt dann schlicht „Campingplatz". Und in der Ergebnisliste steht jetzt ein
+passendes Symbol davor: 🏕️ 🚐 ⛽ 🛒 💊 🩺 statt eines allgemeinen Stiftes.
+
+Dafür muss der Suchindex **einmal neu gebaut** werden: „Kartenregionen
+verwalten" (🗺️) → „Suche bauen". Ohne Neubau bleibt es beim bisherigen Stand
+aus Orten und Straßen.
+
+Was der Index weiterhin nicht kann: **Hausnummern**.
+
+## 0.3.5
+
+**Der Suchindex lässt sich jetzt auch für große Regionen bauen.** Für
+Liechtenstein lief er, für Rheinland-Pfalz brach er ab:
+
+> Fehler: Der Bau des Suchindex ist mit Code 1 fehlgeschlagen. Zuletzt:
+> „build-lite-index CLI fehlgeschlagen: Maximum call stack size exceeded".
+
+Die Ursache war eine Zeile, die zwei Listen zusammenhängte und dabei aus jedem
+Datensatz ein Funktionsargument machte. Bei Liechtenstein sind das 3 189 —
+kein Problem. Rheinland-Pfalz hat ein Vielfaches davon, und oberhalb einer
+Grenze bricht das ab. Der Fehler hing also an der **Datenmenge**, weshalb er
+in jedem Test mit einer kleinen Beispielregion unsichtbar war.
+
+Nachgestellt und behoben: mit einem Datensatz in der Größenordnung von
+Rheinland-Pfalz läuft der Bau jetzt durch (500 000 Einträge in vier Sekunden).
+Dieselbe Zeile stand auch im Routing, wo sie eine sehr lange Route hätte
+treffen können — dort ebenfalls behoben, bevor es jemandem passiert.
+
+Dein bisheriger Stand blieb bei dem Fehlschlag übrigens unberührt: der Index
+wird erst nach vollständigem Bau eingewechselt.
+
+**Der Knopf „zurück zur Position" holt jetzt auch heran.** Nur zu zentrieren
+war zu wenig — wer über die Karte gewandert ist, hat meist auch herausgezoomt
+und stand danach zwar richtig, aber in einer Übersicht ohne erkennbare
+Straßen. Er zoomt dabei nie **weg**: wer bereits näher dran ist, behält seine
+Ansicht.
+
+## 0.3.4
+
+**Die Adresssuche lässt sich jetzt auf dem Gerät einrichten.** Bis hierher
+stand an drei Stellen — Installationsprüfung, Dokumentation, Dockerfile —
+derselbe Satz: der Suchindex lasse sich hier nicht bauen, dafür brauche es
+einen zweiten Rechner. Das war nie eine technische Grenze, sondern zwei
+Auslassungen bei uns: das Filterwerkzeug `osmium` lag nicht im Image, und das
+Index-Werkzeug wurde vom Bau des Add-ons schlicht nicht mitgenommen. Der
+Quelltext dafür ist seit Monaten fertig.
+
+Unter **„Kartenregionen verwalten"** (🗺️ rechts oben) steht bei jeder Region
+jetzt ein dritter Knopf: **„Suche bauen"**. Liechtenstein braucht Minuten, ein
+Bundesland länger; der Fortschritt steht im Panel, und der bereits
+heruntergeladene Kartenextrakt wird wiederverwendet statt erneut geladen.
+
+Danach findet das Suchfeld Orte und Straßennamen — offline, ohne Photon und
+ohne mehrere GB Arbeitsspeicher. Ein Neustart ist nicht nötig.
+
+Wie bei Kacheln und Routing gilt: es läuft **immer nur ein** schwerer Bau
+gleichzeitig, damit sich zwei davon auf einem 8-GB-Gerät nicht gegenseitig
+den Speicher wegnehmen.
+
+**Was der Index nicht kann:** Hausnummern. Gesucht wird nach Orten und
+Straßennamen; die genaue Hausnummer steht in diesem Index nicht.
+
+## 0.3.3
+
+**Angetippte Ziele bekommen jetzt wirklich einen Namen.** In 0.3.2 stand das
+schon hier — es hat nur nie funktioniert. Die Abfrage nannte die Vektorquelle
+`region`, sie heißt aber `yapaia-region`; der Fehler wurde stillschweigend
+verschluckt, und jedes Ziel blieb bei seinen Koordinaten. Ein zugesagtes
+Verhalten, das nie eintrat. Jetzt steht dort ein Straßen- oder Ortsname.
+
+**Das Fahrzeugprofil ist wieder zu finden.** Auf schmaleren Fenstern — etwa
+einem iPad neben der Home-Assistant-Seitenleiste — wuchs die Suchleiste über
+den Profil-Chip und verdeckte ihn vollständig. Marke, Profil und Suche liegen
+jetzt in **einer** Zeile, die den Platz aufteilt, statt in drei Elementen, die
+sich unabhängig voneinander an dieselbe Stelle setzen. Die Suche schrumpft
+jetzt, statt sich über die anderen zu legen.
+
+Das war die dritte Überlagerung derselben Art (nach der GPS-Warnung in 0.3.2).
+Deshalb wurde diesmal nicht das Symptom verschoben, sondern die Ursache
+beseitigt — und eine Prüfung ergänzt, die bei mehreren Fensterbreiten
+nachsieht, was an der Stelle jedes Bedienelements tatsächlich obenauf liegt.
+
+**Der Knopf zurück zur eigenen Position ist jetzt immer da.** Bisher erschien
+er nur nach einem Schwenk mit dem Finger. Eine Suche bewegt die Karte aber
+programmatisch, und das zählte nicht als Schwenk — nach einer Suche gab es also
+keinen Weg zurück außer selbst hinzuscrollen. Der Knopf sitzt unten rechts
+(Fadenkreuz) und erscheint, sobald eine Position bekannt ist.
+
+**Noch nicht behoben:** die Ortssuche. Was ins Suchfeld getippt wird, findet
+weiterhin nichts — dafür fehlt der Suchindex, und der ist der nächste Schritt.
+Navigieren zu einem angetippten Punkt und zu Favoriten funktioniert wie bisher.
+
+## 0.3.2
+
+**Die Karte zeigt jetzt die Region, in der du bist.** Wer mehr als eine Region
+gebaut hatte, bekam immer dieselbe — die alphabetisch erste. Follow-Me zog die
+Karte danach auf die eigene Position, und dort hatte der geladene Kachelsatz
+keine Daten: **eine leere Fläche**, ohne Fehler, ohne Hinweis, ununterscheidbar
+von einem fehlgeschlagenen Kachelbau. Wer Liechtenstein und Rheinland-Pfalz
+gebaut hatte und in Rheinland-Pfalz saß, sah nichts.
+
+Ab jetzt entscheidet die Position. Überlappen sich Regionen (Rheinland-Pfalz
+und Deutschland über demselben Ort), gewinnt die kleinere — weniger Speicher,
+mehr Detail. Im Kartenmenü (🗺️) steht bei mehr als einer Region zusätzlich
+**„Angezeigte Region"**: „Automatisch" ist voreingestellt, eine feste Wahl ist
+für die Planung gedacht und gilt absichtlich nur bis zum Neustart.
+
+**Und wenn es für deine Position gar keine Karte gibt, steht das jetzt da.**
+Bisher war dieser Zustand von einem kaputten Kachelbau nicht zu unterscheiden.
+
+**Die GPS-Warnung ist wieder lesbar.** „GPS-Signal verloren" lag auf derselben
+Zeile wie Titel, Profil-Auswahl und Suchleiste — und unter allen dreien. Die
+Meldung war da, nur eben verdeckt. Sie hat jetzt eine eigene Zeile darunter.
+
+**Und sie leuchtet nicht mehr dauerhaft.** Mit der Companion App als Quelle war
+sie praktisch immer an: gemessen wurde gegen 3 Sekunden, aber die App meldet in
+Intervallen von Sekunden bis Minuten. Für Quellen, die in Intervallen melden,
+gelten jetzt fünf Minuten — dieselbe Grenze, ab der eine Position ohnehin
+verworfen wird. Für USB-GPS und Browser-Standort bleibt es bei 3 Sekunden.
+
+**Ziele haben jetzt Namen statt nur Koordinaten.** Tippst du einen Punkt auf
+der Karte an, steht dort „Bergstrasse" statt `47.14103, 9.52104` — gelesen aus
+den Kacheln, die ohnehin schon geladen sind. Kein Photon, kein Suchindex, kein
+Netz. Die Koordinaten bleiben zusätzlich stehen: der Name sagt, wohin es geht,
+die Zahlen sagen, welche Stelle genau gemeint ist.
+
+Zwei Grenzen dabei: es sind Straßen- und Ortsnamen, **keine Hausnummern**, und
+findet sich kein Name nah genug, bleibt es bei den Koordinaten. Ein Name aus
+30 km Entfernung wäre schlimmer als eine Zahl — man würde ihm glauben. Die
+Suche nach einer **getippten** Adresse braucht weiterhin einen Suchindex.
+
+## 0.3.1
+
+**Die Companion App lässt sich jetzt auch auswählen.** 0.3.0 hat die
+Positionsquelle gebaut — in der Konfiguration stand unter „gps_source"
+trotzdem nur `usb`, `network` und `none`. Einschalten ging allein über das
+freie Textfeld `ha_device_tracker` darunter, und dafür musste man erst
+wissen, dass es eine Entity-ID gibt, und sie dann in Home Assistant unter
+Entwicklerwerkzeuge → Zustände abschreiben. Eine Funktion, die man an der
+Stelle, an der man nachsieht, nicht findet, ist keine.
+
+`gps_source` hat jetzt einen vierten Wert: **`ha_tracker`**. Er genügt für
+sich allein — gibt es genau eine `device_tracker`-Entität mit Koordinaten
+(der Normalfall), sucht Yapaia sie selbst. Das Textfeld darunter ist nur noch
+nötig, wenn es mehrere gibt; dann wird bewusst **keiner geraten**, denn der
+zweite könnte das Telefon einer anderen Person sein, und die Navigation würde
+ihr stillschweigend folgen.
+
+**Die Installationsprüfung (🩺) nennt die Tracker jetzt wirklich beim Namen.**
+In der Add-on-Konfiguration stand seit 0.3.0 der Satz, sie liste alle
+gefundenen `device_tracker.*` mit Koordinaten auf. Das tat sie nicht — der
+Satz war eine Zusage ohne Deckung, und er stand ausgerechnet an der Stelle,
+an der man die Entity-ID sonst raten muss. Jetzt fragt die Prüfung Home
+Assistant und zeigt die gefundenen Namen an. Sie unterscheidet dabei drei
+Fälle, die vorher alle gleich ausgesehen hätten: kein Tracker vorhanden,
+Home Assistant nicht erreichbar, und eine eingetragene Entität, die es so
+nicht gibt (der teuerste Fall — alles sieht eingerichtet aus, und es kommt
+trotzdem nie eine Position).
+
+**Voreinstellung ist jetzt `none` statt `usb`.** Ein USB-GPS-Empfänger ist
+Zubehör, das die wenigsten haben. Mit `usb` meldete die Prüfung bei jeder
+frischen Installation „gpsd ist eingeschaltet, antwortet aber nicht unter
+127.0.0.1:2947" — eine Warnung über ein Gerät, das nie da war. **Bestehende
+Installationen behalten ihre eigene Einstellung**; wer bisher `usb` stehen
+hatte und keinen Empfänger besitzt, stellt hier am besten auf `ha_tracker`
+oder `none` um.
+
+## 0.3.0
+
+**Start und Ziel sind jetzt beide wählbar.** Bisher konnte man nur ein Ziel
+setzen — der Start war zwangsweise die aktuelle GPS-Position. Wer keine
+Position hatte, konnte damit **keine einzige Route berechnen**, obwohl Karte
+und Routinggraph fertig waren.
+
+Im Routing-Fenster steht jetzt oben eine Zeile „Start". Voreingestellt bleibt
+„Aktuelle Position (GPS)" — das ist der Normalfall im Fahrzeug. Mit „Start
+wählen" tippst du stattdessen einen Punkt auf der Karte an; mit „GPS" geht es
+zurück auf die Live-Position. Der gewählte Start gilt auch dann, wenn du
+später über einen Favoriten losfährst.
+
+**Neu: Position aus der Home-Assistant-Companion-App.**
+
+Der Browser gibt seinen GPS-Sensor nur über HTTPS frei. Läuft Home Assistant
+über `http://`, bekommt Yapaia vom Telefon, Tablet oder Autoradio also gar
+keine Position — daran kann das Add-on nichts ändern. Die Companion App
+umgeht das: sie meldet an Home Assistant, nicht an den Browser, und liefert
+auch bei gesperrtem Bildschirm weiter.
+
+Einrichten in der Add-on-Konfiguration unter **`ha_device_tracker`**, z. B.
+`device_tracker.mein_telefon`. Welche Entität du hast, steht in Home
+Assistant unter Entwicklerwerkzeuge → Zustände. Leer lassen = aus.
+
+Die Reihenfolge der Quellen ist `USB-GPS > Browser > Companion App >
+Simulator`: die App meldet in Intervallen und ist damit träger als ein
+laufender Browser-Standort — sie ist die Quelle, die es **gibt**, wenn der
+Browser keine liefert, nicht ihr Ersatz.
+
+Zwei Dinge, die dabei bewusst so sind: ein Zustand, der älter als fünf
+Minuten ist, wird **verworfen** statt als aktuelle Position ausgegeben (eine
+alte Position, die aussieht wie eine Messung, ist die gefährlichste
+Falschaussage in einer Navigation). Und der Zeitstempel kommt von Home
+Assistant, nicht von der Uhr des Add-ons — nur so erkennt die
+Sprungerkennung einen Tracker, der nach einer Funklücke 300 km weiter wieder
+auftaucht.
+
+## 0.2.2
+
+**Nach einem Bau steht jetzt da, dass er geklappt hat.** Bisher verschwand
+die Fortschrittsanzeige am Ende einfach, und übrig blieb eine Oberfläche wie
+vor dem Klick — ob der Bau geglückt oder still gestorben war, ließ sich nur
+im Add-on-Protokoll nachsehen. Also genau dort, wohin der Weg über die
+Oberfläche nicht führen soll. Ein mehrminütiger Vorgang endet jetzt mit einer
+Bestätigung.
+
+**Zwei irreführende Fehlermeldungen weniger.** Nach einem erfolgreichen
+Routingbau standen beim Start des Routing-Dienstes diese Zeilen im
+Protokoll:
+
+```
+[ERROR] (stat): /custom_files/valhalla_tiles.tar No such file or directory
+[WARN]  Tile extract could not be loaded
+```
+
+Sie waren folgenlos — der Dienst benutzt danach das Kachelverzeichnis und
+läuft — aber „ERROR" direkt nach einem geglückten Bau ist genau die Sorte
+Meldung, die auf eine falsche Fährte führt. Die Konfiguration verweist jetzt
+nicht mehr auf Dateien, die gar nicht gebaut werden.
+
+## 0.2.1
+
+**„Routing bauen" ist jetzt auch bei einer bereits installierten Karte
+erreichbar.**
+
+In 0.2.0 stand der Knopf nur bei Regionen, die noch **nicht** installiert
+waren. Sobald die Kacheln fertig waren, wanderte die Region in „Installierte
+Regionen" — und der Knopf verschwand mit ihr. Wer die Karte gebaut hatte,
+hatte damit keinen Weg mehr zum Routinggraphen, obwohl die
+Installationsprüfung ihn weiterhin anmahnte.
+
+Der naheliegende Ausweg — die Karte löschen, um den Knopf zurückzubekommen —
+führt ebenfalls nicht weiter: die letzte installierte Region lässt sich nicht
+löschen. Eine Sackgasse mit zwei Wänden.
+
+Der Routinggraph ist ein **zweites, unabhängiges Erzeugnis**: wer die Karte
+hat, hat noch lange kein Routing. Der Knopf steht deshalb jetzt in beiden
+Abschnitten. Ein laufender Bau zeigt dort auch seinen Fortschritt — vorher
+gab es die Anzeige nur im Katalog, also gerade nicht dort, wo der Routingbau
+stattfindet.
+
+## 0.2.0
+
+**Der Routinggraph lässt sich jetzt auf dem Gerät bauen — neuer Knopf
+„Routing bauen" im Regionen-Panel.**
+
+Bisher stand in der Installationsprüfung, das ginge nicht: das Bauwerkzeug
+brauche einen Docker-Socket, den ein Home-Assistant-Add-on nicht hat. Das
+galt für unser *Skript*, nicht für die *Werkzeuge*. Dieses Add-on setzt auf
+dem Valhalla-Image auf, und dessen Bau-Werkzeuge liegen längst im Container —
+`valhalla_build_tiles` und Geschwister, samt komplettem Bau-Rezept. Der
+Hinweis schickte also an einen zweiten Rechner, obwohl alles Nötige schon da
+war.
+
+Bei Liechtenstein dauert der Bau Minuten. Danach startet der Routing-Dienst
+binnen 30 Sekunden von allein — **kein Neustart des Add-ons nötig.**
+
+**Ein Graph, der woanders gebaut wurde, funktioniert jetzt auch.** Das ist
+kein Nebeneffekt, sondern ein eigener Fehler: Valhalla schreibt absolute
+Pfade in seine Konfiguration, die auf ein Verzeichnis zeigten, das es in
+diesem Add-on gar nicht gab. Eine hereinkopierte Datei wäre also ebenso ins
+Leere gelaufen. Behoben.
+
+**Nur ein schwerer Bau gleichzeitig.** Kachelbau und Routingbau teilen sich
+Platte und Arbeitsspeicher derselben Maschine, auf der auch Home Assistant
+läuft. Wer den zweiten startet, während der erste läuft, bekommt jetzt eine
+Meldung statt zweier Läufe, die sich gegenseitig aushungern.
+
+## 0.1.9
+
+**Zwei Kachelbauten gleichzeitig gehen nicht mehr — und das ist eine
+Reparatur, keine Einschränkung.**
+
+Bricht der Bau bei dir mit dieser Zeile ab, ist genau das hier gemeint:
+
+```
+java.util.zip.ZipException: zip END header not found
+```
+
+Das sieht nach einer kaputten Datei aus, war aber ein Wettlauf: wird
+„Kacheln bauen" ein zweites Mal gedrückt, während der erste Lauf noch die
+gemeinsamen Basisdaten lädt, liest der zweite Prozess eine Datei, die der
+erste gerade erst schreibt. Beide teilen sich dasselbe Verzeichnis.
+
+Ein zweiter Bau wird jetzt abgelehnt, solange einer läuft — auch für eine
+**andere** Region, denn geteilt ist das Quellenverzeichnis, nicht die
+Region. Die Meldung sagt, warum.
+
+**Eine abgebrochene Basisdatei blockiert nicht mehr dauerhaft.** Wurde eine
+der gemeinsamen Dateien nur halb geladen, wurde sie danach nie wieder
+erneuert — sie existierte ja — und jeder weitere Bau scheiterte an derselben
+Stelle. Da die Datei unter `/share` liegt und der vorgesehene Bedienweg nur
+die Oberfläche ist, gab es kein Mittel, sie loszuwerden. Unvollständige
+Dateien werden jetzt vor dem Bau erkannt, verworfen und neu geladen.
+
+**Abbrechen wirkt sofort.** Ein abgebrochener Bau gibt den Knopf sofort
+wieder frei, statt zu warten, bis der Hintergrundprozess tatsächlich endet.
+
+## 0.1.8
+
+**Der Kachelbau läuft jetzt tatsächlich durch.**
+
+Bricht der Bau bei dir mit dieser Zeile ab, ist genau das hier gemeint:
+
+```
+java.lang.IllegalArgumentException: data/sources/lake_centerline.shp.zip
+does not exist. Run with --download to fetch it
+```
+
+Die Karte entsteht nicht allein aus dem OSM-Extrakt der Region. Das benutzte
+Kartenprofil braucht zusätzlich drei **nicht regionsspezifische** Datensätze:
+Wasserflächen, Natural-Earth-Basisdaten und Seen-Mittellinien. Der Aufruf an
+planetiler forderte sie nie an — er war damit von Anfang an unvollständig und
+hätte in keiner Umgebung funktioniert.
+
+Was das für dich heißt:
+
+* Der **erste** Kachelbau lädt diese gemeinsamen Basisdaten einmalig nach
+  `/share/yapaia/planetiler-sources/`. Das sind mehrere hundert MB und dauert
+  entsprechend länger als der eigentliche Bau von Liechtenstein.
+* Jede **weitere** Region benutzt dieselben Dateien und lädt nichts mehr nach.
+* Die Ablage liegt unter `/share`, überlebt also Add-on-Updates.
+
+Außerdem: dieser Changelog. Ab jetzt steht vor jedem Update hier, was sich
+ändert.
+
+## 0.1.7
+
+**Der Knopf „Kacheln bauen" funktioniert.** Vorher brach er immer ab mit:
+
+```
+FEHLER: docker nicht im PATH gefunden.
+```
+
+und riet dazu, die Kacheln „auf einem anderen Rechner" zu bauen — aus der
+Oberfläche heraus, die den Bau gerade erst möglich machen sollte. Der Grund
+war nicht der fehlende Docker: das Add-on kann planetiler auch direkt als
+Java-Programm starten, und dieser Weg war korrekt vorbereitet. Die
+Docker-Prüfung lief nur unabhängig davon und stoppte vorher.
+
+**Der Bau arbeitet jetzt unter `/share`** statt im Container. Vorher prüfte
+das Add-on den freien Platz auf der einen Platte und arbeitete dann auf einer
+anderen — bei einer kleinen Region unauffällig, bei Rheinland-Pfalz wäre der
+Lauf nach Stunden am Platz gescheitert.
+
+**Browser-Standort:** Wer Yapaia auf Telefon, Tablet oder Autoradio öffnet,
+konnte den Gerätestandort bisher nicht dauerhaft nutzen — nach etwa fünf
+Sekunden hörte die App auf, Positionen zu senden, und es erschien im Wechsel
+„GPS-Signal verloren". Das ist behoben.
+
+**Ein falscher Hinweis ist raus.** Fehlt der Standortzugriff, nannte die App
+als Lösung „Home Assistant Ingress (immer HTTPS)". Das stimmt nicht: Ingress
+benutzt dasselbe Protokoll wie Home Assistant selbst. Wer HA über `http://`
+aufruft, bekommt auch über Ingress kein HTTPS — und der Browser gibt den
+GPS-Sensor nur über HTTPS frei. Der Hinweis nennt jetzt die Wege, die
+wirklich helfen (siehe `docs/gps-endgeraete.md`).
+
+## 0.1.6
+
+**Der Kachelbau sagt endlich, woran er scheitert.** Vorher stand im Fehlerfall
+nur „Code 1" — die Ausgabe des Bauprozesses wurde gelesen und danach
+weggeworfen, obwohl die Meldung auf das Add-on-Protokoll verwies. Jetzt steht
+jede Zeile dort unter `[Kachelbau <region>]`, und die letzte Zeile zusätzlich
+in der Fehlermeldung selbst.
+
+**Das Protokoll ist wieder lesbar.** Es lief voll mit
+`log.sh: line 107: info: unbound variable`, weil eine interne Einstellung
+denselben Namen trug wie eine von Home Assistants Werkzeugen.
+
+## 0.1.5
+
+**Updates kamen tatsächlich an.** Vorher konnte man aktualisieren und bekam
+dieselbe Oberfläche wie zuvor: der Bau griff auf eine zwischengespeicherte
+Schicht zurück und holte den neuen Quelltext nie.
+
+## 0.1.4
+
+**Kacheln lassen sich aus der Oberfläche bauen** — Knopf „Kacheln bauen" im
+Kartenmenü, mit Fortschritt und Abbruch. Vorher ging das nur über eine
+Kommandozeile im Container, an die man mit dem Terminal-Add-on gar nicht
+herankommt.
+
+## 0.1.3
+
+**Das Bau-Skript liegt im Add-on-Image.** Vorher verwiesen alle Anweisungen
+auf Dateien aus dem Repository — wer über den Store installiert, hat das
+nicht.
+
+**Die Installationsprüfung nennt keine Knöpfe mehr, die es nicht gibt.**
+
+## 0.1.2
+
+**Das Add-on startet.** Vorher blieb es nach der Installation stehen mit:
+
+```
+s6-supervise core: warning: unable to spawn ./run
+bashio::log.info: command not found
+```
+
+## 0.1.1
+
+**Die Installation läuft durch.** Vorher brach der Bau ab mit:
+
+```
+Could not open lock file /var/lib/apt/lists/lock - Permission denied
+```
+
+## 0.1.0
+
+Erste installierbare Fassung über den Home-Assistant-Add-on-Store.

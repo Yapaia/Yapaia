@@ -104,12 +104,12 @@ export const RUNTIME_BUDGETS: readonly BudgetDefinition[] = [
 export const RSS_BUDGETS: readonly BudgetDefinition[] = [
   {
     id: 'rss_core_mb',
-    label: 'RSS yapaja-core (Node)',
+    label: 'RSS yapaia-core (Node)',
     unit: 'MB',
     budget: 300,
     direction: 'max',
     scope: 'server',
-    source: 'docs/01 §4: "yapaja-core (Node) <= 300 MB"',
+    source: 'docs/01 §4: "yapaia-core (Node) <= 300 MB"',
   },
   {
     id: 'rss_valhalla_mb',

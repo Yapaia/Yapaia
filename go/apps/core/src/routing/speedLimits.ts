@@ -8,8 +8,8 @@
  *     const speed_limits: SpeedSegment[] = [];
  *
  * Das war ehrlich (lieber leer als erfunden), aber die Folge war eine
- * vollstaendige Kette ohne Inhalt: `sensor.yapaja_speed_limit` blieb immer
- * leer, `binary_sensor.yapaja_speeding` immer aus, das Verkehrsschild
+ * vollstaendige Kette ohne Inhalt: `sensor.yapaia_speed_limit` blieb immer
+ * leer, `binary_sensor.yapaia_speeding` immer aus, das Verkehrsschild
  * erschien nie. Gemeldet als „Ich haette gerne ueberhaupt eine Anzeige".
  *
  * Die Limits liefert `/trace_attributes`: man reicht die fertige

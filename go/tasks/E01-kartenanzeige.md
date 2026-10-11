@@ -34,7 +34,7 @@ gegen Mini-PMTiles-Fixture (Fixture aus einem winzigen Extrakt ins Repo legen, <
 
 **Aufgabe:** Map-Komponente mit MapLibre GL + PMTiles-Protokoll (`pmtiles://`
 auf den Core-Endpunkt, **relative URL**, W-15). Lade Style von
-`/api/v1/map/styles/{id}` (bis E01-T4 eine statische `yapaja-light.json` im Core,
+`/api/v1/map/styles/{id}` (bis E01-T4 eine statische `yapaia-light.json` im Core,
 abgeleitet vom Protomaps-Light-Style, Quellen auf lokale Tiles zeigend).
 Grundgesten aktiv (Pan, Pinch, Rotate, Tilt, Doppeltipp — docs/06 §4).
 Zoom-Buttons + OSM-Attribution. Map-Instanz über einen `MapController`
@@ -76,7 +76,7 @@ Follow-Pause-Timerlogik.
 - **Pfade:** `apps/core/src/map/styles/`, `apps/web/src/map/`
 
 **Aufgabe:** Core: `GET /api/v1/map/styles` + `/{id}` liefert Styles
-`yapaja-light`, `yapaja-dark`, `yapaja-contrast` (JSON im Repo; Dark = echte
+`yapaia-light`, `yapaia-dark`, `yapaia-contrast` (JSON im Repo; Dark = echte
 Nacht-Palette, nicht invertiert; Contrast = reduzierte POI, dicke Straßen).
 Quellen-URLs werden beim Ausliefern auf die lokale Tile-URL umgeschrieben.
 Web: Style-Umschalter in einem (vorläufigen) Settings-Panel; Style-Wechsel ohne

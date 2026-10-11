@@ -79,7 +79,7 @@ describe('runBuildJob — Prozessstart', () => {
     const stub = makeStub();
     const calls: Array<{ cmd: string; args: string[]; env: Record<string, string | undefined> }> = [];
 
-    runBuildJob(id, jobs, ENTRY, '/share/yapaja/tiles', {
+    runBuildJob(id, jobs, ENTRY, '/share/yapaia/tiles', {
       spawnFn: (cmd, args, env) => {
         calls.push({ cmd, args, env });
         return stub.child;
@@ -92,7 +92,7 @@ describe('runBuildJob — Prozessstart', () => {
     expect(calls[0].args).toEqual([ENTRY.pbfUrl, 'liechtenstein']);
     // TILES_DIR muss das Add-on-Verzeichnis sein, nicht der Repo-Default --
     // sonst landen die Kacheln dort, wo der Core sie nie sucht.
-    expect(calls[0].env.TILES_DIR).toBe('/share/yapaja/tiles');
+    expect(calls[0].env.TILES_DIR).toBe('/share/yapaia/tiles');
     expect(calls[0].env.PLANETILER_XMX).toBe('2g');
     expect(jobs.get(id)?.status).toBe('running');
   });
@@ -123,7 +123,7 @@ describe('runBuildJob — Prozessstart', () => {
     const stub = makeStub();
     runBuildJob(id, jobs, ENTRY, '/tiles', { spawnFn: () => stub.child });
 
-    stub.fail(new Error('spawn /usr/bin/yapaja-build-pmtiles ENOENT'));
+    stub.fail(new Error('spawn /usr/bin/yapaia-build-pmtiles ENOENT'));
 
     const job = jobs.get(id);
     expect(job?.status).toBe('error');

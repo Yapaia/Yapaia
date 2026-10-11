@@ -18,7 +18,7 @@ import { lageAufRoute, naechsteMeldungen } from './entlangDerRoute.js';
 import { useRoutenMeldungen } from './useRoutenMeldungen.js';
 import { useAnordnung } from '../shell/useAnordnung.js';
 
-const SCHLUESSEL = 'yapaja.verkehrListeZu';
+const SCHLUESSEL = 'yapaia.verkehrListeZu';
 
 function liesZu(): boolean {
   try {

@@ -284,7 +284,7 @@ async function buildHarness(): Promise<Harness> {
   subscriber.on('error', () => {});
   await new Promise<void>((resolve) => subscriber.once('connect', () => resolve()));
   await new Promise<void>((resolve, reject) =>
-    subscriber.subscribe('yapaja/#', { qos: 1 }, (err) => (err ? reject(err) : resolve())),
+    subscriber.subscribe('yapaia/#', { qos: 1 }, (err) => (err ? reject(err) : resolve())),
   );
   const records = recordMessages(subscriber);
 
@@ -299,7 +299,7 @@ async function buildHarness(): Promise<Harness> {
   const bridge = new MqttBridge({
     bus,
     brokerUrl,
-    prefix: 'yapaja',
+    prefix: 'yapaia',
     navigationService,
     profileService,
     favoriteService,
@@ -311,7 +311,7 @@ async function buildHarness(): Promise<Harness> {
   });
 
   await waitUntil(() => bridge.isConnected());
-  await waitUntil(() => Boolean(latestOf(records, 'yapaja/status')));
+  await waitUntil(() => Boolean(latestOf(records, 'yapaia/status')));
 
   return { brokerCtx, subscriber, records, bus, navigationService, routing, profileService, favoriteService, bridge };
 }
@@ -336,15 +336,15 @@ describe('MqttBridge (aedes in-process broker)', () => {
     await teardownHarness(h);
   });
 
-  it('publishes yapaja/status=online retained on connect (LWT counterpart)', async () => {
-    const status = latestOf(h.records, 'yapaja/status');
+  it('publishes yapaia/status=online retained on connect (LWT counterpart)', async () => {
+    const status = latestOf(h.records, 'yapaia/status');
     expect(status?.raw).toBe('online');
 
     // Retention itself is only observable via a FRESH subscribe (see
     // `collectRetained`'s doc comment) -- a late-joining HA instance must see
     // "online" immediately, without waiting for the next live publish.
     const brokerUrl = `mqtt://127.0.0.1:${h.brokerCtx.port}`;
-    const retained = await collectRetained(brokerUrl, 'yapaja/status');
+    const retained = await collectRetained(brokerUrl, 'yapaia/status');
     expect(retained).toHaveLength(1);
     expect(retained[0]!.raw).toBe('online');
     expect(retained[0]!.retain).toBe(true);
@@ -388,7 +388,7 @@ describe('MqttBridge (aedes in-process broker)', () => {
       say: 'In 150 Metern links abbiegen',
     });
     // Ein Zustandstakt mit anstehendem Manoever -- daraus muss
-    // `yapaja/nav/maneuver` entstehen. Genau dieses Topic speist die beiden
+    // `yapaia/nav/maneuver` entstehen. Genau dieses Topic speist die beiden
     // Anzeige-Sensoren, seit die Entfernung im Dashboard einfror.
     h.bus.publish('nav/state', {
       status: 'navigating',
@@ -415,41 +415,41 @@ describe('MqttBridge (aedes in-process broker)', () => {
     h.bus.publish('event/arrived', { route_id: 'drive-route-1', destination: null, ts: new Date().toISOString() });
     h.bus.publish('event/gps_lost', { lastSource: 'simulator' });
 
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/event/gps_lost')));
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/event/gps_lost')));
     await sleep(50);
 
     // Live-delivery payload-shape checks (content only; MQTT retain-flag
     // semantics on an already-subscribed live delivery are always 0 per
     // spec regardless of the publish's own retain flag -- see
     // `collectRetained`'s doc comment for the retained-ness checks below).
-    const positionMsg = latestOf(h.records, 'yapaja/position');
+    const positionMsg = latestOf(h.records, 'yapaia/position');
     expect(positionMsg).toBeDefined();
     expect(typeof (positionMsg!.payload as { lat: number }).lat).toBe('number');
 
-    const navStateMsg = latestOf(h.records, 'yapaja/nav/state')!;
+    const navStateMsg = latestOf(h.records, 'yapaia/nav/state')!;
     expect(['idle', 'routing', 'navigating', 'paused', 'arrived', 'off_route']).toContain(navStateMsg.raw);
 
-    const etaMsg = latestOf(h.records, 'yapaja/nav/eta')!;
+    const etaMsg = latestOf(h.records, 'yapaia/nav/eta')!;
     expect(etaMsg.payload).toHaveProperty('eta');
     expect(etaMsg.payload).toHaveProperty('duration_remaining_s');
     expect(etaMsg.payload).toHaveProperty('distance_remaining_m');
 
-    const speedMsg = latestOf(h.records, 'yapaja/nav/speed')!;
+    const speedMsg = latestOf(h.records, 'yapaia/nav/speed')!;
     expect(speedMsg.payload).toHaveProperty('speeding');
 
-    const altitudeMsg = latestOf(h.records, 'yapaja/nav/altitude')!;
+    const altitudeMsg = latestOf(h.records, 'yapaia/nav/altitude')!;
     expect(altitudeMsg.payload).toHaveProperty('altitude_m');
 
-    expect(latestOf(h.records, 'yapaja/nav/destination')).toBeDefined();
+    expect(latestOf(h.records, 'yapaia/nav/destination')).toBeDefined();
 
-    const summaryMsg = latestOf(h.records, 'yapaja/route/summary')!;
+    const summaryMsg = latestOf(h.records, 'yapaia/route/summary')!;
     expect(summaryMsg.payload).toEqual({
       distance_m: expect.any(Number),
       duration_s: expect.any(Number),
       via: ['Fahrweg'],
     });
 
-    const instructionMsg = latestOf(h.records, 'yapaja/nav/instruction')!;
+    const instructionMsg = latestOf(h.records, 'yapaia/nav/instruction')!;
     expect(instructionMsg.payload).toEqual({
       type: 'turn_left',
       instruction: 'Links abbiegen auf B27',
@@ -462,7 +462,7 @@ describe('MqttBridge (aedes in-process broker)', () => {
     // Die ANZEIGE des Manoevers -- aus dem Zustand, nicht aus der Ansage.
     // Die Ansage oben trug `distance_m: 150`, der Zustand 275: steht hier
     // 150, haengt die Anzeige wieder an der falschen Quelle.
-    const maneuverMsg = latestOf(h.records, 'yapaja/nav/maneuver')!;
+    const maneuverMsg = latestOf(h.records, 'yapaia/nav/maneuver')!;
     expect(maneuverMsg.payload).toEqual({
       type: 'turn_right',
       instruction: 'Rechts abbiegen auf die Bergstrasse',
@@ -472,30 +472,30 @@ describe('MqttBridge (aedes in-process broker)', () => {
       roundabout: '',
     });
 
-    for (const eventTopic of ['yapaja/event/deviation', 'yapaja/event/arrived', 'yapaja/event/gps_lost']) {
+    for (const eventTopic of ['yapaia/event/deviation', 'yapaia/event/arrived', 'yapaia/event/gps_lost']) {
       expect(latestOf(h.records, eventTopic), `${eventTopic} should have been published`).toBeDefined();
     }
 
     // Retained-ness (docs/03 §4: retain ✔ for state topics, ✘ for events) --
     // only reliably observable via a fresh subscribe (see `collectRetained`).
     const brokerUrl = `mqtt://127.0.0.1:${h.brokerCtx.port}`;
-    const retained = await collectRetained(brokerUrl, 'yapaja/#');
+    const retained = await collectRetained(brokerUrl, 'yapaia/#');
     const retainedTopics = new Set(retained.map((r) => r.topic));
     for (const stateTopic of [
-      'yapaja/status',
-      'yapaja/position',
-      'yapaja/nav/state',
-      'yapaja/nav/eta',
-      'yapaja/nav/speed',
-      'yapaja/nav/altitude',
-      'yapaja/nav/destination',
-      'yapaja/route/summary',
-      'yapaja/nav/instruction',
-      'yapaja/nav/maneuver',
+      'yapaia/status',
+      'yapaia/position',
+      'yapaia/nav/state',
+      'yapaia/nav/eta',
+      'yapaia/nav/speed',
+      'yapaia/nav/altitude',
+      'yapaia/nav/destination',
+      'yapaia/route/summary',
+      'yapaia/nav/instruction',
+      'yapaia/nav/maneuver',
     ]) {
       expect(retainedTopics.has(stateTopic), `${stateTopic} should be retained`).toBe(true);
     }
-    for (const eventTopic of ['yapaja/event/deviation', 'yapaja/event/arrived', 'yapaja/event/gps_lost']) {
+    for (const eventTopic of ['yapaia/event/deviation', 'yapaia/event/arrived', 'yapaia/event/gps_lost']) {
       expect(retainedTopics.has(eventTopic), `${eventTopic} must NOT be retained`).toBe(false);
     }
   });
@@ -503,12 +503,12 @@ describe('MqttBridge (aedes in-process broker)', () => {
   it('acceptance #2: cmd/destination takes effect and cmd/result confirms it', async () => {
     h.records.length = 0;
     h.subscriber.publish(
-      'yapaja/cmd/destination',
+      'yapaia/cmd/destination',
       JSON.stringify({ lat: 47.05, lon: 9.55, autostart: true, request_id: 'req-dest-1' }),
     );
 
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/cmd/result')));
-    const result = latestOf(h.records, 'yapaja/cmd/result')!;
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/cmd/result')));
+    const result = latestOf(h.records, 'yapaia/cmd/result')!;
     expect(result.payload).toEqual({ cmd: 'destination', ok: true, request_id: 'req-dest-1' });
     expect(h.navigationService.getStatus()).toBe('navigating');
   });
@@ -518,41 +518,41 @@ describe('MqttBridge (aedes in-process broker)', () => {
     h.navigationService.start({ route_id: 'drive-route-1' });
     h.records.length = 0;
 
-    h.subscriber.publish('yapaja/cmd/navigation', 'pause');
-    await waitUntil(() => h.records.filter((r) => r.topic === 'yapaja/cmd/result').length >= 1);
+    h.subscriber.publish('yapaia/cmd/navigation', 'pause');
+    await waitUntil(() => h.records.filter((r) => r.topic === 'yapaia/cmd/result').length >= 1);
     expect(h.navigationService.getStatus()).toBe('paused');
-    expect(latestOf(h.records, 'yapaja/cmd/result')!.payload).toEqual({ cmd: 'navigation', ok: true });
+    expect(latestOf(h.records, 'yapaia/cmd/result')!.payload).toEqual({ cmd: 'navigation', ok: true });
 
-    h.subscriber.publish('yapaja/cmd/navigation', 'resume');
-    await waitUntil(() => h.records.filter((r) => r.topic === 'yapaja/cmd/result').length >= 2);
+    h.subscriber.publish('yapaia/cmd/navigation', 'resume');
+    await waitUntil(() => h.records.filter((r) => r.topic === 'yapaia/cmd/result').length >= 2);
     expect(h.navigationService.getStatus()).toBe('navigating');
 
-    h.subscriber.publish('yapaja/cmd/navigation', 'stop');
-    await waitUntil(() => h.records.filter((r) => r.topic === 'yapaja/cmd/result').length >= 3);
+    h.subscriber.publish('yapaia/cmd/navigation', 'stop');
+    await waitUntil(() => h.records.filter((r) => r.topic === 'yapaia/cmd/result').length >= 3);
     expect(h.navigationService.getStatus()).toBe('idle');
   });
 
   it('acceptance #2: cmd/profile activates a profile by name', async () => {
     h.records.length = 0;
-    h.subscriber.publish('yapaja/cmd/profile', JSON.stringify({ name: 'Camper' }));
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/cmd/result')));
-    expect(latestOf(h.records, 'yapaja/cmd/result')!.payload).toEqual({ cmd: 'profile', ok: true });
+    h.subscriber.publish('yapaia/cmd/profile', JSON.stringify({ name: 'Camper' }));
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/cmd/result')));
+    expect(latestOf(h.records, 'yapaia/cmd/result')!.payload).toEqual({ cmd: 'profile', ok: true });
     expect(h.profileService.activated).toEqual(['p1']);
   });
 
   it('acceptance #2: cmd/favorite starts a route to a known favorite', async () => {
     h.records.length = 0;
-    h.subscriber.publish('yapaja/cmd/favorite', JSON.stringify({ name: 'Zuhause' }));
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/cmd/result')));
-    expect(latestOf(h.records, 'yapaja/cmd/result')!.payload).toEqual({ cmd: 'favorite', ok: true });
+    h.subscriber.publish('yapaia/cmd/favorite', JSON.stringify({ name: 'Zuhause' }));
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/cmd/result')));
+    expect(latestOf(h.records, 'yapaia/cmd/result')!.payload).toEqual({ cmd: 'favorite', ok: true });
     expect(h.navigationService.getStatus()).toBe('navigating');
   });
 
   it('acceptance #2 (error case): cmd/favorite with an unknown name -> ok:false, never crashes', async () => {
     h.records.length = 0;
-    h.subscriber.publish('yapaja/cmd/favorite', JSON.stringify({ name: 'Nirgendwo', request_id: 'req-fav-err' }));
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/cmd/result')));
-    const result = latestOf(h.records, 'yapaja/cmd/result')!;
+    h.subscriber.publish('yapaia/cmd/favorite', JSON.stringify({ name: 'Nirgendwo', request_id: 'req-fav-err' }));
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/cmd/result')));
+    const result = latestOf(h.records, 'yapaia/cmd/result')!;
     expect(result.payload).toMatchObject({ cmd: 'favorite', ok: false, request_id: 'req-fav-err' });
     expect((result.payload as { error: string }).error).toMatch(/Nirgendwo/);
     // The bridge itself must still be perfectly healthy after a failed command.
@@ -561,9 +561,9 @@ describe('MqttBridge (aedes in-process broker)', () => {
 
   it('acceptance #2 (error case): cmd/profile with an unknown id -> ok:false', async () => {
     h.records.length = 0;
-    h.subscriber.publish('yapaja/cmd/profile', JSON.stringify({ id: 'does-not-exist' }));
-    await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/cmd/result')));
-    expect(latestOf(h.records, 'yapaja/cmd/result')!.payload).toMatchObject({ cmd: 'profile', ok: false });
+    h.subscriber.publish('yapaia/cmd/profile', JSON.stringify({ id: 'does-not-exist' }));
+    await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/cmd/result')));
+    expect(latestOf(h.records, 'yapaia/cmd/result')!.payload).toMatchObject({ cmd: 'profile', ok: false });
   });
 });
 
@@ -585,8 +585,8 @@ describe('MqttBridge reconnect (acceptance #3, Wargame W-06)', () => {
         fix: '3d',
         ts: new Date().toISOString(),
       });
-      await waitUntil(() => Boolean(latestOf(h.records, 'yapaja/nav/state')));
-      const stateBefore = latestOf(h.records, 'yapaja/nav/state')!.raw;
+      await waitUntil(() => Boolean(latestOf(h.records, 'yapaia/nav/state')));
+      const stateBefore = latestOf(h.records, 'yapaia/nav/state')!.raw;
       expect(stateBefore).toBe('navigating');
 
       // Sever exactly the bridge's TCP connection (connection #1; the
@@ -598,16 +598,16 @@ describe('MqttBridge reconnect (acceptance #3, Wargame W-06)', () => {
       h.records.length = 0;
       h.brokerCtx.connections[1]!.destroy();
 
-      // 1. LWT fires: the broker publishes the bridge's Will to yapaja/status.
+      // 1. LWT fires: the broker publishes the bridge's Will to yapaia/status.
       await waitUntil(() => {
-        const msg = latestOf(h.records, 'yapaja/status');
+        const msg = latestOf(h.records, 'yapaia/status');
         return Boolean(msg && msg.raw === 'offline');
       });
       expect(h.bridge.isConnected()).toBe(false);
       // Confirm it was stored as a retained message too (a late-joining HA
       // instance must see "offline" immediately), via a fresh subscribe.
       const brokerUrlForRetainCheck = `mqtt://127.0.0.1:${h.brokerCtx.port}`;
-      const retainedWhileOffline = await collectRetained(brokerUrlForRetainCheck, 'yapaja/status');
+      const retainedWhileOffline = await collectRetained(brokerUrlForRetainCheck, 'yapaia/status');
       expect(retainedWhileOffline[0]?.raw).toBe('offline');
       expect(retainedWhileOffline[0]?.retain).toBe(true);
 
@@ -622,22 +622,22 @@ describe('MqttBridge reconnect (acceptance #3, Wargame W-06)', () => {
       // freshly republished.
       await waitUntil(() => h.bridge.isConnected(), 5000);
       await waitUntil(() => {
-        const msg = latestOf(h.records, 'yapaja/status');
+        const msg = latestOf(h.records, 'yapaia/status');
         return Boolean(msg && msg.raw === 'online');
       });
       await sleep(100); // let the full republish pass land
 
-      const navStateAfter = latestOf(h.records, 'yapaja/nav/state')!;
+      const navStateAfter = latestOf(h.records, 'yapaia/nav/state')!;
       expect(navStateAfter.raw).toBe('paused'); // PLAUSIBILITY: retained == current, not the stale 'navigating'.
 
-      expect(latestOf(h.records, 'yapaja/position')).toBeDefined();
-      expect(latestOf(h.records, 'yapaja/nav/eta')).toBeDefined();
+      expect(latestOf(h.records, 'yapaia/position')).toBeDefined();
+      expect(latestOf(h.records, 'yapaia/nav/eta')).toBeDefined();
 
-      // PLAUSIBILITY (docs/03 §4): the RETAINED yapaja/nav/state -- what a
+      // PLAUSIBILITY (docs/03 §4): the RETAINED yapaia/nav/state -- what a
       // late-joining HA instance would actually see -- must also be the
       // current 'paused', never the stale pre-outage 'navigating'.
       const brokerUrl = `mqtt://127.0.0.1:${h.brokerCtx.port}`;
-      const retainedAfter = await collectRetained(brokerUrl, 'yapaja/nav/state');
+      const retainedAfter = await collectRetained(brokerUrl, 'yapaia/nav/state');
       expect(retainedAfter[0]?.raw).toBe('paused');
       expect(retainedAfter[0]?.retain).toBe(true);
     } finally {

@@ -10,9 +10,9 @@ import type { VectorStyleSource } from './types';
 import { describe, it, expect } from 'vitest';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import type { StyleSpecification } from '@maplibre/maplibre-gl-style-spec';
-import { buildYapaiaContrastStyle } from './yapaja-contrast.js';
-import { buildYapaiaDarkStyle } from './yapaja-dark.js';
-import { buildYapaiaLightStyle } from './yapaja-light.js';
+import { buildYapaiaContrastStyle } from './yapaia-contrast.js';
+import { buildYapaiaDarkStyle } from './yapaia-dark.js';
+import { buildYapaiaLightStyle } from './yapaia-light.js';
 import { listStyleSummaries, getStyleDocument } from './registry.js';
 import { rewriteSourceUrls, tileUrlForRegion } from './rewrite.js';
 import { applyStyleOptions, parseStyleOptions } from './options.js';
@@ -20,9 +20,9 @@ import { PLACEHOLDER_TILE_URL, REGION_SOURCE_ID } from './constants.js';
 import type { MapStyleDocument, SymbolLayer } from './types.js';
 
 const STYLE_BUILDERS: Record<string, () => MapStyleDocument> = {
-  'yapaja-light': buildYapaiaLightStyle,
-  'yapaja-dark': buildYapaiaDarkStyle,
-  'yapaja-contrast': buildYapaiaContrastStyle,
+  'yapaia-light': buildYapaiaLightStyle,
+  'yapaia-dark': buildYapaiaDarkStyle,
+  'yapaia-contrast': buildYapaiaContrastStyle,
 };
 
 /** WCAG relative luminance of a `#rrggbb` hex color, in [0, 1]. */
@@ -82,24 +82,24 @@ describe('style spec validation', () => {
 });
 
 describe('plausibility: dark vs light background luminance', () => {
-  it('yapaja-light background is in the light range (luminance > 0.7)', () => {
+  it('yapaia-light background is in the light range (luminance > 0.7)', () => {
     expect(relativeLuminance(backgroundColor(buildYapaiaLightStyle()))).toBeGreaterThan(0.7);
   });
 
-  it('yapaja-dark background is in the dark range (luminance < 0.3)', () => {
+  it('yapaia-dark background is in the dark range (luminance < 0.3)', () => {
     expect(relativeLuminance(backgroundColor(buildYapaiaDarkStyle()))).toBeLessThan(0.3);
   });
 
-  it('yapaja-contrast background is in the light range (luminance > 0.7)', () => {
+  it('yapaia-contrast background is in the light range (luminance > 0.7)', () => {
     expect(relativeLuminance(backgroundColor(buildYapaiaContrastStyle()))).toBeGreaterThan(0.7);
   });
 
-  it('yapaja-dark is NOT yapaja-light merely inverted / same background', () => {
+  it('yapaia-dark is NOT yapaia-light merely inverted / same background', () => {
     expect(backgroundColor(buildYapaiaDarkStyle())).not.toBe(backgroundColor(buildYapaiaLightStyle()));
   });
 });
 
-describe('yapaja-contrast: reduced POI, thick roads, high contrast baseline', () => {
+describe('yapaia-contrast: reduced POI, thick roads, high contrast baseline', () => {
   /**
    * Die ZUSAGE ist unveraendert -- im Kontraststil muessen Strassen kraeftiger
    * gezeichnet sein. Nur ihre Pruefung folgt der neuen Struktur: seit 0.3.7
@@ -108,7 +108,7 @@ describe('yapaja-contrast: reduced POI, thick roads, high contrast baseline', ()
    * Zoom-Ausdruck statt einer Zahl. Verglichen werden deshalb die
    * Breiten-Stuetzstellen, und zwar fuer JEDE Strassenklasse.
    */
-  it('roads are thicker than in yapaja-light, across every road class', () => {
+  it('roads are thicker than in yapaia-light, across every road class', () => {
     const contrast = buildYapaiaContrastStyle().layers;
     const light = buildYapaiaLightStyle().layers;
 
@@ -158,12 +158,12 @@ describe('registry', () => {
   it('lists exactly the six shipped styles', () => {
     const summaries = listStyleSummaries();
     expect(summaries.map((s) => s.id).sort()).toEqual([
-      'yapaja-contrast',
-      'yapaja-dark',
-      'yapaja-light',
-      'yapaja-minimal',
-      'yapaja-outdoor',
-      'yapaja-satellit',
+      'yapaia-contrast',
+      'yapaia-dark',
+      'yapaia-light',
+      'yapaia-minimal',
+      'yapaia-outdoor',
+      'yapaia-satellit',
     ]);
     for (const summary of summaries) {
       expect(summary.name).toBeTruthy();
@@ -175,8 +175,8 @@ describe('registry', () => {
   });
 
   it('getStyleDocument returns a fresh object each call (no shared mutable state)', () => {
-    const a = getStyleDocument('yapaja-light');
-    const b = getStyleDocument('yapaja-light');
+    const a = getStyleDocument('yapaia-light');
+    const b = getStyleDocument('yapaia-light');
     expect(a).not.toBe(b);
     expect(a).toEqual(b);
   });
@@ -327,7 +327,7 @@ describe('applyStyleOptions: poi', () => {
     expect(afterPlace).toEqual(beforePlace);
   });
 
-  it('an explicit ?poi=full overrides yapaja-contrast baked-in reduced default', () => {
+  it('an explicit ?poi=full overrides yapaia-contrast baked-in reduced default', () => {
     const contrastDefault = buildYapaiaContrastStyle().layers.find((l) => l.id === 'poi-labels') as SymbolLayer;
     expect(contrastDefault.filter).toBeDefined(); // baseline is reduced
 

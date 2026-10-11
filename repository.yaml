@@ -4,7 +4,7 @@
 # `config.yaml` (ausgenommen Punkt-Ordner und `rootfs/`), siehe
 # supervisor/store/data.py `_find_app_configs`. Jedes Modul kann deshalb seinen
 # Add-on-Ordner in seinem eigenen Verzeichnis behalten:
-#   go/yapaja_go/      → Yapaia Go
+#   go/yapaia_go/      → Yapaia Go
 #   beat/yapaia_beat/  → Yapaia Beat
 name: "Yapaia"
 url: "https://github.com/Yapaia/yapaia"

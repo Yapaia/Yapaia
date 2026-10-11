@@ -21,7 +21,7 @@ interface MqttFormValue {
   prefix: string;
 }
 
-const BLANK: MqttFormValue = { broker_url: '', username: '', password: '', prefix: 'yapaja' };
+const BLANK: MqttFormValue = { broker_url: '', username: '', password: '', prefix: 'yapaia' };
 
 export default function MqttStep(): React.ReactElement {
   const [ingress, setIngress] = useState<boolean | null>(null);
@@ -43,7 +43,7 @@ export default function MqttStep(): React.ReactElement {
             broker_url: form.broker_url || undefined,
             username: form.username || undefined,
             password: form.password || undefined,
-            prefix: form.prefix || 'yapaja',
+            prefix: form.prefix || 'yapaia',
           },
         }),
       });

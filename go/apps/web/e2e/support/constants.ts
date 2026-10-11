@@ -244,7 +244,7 @@ export const FLOW3_VALHALLA_PORT = 4335;
 export const FLOW8_CORE_PORT = 4336;
 export const FLOW8_MQTT_PORT = 4337;
 export const FLOW8_VALHALLA_PORT = 4338;
-export const FLOW8_MQTT_PREFIX = 'yapaja';
+export const FLOW8_MQTT_PREFIX = 'yapaia';
 /** flow-10 (add-on install from registry -> uninstall residue-free): own
  *  registry stub + own add-ons/storage dirs, so the residue assertions can
  *  look at the real directories on disk. */

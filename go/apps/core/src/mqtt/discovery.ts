@@ -6,12 +6,12 @@
  * frozen expected value (the mandatory "frozen snapshot per entity" test).
  * `bridge.ts` is the only caller: it publishes each `{topic, payload}` pair
  * RETAINED, on connect, on `<discoveryPrefix>/status` = `online` (HA
- * restart, W-07), and republishes just `select.yapaja_profile` whenever the
+ * restart, W-07), and republishes just `select.yapaia_profile` whenever the
  * live profile list changes.
  *
  * Discovery topic shape (docs/04 §1): `<discoveryPrefix>/<component>/
- * yapaja_<object>/config`. All entities share one HA "device" (`identifiers:
- * ['yapaja_go']`) and one `availability_topic` (`<statePrefix>/status`,
+ * yapaia_<object>/config`. All entities share one HA "device" (`identifiers:
+ * ['yapaia_go']`) and one `availability_topic` (`<statePrefix>/status`,
  * `online`/`offline` -- exactly what E08-T1's LWT + connect-time publish
  * already produce, see `bridge.ts`'s `handleConnect`/`dispose`).
  *
@@ -35,24 +35,24 @@ export interface DiscoveryDevice {
 }
 
 export interface DiscoveryEntity {
-  /** Full discovery config topic: `<discoveryPrefix>/<component>/yapaja_<object>/config`. */
+  /** Full discovery config topic: `<discoveryPrefix>/<component>/yapaia_<object>/config`. */
   topic: string;
   /** Retained JSON payload -- caller `JSON.stringify()`s this. */
   payload: Record<string, unknown>;
 }
 
 export interface BuildDiscoveryOptions {
-  /** Yapaia state-topic prefix (E08-T1's `prefix`, default `'yapaja'`). */
+  /** Yapaia state-topic prefix (E08-T1's `prefix`, default `'yapaia'`). */
   statePrefix: string;
   /** HA discovery-topic prefix (default `'homeassistant'`). */
   discoveryPrefix: string;
   device: DiscoveryDevice;
-  /** Live profile names (`ProfileService#getAll()` order) -- `select.yapaja_profile`'s `options`. */
+  /** Live profile names (`ProfileService#getAll()` order) -- `select.yapaia_profile`'s `options`. */
   profileNames: string[];
 }
 
 function discoveryTopic(discoveryPrefix: string, component: string, object: string): string {
-  return `${discoveryPrefix}/${component}/yapaja_${object}/config`;
+  return `${discoveryPrefix}/${component}/yapaia_${object}/config`;
 }
 
 /** `availability_topic`/`payload_available`/`payload_not_available` block shared by every entity. */
@@ -65,25 +65,25 @@ function availabilityFields(statePrefix: string): Record<string, unknown> {
 }
 
 function uniqueId(object: string): string {
-  return `yapaja_go_${object}`;
+  return `yapaia_go_${object}`;
 }
 
 /**
  * Die Entity-ID, die Home Assistant beim ANLEGEN vergeben soll -- also
- * `sensor.yapaja_speed` statt dessen, was HA sich sonst aus Geraete- und
+ * `sensor.yapaia_speed` statt dessen, was HA sich sonst aus Geraete- und
  * Entitaetsnamen zusammensetzt.
  *
  * ─── WARUM DAS NOETIG IST ───────────────────────────────────────────────────
  * `docs/04-home-assistant.md` §1 nennt die Entitaeten seit jeher beim Namen:
- * `sensor.yapaja_speed`, `sensor.yapaja_eta` und so fort. Ohne `object_id`
+ * `sensor.yapaia_speed`, `sensor.yapaia_eta` und so fort. Ohne `object_id`
  * bildet Home Assistant die ID aber aus Geraete- PLUS Entitaetsnamen -- aus
  * „Yapaia Go" + „Speed" wird `sensor.yapaia_go_speed`. Die Dokumentation
  * beschrieb damit Entitaeten, die es so nicht gab, und jedes fertige
  * Dashboard, das sich darauf stuetzte, zeigte „Entitaet nicht verfuegbar".
  *
- * Schlimmer noch: die IDs haengen so am ANZEIGENAMEN des Geraets. Der hat
- * sich in 0.6.7 von „Yapaja Go" zu „Yapaia Go" geaendert -- und haette bei
- * jeder Neuinstallation andere IDs ergeben als vorher.
+ * Schlimmer noch: die IDs haengen so am ANZEIGENAMEN des Geraets -- und
+ * jede Umbenennung des Geraets haette bei einer Neuinstallation andere IDs
+ * ergeben als vorher.
  *
  * ACHTUNG, was das NICHT tut: bestehende Entitaeten benennt Home Assistant
  * dadurch nicht um (die Registrierung merkt sich die einmal vergebene ID).
@@ -91,11 +91,11 @@ function uniqueId(object: string): string {
  * `ha/dashboard.ts` sie zur Laufzeit, statt sie vorauszusetzen.
  */
 function objectId(object: string): string {
-  return `yapaja_${object}`;
+  return `yapaia_${object}`;
 }
 
 /**
- * `select.yapaja_profile` alone (docs/04 §1 + task: "bei Profil-CRUD:
+ * `select.yapaia_profile` alone (docs/04 §1 + task: "bei Profil-CRUD:
  * Discovery-Update" republishes ONLY this entity, not the whole set --
  * everything else is unaffected by a profile create/rename/delete/activate).
  * Exported separately so `bridge.ts` can republish just this one on a
@@ -120,7 +120,7 @@ export function buildSelectProfileConfig(opts: BuildDiscoveryOptions): Discovery
   };
 }
 
-/** Every OTHER discovery entity (docs/04 §1 table, minus `select.yapaja_profile`). */
+/** Every OTHER discovery entity (docs/04 §1 table, minus `select.yapaia_profile`). */
 function buildStaticConfigs(opts: BuildDiscoveryOptions): DiscoveryEntity[] {
   const { statePrefix, discoveryPrefix, device } = opts;
   const avail = availabilityFields(statePrefix);
@@ -263,7 +263,7 @@ function buildStaticConfigs(opts: BuildDiscoveryOptions): DiscoveryEntity[] {
         name: 'Nav State',
         unique_id: uniqueId('nav_state'),
         object_id: objectId('nav_state'),
-        // `yapaja/nav/state` is the RAW `status` string (bridge.ts's
+        // `yapaia/nav/state` is the RAW `status` string (bridge.ts's
         // `onNavState`), never JSON -- no value_template.
         state_topic: `${statePrefix}/nav/state`,
         ...avail,

@@ -202,28 +202,28 @@ Alle Payloads JSON. HA-Auto-Discovery unter `homeassistant/...` (siehe docs/04).
 ### Publiziert von Yapaia Go (Status)
 | Topic | Inhalt | Retain |
 |---|---|---|
-| `yapaja/status` | `online|offline` (LWT!) | ✔ |
-| `yapaja/position` | `Position` (1 Hz während Fahrt, 0,1 Hz im Stand) | ✔ |
-| `yapaja/nav/state` | `NavState.status` | ✔ |
-| `yapaja/nav/instruction` | `{type, instruction, street_names, distance_m, icon, roundabout}` – `icon` = mdi-Name für Richtungspfeil (z. B. `mdi:arrow-left-top`); `roundabout` = `"<Ausfahrt>\|<Drehung°>"` (z. B. `"2\|90"`), sonst `""` | ✔ |
-| `yapaja/nav/maneuver` | dieselben Felder, aber als **Zustand**: aus `nav/state`, also im Sekundentakt. `null`, wenn kein Manöver ansteht. **Hieran hängen die Anzeige-Sensoren** (`sensor.yapaja_instruction`, `…_instruction_distance`) — an `nav/instruction` stünde die Entfernung zwischen zwei Ansagen still (0.7.2) | ✔ |
-| `yapaja/nav/eta` | `{eta, duration_remaining_s, distance_remaining_m}` | ✔ |
-| `yapaja/nav/speed` | `{speed_kmh, speed_limit_kmh, speed_limit_vehicle_kmh, speed_limit_effective_kmh, speed_limit_source, speeding: bool}` | ✔ |
-| `yapaja/nav/altitude` | `{altitude_m}` | ✔ |
-| `yapaja/nav/destination` | `{lat, lon, name}` oder `null` | ✔ |
-| `yapaja/route/summary` | `{distance_m, duration_s, via: string[]}` bei neuer Route | ✔ |
-| `yapaja/event/#` | flüchtige Events (deviation, arrived, gps_lost, reroute) | ✘ |
-| `yapaja/addon/{id}/*` | Add-on-Events (E09-T8): 1:1-Republish von `events.publish` (`addon/{id}/*` auf dem internen Bus, docs/05 §2) unter demselben, um `{id}` erweiterten Namensraum. Rate-Limit 5 msg/s pro Add-on (Drossel-Log bei Überschreitung), Payload ≤ 16 KB, pro Add-on abschaltbar ("In Home Assistant verfügbar", Store-Detailseite). Details/Sicherheitsbetrachtung: `apps/core/src/mqtt/addonTopic.ts`. | ✘ |
+| `yapaia/status` | `online|offline` (LWT!) | ✔ |
+| `yapaia/position` | `Position` (1 Hz während Fahrt, 0,1 Hz im Stand) | ✔ |
+| `yapaia/nav/state` | `NavState.status` | ✔ |
+| `yapaia/nav/instruction` | `{type, instruction, street_names, distance_m, icon, roundabout}` – `icon` = mdi-Name für Richtungspfeil (z. B. `mdi:arrow-left-top`); `roundabout` = `"<Ausfahrt>\|<Drehung°>"` (z. B. `"2\|90"`), sonst `""` | ✔ |
+| `yapaia/nav/maneuver` | dieselben Felder, aber als **Zustand**: aus `nav/state`, also im Sekundentakt. `null`, wenn kein Manöver ansteht. **Hieran hängen die Anzeige-Sensoren** (`sensor.yapaia_instruction`, `…_instruction_distance`) — an `nav/instruction` stünde die Entfernung zwischen zwei Ansagen still (0.7.2) | ✔ |
+| `yapaia/nav/eta` | `{eta, duration_remaining_s, distance_remaining_m}` | ✔ |
+| `yapaia/nav/speed` | `{speed_kmh, speed_limit_kmh, speed_limit_vehicle_kmh, speed_limit_effective_kmh, speed_limit_source, speeding: bool}` | ✔ |
+| `yapaia/nav/altitude` | `{altitude_m}` | ✔ |
+| `yapaia/nav/destination` | `{lat, lon, name}` oder `null` | ✔ |
+| `yapaia/route/summary` | `{distance_m, duration_s, via: string[]}` bei neuer Route | ✔ |
+| `yapaia/event/#` | flüchtige Events (deviation, arrived, gps_lost, reroute) | ✘ |
+| `yapaia/addon/{id}/*` | Add-on-Events (E09-T8): 1:1-Republish von `events.publish` (`addon/{id}/*` auf dem internen Bus, docs/05 §2) unter demselben, um `{id}` erweiterten Namensraum. Rate-Limit 5 msg/s pro Add-on (Drossel-Log bei Überschreitung), Payload ≤ 16 KB, pro Add-on abschaltbar ("In Home Assistant verfügbar", Store-Detailseite). Details/Sicherheitsbetrachtung: `apps/core/src/mqtt/addonTopic.ts`. | ✘ |
 
 ### Kommandos an Yapaia Go (HA → App)
 | Topic | Payload | Wirkung |
 |---|---|---|
-| `yapaja/cmd/destination` | `{query?: string, lat?: number, lon?: number, autostart?: bool}` | Ziel setzen (wie REST `/navigation/destination`) |
-| `yapaja/cmd/navigation` | `"start" \| "pause" \| "resume" \| "stop"` | Steuerung |
-| `yapaja/cmd/profile` | `{id}` oder `{name}` | Fahrzeugprofil aktivieren |
-| `yapaja/cmd/favorite` | `{name}` | Route zu benanntem Favoriten starten |
+| `yapaia/cmd/destination` | `{query?: string, lat?: number, lon?: number, autostart?: bool}` | Ziel setzen (wie REST `/navigation/destination`) |
+| `yapaia/cmd/navigation` | `"start" \| "pause" \| "resume" \| "stop"` | Steuerung |
+| `yapaia/cmd/profile` | `{id}` oder `{name}` | Fahrzeugprofil aktivieren |
+| `yapaia/cmd/favorite` | `{name}` | Route zu benanntem Favoriten starten |
 
-Jedes Kommando wird mit `yapaja/cmd/result` beantwortet:
+Jedes Kommando wird mit `yapaia/cmd/result` beantwortet:
 `{cmd, ok: bool, error?: string, request_id?}` (`request_id` wird durchgereicht,
 wenn im Kommando enthalten).
 

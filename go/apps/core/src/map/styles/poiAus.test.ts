@@ -12,7 +12,7 @@
  *     abgeschalteten Kategorien weiterhin gesehen.
  *
  *  2. Der Filter greift zu viel, weil `full` als Vorgabe eingesetzt wird.
- *     `yapaja-contrast` bringt seine reduzierte POI-Auswahl selbst mit. Ein
+ *     `yapaia-contrast` bringt seine reduzierte POI-Auswahl selbst mit. Ein
  *     eingesetztes `full` hätte die gelöscht: wer eine Kategorie abschaltet,
  *     bekäme insgesamt MEHR Symbole als vorher.
  *
@@ -101,7 +101,7 @@ describe('`poiAus` wirkt auch ohne `poi`', () => {
 
   it('lässt einen mitgelieferten Filter stehen, statt ihn zu ersetzen', () => {
     // ─── FEHLER 2 ────────────────────────────────────────────────────────
-    // `yapaja-contrast` bringt eine eigene Vorauswahl mit. Ohne `?poi=` darf
+    // `yapaia-contrast` bringt eine eigene Vorauswahl mit. Ohne `?poi=` darf
     // die nicht verschwinden -- sonst schaltet ein Schalter, der Symbole
     // WEGNEHMEN soll, in Summe welche DAZU.
     const eigen: unknown[] = ['in', ['get', 'class'], ['literal', ['fuel']]];

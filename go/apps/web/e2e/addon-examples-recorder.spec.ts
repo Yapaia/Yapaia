@@ -41,7 +41,7 @@ import { encodePolyline6 } from '../../core/src/position/simulator/polyline.js';
 
 test.use({ serviceWorkers: 'allow' });
 
-const ADDON_ID = 'com.yapaja.track-recorder';
+const ADDON_ID = 'com.yapaia.track-recorder';
 const ADDON_DIR = join(REPO_ROOT, 'addons-examples', 'track-recorder');
 
 // --- test track parameters --------------------------------------------------

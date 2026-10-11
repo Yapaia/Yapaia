@@ -16,7 +16,7 @@ describe('regions catalog parsing', () => {
   });
 
   function writeCatalog(content: unknown): string {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-catalog-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-catalog-'));
     tempDirs.push(dir);
     const path = join(dir, 'catalog.json');
     writeFileSync(path, JSON.stringify(content));
@@ -183,7 +183,7 @@ describe('regions-catalog.json — der ausgelieferte Katalog', () => {
   });
 
   it('die IDs sind eindeutig und taugen als Verzeichnisname', () => {
-    // Die ID wird zum Ordner unter /share/yapaja/tiles. Ein Punkt oder
+    // Die ID wird zum Ordner unter /share/yapaia/tiles. Ein Punkt oder
     // Schrägstrich darin wäre ein Pfad, kein Name.
     const ids = eintraege.map((e) => String(e.id));
     expect(new Set(ids).size, 'doppelte ID').toBe(ids.length);

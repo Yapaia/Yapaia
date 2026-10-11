@@ -34,7 +34,7 @@ import { alsGeoJson, leseSonderziele } from './sonderziele/ausIndex.js';
 import { regionsPlugin } from './regions/routes.js';
 import { Buffer } from 'node:buffer';
 import { loadCatalog } from './regions/catalog.js';
-import { SATELLIT_MAXZOOM } from './styles/yapaja-satellit.js';
+import { SATELLIT_MAXZOOM } from './styles/yapaia-satellit.js';
 
 /** Sentinel-2 cloudless 2016 (EOX, CC BY 4.0) als Web-Mercator-Kacheln. */
 export function satellitUrl(z: number, x: number, y: number): string {

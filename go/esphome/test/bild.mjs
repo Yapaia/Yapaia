@@ -35,7 +35,7 @@ import { tmpdir } from 'node:os';
 import { lambdaRumpf } from './run.mjs';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
-const YAML = join(HIER, '..', 'yapaja-nav-display.yaml');
+const YAML = join(HIER, '..', 'yapaia-nav-display.yaml');
 
 function main() {
   const bau = mkdtempSync(join(tmpdir(), 'yapaia-bild-'));

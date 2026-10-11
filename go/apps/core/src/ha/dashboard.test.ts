@@ -22,7 +22,6 @@ import {
   UTF8_BOM,
   befundText,
   buildDashboardYaml,
-  findeHelfer,
   resolveEntityIds,
   standardIds,
   starteDashboardPflege,
@@ -41,17 +40,17 @@ function zustand(entity_id: string, friendly_name?: string): HaEntityState {
 describe('die Entitaeten in einer echten Anlage finden', () => {
   it('nimmt die dokumentierten IDs, wenn es sie gibt', () => {
     const { ids, vorgabe } = resolveEntityIds([
-      zustand('sensor.yapaja_speed'),
-      zustand('sensor.yapaja_eta'),
+      zustand('sensor.yapaia_speed'),
+      zustand('sensor.yapaia_eta'),
     ]);
-    expect(ids.speed).toBe('sensor.yapaja_speed');
-    expect(ids.eta).toBe('sensor.yapaja_eta');
+    expect(ids.speed).toBe('sensor.yapaia_speed');
+    expect(ids.eta).toBe('sensor.yapaia_eta');
     expect(vorgabe).toContain('nav_state'); // nicht vorhanden -> Vorgabe
   });
 
   it('mit der Integration „Yapaia": die neuen IDs gewinnen vor den alten', () => {
     const { ids, gefunden } = resolveEntityIds([
-      zustand('sensor.yapaja_speed'),
+      zustand('sensor.yapaia_speed'),
       zustand('sensor.yapaia_go_tempo'),
       zustand('sensor.yapaia_go_tempolimit'),
       zustand('binary_sensor.yapaia_go_zu_schnell'),
@@ -71,8 +70,8 @@ describe('die Entitaeten in einer echten Anlage finden', () => {
     // baute die ID dann aus Geraete- plus Entitaetsnamen -- und der
     // Geraetename hat sich in 0.6.7 auch noch geaendert. Beide Formen gibt es
     // draussen wirklich.
-    const alt = resolveEntityIds([zustand('sensor.yapaja_go_speed', 'Yapaja Go Speed')]);
-    expect(alt.ids.speed).toBe('sensor.yapaja_go_speed');
+    const alt = resolveEntityIds([zustand('sensor.yapaia_go_speed', 'Yapaia Go Speed')]);
+    expect(alt.ids.speed).toBe('sensor.yapaia_go_speed');
 
     const neu = resolveEntityIds([zustand('sensor.yapaia_go_speed', 'Yapaia Go Speed')]);
     expect(neu.ids.speed).toBe('sensor.yapaia_go_speed');
@@ -85,7 +84,7 @@ describe('die Entitaeten in einer echten Anlage finden', () => {
       zustand('sensor.speed'),
       zustand('sensor.wind_speed', 'Wind Speed'),
     ]);
-    expect(ids.speed).toBe('sensor.yapaja_speed'); // die Vorgabe
+    expect(ids.speed).toBe('sensor.yapaia_go_tempo'); // die Vorgabe: die ID der Integration
     expect(vorgabe).toContain('speed');
   });
 
@@ -108,13 +107,13 @@ describe('die Entitaeten in einer echten Anlage finden', () => {
   });
 
   it('achtet auf die Domain', () => {
-    // `button.yapaja_stop` und ein `sensor.yapaja_stop` waeren zwei
+    // `button.yapaia_stop` und ein `sensor.yapaia_stop` waeren zwei
     // verschiedene Dinge; die Schaltflaeche braucht die Schaltflaeche.
     const { ids } = resolveEntityIds([
-      zustand('sensor.yapaja_stop'),
-      zustand('button.yapaja_go_stop', 'Yapaia Go Stop'),
+      zustand('sensor.yapaia_stop'),
+      zustand('button.yapaia_go_stop', 'Yapaia Go Stop'),
     ]);
-    expect(ids.stop).toBe('button.yapaja_go_stop');
+    expect(ids.stop).toBe('button.yapaia_go_stop');
   });
 
   it('waehlt bei mehreren Treffern immer dieselbe', () => {
@@ -155,7 +154,7 @@ describe('die Datei selbst', () => {
     const geladen = load(yaml) as { views: Array<{ cards: Array<Record<string, unknown>> }> };
     expect(geladen.views).toHaveLength(1);
     const typen = geladen.views[0].cards.map((k) => k.type);
-    expect(typen).toContain('custom:yapaja-map-card'); // Karte mit Route
+    expect(typen).toContain('custom:yapaia-map-card'); // Karte mit Route
     expect(typen).toContain('markdown'); // naechste Richtungsanzeige
     expect(typen).toContain('gauge'); // Geschwindigkeit
     expect(typen).toContain('entities'); // Entfernung und ETA
@@ -164,7 +163,7 @@ describe('die Datei selbst', () => {
   it('setzt die gefundenen IDs ein, nicht die Vorgabe', () => {
     expect(yaml).toContain('sensor.yapaia_go_speed');
     expect(yaml).toContain('sensor.yapaia_go_eta');
-    expect(yaml).not.toContain('sensor.yapaja_speed\n');
+    expect(yaml).not.toContain('sensor.yapaia_speed\n');
   });
 
   it('nennt die Schaltflaechen mit der Aktion, die sie ausloest', () => {
@@ -174,7 +173,7 @@ describe('die Datei selbst', () => {
   it('erklaert oben, wie man sie benutzt', () => {
     // Ohne die Ressource bleibt die Kartenkachel leer -- das ist der
     // haeufigste Grund, warum „das Dashboard nicht klappt".
-    expect(yaml).toContain('/local/yapaja/yapaja-map-card.js');
+    expect(yaml).toContain('/local/yapaia/yapaia-map-card.js');
     expect(yaml).toContain('Rohkonfigurationseditor');
   });
 });
@@ -208,16 +207,16 @@ describe('schreiben', () => {
     };
   }
 
-  it('legt die Datei unter www/yapaja ab -- zweimal', async () => {
+  it('legt die Datei unter www/yapaia ab -- zweimal', async () => {
     // `.txt` daneben, damit der Browser den Text ANZEIGT statt ihn
     // herunterzuladen: auf einem iPad ist eine heruntergeladene Datei
     // praktisch weg.
     const a = depsBauen();
-    expect(await writeDashboardYaml('/homeassistant/www/yapaja', 'inhalt', a.deps)).toBe(true);
-    expect(a.ordner).toEqual(['/homeassistant/www/yapaja']);
+    expect(await writeDashboardYaml('/homeassistant/www/yapaia', 'inhalt', a.deps)).toBe(true);
+    expect(a.ordner).toEqual(['/homeassistant/www/yapaia']);
     expect(a.geschrieben.map((g) => g.pfad)).toEqual([
-      '/homeassistant/www/yapaja/dashboard.yaml',
-      '/homeassistant/www/yapaja/dashboard.txt',
+      '/homeassistant/www/yapaia/dashboard.yaml',
+      '/homeassistant/www/yapaia/dashboard.txt',
     ]);
     expect(a.geschrieben[0].inhalt).toBe(a.geschrieben[1].inhalt);
   });
@@ -225,7 +224,7 @@ describe('schreiben', () => {
   it('haelt nichts an, wenn das Schreiben scheitert', async () => {
     // Ein nicht ablegbares Dashboard darf die Navigation nicht stoppen.
     const a = depsBauen(new Error('read-only file system'));
-    expect(await writeDashboardYaml('/homeassistant/www/yapaja', 'inhalt', a.deps)).toBe(false);
+    expect(await writeDashboardYaml('/homeassistant/www/yapaia', 'inhalt', a.deps)).toBe(false);
     expect(a.warnungen).toHaveLength(1);
   });
 });
@@ -256,7 +255,7 @@ describe('die Pflege der Datei', () => {
       ausloesen: () => geplant?.(),
       istAbbestellt: () => abbestellt,
       deps: {
-        wwwDir: '/homeassistant/www/yapaja',
+        wwwDir: '/homeassistant/www/yapaia',
         verbindung: () =>
           optionen.verbindung === undefined
             ? { apiBase: 'http://supervisor/core/api', token: 't' }
@@ -281,7 +280,7 @@ describe('die Pflege der Datei', () => {
     starteDashboardPflege(a.deps);
     await new Promise((r) => setTimeout(r, 0));
     expect(a.geschrieben).toHaveLength(2);
-    expect(a.geschrieben[0]).toContain('sensor.yapaja_speed');
+    expect(a.geschrieben[0]).toContain('sensor.yapaia_go_tempo');
   });
 
   it('ersetzt sie durch die wirklich vorhandenen IDs', async () => {
@@ -313,7 +312,7 @@ describe('die Pflege der Datei', () => {
     a.ausloesen();
     await new Promise((r) => setTimeout(r, 0));
     expect(a.geschrieben[2]).toContain('KEINE EINZIGE');
-    expect(a.meldungen.some((m) => m.includes('MQTT'))).toBe(true);
+    expect(a.meldungen.some((m) => m.includes('Integration „Yapaia"'))).toBe(true);
   });
 
   it('tut ausserhalb des Add-ons gar nichts', async () => {
@@ -333,15 +332,15 @@ describe('die Pflege der Datei', () => {
 });
 
 describe('der Befund oben in der Datei', () => {
-  it('nennt MQTT beim Namen, wenn es keine einzige Entitaet gibt', () => {
+  it('nennt die Integration beim Namen, wenn es keine einzige Entitaet gibt', () => {
     // Der Fall vom iPad: Home Assistant antwortet, hat aber keine
     // Yapaia-Entitaet. Vorher zeigte das Dashboard nur eine Wand aus
     // „Entitaet nicht gefunden" und sagte nirgends, warum.
     const text = befundText({ erreichbar: true, zustaende: 342, gefunden: 0, vorgabe: ['speed'] });
     expect(text).toContain('342');
     expect(text).toContain('KEINE EINZIGE');
-    expect(text).toContain('MQTT');
-    expect(text).toContain('Installationsprüfung');
+    expect(text).toContain('Integration „Yapaia"');
+    expect(text).toContain('Yapaia Go gefunden');
   });
 
   it('unterscheidet „nicht erreichbar" von „nichts gefunden"', () => {
@@ -424,7 +423,7 @@ describe('die bedienbaren Kacheln', () => {
     expect(yaml).not.toContain('title: Steuerung');
     expect(yaml).not.toContain('perform_action');
     // Der Rest bleibt vollstaendig -- und gueltig.
-    expect(yaml).toContain('custom:yapaja-map-card');
+    expect(yaml).toContain('custom:yapaia-map-card');
     expect(() => load(yaml)).not.toThrow();
   });
 
@@ -439,95 +438,5 @@ describe('die bedienbaren Kacheln', () => {
     expect(yaml).not.toContain('title: Steuerung');
     expect(yaml).toContain('perform_action: button.press');
     expect(() => load(yaml)).not.toThrow();
-  });
-});
-
-describe('die bedienbaren Kacheln ohne MQTT', () => {
-  const HELFER_IDS = [
-    'input_button.yapaia_pause',
-    'input_button.yapaia_weiter',
-    'input_button.yapaia_beenden',
-    'input_select.yapaia_profil',
-  ];
-  const ohneMqtt = {
-    erreichbar: true,
-    zustaende: 9,
-    gefunden: 9,
-    vorgabe: ['profile', 'stop', 'pause', 'resume'],
-  };
-
-  it('benutzt die Helfer, wenn es die MQTT-Entitaeten nicht gibt', () => {
-    // Gefragt: „sofern technisch ueberhaupt moeglich soll alles
-    // funktionieren. Der User waehlt ja seinen Kanal aus."
-    const yaml = buildDashboardYaml(standardIds(), { ...ohneMqtt, helfer: HELFER_IDS });
-    expect(yaml).toContain('perform_action: input_button.press');
-    expect(yaml).toContain('input_button.yapaia_pause');
-    expect(yaml).toContain('input_select.yapaia_profil');
-    expect(yaml).toContain('title: Steuerung');
-    expect(() => load(yaml)).not.toThrow();
-  });
-
-  it('nennt sie auch im Kopf der Datei', () => {
-    expect(befundText({ ...ohneMqtt, helfer: HELFER_IDS })).toContain('Bedienen ohne MQTT');
-  });
-
-  it('bleibt bei den MQTT-Entitaeten, wenn es die gibt', () => {
-    // Zwei Saetze Knoepfe fuer dieselbe Sache waeren nur Verwirrung -- und
-    // der Beobachter haelt sich mit MQTT ohnehin zurueck.
-    const yaml = buildDashboardYaml(standardIds(), {
-      erreichbar: true,
-      zustaende: 9,
-      gefunden: 13,
-      vorgabe: [],
-      helfer: HELFER_IDS,
-    });
-    expect(yaml).toContain('perform_action: button.press');
-    expect(yaml).not.toContain('input_button.press');
-    expect(yaml).not.toContain('- entity: input_select.yapaia_profil');
-    // Aber es steht im Kopf, dass es sie gibt und dass sie ruhen -- sonst
-    // suchte jemand den Fehler bei sich, wenn der Helfer nicht reagiert.
-    expect(yaml).toContain('IGNORIERT');
-  });
-
-  it('zeigt keine halbe Knopfreihe, wenn ein Helfer fehlt', () => {
-    // Drei Knoepfe, von denen einer ins Leere zeigt, sind schlimmer als
-    // keiner: die Reihe sieht vollstaendig aus.
-    const yaml = buildDashboardYaml(standardIds(), {
-      ...ohneMqtt,
-      helfer: HELFER_IDS.slice(0, 2),
-    });
-    expect(yaml).not.toContain('input_button.press');
-    expect(() => load(yaml)).not.toThrow();
-  });
-
-  it('das Profil allein genuegt fuer die Steuerungskachel', () => {
-    const yaml = buildDashboardYaml(standardIds(), {
-      ...ohneMqtt,
-      helfer: ['input_select.yapaia_profil'],
-    });
-    expect(yaml).toContain('title: Steuerung');
-    expect(yaml).toContain('input_select.yapaia_profil');
-    expect(yaml).not.toContain('input_button.press');
-  });
-
-  it('findet die Helfer nur unter ihrer genauen ID', () => {
-    // Die IDs stehen fest -- Yapaia legt sie selbst an. Eine unscharfe Suche
-    // koennte hier nur danebengreifen.
-    expect(
-      findeHelfer([
-        zustand('input_button.yapaia_pause'),
-        zustand('input_button.pause'),
-        zustand('sensor.wohnzimmer'),
-      ]),
-    ).toEqual(['input_button.yapaia_pause']);
-  });
-
-  it('haelt eine „_2"-Entitaet nicht fuer unseren Helfer', () => {
-    // Gibt es den Namen schon, haengt Home Assistant „_2" an. Diese Entitaet
-    // ist NICHT die, auf die Yapaia hoert -- ein Knopf darauf wuerde nichts
-    // tun und trotzdem so aussehen, als taete er.
-    expect(findeHelfer([zustand('input_button.yapaia_pause_2'), zustand('sensor.yapaia_pause')])).toEqual(
-      [],
-    );
   });
 });

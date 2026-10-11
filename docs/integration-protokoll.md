@@ -23,10 +23,8 @@ anmelden, beschreiben, was sie anbieten, und miteinander sprechen.
 
 ### Namen
 
-Es heißt überall **Yapaia** – mit **i**. Die alte Schreibweise „Yapaja“ (in
-Ordnern, Add-on-Kennungen, Umgebungsvariablen, Entity-IDs, Dateinamen) wird mit
-der Umstellung vollständig entfernt; neue Kennungen entstehen nur noch mit
-`yapaia`.
+Es heißt überall **Yapaia** – mit **i**: in Ordnern, Add-on-Kennungen,
+Umgebungsvariablen, Entity-IDs und Dateinamen.
 
 ## 2. Überblick
 
@@ -325,9 +323,8 @@ Modul die Liste der anderen:
 
 1. **Entity-IDs:** Neue, saubere IDs nach dem Muster
    `<plattform>.yapaia_<modul>[_<name>]_<schluessel>`, z. B.
-   `sensor.yapaia_go_ankunft`. Die alten `…yapaja_…` entfallen; Yapaia Go
-   schreibt sein erzeugtes Dashboard selbst um, eigene Automationen werden
-   einmal angepasst. *(entschieden)*
+   `sensor.yapaia_go_ankunft`. Yapaia Go schreibt sein erzeugtes Dashboard
+   selbst darauf um. *(entschieden)*
 2. **Ein Konfigurationseintrag je Instanz**, alle unter der Integration
    „Yapaia“; jede Instanz einzeln entfernbar. *(entschieden)*
 3. **Mehrere Instanzen je Modul** sind von Anfang an vorgesehen (Abschnitt 3).

@@ -28,8 +28,8 @@ import { LIGHT_PALETTE, DARK_PALETTE, CONTRAST_PALETTE, OUTDOOR_PALETTE } from '
 import { REGION_SOURCE_ID } from './constants';
 import { SHIPPED_FONTS } from './fonts';
 import { POI_LAYER_ID_PREFIX } from './constants';
-import { OMITTED_LAYER_IDS, buildYapaiaMinimalStyle } from './yapaja-minimal';
-import { buildYapaiaContrastStyle } from './yapaja-contrast';
+import { OMITTED_LAYER_IDS, buildYapaiaMinimalStyle } from './yapaia-minimal';
+import { buildYapaiaContrastStyle } from './yapaia-contrast';
 
 /** Die `source-layer`-Namen, die das OpenMapTiles-Profil erzeugt. */
 const OMT_LAYERS: ReadonlySet<string> = new Set([

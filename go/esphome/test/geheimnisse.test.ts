@@ -14,7 +14,7 @@
  *       - platform: esphome
  *
  * In dieser Datei standen bis 0.13.1 dagegen zwei `!secret`-Verweise:
- * `yapaja_display_api_key` und `yapaja_display_ota_password`. Für eine von
+ * `yapaia_display_api_key` und `yapaia_display_ota_password`. Für eine von
  * Hand gepflegte Konfiguration ist das richtig. Für den Device Builder ist es
  * falsch: der erzeugt den Schlüssel selbst und trägt ihn ein, und er legt
  * KEINEN der beiden Einträge in `secrets.yaml` an. Wer die Datei übernahm,
@@ -40,7 +40,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
-const YAML = join(HIER, '..', 'yapaja-nav-display.yaml');
+const YAML = join(HIER, '..', 'yapaia-nav-display.yaml');
 
 function text(): string {
   return readFileSync(YAML, 'utf-8');
@@ -120,19 +120,19 @@ describe('ota: — ohne Passwort, wie der Device Builder es anlegt', () => {
 });
 
 describe('die Datei verweist auf keine Geheimnisse, die niemand anlegt', () => {
-  it('nennt weder `yapaja_display_api_key` noch `yapaja_display_ota_password`', () => {
+  it('nennt weder `yapaia_display_api_key` noch `yapaia_display_ota_password`', () => {
     // Die beiden Namen gab es nur in dieser Datei und in der Anleitung. Wer
     // einen davon wieder einbaut, bricht den Weg über den Device Builder —
     // und zwar erst beim Übersetzen, auf dem Gerät des Betreibers.
-    for (const name of ['yapaja_display_api_key', 'yapaja_display_ota_password']) {
+    for (const name of ['yapaia_display_api_key', 'yapaia_display_ota_password']) {
       expect(ohneKommentare(), `${name} ist wieder da`).not.toContain(name);
     }
   });
 
   it('jeder `!secret`-Verweis steht auch in der Anleitung', () => {
     // ─── DIE PANNE, DIE DAS VERHINDERT ──────────────────────────────────────
-    // Bis 0.13.1 verwies diese Datei auf `yapaja_display_api_key` und
-    // `yapaja_display_ota_password`. Beide gab es nirgends: der Device
+    // Bis 0.13.1 verwies diese Datei auf `yapaia_display_api_key` und
+    // `yapaia_display_ota_password`. Beide gab es nirgends: der Device
     // Builder legt sie nicht an, und wer die Datei uebernahm, bekam Verweise
     // ins Leere — bemerkt erst beim Uebersetzen auf dem eigenen Geraet.
     //

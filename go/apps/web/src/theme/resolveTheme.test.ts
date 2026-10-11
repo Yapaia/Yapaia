@@ -11,24 +11,24 @@ import { createOverride, isOverrideActive, resolveTheme } from './resolveTheme.j
 const STUTTGART = { lat: 48.7758, lon: 9.1829 };
 
 describe('resolveTheme: explicit light/dark mode', () => {
-  it('mode "light" always resolves to light + yapaja-light, regardless of time/position', () => {
+  it('mode "light" always resolves to light + yapaia-light, regardless of time/position', () => {
     const result = resolveTheme({
       mode: 'light',
       now: new Date('2026-01-01T00:00:00Z'), // deep night
       position: STUTTGART,
       override: null,
     });
-    expect(result).toEqual({ theme: 'light', styleId: 'yapaja-light', overrideActive: false, nextBoundaryAt: null });
+    expect(result).toEqual({ theme: 'light', styleId: 'yapaia-light', overrideActive: false, nextBoundaryAt: null });
   });
 
-  it('mode "dark" always resolves to dark + yapaja-dark, regardless of time/position', () => {
+  it('mode "dark" always resolves to dark + yapaia-dark, regardless of time/position', () => {
     const result = resolveTheme({
       mode: 'dark',
       now: new Date('2026-06-21T12:00:00Z'), // bright midday
       position: STUTTGART,
       override: null,
     });
-    expect(result).toEqual({ theme: 'dark', styleId: 'yapaja-dark', overrideActive: false, nextBoundaryAt: null });
+    expect(result).toEqual({ theme: 'dark', styleId: 'yapaia-dark', overrideActive: false, nextBoundaryAt: null });
   });
 });
 
@@ -41,7 +41,7 @@ describe('resolveTheme: auto mode, atomic {theme, styleId} pairing (acceptance c
       override: null,
     });
     expect(dayResult.theme).toBe('light');
-    expect(dayResult.styleId).toBe('yapaja-light');
+    expect(dayResult.styleId).toBe('yapaia-light');
 
     const nightResult = resolveTheme({
       mode: 'auto',
@@ -50,7 +50,7 @@ describe('resolveTheme: auto mode, atomic {theme, styleId} pairing (acceptance c
       override: null,
     });
     expect(nightResult.theme).toBe('dark');
-    expect(nightResult.styleId).toBe('yapaja-dark');
+    expect(nightResult.styleId).toBe('yapaia-dark');
   });
 
   it('falls back to the clock heuristic with no position fix', () => {
@@ -61,7 +61,7 @@ describe('resolveTheme: auto mode, atomic {theme, styleId} pairing (acceptance c
       override: null,
     });
     expect(result.theme).toBe('dark');
-    expect(result.styleId).toBe('yapaja-dark');
+    expect(result.styleId).toBe('yapaia-dark');
   });
 });
 
@@ -70,7 +70,7 @@ describe('resolveTheme / createOverride / isOverrideActive: override-until-next-
     const now = new Date('2026-06-21T12:00:00Z'); // would otherwise resolve light
     const override = createOverride('dark', now, STUTTGART);
     const result = resolveTheme({ mode: 'auto', now, position: STUTTGART, override });
-    expect(result).toMatchObject({ theme: 'dark', styleId: 'yapaja-dark', overrideActive: true });
+    expect(result).toMatchObject({ theme: 'dark', styleId: 'yapaia-dark', overrideActive: true });
   });
 
   it("createOverride's expiry is the next boundary that was in effect at the moment of picking", () => {
@@ -178,7 +178,7 @@ describe('resolveTheme: der Modus „system"', () => {
       systemPrefersDark: true,
     });
     expect(ergebnis.theme).toBe('dark');
-    expect(ergebnis.styleId).toBe('yapaja-dark');
+    expect(ergebnis.styleId).toBe('yapaia-dark');
   });
 
   it('folgt dem Gerät, wenn es hell möchte — auch mitten in der Nacht', () => {

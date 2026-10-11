@@ -33,7 +33,7 @@ einen Store; klare API; begrenzte Rechte (Sandbox + Scopes).
 
 Ein Add-on-Paket darf beide Teile enthalten (z. B. Stauwarner: Service + Overlay).
 
-## 2. Manifest `yapaja-addon.json`
+## 2. Manifest `yapaia-addon.json`
 
 ```json
 {
@@ -66,7 +66,7 @@ Ein Add-on-Paket darf beide Teile enthalten (z. B. Stauwarner: Service + Overlay
 | `route.read` / `route.propose` | Routen lesen / alternative Route vorschlagen (Nutzer bestätigt in UI!) |
 | `map.layer.write` | GeoJSON-/Vektor-Layer + Marker in die Karte pushen |
 | `widget.register` | UI-Widgets in Slots anbieten |
-| `events.publish` | Events unter `addon/{id}/*` publizieren (auch → MQTT `yapaja/addon/{id}/*`, E09-T8: Rate-Limit 5 msg/s pro Add-on, Payload ≤ 16 KB, pro Add-on abschaltbar) |
+| `events.publish` | Events unter `addon/{id}/*` publizieren (auch → MQTT `yapaia/addon/{id}/*`, E09-T8: Rate-Limit 5 msg/s pro Add-on, Payload ≤ 16 KB, pro Add-on abschaltbar) |
 | `storage.own` | Key-Value + Dateien im eigenen Datenverzeichnis |
 | `net.fetch:<host>` | Outbound-HTTP nur zu deklarierten Hosts (Service-Typ; Core erzwingt via Proxy) |
 | `ha.notify` | Notification über HA senden |
@@ -83,14 +83,14 @@ TypeScript-Paket, kapselt postMessage (UI) bzw. REST/WS (Service) hinter einer A
 
 ```ts
 const yapaia = await YapaiaAddon.connect();          // handshake, prüft Scopes
-yapaja.position.subscribe(pos => …);                 // pos.read
-yapaja.nav.state();                                  // nav.read
-yapaja.map.addLayer({ id, type:'geojson', data });   // map.layer.write
-yapaja.map.addMarkers('campsites', markers);         // inkl. Klick-Callbacks
-yapaja.widgets.update('traffic-status', { text, severity });
-yapaja.events.publish('jam-detected', payload);      // → WS + MQTT
-yapaja.storage.set('lastSync', ts);
-yapaja.route.propose({ waypoints, reason: 'Stau A8' }); // UI fragt Nutzer
+yapaia.position.subscribe(pos => …);                 // pos.read
+yapaia.nav.state();                                  // nav.read
+yapaia.map.addLayer({ id, type:'geojson', data });   // map.layer.write
+yapaia.map.addMarkers('campsites', markers);         // inkl. Klick-Callbacks
+yapaia.widgets.update('traffic-status', { text, severity });
+yapaia.events.publish('jam-detected', payload);      // → WS + MQTT
+yapaia.storage.set('lastSync', ts);
+yapaia.route.propose({ waypoints, reason: 'Stau A8' }); // UI fragt Nutzer
 ```
 
 Der SDK-Vertrag ist Teil der versionierten Core-API (`core_api` im Manifest,
@@ -107,7 +107,7 @@ zu Core-Widgets. Dadurch: keine Core-Änderung pro Add-on.
 
 ## 5. Marketplace / Store
 
-- **Registry:** öffentliches Git-Repo `yapaja-addons-registry` mit `index.json`
+- **Registry:** öffentliches Git-Repo `yapaia-addons-registry` mit `index.json`
   (Liste: id, name, version, beschreibung, icon, download_url → Release-Tarball,
   sha256, scopes, core_api, screenshots). Statisch hostbar (GitHub Pages/raw) —
   funktioniert mit sporadischem Internet; Core cached den Katalog lokal.

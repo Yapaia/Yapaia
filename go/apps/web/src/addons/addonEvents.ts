@@ -15,7 +15,7 @@ export interface AddonEvent {
 }
 
 const target = new EventTarget();
-const EVENT_NAME = 'yapaja-addon-event';
+const EVENT_NAME = 'yapaia-addon-event';
 
 export function publishAddonEvent(topic: string, payload: unknown): void {
   target.dispatchEvent(new CustomEvent<AddonEvent>(EVENT_NAME, { detail: { topic, payload } }));

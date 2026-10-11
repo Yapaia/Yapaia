@@ -1,5 +1,5 @@
 /**
- * `yapaja/position` publish-rate throttle (E08-T1, docs/03 §4): 1 Hz while
+ * `yapaia/position` publish-rate throttle (E08-T1, docs/03 §4): 1 Hz while
  * driving, 0.1 Hz (every 10 s) while stopped. Pure, timer-free logic (unlike
  * `PositionService#publishThrottled`, which owns a trailing-edge timer for
  * the internal `pos/update` bus topic) -- the MQTT bridge only needs a
@@ -25,7 +25,7 @@ export class PositionPublishThrottle {
   private lastPublishAtMs: number | null = null;
 
   /**
-   * Returns true iff a `yapaja/position` publish for the given ground speed
+   * Returns true iff a `yapaia/position` publish for the given ground speed
    * should happen NOW -- and, when it does, records `nowMs` so the next call
    * is throttled against it. The very first call always publishes (nothing
    * to throttle against yet). `speedMs === null` (unknown speed) is treated

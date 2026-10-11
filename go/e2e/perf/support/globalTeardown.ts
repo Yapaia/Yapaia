@@ -76,7 +76,7 @@ export default async function globalTeardown(): Promise<void> {
   const partial = definitions.length !== ALL_BUDGETS.length;
 
   const report: PerfReport = {
-    schema: 'yapaja.perf.v1',
+    schema: 'yapaia.perf.v1',
     generatedAt: new Date().toISOString(),
     gitSha: envFile.gitSha,
     environment: envFile.environment,

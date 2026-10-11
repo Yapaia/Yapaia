@@ -124,18 +124,18 @@ describe('abdeckungSatz', () => {
 
 describe('pbfLagerPfad', () => {
   it('zeigt auf denselben Ordner wie das Bauskript', () => {
-    // `yapaja-build-graph`: PBF_CACHE="$(dirname "$(dirname "$LIVE_DIR")")/planetiler-sources"
+    // `yapaia-build-graph`: PBF_CACHE="$(dirname "$(dirname "$LIVE_DIR")")/planetiler-sources"
     // Laufen die beiden auseinander, meldet der Kern eine Abdeckung, die der
     // Bau nie herstellt.
-    expect(pbfLagerPfad('/share/yapaja/valhalla/tiles')).toBe(
-      '/share/yapaja/planetiler-sources',
+    expect(pbfLagerPfad('/share/yapaia/valhalla/tiles')).toBe(
+      '/share/yapaia/planetiler-sources',
     );
   });
 });
 
 describe('regionenMitExtrakt', () => {
   it('findet die Extrakte und schneidet die Endung ab', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-pbf-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-pbf-'));
     writeFileSync(join(dir, 'germany.osm.pbf'), 'x');
     writeFileSync(join(dir, 'switzerland.osm.pbf'), 'x');
     // Basisdaten des Kachelprofils -- die gehören NICHT dazu.
@@ -152,7 +152,7 @@ describe('regionenMitExtrakt', () => {
 
 describe('graphRegionenJetzt', () => {
   function graphMit(inhalt: unknown): string {
-    const wurzel = mkdtempSync(join(tmpdir(), 'yapaja-graph-'));
+    const wurzel = mkdtempSync(join(tmpdir(), 'yapaia-graph-'));
     const graphDir = join(wurzel, 'tiles');
     mkdirSync(graphDir);
     writeFileSync(join(wurzel, 'build-info.json'), JSON.stringify(inhalt));
@@ -177,7 +177,7 @@ describe('graphRegionenJetzt', () => {
   });
 
   it('verschluckt sich nicht an kaputtem Inhalt', () => {
-    const wurzel = mkdtempSync(join(tmpdir(), 'yapaja-graph-'));
+    const wurzel = mkdtempSync(join(tmpdir(), 'yapaia-graph-'));
     const graphDir = join(wurzel, 'tiles');
     mkdirSync(graphDir);
     writeFileSync(join(wurzel, 'build-info.json'), '{ das ist kein JSON');

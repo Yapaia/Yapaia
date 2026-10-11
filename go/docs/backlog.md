@@ -264,7 +264,7 @@ Wenn der Betreiber es sagt — oder wenn der Bau auf dem Gerät zum Blocker wird
 
 **Status:** offen, aufgenommen am 2026-09-02.
 **Betrifft:** `apps/core/src/position/service.ts`, `apps/core/src/ha/client.ts`,
-`packages/shared/src/{types.ts,schemas/position.ts}`, `yapaja_go/config.yaml`.
+`packages/shared/src/{types.ts,schemas/position.ts}`, `yapaia_go/config.yaml`.
 
 ### Was fehlt
 
@@ -345,7 +345,7 @@ genau die Sorte Behauptung, die diese Session über beseitigt wurde.
 
 **Status:** offen, aufgenommen am 2026-09-01.
 **Betrifft:** `services/tiles/build-pmtiles.sh`, `apps/core/src/map/regions/`,
-`yapaja_go/` (Add-on-Image).
+`yapaia_go/` (Add-on-Image).
 
 ### Was fehlt
 
@@ -394,7 +394,7 @@ Zwei weitere Befunde aus demselben Anlass:
 * Das Bau-Skript lag **gar nicht im Add-on-Image**. Wer über den HA-Store
   installiert, hat kein Repository — für ihn zeigten alle Anweisungen ins
   Leere. `build-pmtiles.sh` liegt jetzt im Image, erreichbar als
-  `yapaja-build-pmtiles`.
+  `yapaia-build-pmtiles`.
 * Routinggraph und Lite-Suchindex lassen sich auf dem Gerät **überhaupt
   nicht** bauen (Docker-Socket bzw. osmium fehlen). Das steht jetzt so in
   §C.3a statt eines Verweises auf einen Automatismus, den es nicht gibt.

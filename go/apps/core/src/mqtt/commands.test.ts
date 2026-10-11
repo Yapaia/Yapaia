@@ -3,7 +3,7 @@
  * backend module. Same justification as position/service.ts. */
 
 /**
- * Unit tests for `yapaja/cmd/*` payload parsing (E08-T1). Pure -- no
+ * Unit tests for `yapaia/cmd/*` payload parsing (E08-T1). Pure -- no
  * services/MQTT client involved.
  */
 import { describe, it, expect } from 'vitest';

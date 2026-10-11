@@ -4,7 +4,7 @@
  * Mandatory deliverable: a FROZEN, exact-equality (`toEqual`) snapshot of
  * EVERY entity's discovery topic + payload, one `it()` per entity, plus the
  * `maneuverIcon` plausibility table (every coarse `ManeuverType` maps to a
- * real, existing mdi icon name -- `sensor.yapaja_instruction`'s `icon`
+ * real, existing mdi icon name -- `sensor.yapaia_instruction`'s `icon`
  * attribute must never show a broken/nonexistent icon in HA).
  */
 import { describe, it, expect } from 'vitest';
@@ -17,14 +17,14 @@ import {
 } from './discovery.js';
 
 const DEVICE = {
-  identifiers: ['yapaja_go'],
+  identifiers: ['yapaia_go'],
   name: 'Yapaia Go',
   sw_version: '1.2.3',
   configuration_url: 'http://homeassistant.local:8080',
 };
 
 const BASE_OPTS: BuildDiscoveryOptions = {
-  statePrefix: 'yapaja',
+  statePrefix: 'yapaia',
   discoveryPrefix: 'homeassistant',
   device: DEVICE,
   profileNames: ['Camper', 'Alkoven 7.5t'],
@@ -37,7 +37,7 @@ function configFor(configs: DiscoveryEntity[], topic: string): DiscoveryEntity {
 }
 
 const AVAILABILITY = {
-  availability_topic: 'yapaja/status',
+  availability_topic: 'yapaia/status',
   payload_available: 'online',
   payload_not_available: 'offline',
 };
@@ -50,65 +50,65 @@ describe('buildDiscoveryConfigs (E08-T2, docs/04 §1) — frozen per-entity snap
     const topics = configs.map((c) => c.topic).sort();
     expect(topics).toEqual(
       [
-        'homeassistant/sensor/yapaja_speed/config',
-        'homeassistant/sensor/yapaja_speed_limit/config',
-        'homeassistant/binary_sensor/yapaja_speeding/config',
-        'homeassistant/sensor/yapaja_eta/config',
-        'homeassistant/sensor/yapaja_distance_remaining/config',
-        'homeassistant/sensor/yapaja_instruction/config',
-        'homeassistant/sensor/yapaja_instruction_distance/config',
-        'homeassistant/sensor/yapaja_altitude/config',
-        'homeassistant/sensor/yapaja_nav_state/config',
-        'homeassistant/device_tracker/yapaja_vehicle/config',
-        'homeassistant/sensor/yapaja_destination/config',
-        'homeassistant/button/yapaja_stop/config',
-        'homeassistant/button/yapaja_pause/config',
-        'homeassistant/button/yapaja_resume/config',
-        'homeassistant/select/yapaja_profile/config',
+        'homeassistant/sensor/yapaia_speed/config',
+        'homeassistant/sensor/yapaia_speed_limit/config',
+        'homeassistant/binary_sensor/yapaia_speeding/config',
+        'homeassistant/sensor/yapaia_eta/config',
+        'homeassistant/sensor/yapaia_distance_remaining/config',
+        'homeassistant/sensor/yapaia_instruction/config',
+        'homeassistant/sensor/yapaia_instruction_distance/config',
+        'homeassistant/sensor/yapaia_altitude/config',
+        'homeassistant/sensor/yapaia_nav_state/config',
+        'homeassistant/device_tracker/yapaia_vehicle/config',
+        'homeassistant/sensor/yapaia_destination/config',
+        'homeassistant/button/yapaia_stop/config',
+        'homeassistant/button/yapaia_pause/config',
+        'homeassistant/button/yapaia_resume/config',
+        'homeassistant/select/yapaia_profile/config',
       ].sort(),
     );
   });
 
-  it('sensor.yapaja_speed', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_speed/config');
+  it('sensor.yapaia_speed', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_speed/config');
     expect(cfg.payload).toEqual({
       name: 'Speed',
-      unique_id: 'yapaja_go_speed',
-      object_id: 'yapaja_speed',
+      unique_id: 'yapaia_go_speed',
+      object_id: 'yapaia_speed',
       device_class: 'speed',
       state_class: 'measurement',
       unit_of_measurement: 'km/h',
-      state_topic: 'yapaja/nav/speed',
+      state_topic: 'yapaia/nav/speed',
       value_template: '{{ value_json.speed_kmh }}',
       ...AVAILABILITY,
       device: DEVICE,
     });
   });
 
-  it('sensor.yapaja_speed_limit', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_speed_limit/config');
+  it('sensor.yapaia_speed_limit', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_speed_limit/config');
     expect(cfg.payload).toEqual({
       name: 'Speed Limit',
-      unique_id: 'yapaja_go_speed_limit',
-      object_id: 'yapaja_speed_limit',
+      unique_id: 'yapaia_go_speed_limit',
+      object_id: 'yapaia_speed_limit',
       device_class: 'speed',
       state_class: 'measurement',
       unit_of_measurement: 'km/h',
-      state_topic: 'yapaja/nav/speed',
+      state_topic: 'yapaia/nav/speed',
       value_template: '{{ value_json.speed_limit_kmh }}',
       ...AVAILABILITY,
       device: DEVICE,
     });
   });
 
-  it('binary_sensor.yapaja_speeding', () => {
-    const cfg = configFor(configs, 'homeassistant/binary_sensor/yapaja_speeding/config');
+  it('binary_sensor.yapaia_speeding', () => {
+    const cfg = configFor(configs, 'homeassistant/binary_sensor/yapaia_speeding/config');
     expect(cfg.payload).toEqual({
       name: 'Speeding',
-      unique_id: 'yapaja_go_speeding',
-      object_id: 'yapaja_speeding',
+      unique_id: 'yapaia_go_speeding',
+      object_id: 'yapaia_speeding',
       device_class: 'safety',
-      state_topic: 'yapaja/nav/speed',
+      state_topic: 'yapaia/nav/speed',
       value_template: "{{ 'ON' if value_json.speeding else 'OFF' }}",
       payload_on: 'ON',
       payload_off: 'OFF',
@@ -117,30 +117,30 @@ describe('buildDiscoveryConfigs (E08-T2, docs/04 §1) — frozen per-entity snap
     });
   });
 
-  it('sensor.yapaja_eta', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_eta/config');
+  it('sensor.yapaia_eta', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_eta/config');
     expect(cfg.payload).toEqual({
       name: 'ETA',
-      unique_id: 'yapaja_go_eta',
-      object_id: 'yapaja_eta',
+      unique_id: 'yapaia_go_eta',
+      object_id: 'yapaia_eta',
       device_class: 'timestamp',
-      state_topic: 'yapaja/nav/eta',
+      state_topic: 'yapaia/nav/eta',
       value_template: '{{ value_json.eta }}',
       ...AVAILABILITY,
       device: DEVICE,
     });
   });
 
-  it('sensor.yapaja_distance_remaining (m -> km in the template)', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_distance_remaining/config');
+  it('sensor.yapaia_distance_remaining (m -> km in the template)', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_distance_remaining/config');
     expect(cfg.payload).toEqual({
       name: 'Distance Remaining',
-      unique_id: 'yapaja_go_distance_remaining',
-      object_id: 'yapaja_distance_remaining',
+      unique_id: 'yapaia_go_distance_remaining',
+      object_id: 'yapaia_distance_remaining',
       device_class: 'distance',
       state_class: 'measurement',
       unit_of_measurement: 'km',
-      state_topic: 'yapaja/nav/eta',
+      state_topic: 'yapaia/nav/eta',
       value_template:
         '{{ (value_json.distance_remaining_m / 1000) | round(2) if value_json.distance_remaining_m is not none else none }}',
       ...AVAILABILITY,
@@ -148,15 +148,15 @@ describe('buildDiscoveryConfigs (E08-T2, docs/04 §1) — frozen per-entity snap
     });
   });
 
-  it('sensor.yapaja_instruction (+ json_attributes carrying icon)', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_instruction/config');
+  it('sensor.yapaia_instruction (+ json_attributes carrying icon)', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_instruction/config');
     expect(cfg.payload).toEqual({
       name: 'Instruction',
-      unique_id: 'yapaja_go_instruction',
-      object_id: 'yapaja_instruction',
-      state_topic: 'yapaja/nav/maneuver',
+      unique_id: 'yapaia_go_instruction',
+      object_id: 'yapaia_instruction',
+      state_topic: 'yapaia/nav/maneuver',
       value_template: '{{ value_json.instruction }}',
-      json_attributes_topic: 'yapaja/nav/maneuver',
+      json_attributes_topic: 'yapaia/nav/maneuver',
       ...AVAILABILITY,
       device: DEVICE,
     });
@@ -168,66 +168,66 @@ describe('buildDiscoveryConfigs (E08-T2, docs/04 §1) — frozen per-entity snap
   // absolvierte Anweisung. `nav/maneuver` kommt dagegen mit jedem `nav/state`.
   it('keiner der beiden Anzeige-Sensoren haengt am Ansage-Topic', () => {
     for (const id of ['instruction', 'instruction_distance']) {
-      const cfg = configFor(configs, `homeassistant/sensor/yapaja_${id}/config`);
+      const cfg = configFor(configs, `homeassistant/sensor/yapaia_${id}/config`);
       const payload = cfg.payload as Record<string, unknown>;
-      expect(payload.state_topic, id).toBe('yapaja/nav/maneuver');
-      expect(payload.state_topic, id).not.toBe('yapaja/nav/instruction');
+      expect(payload.state_topic, id).toBe('yapaia/nav/maneuver');
+      expect(payload.state_topic, id).not.toBe('yapaia/nav/instruction');
     }
   });
 
-  it('sensor.yapaja_instruction_distance', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_instruction_distance/config');
+  it('sensor.yapaia_instruction_distance', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_instruction_distance/config');
     expect(cfg.payload).toEqual({
       name: 'Instruction Distance',
-      unique_id: 'yapaja_go_instruction_distance',
-      object_id: 'yapaja_instruction_distance',
+      unique_id: 'yapaia_go_instruction_distance',
+      object_id: 'yapaia_instruction_distance',
       device_class: 'distance',
       state_class: 'measurement',
       unit_of_measurement: 'm',
-      state_topic: 'yapaja/nav/maneuver',
+      state_topic: 'yapaia/nav/maneuver',
       value_template: '{{ value_json.distance_m }}',
       ...AVAILABILITY,
       device: DEVICE,
     });
   });
 
-  it('sensor.yapaja_altitude', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_altitude/config');
+  it('sensor.yapaia_altitude', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_altitude/config');
     expect(cfg.payload).toEqual({
       name: 'Altitude',
-      unique_id: 'yapaja_go_altitude',
-      object_id: 'yapaja_altitude',
+      unique_id: 'yapaia_go_altitude',
+      object_id: 'yapaia_altitude',
       device_class: 'distance',
       state_class: 'measurement',
       unit_of_measurement: 'm',
-      state_topic: 'yapaja/nav/altitude',
+      state_topic: 'yapaia/nav/altitude',
       value_template: '{{ value_json.altitude_m }}',
       ...AVAILABILITY,
       device: DEVICE,
     });
   });
 
-  it('sensor.yapaja_nav_state (raw string payload, no value_template)', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_nav_state/config');
+  it('sensor.yapaia_nav_state (raw string payload, no value_template)', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_nav_state/config');
     expect(cfg.payload).toEqual({
       name: 'Nav State',
-      unique_id: 'yapaja_go_nav_state',
-      object_id: 'yapaja_nav_state',
-      state_topic: 'yapaja/nav/state',
+      unique_id: 'yapaia_go_nav_state',
+      object_id: 'yapaia_nav_state',
+      state_topic: 'yapaia/nav/state',
       ...AVAILABILITY,
       device: DEVICE,
     });
     expect(cfg.payload).not.toHaveProperty('value_template');
   });
 
-  it('device_tracker.yapaja_vehicle (lat/lon remapped to latitude/longitude)', () => {
-    const cfg = configFor(configs, 'homeassistant/device_tracker/yapaja_vehicle/config');
+  it('device_tracker.yapaia_vehicle (lat/lon remapped to latitude/longitude)', () => {
+    const cfg = configFor(configs, 'homeassistant/device_tracker/yapaia_vehicle/config');
     expect(cfg.payload).toEqual({
       name: 'Vehicle',
-      unique_id: 'yapaja_go_vehicle',
-      object_id: 'yapaja_vehicle',
+      unique_id: 'yapaia_go_vehicle',
+      object_id: 'yapaia_vehicle',
       source_type: 'gps',
-      json_attributes_topic: 'yapaja/position',
+      json_attributes_topic: 'yapaia/position',
       json_attributes_template:
         "{{ {'latitude': value_json.lat, 'longitude': value_json.lon, 'gps_accuracy': value_json.accuracy} | tojson }}",
       ...AVAILABILITY,
@@ -235,15 +235,15 @@ describe('buildDiscoveryConfigs (E08-T2, docs/04 §1) — frozen per-entity snap
     });
   });
 
-  it('sensor.yapaja_destination (name + json_attributes lat/lon, null-safe)', () => {
-    const cfg = configFor(configs, 'homeassistant/sensor/yapaja_destination/config');
+  it('sensor.yapaia_destination (name + json_attributes lat/lon, null-safe)', () => {
+    const cfg = configFor(configs, 'homeassistant/sensor/yapaia_destination/config');
     expect(cfg.payload).toEqual({
       name: 'Destination',
-      unique_id: 'yapaja_go_destination',
-      object_id: 'yapaja_destination',
-      state_topic: 'yapaja/nav/destination',
+      unique_id: 'yapaia_go_destination',
+      object_id: 'yapaia_destination',
+      state_topic: 'yapaia/nav/destination',
       value_template: '{{ value_json.name if value_json is not none else none }}',
-      json_attributes_topic: 'yapaja/nav/destination',
+      json_attributes_topic: 'yapaia/nav/destination',
       json_attributes_template:
         "{{ ({'lat': value_json.lat, 'lon': value_json.lon} if value_json is not none else {}) | tojson }}",
       ...AVAILABILITY,
@@ -251,18 +251,18 @@ describe('buildDiscoveryConfigs (E08-T2, docs/04 §1) — frozen per-entity snap
     });
   });
 
-  it('button.yapaja_stop / pause / resume -> cmd/navigation with the matching payload_press', () => {
+  it('button.yapaia_stop / pause / resume -> cmd/navigation with the matching payload_press', () => {
     for (const [object, action, label] of [
       ['stop', 'stop', 'Stop'],
       ['pause', 'pause', 'Pause'],
       ['resume', 'resume', 'Resume'],
     ] as const) {
-      const cfg = configFor(configs, `homeassistant/button/yapaja_${object}/config`);
+      const cfg = configFor(configs, `homeassistant/button/yapaia_${object}/config`);
       expect(cfg.payload).toEqual({
         name: label,
-        unique_id: `yapaja_go_${object}`,
-        object_id: `yapaja_${object}`,
-        command_topic: 'yapaja/cmd/navigation',
+        unique_id: `yapaia_go_${object}`,
+        object_id: `yapaia_${object}`,
+        command_topic: 'yapaia/cmd/navigation',
         payload_press: action,
         ...AVAILABILITY,
         device: DEVICE,
@@ -270,13 +270,13 @@ describe('buildDiscoveryConfigs (E08-T2, docs/04 §1) — frozen per-entity snap
     }
   });
 
-  it('select.yapaja_profile — live options + a command_template producing {name} (matches parseProfileCommand)', () => {
-    const cfg = configFor(configs, 'homeassistant/select/yapaja_profile/config');
+  it('select.yapaia_profile — live options + a command_template producing {name} (matches parseProfileCommand)', () => {
+    const cfg = configFor(configs, 'homeassistant/select/yapaia_profile/config');
     expect(cfg.payload).toEqual({
       name: 'Profile',
-      unique_id: 'yapaja_go_profile',
-      object_id: 'yapaja_profile',
-      command_topic: 'yapaja/cmd/profile',
+      unique_id: 'yapaia_go_profile',
+      object_id: 'yapaia_profile',
+      command_topic: 'yapaia/cmd/profile',
       command_template: "{{ {'name': value} | tojson }}",
       options: ['Camper', 'Alkoven 7.5t'],
       ...AVAILABILITY,
@@ -290,7 +290,7 @@ describe('buildSelectProfileConfig standalone (used for the profile-change-only 
     const standalone = buildSelectProfileConfig(BASE_OPTS);
     const fromFullSet = configFor(
       buildDiscoveryConfigs(BASE_OPTS),
-      'homeassistant/select/yapaja_profile/config',
+      'homeassistant/select/yapaia_profile/config',
     );
     expect(standalone).toEqual(fromFullSet);
   });
@@ -310,9 +310,9 @@ describe('device/availability are consistent across every entity', () => {
     }
   });
 
-  it('every entity uses yapaja/status for availability, online/offline', () => {
+  it('every entity uses yapaia/status for availability, online/offline', () => {
     for (const cfg of configs) {
-      expect(cfg.payload.availability_topic).toBe('yapaja/status');
+      expect(cfg.payload.availability_topic).toBe('yapaia/status');
       expect(cfg.payload.payload_available).toBe('online');
       expect(cfg.payload.payload_not_available).toBe('offline');
     }
@@ -322,41 +322,41 @@ describe('device/availability are consistent across every entity', () => {
     const ids = configs.map((c) => c.payload.unique_id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) {
-      expect(id).toMatch(/^yapaja_go_[a-z_]+$/);
+      expect(id).toMatch(/^yapaia_go_[a-z_]+$/);
     }
   });
 
   it('jede Entitaet gibt die Entity-ID vor, die die Dokumentation nennt', () => {
     // Ohne `object_id` bildet Home Assistant die ID aus Geraete- PLUS
     // Entitaetsnamen -- aus „Yapaia Go" + „Speed" wird `sensor.yapaia_go_speed`,
-    // und jedes Dashboard, das `sensor.yapaja_speed` nennt, zeigt „Entitaet
+    // und jedes Dashboard, das `sensor.yapaia_speed` nennt, zeigt „Entitaet
     // nicht verfuegbar". Der Test haelt fest, dass die IDs vorgegeben werden
     // und dass sie NICHT am Anzeigenamen des Geraets haengen.
     const objectIds = configs.map((c) => c.payload.object_id);
     expect(new Set(objectIds).size).toBe(configs.length);
     for (const cfg of configs) {
-      expect(cfg.payload.object_id).toBe(String(cfg.payload.unique_id).replace('yapaja_go_', 'yapaja_'));
+      expect(cfg.payload.object_id).toBe(String(cfg.payload.unique_id).replace('yapaia_go_', 'yapaia_'));
       // Der Discovery-Topic traegt denselben Namen -- so bleibt „welche
       // Entitaet gehoert zu welchem Topic" eine Frage ohne Nachschlagen.
       expect(cfg.topic).toContain(`/${String(cfg.payload.object_id)}/config`);
     }
   });
 
-  it('a custom statePrefix/discoveryPrefix is honoured everywhere (no hardcoded "yapaja"/"homeassistant")', () => {
+  it('a custom statePrefix/discoveryPrefix is honoured everywhere (no hardcoded "yapaia"/"homeassistant")', () => {
     const custom = buildDiscoveryConfigs({
       ...BASE_OPTS,
-      statePrefix: 'my-yapaja',
+      statePrefix: 'my-yapaia',
       discoveryPrefix: 'ha-custom',
     });
     for (const cfg of custom) {
       expect(cfg.topic.startsWith('ha-custom/')).toBe(true);
-      expect(cfg.payload.availability_topic).toBe('my-yapaja/status');
+      expect(cfg.payload.availability_topic).toBe('my-yapaia/status');
     }
   });
 });
 
 // --- Plausibility (E08-T2 acceptance): every coarse ManeuverType maps to a
-// real, existing mdi icon name -- `sensor.yapaja_instruction`'s `icon`
+// real, existing mdi icon name -- `sensor.yapaia_instruction`'s `icon`
 // attribute (carried via `json_attributes_topic` above, sourced from
 // `mapping.ts`'s `buildInstructionPayload`) must never be broken in HA. ----
 

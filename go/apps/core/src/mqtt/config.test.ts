@@ -128,11 +128,11 @@ describe('resolveDiscoveryConfig (E08-T2)', () => {
 
   it('resolves discovery_prefix and configuration_url from Settings', () => {
     const config = resolveDiscoveryConfig({
-      settings: settingsWith({ discovery_prefix: 'ha-custom', configuration_url: 'http://yapaja.local:8080' }),
+      settings: settingsWith({ discovery_prefix: 'ha-custom', configuration_url: 'http://yapaia.local:8080' }),
       env: {},
     });
     expect(config.discoveryPrefix).toBe('ha-custom');
-    expect(config.configurationUrl).toBe('http://yapaja.local:8080');
+    expect(config.configurationUrl).toBe('http://yapaia.local:8080');
   });
 
   it('resolves discovery_prefix and configuration_url from env when Settings omit them', () => {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Übersetzt und führt die Zeichenroutine aus `yapaja-nav-display.yaml` aus.
+ * Übersetzt und führt die Zeichenroutine aus `yapaia-nav-display.yaml` aus.
  *
  * ─── WARUM DAS ÜBERHAUPT PRÜFBAR SEIN MUSS ──────────────────────────────────
  * Eine ESPHome-Konfiguration wird sonst erst auf dem Gerät übersetzt. Ein
@@ -27,7 +27,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
-const YAML = join(HIER, '..', 'yapaja-nav-display.yaml');
+const YAML = join(HIER, '..', 'yapaia-nav-display.yaml');
 
 /**
  * Holt den Rumpf des `lambda: |-`-Blocks aus der Konfiguration.
@@ -90,12 +90,12 @@ export function substitutionen(text) {
  */
 export const ZEIGER_IDS = new Set([
   'font_xl', 'font_l', 'font_m', 'font_s',
-  'yapaja_tempo', 'yapaja_tempolimit', 'yapaja_tempolimit_fahrzeug',
-  'yapaja_manoever_entfernung',
-  'yapaja_reststrecke', 'yapaja_zu_schnell', 'yapaja_anweisung',
-  'yapaja_manoever_art', 'yapaja_fahrzustand', 'yapaja_ankunft',
+  'yapaia_tempo', 'yapaia_tempolimit', 'yapaia_tempolimit_fahrzeug',
+  'yapaia_manoever_entfernung',
+  'yapaia_reststrecke', 'yapaia_zu_schnell', 'yapaia_anweisung',
+  'yapaia_manoever_art', 'yapaia_fahrzustand', 'yapaia_ankunft',
   // Der Kreisel: Ausfahrt und Drehung als ein Text.
-  'yapaja_kreisel',
+  'yapaia_kreisel',
   // Die digitale Wasserwaage.
   'neigung_lr', 'neigung_vh',
   // Die beiden Schalter: Waage erzwingen, und Fahrzeug statt Libelle.
@@ -203,7 +203,7 @@ function lauf(ueberschreiben, defines, ueberschrift) {
   const rumpf = lambdaRumpf(readFileSync(YAML, 'utf-8'), ueberschreiben);
   console.log(`${ueberschrift}: ${rumpf.split('\n').length} Zeilen\n`);
 
-  const bau = mkdtempSync(join(tmpdir(), 'yapaja-esphome-'));
+  const bau = mkdtempSync(join(tmpdir(), 'yapaia-esphome-'));
   writeFileSync(join(bau, 'lambda_body.inc'), rumpf);
 
   const programm = join(bau, 'pruefung');

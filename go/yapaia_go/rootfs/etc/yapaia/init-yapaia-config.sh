@@ -1,0 +1,388 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# init-yapaia-config -- s6-rc oneshot (E08-T4, docs/04 §3, W-16).
+#
+# Runs ONCE, before any of the longrun services (valhalla/photon/gpsd/core)
+# start (they all declare `dependencies.d/init-yapaia-config`, see
+# ../s6-overlay/s6-rc.d/*/dependencies.d/). Responsibilities:
+#
+#   1. Read the add-on's `options`/`schema` (config.yaml) via bashio::config.
+#   2. Read MQTT broker credentials automatically via `bashio::services mqtt`
+#      (works because config.yaml declares `services: [mqtt:need]`) --
+#      "MQTT-Credentials automatisch" (docs/04 §3).
+#   3. Ensure the W-16 data layout exists under /share/yapaia/ (survives
+#      add-on updates/reinstalls -- NEVER write persistent data into the
+#      container's own writable layer).
+#   4. Export everything the Core / Valhalla / Photon / gpsd `run` scripts
+#      need as s6-overlay CONTAINER ENVIRONMENT variables
+#      (/run/s6/container_environment/<NAME>), which `with-contenv` in each
+#      `run` script then re-imports automatically.
+#
+# Bashio is provided by the Supervisor's base image tooling that our
+# `Dockerfile` installs (see Dockerfile comment "bashio"). `set -e`: a failure
+# in this oneshot MUST fail add-on startup loudly (bad partial config is worse
+# than a crash-with-a-clear-log) -- this is DELIBERATELY the one place in the
+# whole service tree allowed to hard-fail; every downstream `run` script
+# instead degrades gracefully (see their own comments) once this oneshot has
+# succeeded once.
+# ==============================================================================
+set -euo pipefail
+
+# ---- s6-overlay container-environment helper -------------------------------
+# Writes NAME=VALUE so that every `run` script sourced via
+# `#!/command/with-contenv bash` sees it as a normal env var. (Der Pfad stand
+# hier bis 2026-09-02 als `/usr/bin/with-contenv` -- den gibt es nur in den
+# offiziellen HA-Basisimages, nicht in dem selbst mitgebrachten s6-overlay
+# v3.1.6.2 dieses Add-ons; genau daran scheiterten die Dienste in 0.1.0.)
+# This is the
+# s6-overlay v3 mechanism for sharing computed config across services (the
+# alternative -- a shared `/etc/yapaia/env` file each `run` script sources --
+# would ALSO work and is a fine substitute if `with-contenv` behaves
+# differently than expected on the actual target image; noted here for
+# whoever verifies this against a live build).
+#
+# Das Zielverzeichnis ist ueberschreibbar (`S6_CONTAINER_ENVIRONMENT_DIR`) und
+# steht im Betrieb IMMER auf der Vorgabe -- s6 setzt die Variable nicht. Der
+# Grund fuer die Klammer ist ein Test: `config.test.ts` fuehrt dieses Skript
+# mit einem gefaelschten bashio wirklich AUS und liest nach, was es exportiert
+# hat. Nur so laesst sich pruefen, dass `gps_source: companion_app` gpsd
+# ausschaltet, statt zu pruefen, dass der Quelltext das Wort enthaelt -- was
+# beides zugleich wahr sein kann, ohne dass das eine aus dem anderen folgt.
+export_env() {
+  local name="$1" value="$2"
+  echo -n "${value}" > "${S6_CONTAINER_ENVIRONMENT_DIR:-/run/s6/container_environment}/${name}"
+}
+
+# ─── EINE OPTION, EINE STELLE ───────────────────────────────────────────────
+# Seit 0.8.4 liegen die selten angefassten Optionen in aufklappbaren Gruppen
+# (`search.photon_enabled` statt `photon_enabled`) -- so, wie es „Terminal &
+# SSH" mit seinem Block „Server" macht.
+#
+# Bis 0.8.7 las diese Funktion zusaetzlich die alte, FLACHE Stelle, damit ein
+# Update bestehende Werte nicht verliert. Seit 0.8.8 nicht mehr: es gibt keine
+# fremden Installationen, auf die Ruecksicht zu nehmen waere, und die zweite
+# Stelle hat schon einen Fehler getragen (den String "null" der alten Stelle
+# gab sie unveraendert weiter -- B-05, eine Ebene hoeher).
+#
+# `bashio::config` liefert fuer einen fehlenden Schluessel den String "null";
+# das zaehlt hier wie leer. Diese Falle bleibt, sie hat mit der Gruppierung
+# nichts zu tun.
+config_wert() {
+  local wert
+  wert="$(bashio::config "$1")"
+  if [ "${wert}" = "null" ]; then
+    wert=""
+  fi
+  printf '%s' "${wert}"
+}
+
+bashio::log.info "init-yapaia-config: reading add-on options..."
+
+REGION="$(bashio::config 'region')"
+MQTT_PREFIX="$(config_wert 'home_assistant.mqtt_prefix')"
+PHOTON_ENABLED="$(config_wert 'search.photon_enabled')"
+# ─── ONLINE-DIENSTE ─────────────────────────────────────────────────────────
+# Der einzige Schalter, der Yapaia erlaubt, fremde Server anzufragen. AUS als
+# Vorgabe -- die ausfuehrliche Begruendung steht in config.yaml.
+#
+# `config_wert` liefert bei fehlendem Schluessel eine LEERE Zeichenkette, und
+# der Core vergleicht auf genau „true". Eine Konfiguration von vor 0.10.0
+# kennt den Schluessel nicht -- daraus wird hier also „aus". Das ist die
+# richtige Richtung: ein Update darf eine Installation nicht stillschweigend
+# ins Netz schicken.
+ONLINE_ENABLED="$(config_wert 'online.enabled')"
+# Seit 0.42.0: Schluessel fuer Spritpreise (Tankerkoenig). Wird nie geloggt.
+TANKERKOENIG_API_KEY="$(config_wert 'online.tankerkoenig_api_key')"
+# `ha_tracker` hiess dieser Wert bis 0.8.2. Bis 0.8.7 wurde er hier auf
+# `companion_app` umgeschrieben, damit ein Update keine bestehende
+# Installation still ohne Positionsquelle laesst. Seit 0.8.8 ist er aus dem
+# Schema entfernt -- es gibt keine fremden Installationen, auf die Ruecksicht
+# zu nehmen waere --, und damit hat auch das Umschreiben keinen Gegenstand
+# mehr. Der Supervisor laesst den alten Wert gar nicht mehr durch.
+GPS_SOURCE="$(bashio::config 'gps_source')"
+# Welcher USB-Anschluss der Empfaenger ist. Leer = Yapaia sucht selbst
+# (/etc/yapaia/find-gps-device.sh). Dieselbe "null"-Falle wie unten bei
+# `ha_device_tracker`: `str?` liefert bei leerer Option den String "null", und
+# ein Geraet dieses Namens gibt es nicht -- gpsd wuerde dann gar nicht starten,
+# obwohl ein Empfaenger steckt.
+GPS_DEVICE="$(bashio::config 'gps_device')"
+if [ "${GPS_DEVICE}" = "null" ]; then
+  GPS_DEVICE=""
+fi
+# B-05. `str?` liefert bei leerer Option den String "null"; das ist KEINE
+# Entity-ID und muss zu leer werden, sonst startet der Core eine Quelle, die
+# eine Entitaet namens "null" sucht.
+HA_DEVICE_TRACKER="$(bashio::config 'ha_device_tracker')"
+if [ "${HA_DEVICE_TRACKER}" = "null" ]; then
+  HA_DEVICE_TRACKER=""
+fi
+LOG_LEVEL="$(config_wert 'advanced.log_level')"
+# ─── DAS ERSCHEINUNGSBILD ───────────────────────────────────────────────────
+# Die Option heisst `sun`, weil „Nach Sonnenstand" das ist, was sie tut. Der
+# Kern kennt diese Betriebsart seit E07-T3 unter dem Namen `auto`, und der
+# steht in den Einstellungen jeder bestehenden Installation.
+#
+# Uebersetzt wird deshalb HIER, an genau einer Stelle. Ohne das reicht das
+# Add-on „sun" durch, die Weboberflaeche erkennt den Wert nicht als gueltigen
+# Modus -- und die Vorgabe faellt STILL durch. Kein Fehler, keine Meldung,
+# nur ein Schalter, der nichts tut.
+THEME_MODE="$(config_wert 'display.theme')"
+if [ "${THEME_MODE}" = "sun" ]; then
+  THEME_MODE="auto"
+fi
+PHOTON_XMX_MB="$(config_wert 'search.photon_xmx_mb')"
+VALHALLA_MEMORY_MB="$(config_wert 'routing.valhalla_memory_mb')"
+GPS_SIMULATOR="$(config_wert 'advanced.gps_simulator')"
+# MQTT ist ein zusaetzlicher Weg zu Home Assistant (der eigentliche ist die
+# Integration „Yapaia"). Leeres oder "null" heisst: aus, wie die Vorgabe in
+# `config.yaml`.
+MQTT_ENABLED="$(config_wert 'home_assistant.mqtt_enabled')"
+if [ -z "${MQTT_ENABLED}" ] || [ "${MQTT_ENABLED}" = "null" ]; then
+  MQTT_ENABLED='false'
+fi
+
+# --- Plausibilitäts-Kriterium (E08-T4): no region configured -> onboarding, ---
+# --- NOT a crash. We only LOG here; apps/core/src/ already starts cleanly  ---
+# --- with an empty/nonexistent region (see the existing `empty-regions`   ---
+# --- test suite apps/core/src/map/*.test.ts / regionsStore behavior) --   ---
+# --- the full onboarding UI itself is E08-T5, out of scope here.         ---
+if [ -z "${REGION}" ]; then
+  bashio::log.warning "init-yapaia-config: no 'region' configured -- Core starts in an onboarding/no-region state (E08-T5 builds the setup wizard; this add-on version does not crash, it just has nothing to route/search yet). Set 'region' in the add-on's Configuration tab once you know which map to install."
+fi
+
+# ---- W-16: persistent data lives under /share/yapaia/, never in-container --
+DATA_ROOT="/share/yapaia"
+mkdir -p \
+  "${DATA_ROOT}/db" \
+  "${DATA_ROOT}/tiles" \
+  "${DATA_ROOT}/valhalla/tiles" \
+  "${DATA_ROOT}/photon/photon_data" \
+  "${DATA_ROOT}/lite-search" \
+  "${DATA_ROOT}/nav-recovery"
+
+# ---- MQTT credentials via bashio (docs/04 §3 "MQTT-Credentials automatisch") ---
+# `services: [mqtt:want]` in config.yaml liefert die Zugangsdaten des
+# Mosquitto-Add-ons hier ohne jede manuelle Eingabe -- wenn es eines gibt.
+#
+# ZWEI BEDINGUNGEN, und die erste ist der Schalter des Betreibers: `mqtt_enabled`
+# aus. Ohne diese Abfrage waere der Schalter wirkungslos, sobald ein Broker im
+# Haus laeuft -- bashio faende ihn, das Skript exportierte die Adresse, und der
+# Core baendelte weiter ueber MQTT. Genau so entsteht ein Schalter, der aussieht
+# wie einer und keiner ist.
+if bashio::var.true "${MQTT_ENABLED}" && bashio::services.available 'mqtt'; then
+  MQTT_HOST="$(bashio::services 'mqtt' 'host')"
+  MQTT_PORT="$(bashio::services 'mqtt' 'port')"
+  MQTT_USER="$(bashio::services 'mqtt' 'username')"
+  MQTT_PASSWORD="$(bashio::services 'mqtt' 'password')"
+  MQTT_SSL="$(bashio::services 'mqtt' 'ssl')"
+  MQTT_SCHEME="mqtt"
+  if [ "${MQTT_SSL}" = "true" ]; then
+    MQTT_SCHEME="mqtts"
+  fi
+  MQTT_BROKER_URL="${MQTT_SCHEME}://${MQTT_HOST}:${MQTT_PORT}"
+  bashio::log.info "init-yapaia-config: MQTT broker resolved via Supervisor (${MQTT_SCHEME}://${MQTT_HOST}:${MQTT_PORT})."
+  export_env "MQTT_BROKER_URL" "${MQTT_BROKER_URL}"
+  export_env "MQTT_USERNAME" "${MQTT_USER}"
+  export_env "MQTT_PASSWORD" "${MQTT_PASSWORD}"
+else
+  # W-06: the Core is fully functional without a broker -- so we simply don't
+  # export MQTT_BROKER_URL. apps/core/src/mqtt/config.ts treats an absent
+  # broker URL as "MQTT disabled" (see its own tests) rather than an error.
+  bashio::log.warning "init-yapaia-config: no MQTT service available (Mosquitto add-on not installed/started) -- Yapaia runs WITHOUT the Home-Assistant MQTT/discovery integration (W-06: fully functional otherwise)."
+fi
+# apps/core/src/mqtt/config.ts reads `MQTT_PREFIX` (NOT `MQTT_TOPIC_PREFIX`)
+# -- confirmed against that file before wiring this.
+export_env "MQTT_PREFIX" "${MQTT_PREFIX}"
+
+
+# ---- Ingress mode (docs/04 §3 + apps/core/src/index.ts resolveBindHost) ----
+# Always on for the add-on: HA's Ingress proxy handles auth + remote access,
+# so the Core's own bearer-token guard (apps/core/src/auth/) stays OFF.
+export_env "INGRESS_MODE" "1"
+export_env "PORT" "8099"
+export_env "HOST" "0.0.0.0"
+export_env "NODE_ENV" "production"
+# ─── NICHT `LOG_LEVEL` ─────────────────────────────────────────────────────
+# Alles, was hier exportiert wird, landet in /run/s6/container_environment/
+# und damit in JEDEM Skript, das mit `with-contenv` startet -- auch in
+# bashio selbst. Und bashio liest genau diesen Namen:
+#
+#     lib/bashio.sh:31
+#     declare __BASHIO_LOG_LEVEL=${LOG_LEVEL:-${__BASHIO_DEFAULT_LOG_LEVEL}}
+#
+# Es erwartet dort eine ZAHL (1..8). Unsere Add-on-Option liefert aber einen
+# NAMEN ("info"). Ergebnis war, dass bashios `log.sh:107`
+#
+#     if [[ "${level}" -gt "${__BASHIO_LOG_LEVEL}" ]]; then
+#
+# den String arithmetisch auswerten wollte und unter `set -u` bei JEDEM
+# Log-Aufruf abbrach: „info: unbound variable". Das Add-on-Protokoll bestand
+# danach fast nur noch aus dieser Zeile, und keiner unserer s6-Dienste konnte
+# ueberhaupt etwas protokollieren.
+#
+# Deshalb heisst die geteilte Variable jetzt `YAPAIA_LOG_LEVEL`. Der Core
+# erwartet weiterhin `LOG_LEVEL` (pino) -- das setzt `core/run` lokal fuer
+# genau diesen einen Prozess, statt es global zu streuen.
+export_env "YAPAIA_LOG_LEVEL" "${LOG_LEVEL}"
+
+# ---- Data paths (W-16) ----
+export_env "DB_PATH" "${DATA_ROOT}/db/yapaia.db"
+# `TILES_DIR` (apps/core/src/map/paths.ts) is the Core's PMTiles MAP-region
+# store -- distinct from Valhalla's own routing graph below, which the Core
+# never reads directly (it only talks to VALHALLA_URL over HTTP). Exporting
+# these under two clearly different names avoids the two completely
+# different kinds of "tiles" colliding on one directory.
+export_env "TILES_DIR" "${DATA_ROOT}/tiles"
+# Consumed only by our OWN valhalla/run script (not by the Core) -- see
+# ../s6-overlay/s6-rc.d/valhalla/run.
+export_env "VALHALLA_TILES_DIR" "${DATA_ROOT}/valhalla/tiles"
+export_env "NAV_RECOVERY_PATH" "${DATA_ROOT}/nav-recovery/nav-recovery.json"
+export_env "LITE_SEARCH_DB_PATH" "${DATA_ROOT}/lite-search/lite_search.db"
+
+# ---- Routing / search backends (in-container, same container = localhost) --
+export_env "VALHALLA_URL" "http://127.0.0.1:8002"
+export_env "VALHALLA_MEMORY_MB" "${VALHALLA_MEMORY_MB}"
+export_env "PHOTON_ENABLED" "${PHOTON_ENABLED}"
+export_env "ONLINE_ENABLED" "${ONLINE_ENABLED}"
+export_env "TANKERKOENIG_API_KEY" "${TANKERKOENIG_API_KEY}"
+
+# ─── BORDSENSOREN ──────────────────────────────────────────────────────────
+# Welche HA-Entitaeten Fuellstaende, Batterie und Aussentemperatur liefern,
+# und ab wann Yapaia etwas sagt (`apps/core/src/bord/`). Leere Werte werden
+# gar nicht erst exportiert: der Kern kennt dann diesen Sensor nicht, statt
+# einen leeren Namen bei Home Assistant zu erfragen.
+for paar in \
+  "grauwasser:YAPAIA_BORD_GRAUWASSER" \
+  "frischwasser:YAPAIA_BORD_FRISCHWASSER" \
+  "batterie:YAPAIA_BORD_BATTERIE" \
+  "aussentemperatur:YAPAIA_BORD_AUSSENTEMPERATUR" \
+  "grauwasser_ab:YAPAIA_BORD_GRAUWASSER_AB" \
+  "frischwasser_bis:YAPAIA_BORD_FRISCHWASSER_BIS" \
+  "batterie_bis:YAPAIA_BORD_BATTERIE_BIS" \
+  "frost_bis:YAPAIA_BORD_FROST_BIS"; do
+  bord_wert="$(config_wert "bord.${paar%%:*}")"
+  if [ -n "${bord_wert}" ]; then
+    export_env "${paar#*:}" "${bord_wert}"
+  fi
+done
+
+# ─── DEN TESTFAHRER FREISCHALTEN ───────────────────────────────────────────
+# Der Core laeuft hier mit NODE_ENV=production; dort antworten alle
+# Simulator-Routen mit 403, solange ENABLE_SIMULATOR nicht auf "1" steht.
+# Das ist die richtige Vorgabe: der Simulator kann beliebige Positionen
+# einspeisen und verdraengt dabei den echten Empfaenger -- auf einem
+# fahrenden Fahrzeug darf das nicht aus Versehen gehen.
+#
+# Die Variable wird nur GESETZT, wenn der Haken in der Konfiguration steht.
+# Sonst bleibt sie ungesetzt (und nicht etwa auf "0"), damit die Sperre
+# genau der Vorgabe des Cores entspricht und nicht einer zweiten,
+# hier nachgebauten Regel.
+if bashio::var.true "${GPS_SIMULATOR}"; then
+  export_env "ENABLE_SIMULATOR" "1"
+  bashio::log.warning "init-yapaia-config: GPS-Simulator ist FREIGESCHALTET -- er kann die echte Position verdraengen. Nur zum Testen einschalten."
+fi
+export_env "PHOTON_URL" "http://127.0.0.1:2322"
+export_env "PHOTON_XMX_MB" "${PHOTON_XMX_MB}"
+export_env "PHOTON_DATA_DIR" "${DATA_ROOT}/photon/photon_data"
+
+# ---- GPS source (docs/04 §3 "GPS-Quelle") ----
+# `usb` / `network` -> gpsd; `companion_app` -> Companion App; `none` -> Browser.
+# Der Core liest `GPS_SOURCE` selbst (apps/core/src/index.ts): bei
+# `companion_app` darf die HA-Quelle sich ihre Entitaet selbst suchen, statt eine
+# abgeschriebene Entity-ID zu verlangen.
+export_env "GPS_SOURCE" "${GPS_SOURCE}"
+# B-05: Position aus einer HA-`device_tracker`-Entitaet (Companion App).
+# Leer UND `gps_source != companion_app` = aus; der Core startet die Quelle dann
+# gar nicht erst.
+export_env "HA_DEVICE_TRACKER" "${HA_DEVICE_TRACKER:-}"
+# Liest `gpsd/run` beim Aussuchen des Geraets. Immer exportieren, auch leer:
+# das run-Skript laeuft unter `set -u`, und eine ungesetzte Variable braeche es
+# ab, statt einfach selbst zu suchen.
+export_env "GPS_DEVICE" "${GPS_DEVICE:-}"
+# Liest `settings/routes.ts` als VORGABE (nicht als Einstellung) -- die Wahl
+# in Yapaia hat Vorrang. Siehe `GET /settings/defaults`.
+export_env "THEME_MODE" "${THEME_MODE:-}"
+# Wo der gpsd-Dienst hinterlegt, WARUM er laeuft oder nicht. Hier definiert,
+# damit Dienst und Kern denselben Pfad meinen -- zwei Stellen mit derselben
+# Vorgabe laufen frueher oder spaeter auseinander, und das faellt dann als
+# „die Pruefung zeigt nichts" auf.
+export_env "GPS_STATUS_DATEI" "${GPS_STATUS_DATEI:-/run/yapaia/gps-status}"
+if [ "${GPS_SOURCE}" = "usb" ] || [ "${GPS_SOURCE}" = "network" ]; then
+  export_env "GPSD_ENABLED" "true"
+  export_env "GPSD_HOST" "127.0.0.1"
+  export_env "GPSD_PORT" "2947"
+else
+  # Auch `companion_app` landet hier -- gpsd auf einer Installation ohne
+  # USB-Empfaenger zu starten, erzeugt nur eine Warnung ueber ein Geraet, das
+  # es nicht gibt.
+  export_env "GPSD_ENABLED" "false"
+fi
+if [ "${GPS_SOURCE}" = "companion_app" ] && [ -z "${HA_DEVICE_TRACKER}" ]; then
+  bashio::log.info "init-yapaia-config: gps_source=companion_app ohne feste Entity-ID -- der Core waehlt selbst, sofern es genau einen device_tracker mit Koordinaten gibt (sonst sagt die Installationspruefung, welche zur Wahl stehen)."
+fi
+
+# ---- HA output channel (E08-T3, docs/04 §2) via the Supervisor-proxied API -
+# `homeassistant_api: true` in config.yaml grants access to
+# http://supervisor/core/api using $SUPERVISOR_TOKEN (already exported into
+# the container environment by the Supervisor itself -- we only need to point
+# the Core at the proxy URL; it re-reads $SUPERVISOR_TOKEN itself).
+export_env "HA_API_URL" "http://supervisor/core/api"
+
+# ---- Lovelace-Karte fuer eigene Dashboards bereitstellen -------------------
+# Home Assistant liefert alles unter seinem `www/` als `/local/...` aus. Das
+# ist der einzige Ort, unter dem eine Dashboard-Ressource dauerhaft gueltig
+# bleibt -- der Ingress-Pfad des Add-ons enthaelt ein wechselndes Token und
+# taugt dafuer nicht.
+#
+# ZWEI MOEGLICHE MOUNT-PFADE: der Supervisor legt `homeassistant_config` unter
+# `/homeassistant` ab, frueher hiess dieselbe Zuordnung `config` und lag unter
+# `/config`. Beide werden geprueft, statt einen zu raten -- ein geratener Pfad
+# waere hier besonders unangenehm: das Kopieren schluege still fehl, und die
+# Karte fehlte im Dashboard, ohne dass irgendwo etwas dazu stuende.
+#
+# Kopiert wird bei JEDEM Start, damit ein Add-on-Update auch die Karte
+# aktualisiert. Beruehrt wird ausschliesslich diese eine Datei.
+# Beide Pfade sind ueberschreibbar, und beide stehen im Betrieb IMMER auf der
+# Vorgabe -- genau wie `S6_CONTAINER_ENVIRONMENT_DIR` weiter oben und aus
+# demselben Grund: `config.test.ts` fuehrt dieses Skript wirklich AUS. Ohne
+# die Klammern liesse sich dieser ganze Block nicht pruefen (im Testcontainer
+# gibt es weder /homeassistant noch das Image-Verzeichnis), und er ist der
+# Block, der beim Fehlschlagen am stillsten ist: die Karte fehlt im
+# Dashboard, und nirgends steht, warum.
+CARD_SRC="${YAPAIA_CARD_SRC:-/usr/share/yapaia/lovelace/yapaia-map-card.js}"
+HA_CONFIG_DIR=""
+for candidate in ${YAPAIA_HA_CONFIG_DIRS:-/homeassistant /config}; do
+  if [ -d "$candidate" ]; then
+    HA_CONFIG_DIR="$candidate"
+    break
+  fi
+done
+
+# Das Yapaia-Protokoll (0.44): Instanz-Kennung und Token liegen im privaten
+# /data des Add-ons; der Core legt die mitgebrachte Integration nach
+# `<ha-config>/custom_components/yapaia` (apps/core/src/yapaia/anmeldung.ts).
+export_env "YAPAIA_IDENTITAET" "${YAPAIA_IDENTITAET:-/data/yapaia.json}"
+if [ -n "$HA_CONFIG_DIR" ]; then
+  export_env "YAPAIA_HA_CONFIG_DIR" "$HA_CONFIG_DIR"
+fi
+
+if [ -z "$HA_CONFIG_DIR" ]; then
+  bashio::log.warning "init-yapaia-config: HA-Konfigurationsordner nicht gefunden -- die Dashboard-Karte wurde NICHT bereitgestellt."
+elif [ ! -f "$CARD_SRC" ]; then
+  bashio::log.warning "init-yapaia-config: ${CARD_SRC} fehlt im Image -- die Dashboard-Karte wurde NICHT bereitgestellt."
+else
+  CARD_DIR="${HA_CONFIG_DIR}/www/yapaia"
+  if mkdir -p "$CARD_DIR" && cp "$CARD_SRC" "${CARD_DIR}/yapaia-map-card.js"; then
+    bashio::log.info "init-yapaia-config: Dashboard-Karte bereitgestellt unter /local/yapaia/yapaia-map-card.js (als Ressource vom Typ 'JavaScript-Modul' eintragen)."
+    # Derselbe Ordner, aus dem der Core auch das fertige Dashboard ablegt
+    # (`/local/yapaia/dashboard.yaml`, siehe apps/core/src/ha/dashboard.ts).
+    # Der Core kann den Pfad nicht selbst raten: welcher der beiden
+    # moeglichen Mount-Punkte gilt, weiss nur dieses Skript -- es hat gerade
+    # nachgesehen.
+    export_env "YAPAIA_HA_WWW_DIR" "$CARD_DIR"
+  else
+    bashio::log.warning "init-yapaia-config: Dashboard-Karte konnte nicht nach ${CARD_DIR} kopiert werden."
+  fi
+fi
+
+bashio::log.info "init-yapaia-config: done. region='${REGION:-<none, onboarding>}' photon_enabled=${PHOTON_ENABLED} gps_source=${GPS_SOURCE} gps_simulator=${GPS_SIMULATOR}"

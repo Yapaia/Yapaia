@@ -12,7 +12,7 @@
  * --------------
  * Never the token. `issue()` returns 32 cryptographically random bytes as
  * base64url ONCE (to the caller: the spawner, which puts it in the child's
- * `YAPAJA_TOKEN`, or the "show token" API for an external add-on) and persists
+ * `YAPAIA_TOKEN`, or the "show token" API for an external add-on) and persists
  * only `sha256(token)`. `authenticate()` hashes the presented token and looks
  * the digest up. A database copy therefore yields no usable credential, and
  * the token never appears in a log line (see `logging` note in

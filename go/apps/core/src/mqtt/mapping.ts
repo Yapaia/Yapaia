@@ -11,7 +11,7 @@ import {
 import type { Maneuver, ManeuverType, NavInstructionPayload, NavState, Route } from '@yapaia/shared';
 
 /**
- * `ManeuverType` -> mdi icon name for `yapaja/nav/instruction`'s `icon`
+ * `ManeuverType` -> mdi icon name for `yapaia/nav/instruction`'s `icon`
  * field (docs/03 §4: "icon = mdi-Name für Richtungspfeil"). Deliberately a
  * small, coarse table -- E08-T2 (HA auto-discovery) is where the full
  * per-entity icon story gets refined; this is just enough for a sensible
@@ -66,7 +66,7 @@ export function kreiselAttribut(m: Maneuver): string {
 }
 
 /**
- * `yapaja/nav/instruction` (docs/03 §4) -- die ANSAGE.
+ * `yapaia/nav/instruction` (docs/03 §4) -- die ANSAGE.
  *
  * Achtung, das ist ein Ereignis, kein Zustand: es entsteht nur, wenn die
  * Ansage-Schwelle ueberschritten wird, und `distance_m` ist die Entfernung in
@@ -85,7 +85,7 @@ export function buildInstructionPayload(payload: NavInstructionPayload): MqttIns
 }
 
 /**
- * `yapaja/nav/maneuver` -- dasselbe Manoever, aber als ZUSTAND.
+ * `yapaia/nav/maneuver` -- dasselbe Manoever, aber als ZUSTAND.
  *
  * ─── WARUM ES DAS GEBEN MUSS ────────────────────────────────────────────────
  * Gemeldet: „Die Strecke bis zur naechsten Abbiegung wird nicht geupdated. Die
@@ -126,7 +126,7 @@ export interface MqttEtaPayload {
   distance_remaining_m: number | null;
 }
 
-/** `yapaja/nav/eta` (docs/03 §4). */
+/** `yapaia/nav/eta` (docs/03 §4). */
 export function buildEtaPayload(state: NavState): MqttEtaPayload {
   return {
     eta: state.eta,
@@ -149,7 +149,7 @@ export interface MqttSpeedPayload {
 }
 
 /**
- * `yapaja/nav/speed` (docs/03 §4).
+ * `yapaia/nav/speed` (docs/03 §4).
  *
  * ─── WAS SICH MIT 0.14.0 GEAENDERT HAT ──────────────────────────────────────
  * Hier stand:
@@ -186,7 +186,7 @@ export interface MqttAltitudePayload {
   altitude_m: number | null;
 }
 
-/** `yapaja/nav/altitude` (docs/03 §4). */
+/** `yapaia/nav/altitude` (docs/03 §4). */
 export function buildAltitudePayload(state: NavState): MqttAltitudePayload {
   return { altitude_m: state.altitude_m };
 }
@@ -197,7 +197,7 @@ export interface MqttDestinationPayload {
   name: string | null;
 }
 
-/** `yapaja/nav/destination` (docs/03 §4): `{lat, lon, name}` or `null`. */
+/** `yapaia/nav/destination` (docs/03 §4): `{lat, lon, name}` or `null`. */
 export function buildDestinationPayload(state: NavState): MqttDestinationPayload | null {
   if (!state.destination) return null;
   return {
@@ -214,7 +214,7 @@ export interface MqttRouteSummaryPayload {
 }
 
 /**
- * `yapaja/route/summary` (docs/03 §4): `via` is the ordered list of unique,
+ * `yapaia/route/summary` (docs/03 §4): `via` is the ordered list of unique,
  * non-empty street names encountered across the route's maneuvers -- the
  * same `street_names` Valhalla already attaches to each `Maneuver`
  * (`@yapaia/shared`), deduplicated in first-seen order (no invented ranking).

@@ -1,54 +1,16 @@
-/* eslint-disable no-undef -- `setInterval`/`clearInterval` sind Standard-Globale
- * in Node 22 (typisiert ueber @types/node); dieselbe Begruendung wie in
- * ha/client.ts. */
-
 /**
- * Der zweite Weg zu Home Assistant: ohne MQTT-Broker.
+ * Was Yapaia Go an Werten fuer Home Assistant bildet -- rein aus dem, was der
+ * Core weiss.
  *
- * ─── WOFUER ─────────────────────────────────────────────────────────────────
- * Gefragt: „Kannst du bitte die Möglichkeit ha interne Kommunikation
- * hinzufügen? Ohne Mqtt." -- mit dem Ziel, spaeter „per esphome über die ha
- * api oder auch Mqtt auf die Daten zugreifen" zu koennen.
- *
- * Der Anlass war handfest: das fertige Dashboard zeigte in jeder Kachel
- * „Entitaet nicht gefunden", weil es ohne Broker ueberhaupt keine
- * Yapaia-Entitaeten in Home Assistant gab. Der Broker war damit eine
- * Voraussetzung, die nirgends stand.
- *
- * ─── WIE ────────────────────────────────────────────────────────────────────
- * `POST /api/states/<entity_id>` schreibt einen Zustand direkt in Home
- * Assistants Zustandsmaschine -- ueber denselben Supervisor-Zugang, den das
- * Add-on fuer Ansagen und Benachrichtigungen ohnehin hat. Es entstehen
- * dieselben Entity-IDs wie ueber MQTT (`sensor.yapaja_speed` und so fort),
- * lesbar von Automationen, Vorlagen, ESPHome und jedem Dashboard.
- *
- * ─── WAS DIESER WEG NICHT KANN, UND DAS GEHOERT DAZU ────────────────────────
- *  1. KEINE BEFEHLE AUF DIESEN ENTITAETEN. Eine so geschriebene Entitaet nimmt
- *     nichts entgegen; `button.yapaja_stop` und `select.yapaja_profile` gibt
- *     es nur mit MQTT. BEDIENEN geht seit 0.7.1 trotzdem, nur ueber andere
- *     Entitaeten: Yapaia legt dafuer Helfer an und hoert auf sie
- *     (`commandHelpers.ts`, `commandWatcher.ts`). Das erzeugte Dashboard
- *     nimmt, was es findet (`dashboard.ts#steuerungsKacheln`) -- und zeigt
- *     lieber gar keinen Knopf als einen toten.
- *  2. KEIN GERAET, KEINE REGISTRIERUNG. Die Entitaeten tauchen nicht unter
- *     „Geraete" auf und lassen sich in der Oberflaeche nicht umbenennen.
- *  3. SIE VERSCHWINDEN BEIM NEUSTART von Home Assistant -- bis zum naechsten
- *     Schreiben. Genau dagegen schreibt {@link HaStatesBridge} in Ruhe auch
- *     unveraenderte Werte turnusmaessig noch einmal; ohne das waere eine
- *     Entitaet, die sich selten aendert (das Ziel, der Fahrzustand), nach
- *     jedem HA-Neustart auf unbestimmte Zeit weg.
- *
- * ─── WARUM ER SICH ZURUECKHAELT, WENN MQTT LAEUFT ───────────────────────────
- * Beide Wege schreiben dieselben Entity-IDs. Liefen sie gleichzeitig, ueber-
- * schrieben sie sich gegenseitig, und niemand koennte mehr sagen, welcher
- * Wert gilt -- eine Anzeige, die flackert, ist schlimmer als eine, die fehlt.
- * Solange die MQTT-Bruecke verbunden ist, schreibt dieser Kanal deshalb
- * nichts. Faellt der Broker aus, uebernimmt er, und die Werte laufen weiter.
+ * Frueher schrieb eine Bruecke diese Zustaende ueber `POST /api/states` direkt
+ * nach Home Assistant. Das macht heute die Integration „Yapaia" ueber das
+ * Yapaia-Protokoll (`yapaia/beschreibung.ts` benennt die Werte nur um). Hier
+ * bleibt die Rechnung: welches Tempo gilt (Route vor GPS), wann ein
+ * Tempolimit ohne Route zaehlt, was „zu schnell" heisst. Keine
+ * Netzwerkzugriffe, damit sich jeder Wert einzeln pruefen laesst.
  */
 
 import type { NavState, Position } from '@yapaia/shared';
-import type { EventBus } from '../bus/index.js';
-import type { HaConnection } from './config.js';
 import { EIGENER_FAHRZEUG_TRACKER } from './eigeneEntitaeten.js';
 import { buildSpeedPayload, kreiselAttribut, maneuverIcon } from '../mqtt/mapping.js';
 import { tempoAusPosition, hoeheAusPosition } from './ausPosition.js';
@@ -143,8 +105,8 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   };
 
   // ─── TEMPO: ROUTE ZUERST, SONST DAS GPS ─────────────────────────────────
-  // Gemeldet aus den Entwicklerwerkzeugen: `device_tracker.yapaja_vehicle`
-  // fuehrte eine Position auf zehn Nachkommastellen, und `sensor.yapaja_speed`
+  // Gemeldet aus den Entwicklerwerkzeugen: `device_tracker.yapaia_vehicle`
+  // fuehrte eine Position auf zehn Nachkommastellen, und `sensor.yapaia_speed`
   // stand im selben Augenblick auf `unknown`. Der Grund war, dass hier
   // ausschliesslich `navState` gelesen wurde -- und den gibt es nur, solange
   // eine Route laeuft. Die GPS-Position liegt dagegen immer an und bringt
@@ -154,13 +116,13 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // Wert aus `navState`, weil er auf die Route bezogen ist (und dieselbe
   // Quelle speist wie `speeding`). Das GPS springt nur ein, wo bisher
   // `unknown` stand.
-  dazu('sensor.yapaja_speed', zahl(tempo?.speed_kmh ?? tempoAusPosition(position)), 'Speed', {
+  dazu('sensor.yapaia_speed', zahl(tempo?.speed_kmh ?? tempoAusPosition(position)), 'Speed', {
     unit_of_measurement: 'km/h',
     device_class: 'speed',
     state_class: 'measurement',
     icon: 'mdi:speedometer',
   });
-  dazu('sensor.yapaja_speed_limit', zahl(schild), 'Speed Limit', {
+  dazu('sensor.yapaia_speed_limit', zahl(schild), 'Speed Limit', {
     unit_of_measurement: 'km/h',
     device_class: 'speed',
     state_class: 'measurement',
@@ -171,7 +133,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // das Schild `unknown` und die Fahrzeuggrenze 80. Eine einzige Zahl liesse
   // offen, welche davon man draussen wiederfindet.
   dazu(
-    'sensor.yapaja_speed_limit_vehicle',
+    'sensor.yapaia_speed_limit_vehicle',
     zahl(fahrzeugGrenzeJetzt),
     'Speed Limit Vehicle',
     {
@@ -184,7 +146,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // Das Tempo kommt seit 0.13.1 auch aus dem GPS, die Grenze seit 0.14.1
   // auch ohne Route -- also kann jetzt auch OHNE Fahrt gewarnt werden.
   dazu(
-    'binary_sensor.yapaja_speeding',
+    'binary_sensor.yapaia_speeding',
     faehrtZuSchnell(tempo?.speed_kmh ?? tempoAusPosition(position), massgeblich.grenze)
       ? 'on'
       : 'off',
@@ -202,12 +164,12 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
     stand_ohne_route: hier?.stand ?? 'unbekannt',
     },
   );
-  dazu('sensor.yapaja_eta', navState?.eta ?? UNBEKANNT, 'ETA', {
+  dazu('sensor.yapaia_eta', navState?.eta ?? UNBEKANNT, 'ETA', {
     device_class: 'timestamp',
     icon: 'mdi:clock-outline',
   });
   dazu(
-    'sensor.yapaja_distance_remaining',
+    'sensor.yapaia_distance_remaining',
     navState?.distance_remaining_m === null || navState?.distance_remaining_m === undefined
       ? UNBEKANNT
       : (navState.distance_remaining_m / 1000).toFixed(2),
@@ -232,7 +194,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // jedem Takt neu gebildet.
   const manoever = navState?.next_maneuver ?? null;
   dazu(
-    'sensor.yapaja_instruction',
+    'sensor.yapaia_instruction',
     manoever?.instruction ?? UNBEKANNT,
     'Instruction',
     manoever
@@ -250,7 +212,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
       : { icon: 'mdi:navigation' },
   );
   dazu(
-    'sensor.yapaja_instruction_distance',
+    'sensor.yapaia_instruction_distance',
     zahl(manoever ? (navState?.distance_to_maneuver_m ?? null) : null),
     'Instruction Distance',
     {
@@ -260,17 +222,17 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
     },
   );
   // Die Hoehe ebenso -- aber nur bei einem 3D-Fix, siehe `ausPosition.ts`.
-  dazu('sensor.yapaja_altitude', zahl(navState?.altitude_m ?? hoeheAusPosition(position)), 'Altitude', {
+  dazu('sensor.yapaia_altitude', zahl(navState?.altitude_m ?? hoeheAusPosition(position)), 'Altitude', {
     unit_of_measurement: 'm',
     device_class: 'distance',
     state_class: 'measurement',
     icon: 'mdi:altimeter',
   });
-  dazu('sensor.yapaja_nav_state', navState?.status ?? 'idle', 'Nav State', {
+  dazu('sensor.yapaia_nav_state', navState?.status ?? 'idle', 'Nav State', {
     icon: 'mdi:navigation-variant',
   });
   dazu(
-    'sensor.yapaja_destination',
+    'sensor.yapaia_destination',
     navState?.destination?.name ?? UNBEKANNT,
     'Destination',
     navState?.destination
@@ -301,136 +263,4 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   }
 
   return schreibt;
-}
-
-/** Ob sich ein Zustand gegenueber dem zuletzt geschriebenen geaendert hat. */
-export function hatSichGeaendert(neu: HaStateWrite, alt: HaStateWrite | undefined): boolean {
-  if (!alt) return true;
-  if (neu.state !== alt.state) return true;
-  return JSON.stringify(neu.attributes) !== JSON.stringify(alt.attributes);
-}
-
-/**
- * Wie oft geschrieben wird. Nicht bei jeder Meldung: der Fahrzustand kommt im
- * Sekundentakt, und jede Entitaet einzeln waere ein Dutzend Aufrufe pro
- * Sekunde fuer eine Anzeige, die niemand schneller liest.
- */
-export const SCHREIB_INTERVALL_MS = 1_000;
-
-/**
- * Wie oft ALLES noch einmal geschrieben wird, auch unveraendert.
- *
- * Gegen den Neustart von Home Assistant: dabei verliert die Zustandsmaschine
- * jede von aussen geschriebene Entitaet. Ohne diese Wiederholung waere das
- * Ziel oder der Fahrzustand danach so lange weg, bis sich der Wert zufaellig
- * einmal aendert -- bei stehendem Fahrzeug also nie.
- */
-export const AUFFRISCH_INTERVALL_MS = 5 * 60_000;
-
-export interface HaStatesBridgeDeps {
-  bus: EventBus;
-  /** Die HA-Verbindung, oder `null`, solange keine konfiguriert ist. */
-  verbindung: () => HaConnection | null;
-  /** Ob die MQTT-Bruecke die Entitaeten gerade selbst liefert. */
-  mqttLiefert: () => boolean;
-  /** Schreibt EINEN Zustand. Gibt zurueck, ob es geklappt hat. */
-  schreibe: (verbindung: HaConnection, write: HaStateWrite) => Promise<boolean>;
-  logger: { info: (msg: string, meta?: Record<string, unknown>) => void; warn: (msg: string, meta?: Record<string, unknown>) => void };
-  /**
-   * Das Tempolimit an der aktuellen Stelle, ohne Route.
-   *
-   * Optional: ohne diese Angabe verhaelt sich die Bruecke wie vor 0.14.1 --
-   * `speed_limit` bleibt ohne Route leer. Damit bleiben die bestehenden
-   * Pruefungen gueltig, die sie ohne diesen Dienst bauen.
-   */
-  tempoHier?: () => Tempoauskunft | null;
-  /** Das aktive Fahrzeug -- fuer die Fahrzeuggrenze ohne Route. */
-  fahrzeug?: () => FahrzeugAngaben | null;
-  intervallMs?: number;
-  auffrischMs?: number;
-  setIntervalImpl?: (fn: () => void, ms: number) => unknown;
-  clearIntervalImpl?: (handle: unknown) => void;
-}
-
-export class HaStatesBridge {
-  private readonly deps: HaStatesBridgeDeps;
-  private readonly unsubscribers: Array<() => void> = [];
-  private zustand: YapaiaZustand = { navState: null, position: null };
-  private zuletzt = new Map<string, HaStateWrite>();
-  private timer: unknown = null;
-  private naechsteAuffrischung = 0;
-  private mqttGemeldet = false;
-  private entsorgt = false;
-
-  constructor(deps: HaStatesBridgeDeps) {
-    this.deps = deps;
-    this.unsubscribers.push(
-      deps.bus.subscribe('nav/state', (state) => {
-        this.zustand.navState = state as NavState;
-      }),
-      deps.bus.subscribe('pos/update', (pos) => {
-        const p = pos as Position;
-        if (typeof p?.lat === 'number' && typeof p?.lon === 'number') this.zustand.position = p;
-      }),
-    );
-
-    const setIntervalFn = deps.setIntervalImpl ?? ((fn, ms) => setInterval(fn, ms));
-    this.timer = setIntervalFn(() => {
-      void this.takt();
-    }, deps.intervallMs ?? SCHREIB_INTERVALL_MS);
-  }
-
-  /** Ein Schreibtakt. Wirft nie -- eine stille Anzeige ist besser als ein
-   *  Kanal, der die Navigation mitreisst. */
-  async takt(jetzt: number = Date.now()): Promise<void> {
-    // Eine abgehaengte Bruecke schreibt nichts mehr. Ohne diese Zeile koennte
-    // ein Takt, der beim Herunterfahren gerade unterwegs ist, noch Zustaende
-    // in ein Home Assistant schreiben, von dem sich der Core schon
-    // verabschiedet hat.
-    if (this.entsorgt) return;
-    const verbindung = this.deps.verbindung();
-    if (!verbindung) return;
-
-    if (this.deps.mqttLiefert()) {
-      // Einmal sagen, nicht jede Sekunde.
-      if (!this.mqttGemeldet) {
-        this.mqttGemeldet = true;
-        this.deps.logger.info(
-          'HA-interner Kanal: MQTT liefert die Entitaeten -- der interne Kanal haelt sich zurueck.',
-        );
-      }
-      return;
-    }
-    if (this.mqttGemeldet) {
-      this.mqttGemeldet = false;
-      this.deps.logger.info('HA-interner Kanal: MQTT liefert nicht mehr -- der interne Kanal uebernimmt.');
-    }
-
-    const alleNeu = jetzt >= this.naechsteAuffrischung;
-    if (alleNeu) this.naechsteAuffrischung = jetzt + (this.deps.auffrischMs ?? AUFFRISCH_INTERVALL_MS);
-
-    for (const write of buildHaStates({
-      ...this.zustand,
-      tempoHier: this.deps.tempoHier?.() ?? null,
-      fahrzeug: this.deps.fahrzeug?.() ?? null,
-    })) {
-      if (!alleNeu && !hatSichGeaendert(write, this.zuletzt.get(write.entityId))) continue;
-      const ok = await this.deps.schreibe(verbindung, write);
-      // Nur merken, was wirklich angekommen ist -- sonst gilt ein
-      // fehlgeschlagener Schreibvorgang als erledigt und der Wert fehlt in
-      // Home Assistant, bis er sich das naechste Mal aendert.
-      if (ok) this.zuletzt.set(write.entityId, write);
-    }
-  }
-
-  dispose(): void {
-    this.entsorgt = true;
-    for (const unsub of this.unsubscribers) unsub();
-    this.unsubscribers.length = 0;
-    if (this.timer !== null) {
-      const clearIntervalFn = this.deps.clearIntervalImpl ?? ((h) => clearInterval(h as never));
-      clearIntervalFn(this.timer);
-      this.timer = null;
-    }
-  }
 }

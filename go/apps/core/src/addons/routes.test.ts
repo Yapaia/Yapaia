@@ -195,7 +195,7 @@ describe('Add-on install/lifecycle routes (E09-T1)', () => {
 
     it('rejects a path-traversal tarball', async () => {
       const payload = await installPayload([
-        { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+        { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
         { name: '../../tmp/evil', content: 'pwned' },
       ]);
       const res = await server.inject({ method: 'POST', url: '/api/v1/addons/install', payload });
@@ -205,7 +205,7 @@ describe('Add-on install/lifecycle routes (E09-T1)', () => {
 
     it('rejects an absolute-path tarball', async () => {
       const payload = await installPayload([
-        { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+        { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
         { name: '/etc/evil', content: 'pwned' },
       ]);
       const res = await server.inject({ method: 'POST', url: '/api/v1/addons/install', payload });
@@ -215,7 +215,7 @@ describe('Add-on install/lifecycle routes (E09-T1)', () => {
 
     it('rejects a symlink-entry tarball', async () => {
       const payload = await installPayload([
-        { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+        { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
         { name: 'escape', type: 'symlink', linkname: '/etc/passwd' },
       ]);
       const res = await server.inject({ method: 'POST', url: '/api/v1/addons/install', payload });
@@ -225,7 +225,7 @@ describe('Add-on install/lifecycle routes (E09-T1)', () => {
 
     it('rejects a hardlink-entry tarball', async () => {
       const payload = await installPayload([
-        { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+        { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
         { name: 'hard', type: 'link', linkname: '/etc/passwd' },
       ]);
       const res = await server.inject({ method: 'POST', url: '/api/v1/addons/install', payload });
@@ -236,7 +236,7 @@ describe('Add-on install/lifecycle routes (E09-T1)', () => {
     it('rejects a zip-bomb tarball (uncompressed cap)', async () => {
       const bytes = await buildTarball(
         [
-          { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+          { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
           { name: 'bomb.bin', content: Buffer.alloc(60 * 1024 * 1024, 0) },
         ],
         { gzip: true },

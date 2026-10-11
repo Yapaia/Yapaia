@@ -30,7 +30,7 @@ export class AddonSdkError extends Error {
  * Thrown when a call was refused because the add-on lacks a required
  * permission scope -- **carries the missing scope name** (`.scope`) and the
  * SDK method that needed it (`.method`), so an add-on author can tell
- * immediately which `permissions` entry their `yapaja-addon.json` is missing,
+ * immediately which `permissions` entry their `yapaia-addon.json` is missing,
  * without having to parse a host/Core error string.
  *
  * Raised in two situations, both mapped through the SAME deterministic
@@ -53,7 +53,7 @@ export class ScopeDeniedError extends AddonSdkError {
     super(
       'SCOPE_DENIED',
       `Add-on is missing permission scope "${scope}" required for "${method}". ` +
-        `Add "${scope}" to this add-on's yapaja-addon.json "permissions" and reinstall.` +
+        `Add "${scope}" to this add-on's yapaia-addon.json "permissions" and reinstall.` +
         (detail ? ` (${detail})` : ''),
     );
     this.method = method;

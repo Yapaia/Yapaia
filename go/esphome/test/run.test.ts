@@ -48,16 +48,16 @@ import {
 } from './run.mjs';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
-const YAML = join(HIER, '..', 'yapaja-nav-display.yaml');
+const YAML = join(HIER, '..', 'yapaia-nav-display.yaml');
 
 describe('idsUmschreiben — so, wie ESPHome es tut', () => {
   it('ein nacktes id(...) wird zum ZEIGER', () => {
     // Genau hier lag der Fehler: die alte Prüfung setzte hier ein Objekt ein.
-    expect(idsUmschreiben('hat(id(yapaja_tempo))')).toBe('hat(yapaja_tempo)');
+    expect(idsUmschreiben('hat(id(yapaia_tempo))')).toBe('hat(yapaia_tempo)');
   });
 
   it('id(...) mit Punkt wird zum Pfeil', () => {
-    expect(idsUmschreiben('id(yapaja_tempo).state')).toBe('yapaja_tempo->state');
+    expect(idsUmschreiben('id(yapaia_tempo).state')).toBe('yapaia_tempo->state');
   });
 
   it('eine Farbe ist ein WERT und behält ihren Punkt', () => {
@@ -69,7 +69,7 @@ describe('idsUmschreiben — so, wie ESPHome es tut', () => {
   });
 
   it('verträgt Leerraum in den Klammern', () => {
-    expect(idsUmschreiben('id( yapaja_tempo ).state')).toBe('yapaja_tempo->state');
+    expect(idsUmschreiben('id( yapaia_tempo ).state')).toBe('yapaia_tempo->state');
   });
 
   it('bricht bei einer unbekannten Kennung ab, statt sie durchzulassen', () => {
@@ -141,7 +141,7 @@ describe('Die ausgelieferte Konfiguration', () => {
 
 describe('die Wasserwaage laesst sich an EINER Stelle einstellen', () => {
   const yaml = (): string =>
-    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'yapaja-nav-display.yaml'), 'utf-8');
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'yapaia-nav-display.yaml'), 'utf-8');
 
   it('alle Einstellungen stehen unter `substitutions:`', () => {
     // Gewuenscht war ausdruecklich: „an einer Stelle zu pflegen". Wer eine

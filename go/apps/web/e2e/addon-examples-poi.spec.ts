@@ -32,7 +32,7 @@ import { collectPageErrors, trackRequests } from './support/network.js';
 // uncaught pageerror.
 test.use({ serviceWorkers: 'allow' });
 
-const ADDON_ID = 'com.yapaja.poi-campsites';
+const ADDON_ID = 'com.yapaia.poi-campsites';
 const ADDON_DIR = join(REPO_ROOT, 'addons-examples', 'poi-campsites');
 const MAP_LAYER_ID = `addon:${ADDON_ID}:campsites`;
 const WIDGET_TEXT_TESTID = `addon-widget-text-${ADDON_ID}/poi-detail`;

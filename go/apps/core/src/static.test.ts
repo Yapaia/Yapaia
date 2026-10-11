@@ -7,7 +7,7 @@ import { buildServer } from './index.js';
 describe('Server startup without public/ directory', () => {
   it('starts and answers /api/v1/health with 200 when publicDir does not exist', async () => {
     const fastify = await buildServer({
-      publicDir: join(tmpdir(), 'yapaja-does-not-exist-' + Date.now()),
+      publicDir: join(tmpdir(), 'yapaia-does-not-exist-' + Date.now()),
     });
 
     const response = await fastify.inject({
@@ -28,7 +28,7 @@ describe('Static serving with public/ directory', () => {
   let publicDir: string;
 
   beforeAll(() => {
-    publicDir = mkdtempSync(join(tmpdir(), 'yapaja-public-'));
+    publicDir = mkdtempSync(join(tmpdir(), 'yapaia-public-'));
     writeFileSync(
       join(publicDir, 'index.html'),
       '<!DOCTYPE html><html><head><title>Yapaia Go</title></head><body></body></html>'
@@ -82,7 +82,7 @@ describe('HA-Ingress <base href> injection (Flow 9 simulation, E08-T4)', () => {
   let publicDir: string;
 
   beforeAll(() => {
-    publicDir = mkdtempSync(join(tmpdir(), 'yapaja-ingress-'));
+    publicDir = mkdtempSync(join(tmpdir(), 'yapaia-ingress-'));
     writeFileSync(
       join(publicDir, 'index.html'),
       '<!DOCTYPE html><html><head><title>Yapaia Go</title></head><body></body></html>'

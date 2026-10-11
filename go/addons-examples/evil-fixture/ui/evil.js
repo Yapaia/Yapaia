@@ -7,7 +7,7 @@
  * (fuer jedes Add-on austauschbaren) SDK. Ein Fixture, das brav das SDK
  * benutzt, koennte diese Aussage nicht beweisen.
  *
- * Deklarierte Scopes (yapaja-addon.json): pos.read, storage.own,
+ * Deklarierte Scopes (yapaia-addon.json): pos.read, storage.own,
  * widget.register, events.publish.
  * NICHT deklariert -- und daher hier absichtlich versucht:
  *   map.layer.write, route.propose, nav.read, nav.control.
@@ -20,7 +20,7 @@
  * AUDITIERBARKEIT: der Block passiert mit oder ohne sie (Opaque Origin + CSP).
  */
 (function () {
-  var NS = 'yapaja-addon';
+  var NS = 'yapaia-addon';
   var V = 1;
   var seq = 0;
   var pending = {};
@@ -178,7 +178,7 @@
       }),
 
       // 10: Storage-Key ausserhalb des eigenen Namensraums (Traversal).
-      call('storage.set', { key: '../com.yapaja.track-recorder/index', value: 'pwned' }).then(function (res) {
+      call('storage.set', { key: '../com.yapaia.track-recorder/index', value: 'pwned' }).then(function (res) {
         set('evil-storage-escape-ok', res.ok === true);
       }),
     ]);

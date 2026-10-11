@@ -1,7 +1,7 @@
 name: Go Add-on-Image
 
 # ─── WARUM ES DIESEN WORKFLOW GIBT ──────────────────────────────────────────
-# `yapaja_go/Dockerfile` wurde bisher in KEINEM Job gebaut. Der Job „Docker
+# `yapaia_go/Dockerfile` wurde bisher in KEINEM Job gebaut. Der Job „Docker
 # Build & Health Check" in ci.yml baut `apps/core/Dockerfile` -- den
 # eigenstaendigen Core, ein anderes Image mit einer anderen Basis und einem
 # anderen Inhalt. Das Add-on-Image, also genau das, was der Supervisor auf dem
@@ -44,7 +44,7 @@ jobs:
         uses: actions/checkout@v4
 
       # Der Dockerfile laedt den Quelltext fuer den Supervisor SELBST herunter
-      # (der baut mit `yapaja_go/` als Kontext). Hier wird stattdessen die
+      # (der baut mit `yapaia_go/` als Kontext). Hier wird stattdessen die
       # Stufe `gosrc` durch den ausgecheckten Stand ersetzt: gebaut wird genau
       # der Quelltext DIESES PRs, ohne Download -- auch aus einem privaten Repo.
       - name: Setup Docker Buildx
@@ -53,11 +53,11 @@ jobs:
       - name: Add-on-Image bauen (amd64)
         uses: docker/build-push-action@v6
         with:
-          context: ./go/yapaja_go
-          file: ./go/yapaja_go/Dockerfile
+          context: ./go/yapaia_go
+          file: ./go/yapaia_go/Dockerfile
           push: false
           load: true
-          tags: yapaja-go:ci
+          tags: yapaia-go:ci
           build-contexts: |
             gosrc=./go
             yapaia-integration=./integration/custom_components
@@ -77,7 +77,7 @@ jobs:
         run: |
           # `osmium` hat im Image GEFEHLT -- der Suchindex-Bau brach dadurch
           # auf dem Geraet ab, waehrend jede CI gruen war.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
             for tool in osmium node java python3 curl gpsd; do
               command -v "$tool" >/dev/null 2>&1 || { echo "FEHLT im Image: $tool"; exit 1; }
@@ -92,8 +92,8 @@ jobs:
           # starb -- s6 startete im Sekundentakt neu, und das Protokoll sah
           # aus wie Erfolg. Deshalb wird es hier ausgefuehrt und nachgesehen,
           # ob jemand auf 2947 lauscht.
-          docker run --rm -v "$PWD/yapaja_go/test:/pruefung:ro" \
-            --entrypoint sh yapaja-go:ci /pruefung/gpsd-im-container.sh
+          docker run --rm -v "$PWD/yapaia_go/test:/pruefung:ro" \
+            --entrypoint sh yapaia-go:ci /pruefung/gpsd-im-container.sh
 
       - name: Bau-Skripte liegen da, wo die Oberflaeche sie aufruft
         run: |
@@ -101,9 +101,9 @@ jobs:
           # Liegen sie woanders oder sind sie nicht ausfuehrbar, scheitert
           # "Kacheln bauen" / "Routing bauen" / "Suche bauen" erst auf dem
           # Geraet -- mit einer Fehlermeldung, die niemand zuordnen kann.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
-            for s in yapaja-build-pmtiles yapaja-build-graph yapaja-build-lite-index; do
+            for s in yapaia-build-pmtiles yapaia-build-graph yapaia-build-lite-index; do
               p="$(command -v "$s")" || { echo "FEHLT im Image: $s"; exit 1; }
               [ -x "$p" ] || { echo "nicht ausfuehrbar: $p"; exit 1; }
               echo "vorhanden: $p"
@@ -115,7 +115,7 @@ jobs:
           # Es hat einmal mit Code 0 geendet und NICHTS getan (die
           # Einsprungpruefung verglich den falschen Dateinamen). Ein Bau
           # bemerkt so etwas nicht -- nur das Ausfuehren.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
             test -f /app/apps/core/dist/lite-index.js
             node /app/apps/core/dist/lite-index.js 2>&1 | grep -q "Usage:"
@@ -127,7 +127,7 @@ jobs:
           # Ohne die Glyphen zeichnet die Karte keinen Buchstaben -- und zwar
           # ohne Fehlermeldung (0.3.7). Sie kommen ueber `apps/web/dist` ins
           # Image; faellt dieser Weg weg, faellt die Beschriftung still aus.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
             test -f /app/apps/core/public/index.html
             for f in noto-sans-regular noto-sans-bold; do
@@ -141,7 +141,7 @@ jobs:
         run: |
           # Ohne sie erscheint „Yapaia Go" nie in Home Assistant -- und der
           # Core ueberspringt die Installation still (leerer Bau-Kontext).
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
             test -s /opt/yapaia/integration/yapaia/manifest.json
             test -s /opt/yapaia/integration/yapaia/__init__.py
@@ -150,14 +150,14 @@ jobs:
 
       - name: Die Lovelace-Karte liegt im Image
         run: |
-          # Sie wird beim Start nach <ha-config>/www/yapaja/ kopiert. Fehlt sie
+          # Sie wird beim Start nach <ha-config>/www/yapaia/ kopiert. Fehlt sie
           # im Image, meldet das Init-Skript zwar eine Warnung -- aber im
           # Dashboard fehlt schlicht die Karte, und niemand liest deswegen ein
           # Add-on-Log.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
-            test -s /usr/share/yapaja/lovelace/yapaja-map-card.js
-            grep -q "custom:yapaja-map-card\|yapaja-map-card" /usr/share/yapaja/lovelace/yapaja-map-card.js
+            test -s /usr/share/yapaia/lovelace/yapaia-map-card.js
+            grep -q "custom:yapaia-map-card\|yapaia-map-card" /usr/share/yapaia/lovelace/yapaia-map-card.js
             echo "Lovelace-Karte vorhanden"
           '
 
@@ -165,7 +165,7 @@ jobs:
         run: |
           # `embed.html` ist das, was die Lovelace-Karte in ihren Rahmen laedt.
           # Ohne sie zeigt die Dashboard-Kachel eine leere Flaeche.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
             test -s /app/apps/core/public/embed.html
             echo "embed.html vorhanden"
@@ -175,13 +175,13 @@ jobs:
         run: |
           # Ein Dienst ohne `run` startet nicht; einer, der nicht unter
           # `user/contents.d` steht, wird gar nicht erst angefasst.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
             for svc in core valhalla photon gpsd; do
               test -x "/etc/s6-overlay/s6-rc.d/$svc/run" || { echo "$svc: run fehlt"; exit 1; }
               test -e "/etc/s6-overlay/s6-rc.d/user/contents.d/$svc" || { echo "$svc: nicht aktiviert"; exit 1; }
             done
-            test -x /etc/s6-overlay/s6-rc.d/init-yapaja-config/up
+            test -x /etc/s6-overlay/s6-rc.d/init-yapaia-config/up
             echo "s6-Dienste vollstaendig"
           '
 
@@ -191,10 +191,10 @@ jobs:
           # Add-on-Log: das Skript lief unter nacktem `bash`, ohne bashio.
           # Ein Shebang, der ins Leere zeigt, faellt beim BAUEN nicht auf --
           # nur beim Starten auf dem Geraet.
-          docker run --rm --entrypoint sh yapaja-go:ci -c '
+          docker run --rm --entrypoint sh yapaia-go:ci -c '
             set -e
-            test -x /etc/yapaja/init-yapaja-config.sh
-            head -1 /etc/yapaja/init-yapaja-config.sh | grep -q "with-contenv bashio"
+            test -x /etc/yapaia/init-yapaia-config.sh
+            head -1 /etc/yapaia/init-yapaia-config.sh | grep -q "with-contenv bashio"
             test -x /command/with-contenv
             test -x /usr/bin/bashio
             echo "Init-Skript, with-contenv und bashio sind da"
@@ -208,9 +208,9 @@ jobs:
           # `LOG_LEVEL`, nicht `YAPAIA_LOG_LEVEL`: die Umbenennung macht sonst
           # das s6-Startskript (`rootfs/.../core/run`), das hier bewusst
           # uebersprungen wird.
-          docker run -d --name yapaja-ci -p 18099:8080 \
+          docker run -d --name yapaia-ci -p 18099:8080 \
             -e LOG_LEVEL=info -e PORT=8080 \
-            --entrypoint node yapaja-go:ci /app/apps/core/dist/index.js
+            --entrypoint node yapaia-go:ci /app/apps/core/dist/index.js
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:18099/api/v1/health -o health.json 2>/dev/null; then
               echo "Core antwortet nach ${i}s:"
@@ -232,7 +232,7 @@ jobs:
               if [ "$GOT" != "$EXPECTED" ]; then
                 echo "FEHLER: /health meldet '${GOT}', erwartet war '${EXPECTED}'."
                 echo "Die Add-on-Version erreicht den laufenden Core nicht."
-                docker logs yapaja-ci
+                docker logs yapaia-ci
                 exit 1
               fi
               echo "Version stimmt: ${GOT}"
@@ -241,9 +241,9 @@ jobs:
             sleep 1
           done
           echo "Der Core im Add-on-Image hat binnen 30s nicht geantwortet."
-          docker logs yapaja-ci
+          docker logs yapaia-ci
           exit 1
 
       - name: Aufraeumen
         if: always()
-        run: docker rm -f yapaja-ci 2>/dev/null || true
+        run: docker rm -f yapaia-ci 2>/dev/null || true

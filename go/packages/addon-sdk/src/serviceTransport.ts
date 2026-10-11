@@ -55,11 +55,11 @@ export interface ServiceReconnectOptions {
 }
 
 export interface ServiceTransportOptions {
-  /** Base URL, e.g. `http://127.0.0.1:8080`. Defaults to `process.env.YAPAJA_API_URL`. */
+  /** Base URL, e.g. `http://127.0.0.1:8080`. Defaults to `process.env.YAPAIA_API_URL`. */
   apiUrl?: string;
-  /** Scoped bearer token. Defaults to `process.env.YAPAJA_TOKEN`. */
+  /** Scoped bearer token. Defaults to `process.env.YAPAIA_TOKEN`. */
   token?: string;
-  /** This add-on's own id. Defaults to `process.env.YAPAJA_ADDON_ID`. */
+  /** This add-on's own id. Defaults to `process.env.YAPAIA_ADDON_ID`. */
   addonId?: string;
   /** Injectable transport, defaults to the global `fetch`. */
   fetchImpl?: FetchLike;
@@ -297,13 +297,13 @@ function env(name: string): string | undefined {
  * socket it doesn't use.
  */
 export async function connectServiceAddon(options: ServiceTransportOptions = {}): Promise<YapaiaAddon> {
-  const apiUrl = (options.apiUrl ?? env('YAPAJA_API_URL'))?.replace(/\/+$/, '');
-  const token = options.token ?? env('YAPAJA_TOKEN');
-  const addonId = options.addonId ?? env('YAPAJA_ADDON_ID');
+  const apiUrl = (options.apiUrl ?? env('YAPAIA_API_URL'))?.replace(/\/+$/, '');
+  const token = options.token ?? env('YAPAIA_TOKEN');
+  const addonId = options.addonId ?? env('YAPAIA_ADDON_ID');
   if (!apiUrl || !token || !addonId) {
     throw new AddonTransportError(
       'connectServiceAddon() requires apiUrl/token/addonId -- pass them explicitly or run under the Core\'s ' +
-        'service-add-on process contract (YAPAJA_API_URL/YAPAJA_TOKEN/YAPAJA_ADDON_ID env vars).',
+        'service-add-on process contract (YAPAIA_API_URL/YAPAIA_TOKEN/YAPAIA_ADDON_ID env vars).',
     );
   }
   const fetchImpl = options.fetchImpl ?? (globalThis.fetch as FetchLike);

@@ -10,7 +10,7 @@
  * Also covers the map-style sync rule (`themeStore.ts`'s module doc
  * comment): the very first tick only syncs the map style from the untouched
  * default, every tick after that only syncs on a genuine theme CHANGE --
- * this is what keeps a pre-existing `yapaja-dark` Style Panel pick (E01-T4,
+ * this is what keeps a pre-existing `yapaia-dark` Style Panel pick (E01-T4,
  * unrelated to theming) surviving an unrelated reload/tick instead of being
  * silently reset back to whatever the current mode/time happens to resolve.
  */
@@ -29,7 +29,7 @@ describe('themeStore', () => {
     useStyleStore.setState({
       styleId: DEFAULT_STYLE_ID,
       stilHell: DEFAULT_STYLE_ID,
-      stilDunkel: 'yapaja-dark',
+      stilDunkel: 'yapaia-dark',
       thema: 'light',
       options: DEFAULT_STYLE_OPTIONS,
     });
@@ -42,43 +42,43 @@ describe('themeStore', () => {
   it('tick() resolves + applies atomically: a genuine theme CHANGE updates the styleStore in the SAME tick', () => {
     useThemeStore.getState().tick(new Date('2026-06-21T12:00:00Z'), STUTTGART); // day, first tick, default style -> syncs
     expect(useThemeStore.getState().resolution.theme).toBe('light');
-    expect(useStyleStore.getState().styleId).toBe('yapaja-light');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-light');
 
     useThemeStore.getState().tick(new Date('2026-06-21T23:00:00Z'), STUTTGART); // night: a real transition
     expect(useThemeStore.getState().resolution.theme).toBe('dark');
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark');
 
     useThemeStore.getState().tick(new Date('2026-06-21T12:00:00Z'), STUTTGART); // back to day: another real transition
     expect(useThemeStore.getState().resolution.theme).toBe('light');
-    expect(useStyleStore.getState().styleId).toBe('yapaja-light');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-light');
   });
 
   it('eine Wahl für Hell bleibt beim ersten Tag-Tick stehen', () => {
-    useStyleStore.getState().setStyleId('yapaja-dark'); // a pre-existing explicit pick, unrelated to theming
+    useStyleStore.getState().setStyleId('yapaia-dark'); // a pre-existing explicit pick, unrelated to theming
     useThemeStore.getState().tick(new Date('2026-06-21T12:00:00Z'), STUTTGART); // day -> would resolve light
     expect(useThemeStore.getState().resolution.theme).toBe('light'); // UI class still resolves correctly...
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark'); // ...but the pre-existing map pick survives
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark'); // ...but the pre-existing map pick survives
   });
 
   it('weitere Tag-Ticks lassen die Wahl für Hell stehen', () => {
-    useStyleStore.getState().setStyleId('yapaja-dark');
+    useStyleStore.getState().setStyleId('yapaia-dark');
     useThemeStore.getState().tick(new Date('2026-06-21T12:00:00Z'), STUTTGART); // day, first tick: style survives (see above)
     useThemeStore.getState().tick(new Date('2026-06-21T12:05:00Z'), STUTTGART); // still day: no theme change
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark'); // never touched
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark'); // never touched
   });
 
   it('Tag und Nacht wechseln den Platz, nicht die Wahl (seit 0.21)', () => {
-    useStyleStore.getState().setStilFuer('light', 'yapaja-natur');
+    useStyleStore.getState().setStilFuer('light', 'yapaia-natur');
     useThemeStore.getState().tick(new Date('2026-06-21T12:00:00Z'), STUTTGART); // Tag
-    expect(useStyleStore.getState().styleId).toBe('yapaja-natur');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-natur');
     useThemeStore.getState().tick(new Date('2026-06-21T23:00:00Z'), STUTTGART); // Nacht
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark');
     useThemeStore.getState().tick(new Date('2026-06-22T12:00:00Z'), STUTTGART); // naechster Tag
-    expect(useStyleStore.getState().styleId).toBe('yapaja-natur');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-natur');
   });
 
   it('setMode("dark") is a deliberate action: it applies (and syncs the map style) immediately via its own tick()', () => {
-    useStyleStore.getState().setStyleId('yapaja-contrast'); // irrelevant here -- contrast is a separate exemption, see below
+    useStyleStore.getState().setStyleId('yapaia-contrast'); // irrelevant here -- contrast is a separate exemption, see below
     useThemeStore.getState().setMode('dark');
     expect(useThemeStore.getState().resolution.theme).toBe('dark');
   });
@@ -87,7 +87,7 @@ describe('themeStore', () => {
     useThemeStore.getState().setMode('dark');
     useThemeStore.getState().tick(new Date('2026-06-21T12:00:00Z'), STUTTGART); // bright daylight -- irrelevant, mode is explicit
     expect(useThemeStore.getState().resolution.theme).toBe('dark');
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark');
   });
 
   it('setManualTheme creates an override that holds through subsequent ticks until its boundary', () => {
@@ -98,7 +98,7 @@ describe('themeStore', () => {
     expect(useThemeStore.getState().override).not.toBeNull();
     expect(useThemeStore.getState().resolution.theme).toBe('dark');
     expect(useThemeStore.getState().resolution.overrideActive).toBe(true);
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark'); // the override IS a transition -> synced immediately
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark'); // the override IS a transition -> synced immediately
 
     const expiresAt = useThemeStore.getState().override!.expiresAt;
 
@@ -124,10 +124,10 @@ describe('themeStore', () => {
   });
 
   it('ein manueller Wechsel auf Dunkel zeigt den Dunkel-Platz -- auch wenn er „Kontrast" ist', () => {
-    useStyleStore.getState().setStilFuer('dark', 'yapaja-contrast');
+    useStyleStore.getState().setStilFuer('dark', 'yapaia-contrast');
     useThemeStore.getState().setManualTheme('dark', new Date('2026-06-21T12:00:00Z'), STUTTGART);
     expect(useThemeStore.getState().resolution.theme).toBe('dark');
-    expect(useStyleStore.getState().styleId).toBe('yapaja-contrast');
-    expect(useStyleStore.getState().stilHell).toBe('yapaja-light');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-contrast');
+    expect(useStyleStore.getState().stilHell).toBe('yapaia-light');
   });
 });

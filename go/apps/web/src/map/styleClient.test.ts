@@ -29,13 +29,13 @@ describe('fetchStyleSummaries', () => {
 
   it('fetches from a BASE_URL-relative path and returns the data array', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ data: [{ id: 'yapaja-light', name: 'Yapaia Light' }] }),
+      jsonResponse({ data: [{ id: 'yapaia-light', name: 'Yapaia Light' }] }),
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const summaries = await fetchStyleSummaries();
 
-    expect(summaries).toEqual([{ id: 'yapaja-light', name: 'Yapaia Light' }]);
+    expect(summaries).toEqual([{ id: 'yapaia-light', name: 'Yapaia Light' }]);
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api/v1/map/styles'));
     expect(fetchMock.mock.calls[0][0]).not.toMatch(/^https?:\/\//); // relative, no foreign host
   });
@@ -70,11 +70,11 @@ describe('fetchStyle', () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(styleDoc));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    const result = await fetchStyle('yapaja-dark', { lang: 'name_de', labelScale: '1.2', poi: 'reduced' });
+    const result = await fetchStyle('yapaia-dark', { lang: 'name_de', labelScale: '1.2', poi: 'reduced' });
 
     expect(result).toEqual(styleDoc);
     const requestedUrl = fetchMock.mock.calls[0][0] as string;
-    expect(requestedUrl).toContain('api/v1/map/styles/yapaja-dark');
+    expect(requestedUrl).toContain('api/v1/map/styles/yapaia-dark');
     expect(requestedUrl).toContain('lang=name_de');
     expect(requestedUrl).toContain('labelScale=1.2');
     expect(requestedUrl).toContain('poi=reduced');
@@ -85,7 +85,7 @@ describe('fetchStyle', () => {
     async function urlFuer(opts: Parameters<typeof fetchStyle>[1]): Promise<string> {
       const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ version: 8, sources: {}, layers: [] }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
-      await fetchStyle('yapaja-light', opts);
+      await fetchStyle('yapaia-light', opts);
       return fetchMock.mock.calls[0][0] as string;
     }
 
@@ -117,7 +117,7 @@ describe('fetchStyle', () => {
       // ganze Karte. Genau diesen Absturz hat der Test darueber gefunden,
       // bevor er jemandem im Fahrerhaus passieren konnte.
       const ohne = { lang: 'name', labelScale: '1.0', poi: 'full' } as never;
-      await expect(urlFuer(ohne)).resolves.toContain('api/v1/map/styles/yapaja-light');
+      await expect(urlFuer(ohne)).resolves.toContain('api/v1/map/styles/yapaia-light');
     });
   });
 
@@ -143,7 +143,7 @@ describe('fetchStyle', () => {
 
   it('returns null on a network error (never throws)', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
-    expect(await fetchStyle('yapaja-light', options)).toBeNull();
+    expect(await fetchStyle('yapaia-light', options)).toBeNull();
   });
 });
 
@@ -211,7 +211,7 @@ describe('die Regionswahl in der Stil-Anfrage', () => {
       } as unknown as Response;
     }) as unknown as typeof fetch;
     try {
-      void fetchStyle('yapaja-light', {}, region);
+      void fetchStyle('yapaia-light', {}, region);
     } finally {
       globalThis.fetch = original;
     }
@@ -237,14 +237,14 @@ describe('die Regionswahl in der Stil-Anfrage', () => {
 });
 
 describe('spriteAbsolut', () => {
-  // MapLibre 6: „Invalid sprite URL "./sprites/yapaja", must be absolute."
+  // MapLibre 6: „Invalid sprite URL "./sprites/yapaia", must be absolute."
   // Ohne das erschien kein einziges POI-Symbol und kein Straßenschild.
   const basis = 'http://ha.local:8123/api/hassio_ingress/abc123/';
 
   it('löst die relative Adresse gegen die Wurzel der Anwendung auf', async () => {
     const { spriteAbsolut } = await import('./styleClient.js');
-    const stil = spriteAbsolut({ version: 8, sources: {}, layers: [], sprite: './sprites/yapaja' }, basis);
-    expect(stil.sprite).toBe('http://ha.local:8123/api/hassio_ingress/abc123/sprites/yapaja');
+    const stil = spriteAbsolut({ version: 8, sources: {}, layers: [], sprite: './sprites/yapaia' }, basis);
+    expect(stil.sprite).toBe('http://ha.local:8123/api/hassio_ingress/abc123/sprites/yapaia');
   });
 
   it('lässt absolute Adressen und Stile ohne Sprite unverändert', async () => {

@@ -10,7 +10,7 @@ import { buildServer } from '../index.js';
 import { closeDb } from '../db/index.js';
 import { createFixtureTilesDir, type FixtureDirHandle } from './__fixtures__/pmtiles-fixture.js';
 import { satellitUrl, setzeSatellitFetch } from './routes.js';
-import { buildYapaiaSatellitStyle, SATELLIT_SOURCE_ID } from './styles/yapaja-satellit.js';
+import { buildYapaiaSatellitStyle, SATELLIT_SOURCE_ID } from './styles/yapaia-satellit.js';
 import { rewriteToRegions } from './styles/rewrite.js';
 import { listStyleSummaries } from './styles/registry.js';
 

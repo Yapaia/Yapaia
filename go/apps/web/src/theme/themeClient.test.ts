@@ -36,7 +36,7 @@ function fetchNachWeg(antworten: { settings?: unknown; defaults?: unknown }) {
 /** Ein `window` mit echtem Speicher -- die Tests laufen ohne Browser. */
 function stubWindowMitSpeicher(anfangswert: string | null): Map<string, string> {
   const speicher = new Map<string, string>();
-  if (anfangswert !== null) speicher.set('yapaja.theme.mode', anfangswert);
+  if (anfangswert !== null) speicher.set('yapaia.theme.mode', anfangswert);
   vi.stubGlobal('window', {
     localStorage: {
       getItem: (k: string) => speicher.get(k) ?? null,
@@ -175,6 +175,6 @@ describe('loadThemeMode -- die Rangfolge', () => {
       fetchNachWeg({ settings: { data: {} }, defaults: { data: { theme: { mode: 'dark' } } } }),
     );
     await loadThemeMode();
-    expect(speicher.get('yapaja.theme.mode')).toBe('dark');
+    expect(speicher.get('yapaia.theme.mode')).toBe('dark');
   });
 });

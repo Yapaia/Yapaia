@@ -39,14 +39,14 @@ import { freemem as osFreemem } from 'os';
 import type { CatalogEntry } from './catalog.js';
 import type { JobRegistry } from './jobs.js';
 
-/** Der Wrapper aus `yapaja_go/rootfs/usr/bin/` -- er setzt TILES_DIR, holt
+/** Der Wrapper aus `yapaia_go/rootfs/usr/bin/` -- er setzt TILES_DIR, holt
  *  beim ersten Lauf planetiler.jar und ruft dann das eigentliche Skript. */
-export const BUILD_COMMAND = '/usr/bin/yapaja-build-pmtiles';
+export const BUILD_COMMAND = '/usr/bin/yapaia-build-pmtiles';
 
 /** Der Wrapper fuer den ROUTINGGRAPHEN. Er benutzt die
  *  `valhalla_build_*`-Werkzeuge, die im Add-on-Image ohnehin schon liegen
  *  (das Image setzt auf `gis-ops/docker-valhalla` auf). */
-export const GRAPH_BUILD_COMMAND = '/usr/bin/yapaja-build-graph';
+export const GRAPH_BUILD_COMMAND = '/usr/bin/yapaia-build-graph';
 
 /**
  * Job-Art aller schweren Bauten. BEWUSST EINE einzige Art fuer Kacheln UND
@@ -85,7 +85,7 @@ export const TILE_BUILD: BuildVariant = {
  *  im Image) und das gebaute Index-Werkzeug `dist/lite-index.js`. Bis dahin
  *  hiess es, das ginge auf dem Geraet nicht -- das beschrieb aber nur, was
  *  wir ins Image gelegt hatten, keine technische Grenze. */
-export const LITE_INDEX_BUILD_COMMAND = '/usr/bin/yapaja-build-lite-index';
+export const LITE_INDEX_BUILD_COMMAND = '/usr/bin/yapaia-build-lite-index';
 
 export const GRAPH_BUILD: BuildVariant = {
   command: GRAPH_BUILD_COMMAND,

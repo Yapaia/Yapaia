@@ -2,7 +2,7 @@
  * Die Kopfpruefung der OSM-Extrakte — in zwei Skripten, in EINER Fassung.
  *
  * ─── WARUM ES DIESE PRUEFUNG GIBT ───────────────────────────────────────────
- * Im gemeinsamen Zwischenlager (`/share/yapaja/planetiler-sources`) liegen
+ * Im gemeinsamen Zwischenlager (`/share/yapaia/planetiler-sources`) liegen
  * die OSM-Extrakte aller installierten Regionen. Der Routinggraph wird ueber
  * JEDE Datei darin gebaut. Eine abgebrochene Uebertragung ist damit die
  * gefaehrlichste Datei des Systems: sie existiert, ist nicht leer, und der
@@ -12,9 +12,9 @@
  *
  * ─── WARUM SIE ZWEIMAL IM QUELLTEXT STEHT ───────────────────────────────────
  * `services/tiles/build-pmtiles.sh` und
- * `yapaja_go/rootfs/usr/bin/yapaja-build-graph` sind zwei eigenstaendige
+ * `yapaia_go/rootfs/usr/bin/yapaia-build-graph` sind zwei eigenstaendige
  * Shell-Programme, die an verschiedenen Orten im Image landen
- * (`/opt/yapaja/bin/` und `/usr/bin/`). Eine gemeinsame Datei zum Einbinden
+ * (`/opt/yapaia/bin/` und `/usr/bin/`). Eine gemeinsame Datei zum Einbinden
  * waere ein dritter Pfad, der stimmen muss — und der bei einem
  * Verpackungsfehler ausfaellt, ohne dass die Pruefung fehlt: sie waere dann
  * schlicht nicht da.
@@ -38,7 +38,7 @@ const REPO = join(__dirname, '..', '..');
 const BASH = existsSync('/bin/bash') ? '/bin/bash' : '/usr/bin/bash';
 
 const KACHELBAU = join(REPO, 'services', 'tiles', 'build-pmtiles.sh');
-const GRAPHBAU = join(REPO, 'yapaja_go', 'rootfs', 'usr', 'bin', 'yapaja-build-graph');
+const GRAPHBAU = join(REPO, 'yapaia_go', 'rootfs', 'usr', 'bin', 'yapaia-build-graph');
 
 /** Schneidet die Funktion `ist_osm_pbf` aus einem Shell-Skript heraus. */
 function funktionAus(datei: string): string {
@@ -104,7 +104,7 @@ describe('ist_osm_pbf — beide Fassungen sind identisch', () => {
 
 describe.each([
   ['build-pmtiles.sh', KACHELBAU],
-  ['yapaja-build-graph', GRAPHBAU],
+  ['yapaia-build-graph', GRAPHBAU],
 ])('ist_osm_pbf in %s', (_name, quelle) => {
   it('erkennt einen echten Dateikopf', () => {
     expect(pruefe(quelle, Buffer.concat([echterKopf(), Buffer.alloc(4096, 0x11)]))).toBe(true);

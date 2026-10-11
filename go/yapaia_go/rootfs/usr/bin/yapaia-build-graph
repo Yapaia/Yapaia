@@ -1,0 +1,380 @@
+#!/command/with-contenv bash
+# ==============================================================================
+# yapaia-build-graph -- Routinggraph fuer eine Region bauen, VON INNEN.
+#
+# ─── WARUM ES DIESEN WEG GIBT ───────────────────────────────────────────────
+# Bis hierher galt: der Routinggraph lasse sich auf dem Geraet nicht bauen,
+# das Werkzeug brauche einen Docker-Socket. Das stimmte fuer unser SKRIPT
+# (`services/valhalla/build-tiles.sh` faehrt das gis-ops-Image von aussen an),
+# aber nicht fuer die WERKZEUGE: dieses Add-on setzt mit `FROM` auf genau
+# jenem Image auf, und dessen Dockerfile bewahrt sie ausdruecklich auf --
+#
+#   preserve="valhalla_service valhalla_build_tiles valhalla_build_config
+#             valhalla_build_admins valhalla_build_timezones ..."
+#
+# -- samt dem kompletten Bau-Rezept unter /valhalla/scripts/. Alles Noetige
+# liegt also bereits im Container. Es fehlte nur der Aufruf.
+#
+# Das ist dieselbe Fehlerklasse wie der JAR-Modus bei planetiler: der Weg war
+# da, das Skript fand ihn nicht -- und die Oberflaeche schickte den Betreiber
+# an einen zweiten Rechner, den es nicht braucht.
+#
+# ─── WARUM IN EINEM STAGING-VERZEICHNIS GEBAUT WIRD ─────────────────────────
+# W-17: ein abgebrochener Lauf darf keinen halben Graphen im Live-Pfad
+# hinterlassen. Gebaut wird deshalb unter `/custom_files/<staging>`, und erst
+# ein vollstaendiger, gepruefter Graph wird eingewechselt.
+#
+# ─── UND WARUM DANACH EIN sed NOETIG IST ────────────────────────────────────
+# `valhalla_build_config` schreibt ABSOLUTE Pfade in die valhalla.json. Baut
+# man unter `/custom_files/<staging>`, stehen sie danach auch dort drin --
+# nach dem Einwechseln nach `/custom_files` waeren sie falsch. Ersetzt wird
+# deshalb genau EIN Praefix: `/custom_files/<staging>/` -> `/custom_files/`.
+# Das trifft ausschliesslich Pfad-Zeichenketten und laesst die Struktur der
+# Config unberuehrt -- anders als ein Merge fremder Schluessel, der frueher
+# schon einmal in „No such node (service_limits...)" endete.
+#
+# `/custom_files` selbst ist ein Symlink auf das Live-Verzeichnis (siehe
+# Dockerfile) -- damit stimmen die Pfade in der Config sowohl fuer einen hier
+# gebauten als auch fuer einen anderswo gebauten und hereinkopierten Graphen.
+#
+# ─── VERWENDUNG ─────────────────────────────────────────────────────────────
+#   yapaia-build-graph <pbf-url-oder-pfad> [region-id]
+# ==============================================================================
+set -euo pipefail
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  cat >&2 <<'EOF'
+Usage: yapaia-build-graph <pbf-url-oder-pfad> [region-id]
+
+Beispiel:
+  yapaia-build-graph https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+
+Env-Overrides:
+  VALHALLA_TILES_DIR  Live-Verzeichnis des Graphen
+                      (Default: /share/yapaia/valhalla/tiles)
+  YAPAIA_GRAPH_EXTRAKTE
+                      Weitere Regionen, deren Extrakt noch fehlt -- eine
+                      Zeile je Region, "<region> <url>". Setzt der Kern; er
+                      ist die einzige Stelle, die weiss, welche Karten
+                      installiert sind und wo ihr Extrakt herkaeme.
+EOF
+  exit 1
+fi
+
+PBF_ARG="$1"
+REGION_ARG="${2:-}"
+
+LIVE_DIR="${VALHALLA_TILES_DIR:-/share/yapaia/valhalla/tiles}"
+export TMPDIR="${TMPDIR:-$(dirname "$(dirname "$LIVE_DIR")")/tmp}"
+mkdir -p "$LIVE_DIR" "$TMPDIR"
+
+# Der Symlink aus dem Dockerfile MUSS auf das Live-Verzeichnis zeigen, sonst
+# stimmen die Pfade in der erzeugten Config nicht. Lieber hier hart abbrechen
+# als einen Graphen bauen, der hinterher nicht laedt.
+if [ ! -d /custom_files ]; then
+  echo "FEHLER: /custom_files fehlt oder zeigt ins Leere." >&2
+  echo "Es muss ein Symlink auf $LIVE_DIR sein (wird im Add-on-Image angelegt)." >&2
+  exit 1
+fi
+
+derive_region_id() {
+  local base
+  base="$(basename "$1")"
+  base="${base%%\?*}"
+  base="${base%.pbf}"
+  base="${base%.osm}"
+  base="${base%-latest}"
+  printf '%s' "$base"
+}
+REGION_ID="${REGION_ARG:-$(derive_region_id "$PBF_ARG")}"
+if ! [[ "$REGION_ID" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  echo "FEHLER: ungueltige Regions-ID \"$REGION_ID\"." >&2
+  exit 1
+fi
+
+STAGING_NAME="build-$REGION_ID.$$"
+STAGING_DIR="/custom_files/$STAGING_NAME"
+rm -rf "$STAGING_DIR"
+mkdir -p "$STAGING_DIR"
+
+cleanup() {
+  rm -rf "$STAGING_DIR"
+}
+trap cleanup EXIT
+
+# --- PBF beschaffen ---------------------------------------------------------
+# Extrakte werden zwischengelagert und WIEDERVERWENDET -- dieselbe Ablage, die
+# der Kachelbau und der Suchindex-Bau benutzen. Ohne sie muesste fuer jeden
+# Mehr-Laender-Graphen jedes Land erneut geladen werden.
+PBF_CACHE="$(dirname "$(dirname "$LIVE_DIR")")/planetiler-sources"
+mkdir -p "$PBF_CACHE"
+
+# ─── ABGEBROCHENE UEBERTRAGUNGEN ERKENNEN ───────────────────────────────────
+# Eine halb geladene .osm.pbf ist die gefaehrlichste Datei in diesem
+# Verzeichnis: sie existiert, ist nicht leer, und der Bau unten nimmt jede
+# `*.osm.pbf` per Glob -- also auch sie, mit einem Land, dem die Haelfte
+# fehlt, und ohne eine einzige Fehlermeldung.
+#
+# Geprueft wird der Dateikopf. Eine OSM-PBF beginnt per Format mit einer
+# 4-Byte-Laenge, dann folgt der BlobHeader als Protobuf: Feld 1 (`type`,
+# Zeichenkette) ergibt die Bytes 0x0a 0x09 und danach exakt "OSMHeader".
+# Das steht bei Byte 6..14 und braucht kein osmium und kein Python.
+#
+# (Dieselbe Funktion steht in `services/tiles/build-pmtiles.sh`.
+# `services/tiles/osm-pbf-kopf.test.ts` vergleicht beide Fassungen Zeichen
+# fuer Zeichen, damit sie nicht auseinanderlaufen koennen.)
+ist_osm_pbf() {
+  [ -s "$1" ] || return 1
+  [ "$(head -c 15 "$1" 2>/dev/null | tail -c 9)" = "OSMHeader" ]
+}
+
+# Holt EINEN Extrakt ins Zwischenlager, falls er fehlt. Gibt 1 zurueck, wenn
+# es nicht geklappt hat -- der Aufrufer entscheidet, ob das den Bau abbricht.
+hole_extrakt() {
+  local region="$1" quelle="$2" ziel
+  ziel="$PBF_CACHE/$region.osm.pbf"
+
+  if [ -s "$ziel" ] && ! ist_osm_pbf "$ziel"; then
+    echo "Der vorhandene Extrakt fuer \"$region\" ist unvollstaendig und wird verworfen."
+    rm -f "$ziel"
+  fi
+  if [ -s "$ziel" ]; then
+    echo "Verwende bereits vorhandenen OSM-Extrakt: $ziel"
+    return 0
+  fi
+
+  if [[ "$quelle" =~ ^https?:// ]]; then
+    echo "Lade OSM-Extrakt fuer \"$region\" herunter: $quelle"
+    if ! curl -fL --retry 3 --retry-delay 5 -o "$ziel.part" "$quelle"; then
+      rm -f "$ziel.part"
+      echo "FEHLER: Download fehlgeschlagen fuer \"$region\": $quelle" >&2
+      return 1
+    fi
+  else
+    if [ ! -f "$quelle" ]; then
+      echo "FEHLER: lokale PBF-Datei nicht gefunden: $quelle" >&2
+      return 1
+    fi
+    # Schon die Datei im Zwischenlager? Dann ist nichts zu tun.
+    if [ "$(readlink -f "$quelle")" = "$(readlink -f "$ziel" 2>/dev/null || echo "")" ]; then
+      return 0
+    fi
+    cp "$quelle" "$ziel.part"
+  fi
+
+  if ! ist_osm_pbf "$ziel.part"; then
+    rm -f "$ziel.part"
+    echo "FEHLER: das Beschaffte ist keine OSM-PBF (\"$region\")." >&2
+    echo "Haeufigste Ursache: die URL liefert eine HTML-Seite statt der Datei." >&2
+    return 1
+  fi
+  mv "$ziel.part" "$ziel"
+  return 0
+}
+
+# Die Region, deren Knopf gedrueckt wurde.
+hole_extrakt "$REGION_ID" "$PBF_ARG" || exit 1
+
+# ─── UND ALLE ANDEREN INSTALLIERTEN KARTEN DAZU ─────────────────────────────
+# Der Kern uebergibt in $YAPAIA_GRAPH_EXTRAKTE eine Zeile je Region, die noch
+# keinen Extrakt hat: „<region> <url>". Er ist die einzige Stelle, die BEIDES
+# weiss -- welche Karten installiert sind und wo ihr Extrakt herkaeme; dieses
+# Skript sieht nur das Zwischenlager.
+#
+# Warum ueberhaupt: bis 0.10.1 hiess „Routing bauen" bei einer Region
+# faktisch „baue ueber das, was zufaellig hier liegt". Wer drei Laender
+# installiert hatte und beim kleinsten drueckte, verlor die anderen beiden --
+# lautlos, bis mitten in Deutschland „no edges found near location" kam.
+#
+# Ein FEHLSCHLAG hier bricht den Bau NICHT ab. Ein zeitweise nicht
+# erreichbarer Server darf nicht bedeuten, dass auch das Routing fuer die
+# Laender wegfaellt, deren Extrakt laengst daliegt. Er wird gemeldet und die
+# Region fehlt dann eben -- sichtbar, in einer Zeile, die man wiederfindet.
+FEHLGESCHLAGEN=()
+if [ -n "${YAPAIA_GRAPH_EXTRAKTE:-}" ]; then
+  while read -r zusatz_region zusatz_url; do
+    [ -n "$zusatz_region" ] || continue
+    [ -n "$zusatz_url" ] || continue
+    [ "$zusatz_region" = "$REGION_ID" ] && continue
+    if ! hole_extrakt "$zusatz_region" "$zusatz_url"; then
+      FEHLGESCHLAGEN+=("$zusatz_region")
+    fi
+  done <<< "$YAPAIA_GRAPH_EXTRAKTE"
+fi
+
+# ─── EIN GRAPH UEBER ALLE VORHANDENEN LAENDER ───────────────────────────────
+# Valhalla baut aus MEHREREN Extrakten EINEN Graphen: `configure_valhalla.sh`
+# sammelt jede `*.pbf` im Bauverzeichnis ein (nachgelesen in gis-ops'
+# helpers.sh/configure_valhalla.sh, nicht angenommen).
+#
+# Das ist nicht nur bequem, sondern notwendig: bis 0.4.0 ersetzte jeder Bau
+# den vorherigen Graphen vollstaendig -- wer Routing fuer Frankreich baute,
+# hatte danach keins mehr fuer Deutschland. Und es ist ausserdem BESSER als
+# getrennte Graphen: eine Route von Freiburg nach Basel fuehrt ueber die
+# Grenze, und das geht nur, wenn beide Seiten in DEMSELBEN Graphen liegen --
+# fuer ein Wohnmobil der Normalfall, nicht der Sonderfall.
+#
+# Der Preis, ehrlich: der Bau dauert so lange wie die Summe aller Laender, und
+# ein neues Land bedeutet einen kompletten Neubau.
+GRAPH_REGIONS=()
+UEBERSPRUNGEN=()
+for pbf in "$PBF_CACHE"/*.osm.pbf; do
+  [ -s "$pbf" ] || continue
+  name="$(basename "$pbf")"
+  # `[ -s ]` allein reichte nicht: eine abgebrochene Uebertragung ist nicht
+  # leer. Sie waere hier eingesammelt worden und haette ein halbes Land in den
+  # Graphen gelegt, ohne dass irgendwo etwas gestanden haette.
+  if ! ist_osm_pbf "$pbf"; then
+    UEBERSPRUNGEN+=("$(derive_region_id "$name")")
+    continue
+  fi
+  ln -sf "$pbf" "$STAGING_DIR/$name"
+  GRAPH_REGIONS+=("$(derive_region_id "$name")")
+done
+
+if [ "${#GRAPH_REGIONS[@]}" -eq 0 ]; then
+  echo "FEHLER: kein OSM-Extrakt zum Bauen gefunden (weder uebergeben noch in $PBF_CACHE)." >&2
+  exit 1
+fi
+
+echo "Graph wird ueber ${#GRAPH_REGIONS[@]} Region(en) gebaut: ${GRAPH_REGIONS[*]}"
+
+# Was NICHT dabei ist, gehoert genauso ins Protokoll wie das, was dabei ist.
+# Eine fehlende Region ist beim Routen sonst nicht von einem Fehler zu
+# unterscheiden -- genau daran hat dieses Projekt schon einmal Tage verloren.
+if [ "${#UEBERSPRUNGEN[@]}" -gt 0 ]; then
+  echo "Uebersprungen (Extrakt unvollstaendig): ${UEBERSPRUNGEN[*]}"
+  echo "Fuer diese Regionen gibt es nach dem Bau KEIN Routing. Ein erneutes"
+  echo "\"Routing bauen\" laedt sie neu."
+fi
+if [ "${#FEHLGESCHLAGEN[@]}" -gt 0 ]; then
+  echo "Nicht beschaffbar: ${FEHLGESCHLAGEN[*]}"
+  echo "Fuer diese Regionen gibt es nach dem Bau KEIN Routing."
+fi
+
+# --- Bauen ------------------------------------------------------------------
+# Die Umgebung entspricht dem, was `services/valhalla/build-tiles.sh` dem
+# gis-ops-Container per `-e` mitgibt -- derselbe Graph, nur ohne den Umweg
+# ueber einen zweiten Container.
+#
+#   build_elevation=False   Hoehendaten sind ein separater, sehr grosser
+#                           Download; ohne sie routet Valhalla vollstaendig.
+#   build_admins=True       Laendergrenzen -- ohne sie fehlen
+#                           Grenzuebertritte in der Abbiegeansage.
+#   build_time_zones=False  fuer Ankunftszeiten nicht noetig.
+export path_extension="$STAGING_NAME"
+export build_elevation=False
+export build_admins=True
+export build_time_zones=False
+export build_transit=False
+export force_rebuild=True
+export use_tiles_ignore_pbf=False
+export server_threads="${VALHALLA_BUILD_THREADS:-1}"
+
+echo "== Baue Routinggraph fuer \"$REGION_ID\" (Staging: $STAGING_DIR) =="
+echo "Das dauert bei Liechtenstein Minuten, bei einem Bundesland deutlich laenger."
+
+/valhalla/scripts/configure_valhalla.sh
+
+CONFIG="$STAGING_DIR/valhalla.json"
+if [ ! -s "$CONFIG" ]; then
+  echo "FEHLER: der Bau hat keine valhalla.json erzeugt ($CONFIG)." >&2
+  exit 1
+fi
+if [ ! -d "$STAGING_DIR/valhalla_tiles" ]; then
+  echo "FEHLER: der Bau hat kein valhalla_tiles/ erzeugt." >&2
+  echo "Ohne Kacheln waere der Graph leer -- es wird nichts eingewechselt." >&2
+  exit 1
+fi
+
+# Pfade vom Staging- auf das Live-Verzeichnis umbiegen (siehe Kopfkommentar).
+sed -i "s|/custom_files/${STAGING_NAME}/|/custom_files/|g" "$CONFIG"
+if grep -q "/custom_files/${STAGING_NAME}" "$CONFIG"; then
+  echo "FEHLER: in der Config stehen noch Staging-Pfade -- nicht eingewechselt." >&2
+  exit 1
+fi
+
+# ─── VERWEISE AUF DATEIEN ENTFERNEN, DIE WIR NICHT BAUEN ────────────────────
+# `valhalla_build_config` traegt IMMER `mjolnir.tile_extract`
+# (valhalla_tiles.tar) und `mjolnir.traffic_extract` (traffic.tar) ein, auch
+# wenn beide gar nicht erzeugt werden. Wir bauen ein Kachel-VERZEICHNIS; das
+# ist der normale Weg und funktioniert vollstaendig.
+#
+# Beim Start sucht valhalla_service die Tar-Dateien trotzdem und meldet:
+#
+#   [ERROR] (stat): /custom_files/valhalla_tiles.tar No such file or directory
+#   [WARN]  Tile extract could not be loaded
+#
+# Danach faellt es auf das Verzeichnis zurueck und laeuft. Die Meldungen sind
+# also folgenlos -- aber sie stehen als ERROR im Protokoll, direkt nach einem
+# ERFOLGREICHEN Bau. Genau diese Sorte Meldung hat dieses Projekt schon
+# mehrfach auf falsche Faehrten geschickt. Eine Konfiguration soll
+# beschreiben, was da ist, nicht was da sein koennte.
+#
+# Entfernt werden nur diese beiden Schluessel, best-effort: fehlt `jq`,
+# bleibt alles wie es war (harmlose Warnungen statt eines kaputten Baus).
+if command -v jq >/dev/null 2>&1; then
+  if jq 'del(.mjolnir.tile_extract) | del(.mjolnir.traffic_extract)' "$CONFIG" > "$CONFIG.tmp" \
+     && [ -s "$CONFIG.tmp" ]; then
+    mv "$CONFIG.tmp" "$CONFIG"
+  else
+    rm -f "$CONFIG.tmp"
+    echo "Hinweis: tile_extract/traffic_extract konnten nicht entfernt werden."
+    echo "Der Graph laeuft trotzdem; Valhalla meldet beim Start nur zwei ERROR-Zeilen"
+    echo "ueber fehlende .tar-Dateien und benutzt dann das Kachelverzeichnis."
+  fi
+fi
+
+# --- Atomar einwechseln (W-17) ---------------------------------------------
+# Erst das Alte beiseite, dann das Neue an seinen Platz, dann das Alte weg.
+# Schlaegt der mittlere Schritt fehl, wird zurueckgeschoben.
+OLD_DIR="$TMPDIR/valhalla-old.$$"
+echo "Wechsle Graph ein -> $LIVE_DIR"
+if [ -n "$(ls -A "$LIVE_DIR" 2>/dev/null | grep -v "^$STAGING_NAME$" || true)" ]; then
+  mkdir -p "$OLD_DIR"
+  for item in "$LIVE_DIR"/*; do
+    [ -e "$item" ] || continue
+    [ "$(basename "$item")" = "$STAGING_NAME" ] && continue
+    mv "$item" "$OLD_DIR/" || true
+  done
+fi
+
+moved=0
+for item in "$STAGING_DIR"/*; do
+  [ -e "$item" ] || continue
+  mv "$item" "$LIVE_DIR/"
+  moved=1
+done
+if [ "$moved" -eq 0 ]; then
+  echo "FEHLER: im Staging lag nichts zum Einwechseln." >&2
+  if [ -d "$OLD_DIR" ]; then
+    mv "$OLD_DIR"/* "$LIVE_DIR/" 2>/dev/null || true
+    echo "Der vorherige Graph wurde zurueckgeschoben." >&2
+  fi
+  exit 1
+fi
+rm -rf "$OLD_DIR"
+
+# --- Festhalten, WORAUS gebaut wurde ---------------------------------------
+# Es gibt EINEN Routinggraphen fuer alle Regionen: dieser Bau hat den
+# vorherigen soeben ersetzt. Ohne diese Notiz sieht niemand, welche Region
+# gerade geladen ist -- genau das war gemeldet ("ich sehe nicht, dass bereits
+# etwas erstellt wurde und wann").
+#
+# NEBEN das Kachelverzeichnis, nicht hinein: was unter $LIVE_DIR liegt, liest
+# Valhalla, und dort gehoert nichts hin, was kein Graph ist.
+BUILD_INFO="$(dirname "$LIVE_DIR")/build-info.json"
+REGIONS_JSON="$(printf '"%s",' "${GRAPH_REGIONS[@]}")"
+REGIONS_JSON="[${REGIONS_JSON%,}]"
+printf '{"region":"%s","regions":%s,"built_at":"%s"}\n' \
+  "$REGION_ID" "$REGIONS_JSON" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$BUILD_INFO.tmp" \
+  && mv "$BUILD_INFO.tmp" "$BUILD_INFO"
+
+# Die PBF wird nicht mit eingewechselt -- sie liegt im Staging und faellt mit
+# ihm weg. Der Graph traegt sie nicht, und ein liegengebliebener Extrakt
+# wuerde beim naechsten Start des gis-ops-Rezepts einen Neubau ausloesen.
+rm -f "$LIVE_DIR/$REGION_ID.osm.pbf"
+
+echo "== Routinggraph fertig eingewechselt =="
+echo "Der Valhalla-Dienst prueft alle 30 Sekunden auf $LIVE_DIR/valhalla.json"
+echo "und startet dann von allein -- ein Neustart des Add-ons ist nicht noetig."

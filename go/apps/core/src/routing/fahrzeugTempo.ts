@@ -7,7 +7,7 @@
  * zwar unabhängig davon, ob ein Schild dasteht.
  *
  * Auf einer deutschen Autobahn ohne Begrenzung meldet Valhalla „unlimited".
- * `binary_sensor.yapaja_speeding` blieb damit bei 130 km/h aus — für ein
+ * `binary_sensor.yapaia_speeding` blieb damit bei 130 km/h aus — für ein
  * schweres Wohnmobil eine Übertretung um fünfzig. Die Anzeige war also nicht
  * nur unvollständig, sie war beruhigend, wo sie es nicht sein durfte.
  *

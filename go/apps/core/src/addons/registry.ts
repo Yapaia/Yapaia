@@ -1,7 +1,7 @@
 /**
  * Registry client (E09-T7, docs/05 §5, Wargame W-11/W-13): loads, STRICTLY
  * validates, and locally caches the public add-on catalog `index.json` a
- * `yapaja-addons-registry` Git repo publishes (statically hostable, e.g.
+ * `yapaia-addons-registry` Git repo publishes (statically hostable, e.g.
  * GitHub Pages/raw -- "funktioniert mit sporadischem Internet").
  *
  * THREAT MODEL: `index.json` is FULLY UNTRUSTED remote input, same class of
@@ -47,7 +47,7 @@ import { SettingsService } from '../settings/service.js';
  *  repo's test/dev environment on purpose -- exactly like `map/regions`'s
  *  bundled catalog, a fixture/override always stands in for it in tests. */
 export const DEFAULT_REGISTRY_URL =
-  'https://raw.githubusercontent.com/yapaja/yapaja-addons-registry/main/index.json';
+  'https://raw.githubusercontent.com/yapaia/yapaia-addons-registry/main/index.json';
 
 /** Settings key holding an operator-configured override for the registry
  *  index URL. `ADDONS_REGISTRY_URL` (env) takes precedence, same

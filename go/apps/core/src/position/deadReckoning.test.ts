@@ -160,11 +160,11 @@ describe('DeadReckoningController', () => {
   });
 
   // (e) The future MQTT bridge (E08) only republishes `pos/update` as
-  // `yapaja/position` -- it must never treat `pos/extrapolated` the same
+  // `yapaia/position` -- it must never treat `pos/extrapolated` the same
   // way, or a dead-reckoned guess would be forwarded to external consumers
   // as a real fix. See DeadReckoningController's module docstring
   // (deadReckoning.ts) for the same invariant on the publishing side.
   it.todo(
-    'MQTT-Mapping (E08) filtert extrapolierte Positionen — pos/extrapolated wird nicht als yapaja/position publiziert',
+    'MQTT-Mapping (E08) filtert extrapolierte Positionen — pos/extrapolated wird nicht als yapaia/position publiziert',
   );
 });

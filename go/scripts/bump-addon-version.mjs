@@ -6,13 +6,13 @@
  * ─── Was dieses Skript wirklich tut, und was es NICHT tut ───────────────────
  * Seit `feat/gui-install-path` IST dieses Monorepo selbst das
  * HA-Add-on-Repository: `repository.yaml` liegt im Wurzelverzeichnis und das
- * Add-on-Paket als `yapaja_go/` auf oberster Ebene -- genau das Layout, das
+ * Add-on-Paket als `yapaia_go/` auf oberster Ebene -- genau das Layout, das
  * der Supervisor beim Eintragen einer Repository-URL erwartet
- * (docs/04-home-assistant.md §3). Ein separates `yapaja-go-ha-addon`-Repo
+ * (docs/04-home-assistant.md §3). Ein separates `yapaia-go-ha-addon`-Repo
  * bleibt als spätere Spiegelung möglich, ist für den GUI-Weg aber nicht mehr
- * nötig; `yapaja_go/PACKAGING.md` hält das fest.
+ * nötig; `yapaia_go/PACKAGING.md` hält das fest.
  *
- * Dieses Skript bumpt `yapaja_go/config.yaml`s `version:`-Feld -- die
+ * Dieses Skript bumpt `yapaia_go/config.yaml`s `version:`-Feld -- die
  * maßgebliche Stelle, die der HA-Supervisor beim Update tatsächlich liest.
  * Ein etwaiger Push in ein separates Spiegel-Repository wäre ein
  * zusätzlicher Schritt, den `.github/workflows/release.yml` dokumentiert,
@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = resolve(__dirname, '..');
-export const ADDON_CONFIG_PATH = join(REPO_ROOT, 'yapaja_go', 'config.yaml');
+export const ADDON_CONFIG_PATH = join(REPO_ROOT, 'yapaia_go', 'config.yaml');
 
 const VERSION_LINE_RE = /^version:\s*"[^"]*"\s*$/m;
 
@@ -63,11 +63,11 @@ function main() {
   const before = readFileSync(ADDON_CONFIG_PATH, 'utf-8');
   const after = bumpVersionLine(before, newVersion);
   if (before === after) {
-    console.log(`yapaja_go/config.yaml ist bereits auf Version ${newVersion}.`);
+    console.log(`yapaia_go/config.yaml ist bereits auf Version ${newVersion}.`);
     return;
   }
   writeFileSync(ADDON_CONFIG_PATH, after, 'utf-8');
-  console.log(`yapaja_go/config.yaml: version -> "${newVersion}"`);
+  console.log(`yapaia_go/config.yaml: version -> "${newVersion}"`);
 }
 
 const isMain = process.argv[1] !== undefined && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));

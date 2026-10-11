@@ -39,7 +39,7 @@ export function rewriteSourceUrls(style: MapStyleDocument, region: string): MapS
 /**
  * Die Quellen-ID einer Region.
  *
- * Die HAUPTREGION behält die unveränderte ID `yapaja-region`. Das ist kein
+ * Die HAUPTREGION behält die unveränderte ID `yapaia-region`. Das ist kein
  * Schönheitsfehler, sondern Absicht: `apps/web/src/map/placeName.ts` fragt
  * Merkmale genau unter diesem Namen ab, um den Ortsnamen unter dem Fahrzeug
  * zu bestimmen. Würde hier alles umbenannt, fände es nichts mehr — und zwar

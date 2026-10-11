@@ -23,9 +23,9 @@ zweierlei prüft:
 
 | Datei | Rolle |
 | --- | --- |
-| `yapaja-addon.json` | Manifest. Deklariert **absichtlich nur** `pos.read`, `storage.own`, `widget.register`, `events.publish` -- alles andere, was es versucht, ist damit *nicht* deklariert. |
+| `yapaia-addon.json` | Manifest. Deklariert **absichtlich nur** `pos.read`, `storage.own`, `widget.register`, `events.publish` -- alles andere, was es versucht, ist damit *nicht* deklariert. |
 | `ui/index.html` + `ui/evil.js` | UI-Hälfte im Sandbox-iframe. Schreibt **rohes** postMessage von Hand, benutzt das SDK bewusst nicht. |
-| `service/main.mjs` | Service-Hälfte als Node-Kindprozess. Schreibt sein Prüfergebnis nach `$YAPAJA_DATA_DIR/evil-probe.json`. |
+| `service/main.mjs` | Service-Hälfte als Node-Kindprozess. Schreibt sein Prüfergebnis nach `$YAPAIA_DATA_DIR/evil-probe.json`. |
 | `build.mjs` | Baut `dist/evil-fixture.tgz` (nur für manuelles Ausprobieren -- die Suite baut den Tarball in-process). |
 
 ## Warum rohes postMessage statt SDK?

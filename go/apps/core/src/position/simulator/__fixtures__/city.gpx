@@ -10,7 +10,7 @@
   Regenerate via the (uncommitted) scratch script if legs ever change; do
   not hand-edit coordinates.
 -->
-<gpx version="1.1" creator="yapaja-go-simulator-fixture" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="yapaia-go-simulator-fixture" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>city</name>
     <trkseg>

@@ -53,8 +53,8 @@ describe('POST /api/v1/map/regions/:id/build -- nur ein Bau gleichzeitig', () =>
   });
 
   async function setUp(): Promise<void> {
-    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-buildlock-tiles-'));
-    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaja-buildlock-catalog-'));
+    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-buildlock-tiles-'));
+    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaia-buildlock-catalog-'));
     tempDirs.push(tilesDir, catalogDir);
 
     const catalogPath = join(catalogDir, 'catalog.json');
@@ -191,8 +191,8 @@ describe('POST /api/v1/map/regions/:id/build -- nur ein Bau gleichzeitig', () =>
     // Wrapper starten wie der Kachelbau -- und wieder Kacheln bauen, waehrend
     // die Oberflaeche „Routing" behauptet.
     const commands: string[] = [];
-    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-graphcmd-tiles-'));
-    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaja-graphcmd-catalog-'));
+    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-graphcmd-tiles-'));
+    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaia-graphcmd-catalog-'));
     tempDirs.push(tilesDir, catalogDir);
     const catalogPath = join(catalogDir, 'catalog.json');
     writeFileSync(
@@ -224,7 +224,7 @@ describe('POST /api/v1/map/regions/:id/build -- nur ein Bau gleichzeitig', () =>
     });
 
     await app.inject({ method: 'POST', url: '/api/v1/map/regions/liechtenstein/build-graph' });
-    expect(commands).toEqual(['/usr/bin/yapaja-build-graph']);
+    expect(commands).toEqual(['/usr/bin/yapaia-build-graph']);
   });
 
   it('erlaubt einen neuen Bau, sobald der laufende abgebrochen wurde', async () => {

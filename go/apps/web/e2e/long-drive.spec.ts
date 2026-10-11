@@ -418,7 +418,7 @@ test.describe('Eine laengere Testfahrt', () => {
     page,
   }) => {
     test.setTimeout(90_000);
-    await page.addInitScript(() => localStorage.setItem('yapaja.viewMode', '2d-course'));
+    await page.addInitScript(() => localStorage.setItem('yapaia.viewMode', '2d-course'));
     await page.goto(LONG_DRIVE_CORE_BASE_URL + '/');
     await waitForMapReady(page);
 
@@ -493,7 +493,7 @@ test.describe('Eine laengere Testfahrt', () => {
 
       // Der Modus liegt im Speicher des Browsers -- genau dort, wo ihn das
       // Umschalten auf dem Geraet hinterlaesst.
-      await page.addInitScript((m) => localStorage.setItem('yapaja.viewMode', m), modus);
+      await page.addInitScript((m) => localStorage.setItem('yapaia.viewMode', m), modus);
       await page.goto(LONG_DRIVE_CORE_BASE_URL + '/');
       await waitForMapReady(page);
 

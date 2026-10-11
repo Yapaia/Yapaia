@@ -30,8 +30,8 @@ describe('POST /api/v1/map/regions -- disk-full pre-check (W-18)', () => {
   });
 
   function setUpCatalog(sizeBytes: number): void {
-    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-diskcheck-tiles-'));
-    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaja-diskcheck-catalog-'));
+    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-diskcheck-tiles-'));
+    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaia-diskcheck-catalog-'));
     tempDirs.push(tilesDir, catalogDir);
 
     const catalogPath = join(catalogDir, 'catalog.json');

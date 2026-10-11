@@ -98,7 +98,7 @@ describe('Region manager routes (E01-T5)', () => {
   }
 
   beforeEach(async () => {
-    tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-regions-'));
+    tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-regions-'));
 
     regionBuffer = Buffer.alloc(200_000);
     for (let i = 0; i < regionBuffer.length; i++) {
@@ -116,7 +116,7 @@ describe('Region manager routes (E01-T5)', () => {
     }
     mockPort = address.port;
 
-    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaja-catalog-'));
+    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaia-catalog-'));
     catalogPath = join(catalogDir, 'catalog.json');
     writeFileSync(
       catalogPath,

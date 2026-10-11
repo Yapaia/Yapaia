@@ -13,7 +13,7 @@ leere React-Shell lädt im Browser.
 - **Berührte Pfade:** Repo-Wurzel, `apps/core`, `apps/web`, `packages/shared`
 - **Erlaubte neue Dependencies:** pnpm, typescript, eslint (+typescript-eslint), prettier, vitest, fastify, react, react-dom, vite, @vitejs/plugin-react, tailwindcss, zustand
 
-**Aufgabe:** Erstelle ein pnpm-Workspace-Monorepo `yapaja-go` mit der Struktur aus
+**Aufgabe:** Erstelle ein pnpm-Workspace-Monorepo `yapaia-go` mit der Struktur aus
 docs/01 §3 (nur `apps/core`, `apps/web`, `packages/shared`; übrige Ordner als
 `.gitkeep`). Konfiguriere: TypeScript strict (gemeinsame `tsconfig.base.json`,
 ESM, `moduleResolution: bundler` im Web / `node16` im Core), ESLint flat config +

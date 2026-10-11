@@ -5,13 +5,13 @@
  * Dort gibt jeder Test die Source-ID selbst herein, und die gefälschte Karte
  * antwortet auf jeden Namen. Alle 14 Tests waren grün, während
  * `resolvePlaceName` im Betrieb ausnahmslos `null` lieferte: die Konstante
- * stand auf `'region'`, die Quelle heißt `'yapaja-region'`. Ein Test, der
+ * stand auf `'region'`, die Quelle heißt `'yapaia-region'`. Ein Test, der
  * seinen eigenen Parameter setzt, prüft die Verdrahtung nicht.
  *
  * Diese Datei liest deshalb die WIRKLICHE Konstante aus dem Core und hält den
  * Wert der Weboberfläche dagegen. Die beiden liegen in getrennten Paketen
  * (kein Import über die Grenze), also über die Datei — dieselbe Technik, mit
- * der `yapaja_go/config.test.ts` die Add-on-Konfiguration gegen den Quelltext
+ * der `yapaia_go/config.test.ts` die Add-on-Konfiguration gegen den Quelltext
  * hält.
  */
 

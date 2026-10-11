@@ -312,12 +312,12 @@ export class InstallService {
     try {
       manifestJson = JSON.parse(manifestRaw);
     } catch {
-      throw new AddonError('INVALID_MANIFEST', 'yapaja-addon.json is not valid JSON');
+      throw new AddonError('INVALID_MANIFEST', 'yapaia-addon.json is not valid JSON');
     }
 
     if (!validateAddonManifest(manifestJson)) {
       const errors = getValidationErrorsAddonManifest(manifestJson);
-      throw new AddonError('INVALID_MANIFEST', `yapaja-addon.json is invalid: ${errors.join('; ')}`);
+      throw new AddonError('INVALID_MANIFEST', `yapaia-addon.json is invalid: ${errors.join('; ')}`);
     }
     const manifest = manifestJson;
 

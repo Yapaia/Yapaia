@@ -150,7 +150,7 @@ test.describe('[Perf] Soak', () => {
     };
     writeFileSync(
       SOAK_RESULTS_FILE,
-      JSON.stringify({ schema: 'yapaja.soak.v1', context: soakContext, evaluation, samples }, null, 2),
+      JSON.stringify({ schema: 'yapaia.soak.v1', context: soakContext, evaluation, samples }, null, 2),
       'utf8',
     );
     const report = renderSoakReport(soakContext, evaluation);

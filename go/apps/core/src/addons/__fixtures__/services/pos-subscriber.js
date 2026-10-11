@@ -11,9 +11,9 @@
  * No internal imports, no SQLite, no privileged channel (docs/05 §1B).
  */
 
-const API = process.env.YAPAJA_API_URL;
-const TOKEN = process.env.YAPAJA_TOKEN;
-const ID = process.env.YAPAJA_ADDON_ID;
+const API = process.env.YAPAIA_API_URL;
+const TOKEN = process.env.YAPAIA_TOKEN;
+const ID = process.env.YAPAIA_ADDON_ID;
 
 async function publish(topic, payload) {
   try {

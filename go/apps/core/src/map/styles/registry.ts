@@ -11,12 +11,12 @@
  * ein neuer Stil erscheint im Kartenmenue ohne Aenderung am Frontend.
  */
 
-import { YAPAIA_CONTRAST_STYLE_ID, YAPAIA_CONTRAST_STYLE_NAME, buildYapaiaContrastStyle } from './yapaja-contrast.js';
-import { YAPAIA_DARK_STYLE_ID, YAPAIA_DARK_STYLE_NAME, buildYapaiaDarkStyle } from './yapaja-dark.js';
-import { YAPAIA_LIGHT_STYLE_ID, YAPAIA_LIGHT_STYLE_NAME, buildYapaiaLightStyle } from './yapaja-light.js';
-import { YAPAIA_OUTDOOR_STYLE_ID, YAPAIA_OUTDOOR_STYLE_NAME, buildYapaiaOutdoorStyle } from './yapaja-outdoor.js';
-import { YAPAIA_MINIMAL_STYLE_ID, YAPAIA_MINIMAL_STYLE_NAME, buildYapaiaMinimalStyle } from './yapaja-minimal.js';
-import { YAPAIA_SATELLIT_STYLE_ID, YAPAIA_SATELLIT_STYLE_NAME, buildYapaiaSatellitStyle } from './yapaja-satellit.js';
+import { YAPAIA_CONTRAST_STYLE_ID, YAPAIA_CONTRAST_STYLE_NAME, buildYapaiaContrastStyle } from './yapaia-contrast.js';
+import { YAPAIA_DARK_STYLE_ID, YAPAIA_DARK_STYLE_NAME, buildYapaiaDarkStyle } from './yapaia-dark.js';
+import { YAPAIA_LIGHT_STYLE_ID, YAPAIA_LIGHT_STYLE_NAME, buildYapaiaLightStyle } from './yapaia-light.js';
+import { YAPAIA_OUTDOOR_STYLE_ID, YAPAIA_OUTDOOR_STYLE_NAME, buildYapaiaOutdoorStyle } from './yapaia-outdoor.js';
+import { YAPAIA_MINIMAL_STYLE_ID, YAPAIA_MINIMAL_STYLE_NAME, buildYapaiaMinimalStyle } from './yapaia-minimal.js';
+import { YAPAIA_SATELLIT_STYLE_ID, YAPAIA_SATELLIT_STYLE_NAME, buildYapaiaSatellitStyle } from './yapaia-satellit.js';
 import type { MapStyleDocument } from './types.js';
 
 export interface StyleSummary {

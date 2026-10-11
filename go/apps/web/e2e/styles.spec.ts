@@ -108,9 +108,9 @@ test.describe('style switching', () => {
     await waitForMapReady(page);
     await openStylePanel(page);
 
-    await expect(page.locator('[data-testid="style-option-yapaja-light"]')).toBeVisible();
-    await expect(page.locator('[data-testid="style-option-yapaja-dark"]')).toBeVisible();
-    await expect(page.locator('[data-testid="style-option-yapaja-contrast"]')).toBeVisible();
+    await expect(page.locator('[data-testid="style-option-yapaia-light"]')).toBeVisible();
+    await expect(page.locator('[data-testid="style-option-yapaia-dark"]')).toBeVisible();
+    await expect(page.locator('[data-testid="style-option-yapaia-contrast"]')).toBeVisible();
   });
 
   test('dark style background is dark, light is light (pixel-sample, catches swapped styles)', async ({
@@ -120,17 +120,17 @@ test.describe('style switching', () => {
     await waitForMapReady(page);
     await openStylePanel(page);
 
-    await selectStyle(page, 'yapaja-dark');
+    await selectStyle(page, 'yapaia-dark');
     await expect.poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 }).toBeLessThan(
       0.3,
     );
 
-    await selectStyle(page, 'yapaja-light');
+    await selectStyle(page, 'yapaia-light');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeGreaterThan(0.7);
 
-    await selectStyle(page, 'yapaja-contrast');
+    await selectStyle(page, 'yapaia-contrast');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeGreaterThan(0.7);
@@ -149,12 +149,12 @@ test.describe('style switching', () => {
     });
 
     await openStylePanel(page);
-    await selectStyle(page, 'yapaja-dark');
+    await selectStyle(page, 'yapaia-dark');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeLessThan(0.3);
-    await selectStyle(page, 'yapaja-contrast');
-    await selectStyle(page, 'yapaja-light');
+    await selectStyle(page, 'yapaia-contrast');
+    await selectStyle(page, 'yapaia-light');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeGreaterThan(0.7);
@@ -192,7 +192,7 @@ test.describe('style switching', () => {
       .toBeCloseTo(targetCamera.zoom, 1);
 
     await openStylePanel(page);
-    await selectStyle(page, 'yapaja-dark');
+    await selectStyle(page, 'yapaia-dark');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeLessThan(0.3);
@@ -241,7 +241,7 @@ test.describe('style switching', () => {
     ).toBe(true);
 
     await openStylePanel(page);
-    await selectStyle(page, 'yapaja-dark');
+    await selectStyle(page, 'yapaia-dark');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeLessThan(0.3);
@@ -258,7 +258,7 @@ test.describe('style switching', () => {
     ).toBe(true);
 
     // Switch again (contrast) — must still survive a second switch.
-    await selectStyle(page, 'yapaja-contrast');
+    await selectStyle(page, 'yapaia-contrast');
     await expect
       .poll(() =>
         page.evaluate(() => Boolean(window.__yapaiaMapController?.getMap()?.getLayer('e2e-dummy-layer'))),
@@ -361,7 +361,7 @@ test.describe('style options', () => {
     await waitForMapReady(page);
     await openStylePanel(page);
 
-    await selectStyle(page, 'yapaja-dark');
+    await selectStyle(page, 'yapaia-dark');
     // Seit 0.12.2 liegen diese Optionen hinter einer Klappe.
     await oeffneAbschnitt(page, 'darstellung');
     await page.locator('[data-testid="poi-option-off"]').click();
@@ -379,15 +379,15 @@ test.describe('style options', () => {
     // (`LabelGroesseRegler.tsx`) -- also auf die Uebernahme warten.
     await expect
       .poll(() =>
-        page.evaluate(() => (JSON.parse(window.localStorage.getItem('yapaja.styleOptions') ?? '{}') as { labelScale?: string }).labelScale),
+        page.evaluate(() => (JSON.parse(window.localStorage.getItem('yapaia.styleOptions') ?? '{}') as { labelScale?: string }).labelScale),
       )
       .toBe('1.2');
 
     const storedBefore = await page.evaluate(() => ({
-      styleId: window.localStorage.getItem('yapaja.stilHell'),
-      options: window.localStorage.getItem('yapaja.styleOptions'),
+      styleId: window.localStorage.getItem('yapaia.stilHell'),
+      options: window.localStorage.getItem('yapaia.styleOptions'),
     }));
-    expect(storedBefore.styleId).toBe('yapaja-dark');
+    expect(storedBefore.styleId).toBe('yapaia-dark');
     expect(storedBefore.options).toBeTruthy();
     const parsedOptions = JSON.parse(storedBefore.options as string) as {
       lang: string;
@@ -434,8 +434,8 @@ test.describe('style options', () => {
       )
       .toBe('none');
 
-    const storedAfter = await page.evaluate(() => window.localStorage.getItem('yapaja.stilHell'));
-    expect(storedAfter).toBe('yapaja-dark');
+    const storedAfter = await page.evaluate(() => window.localStorage.getItem('yapaia.stilHell'));
+    expect(storedAfter).toBe('yapaia-dark');
   });
 });
 
@@ -448,16 +448,16 @@ test.describe('offline / same-origin', () => {
     await waitForMapReady(page);
     await openStylePanel(page);
 
-    await selectStyle(page, 'yapaja-dark');
+    await selectStyle(page, 'yapaia-dark');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeLessThan(0.3);
-    await selectStyle(page, 'yapaja-contrast');
+    await selectStyle(page, 'yapaia-contrast');
     // Seit 0.12.2 liegen diese Optionen hinter einer Klappe.
     await oeffneAbschnitt(page, 'darstellung');
     await page.locator('[data-testid="poi-option-reduced"]').click();
     await page.locator('[data-testid="lang-option-name_de"]').click();
-    await selectStyle(page, 'yapaja-light');
+    await selectStyle(page, 'yapaia-light');
     await expect
       .poll(async () => relativeLuminance(await readCenterPixel(page)), { timeout: 5_000 })
       .toBeGreaterThan(0.7);
@@ -559,7 +559,7 @@ test.describe('das Kartenmenü ist nicht mehr überfrachtet', () => {
     await openStylePanel(page);
 
     await expect(page.getByTestId('panel-abschnitt-stil')).toBeVisible();
-    await expect(page.getByTestId('style-option-yapaja-light')).toBeVisible();
+    await expect(page.getByTestId('style-option-yapaia-light')).toBeVisible();
   });
 
   test('Darstellung und Gerät sind zugeklappt und lassen sich öffnen', async ({ page }) => {
@@ -707,8 +707,8 @@ test.describe('einzelne Sonderziele an- und abschalten', () => {
         () =>
           page.evaluate(() => {
             const map = window.__yapaiaMapController?.getMap();
-            if (!map?.getLayer('yapaja-sonderziele-marken')) return null;
-            return JSON.stringify(map.getFilter('yapaja-sonderziele-marken') ?? null);
+            if (!map?.getLayer('yapaia-sonderziele-marken')) return null;
+            return JSON.stringify(map.getFilter('yapaia-sonderziele-marken') ?? null);
           }),
         { timeout: 10_000 },
       )
@@ -741,20 +741,20 @@ test.describe('Kartenstil je Hell und Dunkel', () => {
 
     // Für Dunkel „Kontrast" wählen, während Hell gilt: die Karte bleibt hell.
     await page.getByTestId('stil-reiter-dark').click();
-    await page.getByTestId('style-option-yapaja-contrast').click();
+    await page.getByTestId('style-option-yapaia-contrast').click();
     await expect(page.getByTestId('stil-hinweis')).toContainText('sobald');
     const sichtbar = () =>
       page.evaluate(() => window.__yapaiaStyleStore?.getState().styleId);
-    await expect.poll(sichtbar).toBe('yapaja-light');
+    await expect.poll(sichtbar).toBe('yapaia-light');
 
     // Auf Dunkel: jetzt „Kontrast".
     await setzeThemaOhneSpeichern(page, 'dark');
-    await expect.poll(sichtbar).toBe('yapaja-contrast');
+    await expect.poll(sichtbar).toBe('yapaia-contrast');
 
     // Zurück auf Hell: wieder hell, und die Wahl für Dunkel ist nicht verloren.
     await setzeThemaOhneSpeichern(page, 'light');
-    await expect.poll(sichtbar).toBe('yapaja-light');
+    await expect.poll(sichtbar).toBe('yapaia-light');
     await setzeThemaOhneSpeichern(page, 'dark');
-    await expect.poll(sichtbar).toBe('yapaja-contrast');
+    await expect.poll(sichtbar).toBe('yapaia-contrast');
   });
 });

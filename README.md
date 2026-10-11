@@ -18,8 +18,11 @@ Home Assistant → Einstellungen → Add-ons → Add-on-Store → ⋮ → Reposi
 `https://github.com/Yapaia/yapaia`. Danach jedes Modul einzeln installieren –
 nur die, die man braucht.
 
-> Solange dieses Repository privat ist, kommen die Add-ons noch aus den
-> bisherigen Einzel-Repositories.
+Jedes Add-on bringt die Integration **„Yapaia“** mit. Nach dem ersten Start
+einmal Home Assistant neu starten; dann erscheint jedes Modul unter
+*Einstellungen → Geräte & Dienste* als „… gefunden“ und wird mit einem Tipp
+eingerichtet. Der **Yapaia Router** (GL.iNet-Mobilfunk) ist kein Add-on: *Integration
+hinzufügen → Yapaia → GL.iNet-Router*.
 
 ## Grundsätze
 
@@ -38,7 +41,7 @@ nur die, die man braucht.
   Prüfungen der geänderten Module** (`.github/workflows/ci.yml`); der Check
   **„Gate“** fasst sie zusammen und entscheidet über das Mergen.
 - Versionen und Änderungslisten führt jedes Modul selbst
-  (`go/yapaja_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`).
+  (`go/yapaia_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`).
   Release-Tags tragen das Modul im Namen, z. B. `go-v0.43.0`.
 - Die Geschichte der früheren Einzel-Repositories ist vollständig erhalten
   (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`, `git log -- router/`).

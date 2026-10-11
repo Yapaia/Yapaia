@@ -16,9 +16,9 @@ keines ersetzt ein anderes:
 
 | Wofür | Was genau | Liegt auf dem Gerät unter |
 |---|---|---|
-| **Karte** (das Bild) | Vektorkacheln als **PMTiles**, **OpenMapTiles-Schema** | `/share/yapaja/tiles/<name>.pmtiles` |
-| **Routing** (Route berechnen, Abbiegehinweise) | **Valhalla-Routinggraph** samt `valhalla.json` | `/share/yapaja/valhalla/tiles/` |
-| **Suche** (Orte, Straßen, Sonderziele) | Yapaias **Lite-Suchindex** (SQLite) — oder ein **Photon-Index** | `/share/yapaja/lite-search/` bzw. `/share/yapaja/photon/photon_data/` |
+| **Karte** (das Bild) | Vektorkacheln als **PMTiles**, **OpenMapTiles-Schema** | `/share/yapaia/tiles/<name>.pmtiles` |
+| **Routing** (Route berechnen, Abbiegehinweise) | **Valhalla-Routinggraph** samt `valhalla.json` | `/share/yapaia/valhalla/tiles/` |
+| **Suche** (Orte, Straßen, Sonderziele) | Yapaias **Lite-Suchindex** (SQLite) — oder ein **Photon-Index** | `/share/yapaia/lite-search/` bzw. `/share/yapaia/photon/photon_data/` |
 
 **Alle drei werden aus derselben Quelle gebaut: einem OpenStreetMap-Extrakt
 (`.osm.pbf`).** Das ist die wichtigste Erkenntnis für den Austausch mit
@@ -40,8 +40,8 @@ eurer Installation ist dafür nichts nachzurüsten:
 
 | Voraussetzung | Stand bei euch |
 |---|---|
-| Datenablage, die Updates überlebt | `/share/yapaja/` — das Add-on legt die Ordner beim Start selbst an |
-| Kachelbau (planetiler) | im Add-on; beim ersten Bau lädt es einmalig `planetiler.jar` (~100 MB) nach `/share/yapaja/tools/` |
+| Datenablage, die Updates überlebt | `/share/yapaia/` — das Add-on legt die Ordner beim Start selbst an |
+| Kachelbau (planetiler) | im Add-on; beim ersten Bau lädt es einmalig `planetiler.jar` (~100 MB) nach `/share/yapaia/tools/` |
 | Routinggraph-Bau (Valhalla) | im Add-on — es setzt auf dem Valhalla-Image auf, das die Bauwerkzeuge enthält |
 | Suchindex-Bau (osmium + SQLite) | im Add-on |
 | Dateien von außen ablegen | über das Add-on **„Samba share"** (Netzlaufwerk `\\homeassistant\share`) oder **„File editor"** |
@@ -115,7 +115,7 @@ setzen — siehe [installation.md §C.4](installation.md#c4-im-add-on-container-
 
 **Ablegen:**
 
-1. Datei nach `/share/yapaja/tiles/` kopieren (Samba: `\\homeassistant\share\yapaja\tiles\`).
+1. Datei nach `/share/yapaia/tiles/` kopieren (Samba: `\\homeassistant\share\yapaia\tiles\`).
 2. Der Dateiname ist der Regionsname. Erlaubt sind **nur Buchstaben, Ziffern,
    `-` und `_`** — `bayern.pmtiles` geht, `Bayern Süd.pmtiles` wird
    übersprungen (mit Warnung im Add-on-Protokoll).
@@ -141,7 +141,7 @@ Das Ergebnis liegt danach in `data/valhalla/tiles/`: ein Ordner
 **Ablegen:**
 
 1. Den **gesamten Inhalt** von `data/valhalla/tiles/` nach
-   `/share/yapaja/valhalla/tiles/` kopieren — `valhalla.json` gehört dazu.
+   `/share/yapaia/valhalla/tiles/` kopieren — `valhalla.json` gehört dazu.
 2. Das Add-on **neu starten** (Einstellungen → Add-ons → Yapaia Go →
    Neu starten). Valhalla liest den Graphen nur beim Start.
 
@@ -174,7 +174,7 @@ LITE_SEARCH_DB_PATH=./lite_search-meine-region.db \
   services/valhalla/build-lite-index.sh /pfad/zu/meine-region.osm.pbf
 ```
 
-Die Datei nach `/share/yapaja/lite-search/` kopieren. Der Name muss
+Die Datei nach `/share/yapaia/lite-search/` kopieren. Der Name muss
 `lite_search-<region>.db` lauten, **je Region eine Datei** — gesucht wird in
 allen gleichzeitig. Braucht auf dem Bau-Rechner `osmium-tool`, Node.js und
 `pnpm` samt einmal `pnpm install` im Repository.
@@ -188,7 +188,7 @@ services/photon/download-index.sh de   # vorgebauter Index für ein Land
 ```
 
 Das Ergebnis landet in `data/photon/photon_data/`. Dessen Inhalt nach
-`/share/yapaja/photon/photon_data/` legen (dort muss danach ein Ordner
+`/share/yapaia/photon/photon_data/` legen (dort muss danach ein Ordner
 `elasticsearch/` liegen), in der Add-on-Konfiguration
 `photon_enabled: true` setzen und das Add-on neu starten. Auf einer 8-GB-VM
 lieber beim Lite-Index bleiben —

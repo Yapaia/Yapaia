@@ -40,8 +40,8 @@ import { verkehrGeoJson } from './verkehrGeoJson.js';
 import { useVerkehrStore } from './verkehrStore.js';
 import { useRoutenMeldungen } from './useRoutenMeldungen.js';
 
-export const VERKEHR_SOURCE_ID = 'yapaja-verkehr';
-export const VERKEHR_LAYER_ID = 'yapaja-verkehr-marken';
+export const VERKEHR_SOURCE_ID = 'yapaia-verkehr';
+export const VERKEHR_LAYER_ID = 'yapaia-verkehr-marken';
 
 const LEER = { type: 'FeatureCollection' as const, features: [] };
 

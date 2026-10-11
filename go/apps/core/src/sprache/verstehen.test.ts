@@ -24,7 +24,7 @@ describe('verstehe -- die gewünschten Beispielsätze', () => {
 describe('verstehe -- weitere Sätze', () => {
   it.each([
     ['navigiere nach Speyer', { art: 'ziel', ort: 'speyer' }],
-    ['Yapaja bring uns zum Campingplatz am See', { art: 'ziel', ort: 'campingplatz am see' }],
+    ['Yapaia bring uns zum Campingplatz am See', { art: 'ziel', ort: 'campingplatz am see' }],
     ['fahr mich zur nächsten Entsorgung', { art: 'naechste', kategorie: 'sanitary_dump_station' }],
     ['wir brauchen Diesel', { art: 'naechste', kategorie: 'fuel' }],
     ['wo können wir übernachten in der Nähe', { art: 'naechste', kategorie: 'caravan_site' }],

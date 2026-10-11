@@ -1,5 +1,5 @@
 /**
- * Unit tests for the `yapaja/position` extrapolated-fix filter (E08-T1,
+ * Unit tests for the `yapaia/position` extrapolated-fix filter (E08-T1,
  * mandatory unit test: "extrapolated-Filter", docs/03 §4 / E02-T5 stub).
  */
 import { describe, it, expect } from 'vitest';
@@ -27,7 +27,7 @@ describe('isRealPosition', () => {
     expect(isRealPosition(makePosition())).toBe(true);
   });
 
-  it('rejects an extrapolated:true fix -- never published as yapaja/position', () => {
+  it('rejects an extrapolated:true fix -- never published as yapaia/position', () => {
     const extrapolated: ExtrapolatedPositionPayload = { ...makePosition(), extrapolated: true };
     expect(isRealPosition(extrapolated)).toBe(false);
   });

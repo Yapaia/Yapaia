@@ -77,7 +77,7 @@ angefertigte Backup bleibt unangetastet auf der Platte liegen.
 1. Core stoppen.
 2. Aktuelle (möglicherweise beschädigte) DB-Datei zur Seite legen.
 3. Die gewünschte `.bak`-Datei (neben der DB-Datei, z. B.
-   `data/db/yapaja.db.2026-07-19T12-00-00-000Z-000001.bak`) zurück auf den
+   `data/db/yapaia.db.2026-07-19T12-00-00-000Z-000001.bak`) zurück auf den
    DB-Pfad kopieren (ohne `.bak`-Suffix).
 4. Core wieder starten. Da die zurückgespielte Datei die 4 Basistabellen
    (und ggf. eine ältere `schema_version`) enthält, greift beim nächsten

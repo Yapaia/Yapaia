@@ -2,7 +2,7 @@
  * Die Anzeigeseite für die Home-Assistant-Dashboard-Karte.
  *
  * ─── WAS HIER GEPRÜFT WIRD, UND WAS NICHT ───────────────────────────────────
- * Die Lovelace-Karte (`yapaja_go/lovelace/yapaja-map-card.js`) lädt genau
+ * Die Lovelace-Karte (`yapaia_go/lovelace/yapaia-map-card.js`) lädt genau
  * diese Seite in ihren Rahmen. Ob der Ingress-Handschlag in Home Assistant
  * klappt, lässt sich hier nicht prüfen — dafür bräuchte es eine laufende
  * HA-Instanz. Was sich prüfen lässt, ist die Seite selbst:

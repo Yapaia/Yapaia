@@ -76,8 +76,8 @@ test('VEKTOR ui.parent_dom_access: Parent-DOM, top.location, Cookies und localSt
   await authenticateBrowser(page);
   await page.goto(SECURITY_CORE_BASE_URL);
   await page.evaluate(() => {
-    document.cookie = 'yapaja_host_secret=super-secret; path=/';
-    window.localStorage.setItem('yapaja_host_secret', 'super-secret');
+    document.cookie = 'yapaia_host_secret=super-secret; path=/';
+    window.localStorage.setItem('yapaia_host_secret', 'super-secret');
   });
   await page.reload();
   await expect(page.getByTestId(`addon-frame-${UI_EVIL_ADDON_ID}`)).toBeVisible({ timeout: 20_000 });
@@ -262,7 +262,7 @@ test('VEKTOR bridge.source_spoofed: eine Nachricht aus einem FREMDEN Fenster wir
   await page.evaluate(() => {
     window.postMessage(
       {
-        ns: 'yapaja-addon',
+        ns: 'yapaia-addon',
         v: 1,
         type: 'call',
         callId: 'spoof-1',
@@ -273,7 +273,7 @@ test('VEKTOR bridge.source_spoofed: eine Nachricht aus einem FREMDEN Fenster wir
     );
     window.postMessage(
       {
-        ns: 'yapaja-addon',
+        ns: 'yapaia-addon',
         v: 1,
         type: 'security-violation',
         vector: 'ui.parent_dom_access',

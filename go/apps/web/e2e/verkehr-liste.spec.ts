@@ -80,7 +80,7 @@ test('nur Meldungen an der Route; die nächsten fünf als Liste, die nächste zu
   // Auf der Karte: die weit entfernte Meldung fehlt.
   const aufKarte = await page.evaluate(async () => {
     const map = window.__yapaiaMapController!.getMap()!;
-    const quelle = map.getSource('yapaja-verkehr') as unknown as {
+    const quelle = map.getSource('yapaia-verkehr') as unknown as {
       getData: () => Promise<{ features?: Array<{ properties: { id: string } }> }>;
     };
     const daten = await quelle.getData();
