@@ -33,10 +33,13 @@ jobs:
       - name: Beispiel-Gerätedatei prüfen (mit Platzhaltern)
         env:
           GH_TOKEN: ${{ github.token }}
+          # Branch-Namen nie direkt ins Skript einsetzen (Skript-Injektion).
+          REF: ${{ github.head_ref || github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
           # Solange das Repo privat ist, braucht ESPHome für das Paket aus
           # GitHub eine Anmeldung -- das Token dieses Laufs (nur Lesen).
           git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
           printf 'yapaia_satellite_api_key: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="\nwifi_ssid: ci\nwifi_password: ci-dummy-password\n' > secrets.yaml
-          sed 's#url: https://github.com/Yapaia/yapaia#url: https://github.com/${{ github.repository }}#; s#ref: main#ref: ${{ github.head_ref || github.ref_name }}#' yapaia-satellite.beispiel.yaml > beispiel-ci.yaml
+          sed "s#url: https://github.com/Yapaia/yapaia#url: https://github.com/${REPO}#; s#ref: main#ref: ${REF}#" yapaia-satellite.beispiel.yaml > beispiel-ci.yaml
           esphome config beispiel-ci.yaml

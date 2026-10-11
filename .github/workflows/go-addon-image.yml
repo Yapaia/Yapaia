@@ -50,9 +50,13 @@ jobs:
       # fuer etwas, das gar nicht zur Aenderung gehoert.
       - name: Zu bauenden Quelltextstand bestimmen
         id: ref
+        # Branch-Namen nie direkt ins Skript einsetzen (Skript-Injektion) --
+        # über die Umgebung ist er nur Text.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            REF="${{ github.head_ref }}"
+            REF="${HEAD_REF}"
           else
             REF="${GITHUB_REF_NAME}"
           fi
