@@ -36,6 +36,7 @@ jobs:
       beat: ${{ steps.filter.outputs.beat }}
       satellite: ${{ steps.filter.outputs.satellite }}
       integration: ${{ steps.filter.outputs.integration }}
+      router: ${{ steps.filter.outputs.router }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -67,6 +68,10 @@ jobs:
               - *shared
               - 'integration/**'
               - '.github/workflows/integration.yml'
+            router:
+              - *shared
+              - 'router/**'
+              - '.github/workflows/router.yml'
 
   go:
     name: Go
@@ -98,10 +103,16 @@ jobs:
     if: needs.changes.outputs.integration == 'true' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/integration.yml
 
+  router:
+    name: Router
+    needs: changes
+    if: needs.changes.outputs.router == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/router.yml
+
   gate:
     name: Gate
     if: always()
-    needs: [changes, go, go-addon, beat, satellite, integration]
+    needs: [changes, go, go-addon, beat, satellite, integration, router]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -36,13 +36,15 @@ ausprobieren kann (siehe unten).
 
 ## Installation
 
-### Über HACS (empfohlen)
-1. HACS → ⋮ → *Benutzerdefinierte Repositories* → `https://github.com/Apfelsafft/Yapaia-Router`, Typ *Integration*.
-2. „GL.iNet Cellular“ installieren und Home Assistant neu starten.
+> **Umzug:** Der Router ist jetzt ein Modul von [Yapaia](../README.md) und liegt im
+> Monorepo `Yapaia/yapaia` unter `router/`. Als Nächstes wird er Teil der zentralen
+> Integration „Yapaia“ (Gerät „Yapaia Router“). Bis dahin gibt es keine HACS-Installation
+> mehr – eine HACS-Quelle `Apfelsafft/Yapaia-Router` bitte entfernen.
 
 ### Manuell
-Den Ordner `custom_components/glinet_cellular` nach `/config/custom_components/` kopieren
-und Home Assistant neu starten.
+Den Ordner `router/custom_components/glinet_cellular` nach `/config/custom_components/`
+kopieren (z. B. mit dem Add-on „File editor“ oder „Studio Code Server“) und Home Assistant
+neu starten.
 
 ### Einrichten
 *Einstellungen → Geräte & Dienste → Integration hinzufügen → „GL.iNet Cellular“*
@@ -149,6 +151,6 @@ ergänzen, z. B. „letzter Wechsel länger als 30 Minuten her“.
 - Anmeldung: `challenge` → `crypt(passwort, salt)` → `login` → `sid`. Läuft die Sitzung ab, meldet sich die Integration automatisch neu an.
 - Abgefragt werden `modem.get_info`, `modem.get_status`, `modem.get_cells_info` und `modem.get_slot_config`, alle 30 Sekunden (in den Optionen einstellbar).
 - Die Passwort-Verschlüsselung (md5/sha256/sha512-crypt) ist in reinem Python umgesetzt und braucht keine zusätzlichen Pakete.
-- Tests: `pip install pytest-homeassistant-custom-component passlib && pytest` (enthält einen simulierten Router).
+- Tests: im Ordner `router/`: `pip install -r requirements-test.txt && pytest` (enthält einen simulierten Router).
 
 Lizenz: MIT
