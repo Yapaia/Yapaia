@@ -53,7 +53,7 @@ import { AuthGuard } from './auth/authGuard.js';
 import { authPlugin } from './auth/plugin.js';
 import { HaOutputChannel } from './ha/outputChannel.js';
 import { starteDashboardPflege } from './ha/dashboard.js';
-import { fetchHaStates, fetchHaStatesById, postHaState } from './ha/client.js';
+import { callHaService, fetchHaStates, fetchHaStatesById, postHaState } from './ha/client.js';
 import { Sprachdialog } from './sprache/dialog.js';
 import { frageKi } from './ha/kiAgent.js';
 import { AUTOMATION_ID, HaSprachBruecke, SPRACH_EINGABE } from './ha/sprachBruecke.js';
@@ -71,6 +71,9 @@ import {
 } from './search/unterwegs.js';
 import { HaStatesBridge } from './ha/statesBridge.js';
 import { HaCommandWatcher } from './ha/commandWatcher.js';
+import { ladeIdentitaet, registriereProtokoll, YapaiaProtokoll } from './yapaia/protokoll.js';
+import { goAktionen } from './yapaia/aktionen.js';
+import { integrationBereitstellen, melden } from './yapaia/anmeldung.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { serveIndexHtml } from './static/ingressHtml.js';
 import { systemPlugin } from './system/routes.js';
@@ -690,6 +693,8 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   const beatAnsage = new BeatAnsage({
     verbindung: () => resolveHaConnection({ settings: settingsService }),
     eingeschaltet: () => beatAnsagenAn(settingsService.get('ansagen_beat')),
+    // `yapaia` entsteht weiter unten; gefragt wird erst bei einer Ansage.
+    partner: () => yapaia.partner(),
     stimme: () => {
       const tts = resolveHaConfig({ settings: settingsService })?.tts;
       // Beat nimmt nur eine Stimme als Entität (`tts.…`); ein alter
@@ -811,6 +816,102 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     tempolimitDienst.melde(pos as SharedPosition);
   });
 
+  // ─── DAS YAPAIA-PROTOKOLL (0.44) ─────────────────────────────────────────
+  // Go als Geraet „Yapaia Go" in der zentralen Integration „Yapaia": echte,
+  // bedienbare Entitaeten, Aktionen und Ausloeser. Solange die Integration
+  // verbunden ist, halten sich der States-Weg und die Bedien-Helfer unten
+  // zurueck -- siehe `yapaia/protokoll.ts`.
+  const dbPfad = process.env.DB_PATH;
+  const yapaiaIdent = ladeIdentitaet(
+    process.env.YAPAIA_IDENTITAET ?? (dbPfad && dbPfad !== ':memory:' ? join(dirname(dbPfad), 'yapaia.json') : null),
+  );
+  const yapaia = new YapaiaProtokoll({
+    ident: yapaiaIdent,
+    version,
+    bus: eventBus,
+    zusatz: () => {
+      const aktiv = profileService.getActive();
+      return {
+        tempoHier: tempolimitDienst.aktuell(),
+        fahrzeug: aktiv ? { weight_t: aktiv.weight_t, tempo_100: aktiv.tempo_100 === true } : null,
+        profile: profileService.getAll().map((p) => p.name),
+        profil: aktiv?.name ?? null,
+      };
+    },
+    aktionen: goAktionen({
+      zielSetzen: async (ziel) => {
+        const { navState } = await resolveDestinationAndRoute(
+          {
+            navigationService,
+            rerouteProvider: routingService,
+            profileProvider: profileService,
+            searchProvider: searchService,
+            logger: navigationLogger,
+          },
+          { ...ziel, autostart: true },
+        );
+        return { name: navState.destination?.name ?? null };
+      },
+      faehrt: () => !['idle', 'arrived'].includes(navigationService.getStatus()),
+      pause: () => navigationService.pause(),
+      resume: () => navigationService.resume(),
+      stop: () => navigationService.stop(),
+      profile: () => profileService.getAll(),
+      aktiviereProfil: (id) => {
+        profileService.activate(id);
+      },
+      befehl: (text) => sprachdialog.verarbeite(text),
+    }),
+    logger: {
+      info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+    },
+  });
+  await registriereProtokoll(fastify, yapaia, yapaiaIdent.token);
+  fastify.addHook('onClose', async () => {
+    yapaia.dispose();
+  });
+  fastify.addHook('onReady', async () => {
+    const logger = {
+      info: (msg: string, meta?: Record<string, unknown>) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg: string, meta?: Record<string, unknown>) => fastify.log.warn(meta ?? {}, msg),
+    };
+    const haConfig = process.env.YAPAIA_HA_CONFIG_DIR;
+    if (haConfig) {
+      try {
+        const geschehen = await integrationBereitstellen(process.env.YAPAIA_INTEGRATION_SRC ?? '/opt/yapaia/integration/yapaia', haConfig);
+        if (geschehen) {
+          logger.info(`Yapaia-Integration ${geschehen} -- Home Assistant neu starten`);
+          const v = resolveHaConnection({ settings: settingsService });
+          if (v) {
+            void callHaService(
+              {
+                connection: v,
+                domain: 'persistent_notification',
+                service: 'create',
+                data: {
+                  notification_id: 'yapaia_integration',
+                  title: 'Yapaia',
+                  message: `Die Integration „Yapaia" wurde ${geschehen}. Bitte Home Assistant neu starten (Einstellungen → System → Neu starten). Danach erscheint „Yapaia Go" unter Einstellungen → Geräte & Dienste.`,
+                },
+              },
+              { logger: { ...logger, error: logger.warn } },
+            );
+          }
+        }
+      } catch (err) {
+        logger.warn('Yapaia-Integration konnte nicht bereitgestellt werden', { fehler: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    void melden({
+      supervisorToken: process.env.SUPERVISOR_TOKEN,
+      port: Number(process.env.PORT ?? 8080),
+      ident: yapaiaIdent,
+      version,
+      logger,
+    });
+  });
+
   const haStatesBridge =
     process.env.HA_INTERNAL === '1'
       ? new HaStatesBridge({
@@ -823,7 +924,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
             return p ? { weight_t: p.weight_t, tempo_100: p.tempo_100 === true } : null;
           },
           verbindung: () => resolveHaConnection({ settings: settingsService }),
-          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok',
+          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok' || yapaia.verbunden(),
           schreibe: (verbindung, write) =>
             postHaState(
               verbindung,
@@ -859,7 +960,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     process.env.HA_INTERNAL === '1'
       ? new HaCommandWatcher({
           verbindung: () => resolveHaConnection({ settings: settingsService }),
-          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok',
+          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok' || yapaia.verbunden(),
           leseZustaende: (verbindung, ids) =>
             fetchHaStatesById(verbindung, ids, {
               logger: {

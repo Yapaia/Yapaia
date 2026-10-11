@@ -27,6 +27,7 @@ PLATTFORMEN: dict[str, Platform] = {
     "number": Platform.NUMBER,
     "button": Platform.BUTTON,
     "text": Platform.TEXT,
+    "device_tracker": Platform.DEVICE_TRACKER,
 }
 
 # ESPHome-Projektkennung der Satelliten (Abschnitt 3): `yapaia.satellite`

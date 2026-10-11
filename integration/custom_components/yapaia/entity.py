@@ -42,6 +42,16 @@ class YapaiaEntity(Entity):
         return self.modul.verbunden
 
     @property
+    def icon(self) -> str | None:
+        # `symbol_aus`: das Symbol kommt aus einem Zustandsschlüssel (z. B. der
+        # Pfeil der nächsten Abbiegung), sonst das feste `symbol`.
+        if self.d.get("symbol_aus"):
+            v = self.modul.werte.get(self.d["symbol_aus"])
+            if isinstance(v, str) and v:
+                return v
+        return self._attr_icon
+
+    @property
     def wert(self) -> Any:
         return self.modul.werte.get(self.schluessel)
 

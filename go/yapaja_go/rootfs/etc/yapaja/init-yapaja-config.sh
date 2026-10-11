@@ -376,6 +376,14 @@ for candidate in ${YAPAIA_HA_CONFIG_DIRS:-/homeassistant /config}; do
   fi
 done
 
+# Das Yapaia-Protokoll (0.44): Instanz-Kennung und Token liegen im privaten
+# /data des Add-ons; der Core legt die mitgebrachte Integration nach
+# `<ha-config>/custom_components/yapaia` (apps/core/src/yapaia/anmeldung.ts).
+export_env "YAPAIA_IDENTITAET" "${YAPAIA_IDENTITAET:-/data/yapaia.json}"
+if [ -n "$HA_CONFIG_DIR" ]; then
+  export_env "YAPAIA_HA_CONFIG_DIR" "$HA_CONFIG_DIR"
+fi
+
 if [ -z "$HA_CONFIG_DIR" ]; then
   bashio::log.warning "init-yapaja-config: HA-Konfigurationsordner nicht gefunden -- die Dashboard-Karte wurde NICHT bereitgestellt."
 elif [ ! -f "$CARD_SRC" ]; then

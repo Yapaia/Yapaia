@@ -47,6 +47,11 @@ export const DEFAULT_TAG = 'Sonstige';
 
 export const ROUTE_DOCS: Record<string, RouteDoc> = {
   // --- Auth (docs/04 §2) ---
+  // Das Yapaia-Protokoll (docs/integration-protokoll.md) -- eigenes Bearer-Token aus der Anmeldung
+  'GET /yapaia/v1/beschreibung': { summary: 'Yapaia-Protokoll: Entitäten, Aktionen und Ereignisse von Yapaia Go', tags: ['Yapaia'] },
+  'GET /yapaia/v1/live': { summary: 'Yapaia-Protokoll: Live-Verbindung (WebSocket) mit Zuständen und Ereignissen', tags: ['Yapaia'] },
+  'POST /yapaia/v1/aktion/:name': { summary: 'Yapaia-Protokoll: Aktion ausführen (ziel_setzen, navigation_pausieren …)', tags: ['Yapaia'] },
+  'POST /yapaia/v1/partner': { summary: 'Yapaia-Protokoll: die anderen Yapaia-Module und ihre Fähigkeiten', tags: ['Yapaia'] },
   'GET /api/v1/auth/status': { summary: 'Auth-Status (Token konfiguriert? Ingress-Modus?)', tags: ['Auth'] },
   'POST /api/v1/auth/token': { summary: 'API-Token setzen/ändern', tags: ['Auth'] },
   'DELETE /api/v1/auth/token': { summary: 'API-Token entfernen (App wird wieder offen)', tags: ['Auth'] },

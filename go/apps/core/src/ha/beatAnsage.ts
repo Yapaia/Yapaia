@@ -30,6 +30,9 @@ export const BEAT_ENTITAET = 'media_player.yapaia_beat';
 export const BEAT_AKTION = { domain: 'yapaia', service: 'beat_ansage' } as const;
 
 /** Zustände, in denen Beat Ton macht (oder gleich machen wird). */
+/** Die Fähigkeit, die Beat für Ansagen meldet (docs/faehigkeiten.md). */
+export const FAEHIGKEIT = 'ansage.einmischen';
+
 const LAEUFT = new Set(['playing', 'buffering']);
 
 export type AnsagePrioritaet = 'navigation' | 'hinweis' | 'info';
@@ -49,6 +52,13 @@ export interface BeatAnsageDeps {
   rufe: (v: HaConnection, data: Record<string, unknown>) => Promise<RufErgebnis>;
   /** Gibt es die Aktion `yapaia.beat_ansage` (Beat ≥ 1.14, HA neu gestartet)? `null` = unbekannt. */
   aktionVorhanden?: (v: HaConnection) => Promise<boolean | null>;
+  /**
+   * Die Partnerliste der Integration „Yapaia" (`null`, solange es keine
+   * gibt). Ist sie da, entscheidet die gemeldete Fähigkeit
+   * `ansage.einmischen` -- nie der Modulname (docs/integration-protokoll.md,
+   * Abschnitt 8).
+   */
+  partner?: () => readonly { faehigkeiten?: readonly string[] }[] | null;
 }
 
 export interface RufErgebnis {
@@ -90,6 +100,10 @@ export class BeatAnsage implements AnsageZiel {
       if (!t) return { ok: false, grund: 'Kein Text.' };
       if (!v) return { ok: false, grund: 'Keine Verbindung zu Home Assistant.' };
       if (!this.deps.eingeschaltet()) return { ok: false, grund: 'Ansagen ins Radio sind ausgeschaltet.' };
+      const partner = this.deps.partner?.() ?? null;
+      if (partner && !partner.some((p) => p.faehigkeiten?.includes(FAEHIGKEIT))) {
+        return { ok: false, grund: 'Kein Yapaia-Modul meldet die Fähigkeit „ansage.einmischen“ – Yapaia Beat ist nicht eingerichtet.' };
+      }
       // Erst nachsehen, dann rufen: ohne Beat oder mit ausgeschaltetem Radio
       // wäre jeder Aufruf ein Fehler im Protokoll von Home Assistant.
       const zustand = (await this.deps.leseZustaende(v, [BEAT_ENTITAET])).get(BEAT_ENTITAET);

@@ -314,6 +314,50 @@ like a fully known one.
 Turn the tick back off when you are done. The real position source takes over
 again after the next restart.
 
+## The Yapaia integration (0.44.0) — recommended
+
+Yapaia Go registers with the central Home Assistant integration **"Yapaia"**
+(the same one Yapaia Beat uses). The add-on brings it along:
+
+1. Start or update the add-on. It places the integration in
+   `custom_components/yapaia` (only if missing or older) and shows a
+   notification: **restart Home Assistant** once.
+2. After the restart, *Settings → Devices & Services* shows
+   **"Yapaia Go discovered"**. Confirm — done. No address, no token to type.
+
+You then get a real **device "Yapaia Go"** with entities that can be renamed,
+have history, survive an HA restart and can be operated:
+
+| Entity | What it shows / does |
+|---|---|
+| `sensor.yapaia_go_anweisung` | next instruction (icon follows the turn) |
+| `sensor.yapaia_go_anweisung_entfernung` | metres to that turn |
+| `sensor.yapaia_go_ankunft`, `…_restweg`, `…_ziel`, `…_zustand` | arrival time, distance remaining, destination, navigation state |
+| `sensor.yapaia_go_tempo`, `…_tempolimit`, `…_tempolimit_fahrzeug`, `…_hoehe` | speed, posted limit, limit for this vehicle, altitude |
+| `binary_sensor.yapaia_go_zu_schnell` | speeding (sign or vehicle limit, whichever is lower) |
+| `device_tracker.yapaia_go_standort` | the vehicle on the map |
+| `select.yapaia_go_profil` | vehicle profile |
+| `text.yapaia_go_ziel_eingabe` | type a destination → route and go |
+| `button.yapaia_go_pausieren`, `…_fortsetzen`, `…_beenden` | pause, resume, stop |
+
+**Actions** (automations, scripts, voice): `yapaia.go_ziel_setzen` (address,
+place or coordinates), `yapaia.go_navigation_pausieren` / `…_fortsetzen` /
+`…_beenden`, `yapaia.go_profil_waehlen`, and `yapaia.go_befehl` — a sentence
+like "Fahre mich nach Magdeburg", the answer comes back as the result.
+
+**Triggers** (device triggers in the automation editor, and the event
+`yapaia_ereignis`): *Ziel erreicht*, *Zu schnell*, *GPS verloren*,
+*Neuberechnung fehlgeschlagen*.
+
+**While the integration is connected, the two older routes below step back**
+(no values written via `POST /api/states`, helpers idle), so nothing is
+shown twice. The generated dashboard switches to the new entities by itself.
+MQTT stays available for anyone who wants it.
+
+The interface (`/yapaia/v1/…`) is protected by its own token, created on first
+start and stored in the add-on's private `/data`. See
+`docs/integration-protokoll.md` in the repository.
+
 ## Two ways into Home Assistant (0.7.0)
 
 Both have their own switch in the add-on configuration, and both may be on.

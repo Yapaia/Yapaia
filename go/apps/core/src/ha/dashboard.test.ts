@@ -49,6 +49,23 @@ describe('die Entitaeten in einer echten Anlage finden', () => {
     expect(vorgabe).toContain('nav_state'); // nicht vorhanden -> Vorgabe
   });
 
+  it('mit der Integration „Yapaia": die neuen IDs gewinnen vor den alten', () => {
+    const { ids, gefunden } = resolveEntityIds([
+      zustand('sensor.yapaja_speed'),
+      zustand('sensor.yapaia_go_tempo'),
+      zustand('sensor.yapaia_go_tempolimit'),
+      zustand('binary_sensor.yapaia_go_zu_schnell'),
+      zustand('button.yapaia_go_pausieren'),
+      zustand('select.yapaia_go_profil'),
+    ]);
+    expect(ids.speed).toBe('sensor.yapaia_go_tempo');
+    expect(ids.speed_limit).toBe('sensor.yapaia_go_tempolimit');
+    expect(ids.speeding).toBe('binary_sensor.yapaia_go_zu_schnell');
+    expect(ids.pause).toBe('button.yapaia_go_pausieren');
+    expect(ids.profile).toBe('select.yapaia_go_profil');
+    expect(gefunden).toEqual(expect.arrayContaining(['speed', 'speed_limit', 'speeding', 'pause', 'profile']));
+  });
+
   it('findet auch die Form, die Home Assistant ohne object_id vergeben hat', () => {
     // Vor 0.6.9 schickte die Discovery kein `object_id` mit. Home Assistant
     // baute die ID dann aus Geraete- plus Entitaetsnamen -- und der
