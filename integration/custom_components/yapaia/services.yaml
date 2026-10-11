@@ -1,0 +1,6 @@
+# Die Aktionen dieser Integration entstehen erst zur Laufzeit aus der
+# Selbstbeschreibung der Module (`yapaia.<modul>_<name>`, siehe
+# docs/integration-protokoll.md, Abschnitt 5) und werden dabei mit Titel,
+# Feldern und Ziel-Gerät beschrieben (aktionen.py, `async_set_service_schema`).
+# Feste Aktionen gibt es keine -- daher ist diese Datei leer.
+{}
