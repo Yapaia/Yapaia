@@ -106,11 +106,6 @@ configuration:
   home_assistant:
     name: Home Assistant
     description: How Yapaia reports its values to Home Assistant.
-    ha_internal:
-      name: Report values directly
-      description: Publishes position, ETA, remaining distance and the next instruction
-        as Home Assistant entities without an MQTT broker. The simplest route if
-        you do not run MQTT.
     mqtt_enabled:
       name: Report values over MQTT
       description: The same over an MQTT broker. Useful when other devices should

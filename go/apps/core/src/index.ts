@@ -53,10 +53,10 @@ import { AuthGuard } from './auth/authGuard.js';
 import { authPlugin } from './auth/plugin.js';
 import { HaOutputChannel } from './ha/outputChannel.js';
 import { starteDashboardPflege } from './ha/dashboard.js';
-import { callHaService, fetchHaStates, fetchHaStatesById, postHaState } from './ha/client.js';
+import { callHaService, fetchHaStates, fetchHaStatesById } from './ha/client.js';
 import { Sprachdialog } from './sprache/dialog.js';
 import { frageKi } from './ha/kiAgent.js';
-import { AUTOMATION_ID, HaSprachBruecke, SPRACH_EINGABE } from './ha/sprachBruecke.js';
+import { AUTOMATION_ID, sprachsteuerungEinrichten } from './ha/sprachBruecke.js';
 import { wsBefehlErgebnis } from './ha/wsBefehl.js';
 import { BrowserKanal } from './ha/browserKanal.js';
 import { registriereSprache, sprachDeps, type BrowserAnsage } from './sprache/kern.js';
@@ -69,8 +69,6 @@ import {
   unterwegsKategorie,
   UNTERWEGS_KATEGORIEN,
 } from './search/unterwegs.js';
-import { HaStatesBridge } from './ha/statesBridge.js';
-import { HaCommandWatcher } from './ha/commandWatcher.js';
 import { ladeIdentitaet, registriereProtokoll, YapaiaProtokoll } from './yapaia/protokoll.js';
 import { goAktionen } from './yapaia/aktionen.js';
 import { integrationBereitstellen, melden } from './yapaia/anmeldung.js';
@@ -789,11 +787,6 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     haOutputChannel.dispose();
   });
 
-  // ─── DER ZWEITE WEG ZU HOME ASSISTANT: OHNE MQTT ─────────────────────────
-  // Schreibt dieselben Entitaeten direkt ueber die HA-API. Eingeschaltet mit
-  // der Add-on-Option `ha_internal` (Init-Skript setzt `HA_INTERNAL=1`).
-  // Solange MQTT verbunden ist, haelt er sich von selbst zurueck -- warum,
-  // steht in `ha/statesBridge.ts`.
   // ─── DAS TEMPOLIMIT OHNE ROUTE ──────────────────────────────────────────
   // Eigener Valhalla-Client statt eines geliehenen: der von `routingService`
   // ist privat, und ein zweiter kostet nichts -- er haelt keine Verbindung,
@@ -912,84 +905,6 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     });
   });
 
-  const haStatesBridge =
-    process.env.HA_INTERNAL === '1'
-      ? new HaStatesBridge({
-          bus: eventBus,
-          // Ohne Route kommt das Tempolimit von hier -- siehe
-          // `routing/tempolimitDienst.ts`.
-          tempoHier: () => tempolimitDienst.aktuell(),
-          fahrzeug: () => {
-            const p = profileService.getActive();
-            return p ? { weight_t: p.weight_t, tempo_100: p.tempo_100 === true } : null;
-          },
-          verbindung: () => resolveHaConnection({ settings: settingsService }),
-          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok' || yapaia.verbunden(),
-          schreibe: (verbindung, write) =>
-            postHaState(
-              verbindung,
-              write.entityId,
-              { state: write.state, attributes: write.attributes },
-              {
-                logger: {
-                  info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
-                  warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
-                  error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
-                },
-              },
-            ),
-          logger: {
-            info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
-            warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
-          },
-        })
-      : null;
-  if (haStatesBridge) {
-    fastify.log.info('HA-interner Kanal aktiv (Entitaeten auch ohne MQTT-Broker).');
-  }
-  fastify.addHook('onClose', async () => {
-    haStatesBridge?.dispose();
-  });
-
-  // ─── UND BEDIENEN OHNE MQTT ───────────────────────────────────────────────
-  // Legt in Home Assistant Helfer an (`input_button.yapaia_pause` und
-  // Geschwister) und fuehrt aus, was gedrueckt wird. Ohne das waeren die
-  // Entitaeten aus dem internen Kanal reine Anzeige -- siehe
-  // `ha/commandHelpers.ts`.
-  const haCommandWatcher =
-    process.env.HA_INTERNAL === '1'
-      ? new HaCommandWatcher({
-          verbindung: () => resolveHaConnection({ settings: settingsService }),
-          mqttLiefert: () => mqttBridge?.getHealthStatus() === 'ok' || yapaia.verbunden(),
-          leseZustaende: (verbindung, ids) =>
-            fetchHaStatesById(verbindung, ids, {
-              logger: {
-                info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
-                warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
-                error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
-              },
-            }),
-          navigation: {
-            pause: () => navigationService.pause(),
-            resume: () => navigationService.resume(),
-            stop: () => navigationService.stop(),
-          },
-          profile: profileService,
-          logger: {
-            info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
-            warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
-          },
-          ws: {
-            logger: {
-              info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
-              warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
-            },
-          },
-        })
-      : null;
-  fastify.addHook('onClose', async () => {
-    haCommandWatcher?.dispose();
-  });
 
   // ─── BORDSENSOREN (Idee 4, Stufe 1) ─────────────────────────────────────
   // Liest eingerichtete HA-Entitaeten (Grau-/Frischwasser, Batterie,
@@ -1119,31 +1034,25 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   });
   registriereSprache(fastify, sprachdialog, ansageZiel, browserAnsage, browserKanal);
 
-  // ─── … UND UEBER HOME ASSISTANT ASSIST (0.30) ───────────────────────────
-  // Satelliten und der Assist-Knopf der HA-App -- ohne HTTPS. Siehe
-  // `ha/sprachBruecke.ts`. Nur im Add-on (interner Kanal).
-  const sprachBruecke =
-    process.env.HA_INTERNAL === '1'
-      ? new HaSprachBruecke({
-          verbindung: () => resolveHaConnection({ settings: settingsService }),
-          leseZustaende: (v, ids) => fetchHaStatesById(v, ids, { logger: haLogger }),
-          schreibeZustand: (v, entityId, body) => postHaState(v, entityId, body, { logger: haLogger }),
-          verarbeite: (text) => sprachdialog.verarbeite(text),
-          ws: { logger: haLogger },
-          logger: haLogger,
-        })
-      : null;
-  fastify.addHook('onClose', async () => sprachBruecke?.dispose());
+  // ─── … UND UEBER HOME ASSISTANT ASSIST ──────────────────────────────────
+  // Satelliten und der Assist-Knopf der HA-App -- ohne HTTPS. Eine
+  // Automation leitet die Saetze an `yapaia.go_befehl`; siehe
+  // `ha/sprachBruecke.ts`.
+  const haSprache = {
+    verbindung: () => resolveHaConnection({ settings: settingsService }),
+    integrationVerbunden: () => yapaia.verbunden(),
+    logger: haLogger,
+  };
 
   // GET /api/v1/sprache/ha -- Stand der Anbindung und die waehlbaren KI-Agenten.
   fastify.get('/api/v1/sprache/ha', async (_request, reply) => {
     const v = resolveHaConnection({ settings: settingsService });
     const agent = settingsService.get('sprache_agent');
-    if (!sprachBruecke || !v) {
+    if (!v) {
       return reply.code(200).send({
         data: {
           verfuegbar: false,
-          helfer: false,
+          integration: false,
           automation: false,
           agent: typeof agent === 'string' ? agent : null,
           agenten: [],
@@ -1169,7 +1078,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     return reply.code(200).send({
       data: {
         verfuegbar: true,
-        helfer: liste.some((z) => z.entity_id === SPRACH_EINGABE),
+        integration: yapaia.verbunden(),
         automation: liste.some((z) => z.entity_id.startsWith('automation.') && z.attributes?.id === AUTOMATION_ID),
         agent: typeof agent === 'string' ? agent : null,
         agenten,
@@ -1194,14 +1103,14 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
       },
     });
   });
-  // POST /api/v1/sprache/ha/einrichten -- Helfer + Automation anlegen.
+  // POST /api/v1/sprache/ha/einrichten -- die Automation anlegen.
   fastify.post('/api/v1/sprache/ha/einrichten', async (_request, reply) => {
-    if (!sprachBruecke) {
+    if (!haSprache.verbindung()) {
       return reply.code(409).send({
         error: { code: 'HA_NICHT_VERFUEGBAR', message: 'Nur im Home-Assistant-Add-on verfügbar.' },
       });
     }
-    return reply.code(200).send({ data: await sprachBruecke.einrichten() });
+    return reply.code(200).send({ data: await sprachsteuerungEinrichten(haSprache) });
   });
 
   // GET /api/v1/unterwegs/kategorien -- was es zu suchen gibt, fuer die Knoepfe.

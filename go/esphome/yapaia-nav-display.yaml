@@ -23,9 +23,8 @@
 # grosser Pfeil ohnehin mehr als eine Karte.
 #
 # ─── WORAUS DIE WERTE KOMMEN ────────────────────────────────────────────────
-# Aus Home Assistant, ueber die native ESPHome-API. Yapaia schreibt dieselben
-# Entity-IDs auf BEIDEN Wegen — direkt (`ha_internal`) und ueber MQTT —, also
-# passt diese Datei zu beiden Betriebsarten ohne Aenderung.
+# Aus Home Assistant, ueber die native ESPHome-API: die Entitaeten des Geraets
+# „Yapaia Go" aus der Integration „Yapaia".
 #
 # WLAN-Zugangsdaten stehen in `secrets.yaml`, nicht hier.
 
@@ -61,30 +60,16 @@ substitutions:
   rund: "true"
 
   # ─── DIE ENTITAETEN AUS HOME ASSISTANT ────────────────────────────────────
-  # ACHTUNG: Diese Namen stehen NICHT fest.
+  # Die Entitaeten des Geraets „Yapaia Go" aus der Integration „Yapaia":
+  # `sensor.yapaia_go_tempo`, `sensor.yapaia_go_anweisung` und so fort. Die
+  # Endungen sind feste Schluessel (`apps/core/src/yapaia/beschreibung.ts`);
+  # nur der Anfang folgt dem Geraetenamen.
   #
-  # Gemeldet vom Geraet: „Keine Verbindung", obwohl es in ESPHome online war.
-  # Das Geraet WAR verbunden — es bekam nur keinen Wert, weil die Entitaet in
-  # Home Assistant anders heisst als hier eingetragen.
-  #
-  # Warum das so ist, steht in `apps/core/src/ha/dashboard.ts`: Home Assistant
-  # vergibt eine Entity-ID aus GERAETE- plus Entitaetsnamen, solange die
-  # MQTT-Discovery kein `object_id` mitschickt. Seit 0.6.9 schickt Yapaia eines
-  # mit, und dann heisst sie `sensor.yapaia_nav_state`. Aeltere Installationen
-  # behalten aber ihre einmal vergebene ID — dort heisst dieselbe Entitaet
-  # `sensor.yapaia_go_nav_state`. Eine Registrierung benennt nichts um.
-  #
-  # Genau deshalb erzeugt Yapaia sein Lovelace-Dashboard zur Laufzeit und
-  # liefert es nicht fertig aus: es SIEHT NACH, wie die Entitaeten heissen.
-  # Diese Datei kann das nicht — ESPHome loest die Namen beim Uebersetzen auf.
-  # Also stehen sie hier an EINER Stelle, zum Nachsehen und Anpassen.
-  #
-  # ─── SO FINDEN SIE DIE RICHTIGEN NAMEN ────────────────────────────────────
-  # In Home Assistant: Entwicklerwerkzeuge -> Zustaende -> Filter „yapa".
-  # Dort stehen die echten IDs. Weicht der Anfang ab (etwa `yapaia_go_`
-  # statt `yapaia_`), tragen Sie ihn unten ein und flashen neu.
-  entity_praefix: sensor.yapaia
-  entity_praefix_binaer: binary_sensor.yapaia
+  # Wer das Geraet in Home Assistant umbenannt hat: Entwicklerwerkzeuge ->
+  # Zustaende -> Filter „tempo" zeigt den echten Anfang; unten eintragen und
+  # neu flashen.
+  entity_praefix: sensor.yapaia_go
+  entity_praefix_binaer: binary_sensor.yapaia_go
 
   # ─── DIE DIGITALE WASSERWAAGE ─────────────────────────────────────────────
   # Beim Parken wechselt die Anzeige auf eine runde Libelle: steht das
@@ -296,10 +281,10 @@ time:
 sensor:
   - platform: homeassistant
     id: yapaia_tempo
-    entity_id: ${entity_praefix}_speed
+    entity_id: ${entity_praefix}_tempo
   - platform: homeassistant
     id: yapaia_tempolimit
-    entity_id: ${entity_praefix}_speed_limit
+    entity_id: ${entity_praefix}_tempolimit
 
   # ─── WAS DIESES FAHRZEUG DARF ─────────────────────────────────────────────
   # Getrennt vom Schild und nicht damit verrechnet. Auf einer unbegrenzten
@@ -307,7 +292,7 @@ sensor:
   # stuende „80" in einem runden Verkehrszeichen, das dort gar nicht steht.
   - platform: homeassistant
     id: yapaia_tempolimit_fahrzeug
-    entity_id: ${entity_praefix}_speed_limit_vehicle
+    entity_id: ${entity_praefix}_tempolimit_fahrzeug
 
   # ─── DIE NEIGUNG, FUER DIE WASSERWAAGE ────────────────────────────────────
   # Aus einem ANDEREN Geraet als der Rest dieser Anzeige -- deshalb eigene
@@ -320,7 +305,7 @@ sensor:
     entity_id: ${entity_neigung_vh}
   - platform: homeassistant
     id: yapaia_manoever_entfernung
-    entity_id: ${entity_praefix}_instruction_distance
+    entity_id: ${entity_praefix}_anweisung_entfernung
 
 # ─── DIE BEIDEN SCHALTER ────────────────────────────────────────────────────
 # Beide erscheinen in Home Assistant als gewoehnliche Schalter und lassen sich
@@ -372,35 +357,35 @@ switch:
 binary_sensor:
   - platform: homeassistant
     id: yapaia_zu_schnell
-    entity_id: ${entity_praefix_binaer}_speeding
+    entity_id: ${entity_praefix_binaer}_zu_schnell
 
 text_sensor:
   # Der Anweisungstext, bereits auf Deutsch formuliert ("Links abbiegen auf B27").
   - platform: homeassistant
     id: yapaia_anweisung
-    entity_id: ${entity_praefix}_instruction
+    entity_id: ${entity_praefix}_anweisung
   # Die Art des Manoevers — daraus wird der Pfeil. Steht im Attribut, nicht
   # im Zustand.
   - platform: homeassistant
     id: yapaia_manoever_art
-    entity_id: ${entity_praefix}_instruction
-    attribute: type
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_typ
   # Der Kreisel: "<Ausfahrt>|<Drehung in Grad>", z. B. "2|90". Leer, wenn
   # das naechste Manoever kein Kreisel ist -- und zwar wirklich leer und
   # nicht fehlend: ein fehlendes Attribut schickt Home Assistant gar nicht,
   # dann bliebe hier die Ausfahrt des LETZTEN Kreisels stehen.
   - platform: homeassistant
     id: yapaia_kreisel
-    entity_id: ${entity_praefix}_instruction
-    attribute: roundabout
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_kreisel
   # idle | routing | navigating | paused | arrived | off_route
   - platform: homeassistant
     id: yapaia_fahrzustand
-    entity_id: ${entity_praefix}_nav_state
+    entity_id: ${entity_praefix}_zustand
   # ISO 8601 in UTC. Wird unten umgerechnet, nicht abgeschnitten.
   - platform: homeassistant
     id: yapaia_ankunft
-    entity_id: ${entity_praefix}_eta
+    entity_id: ${entity_praefix}_ankunft
 
 # ─── HINTERGRUNDBELEUCHTUNG ─────────────────────────────────────────────────
 # Als Licht ausgefuehrt, damit Home Assistant sie dimmen kann — nachts im

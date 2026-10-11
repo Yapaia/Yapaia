@@ -122,11 +122,6 @@ configuration:
   home_assistant:
     name: Home Assistant
     description: Auf welchen Wegen Yapaia seine Werte an Home Assistant meldet.
-    ha_internal:
-      name: Werte direkt melden
-      description: Meldet Position, Ankunftszeit, Reststrecke und die nächste Anweisung
-        als Home-Assistant-Entitäten, ohne einen MQTT-Broker. Der einfachste Weg,
-        wenn Sie kein MQTT betreiben.
     mqtt_enabled:
       name: Werte über MQTT melden
       description: Dasselbe über einen MQTT-Broker. Nützlich, wenn andere Geräte

@@ -913,27 +913,13 @@ async function checkDisk(
 function checkMqtt(env: Record<string, string | undefined>): PreflightCheck {
   const base = {
     id: 'mqtt' as const,
-    label: 'MQTT / Home-Assistant-Anbindung',
+    label: 'MQTT (zusätzlich, optional)',
     severity: 'optional' as const,
   };
+  // Der Weg zu Home Assistant ist die Integration „Yapaia" (Gerät „Yapaia
+  // Go"). MQTT gibt es zusätzlich für alle, die ihre Daten auch dort haben
+  // wollen -- fehlt es, fehlt nichts.
   const url = env.MQTT_BROKER_URL;
-  // Seit 0.7.0 gibt es einen ZWEITEN Weg zu Home Assistant, und diese Zeile
-  // ist der Grund, warum diese Prüfung umgeschrieben wurde: vorher stand hier
-  // „Yapaia meldet keine Entitäten an Home Assistant", sobald kein Broker da
-  // war. Das ist mit dem HA-internen Kanal schlicht nicht mehr wahr, und eine
-  // Prüfung, die etwas Falsches behauptet, ist schlimmer als keine.
-  const intern = env.HA_INTERNAL === '1';
-
-  if (url && intern) {
-    return {
-      ...base,
-      status: 'ok',
-      detail:
-        `Broker konfiguriert: ${url}; der HA-interne Kanal ist zusätzlich eingeschaltet und ` +
-        'übernimmt, falls der Broker ausfällt. Den laufenden Verbindungszustand meldet ' +
-        'GET /api/v1/health.',
-    };
-  }
   if (url) {
     return {
       ...base,
@@ -941,29 +927,12 @@ function checkMqtt(env: Record<string, string | undefined>): PreflightCheck {
       detail: `Broker konfiguriert: ${url}. Den laufenden Verbindungszustand meldet GET /api/v1/health.`,
     };
   }
-  if (intern) {
-    return {
-      ...base,
-      status: 'ok',
-      detail:
-        'Kein MQTT-Broker — die Entitäten kommen über den HA-internen Kanal (Option ' +
-        '„ha_internal"). Bedienen geht trotzdem: Yapaia legt dafür Helfer an ' +
-        '(input_button.yapaia_pause/_weiter/_beenden, input_select.yapaia_profil) und ' +
-        'führt aus, was gedrückt wird. Sie stehen unter Einstellungen → Geräte & Dienste ' +
-        '→ Helfer.',
-    };
-  }
   return {
     ...base,
-    status: 'warn',
+    status: 'ok',
     detail:
-      'Weder MQTT noch der HA-interne Kanal ist eingeschaltet — Yapaia meldet keine ' +
-      'Entitäten an Home Assistant.',
-    remedy:
-      'Rein optional. Wenn Home Assistant Fahrtdaten (Position, verbleibende Strecke, ' +
-      'Ankunftszeit) sehen soll, gibt es zwei Wege: die Option „ha_internal" einschalten ' +
-      '(braucht keinen Broker) oder das Mosquitto-Add-on installieren und „mqtt_enabled" ' +
-      'anlassen. Ohne beides navigiert Yapaia unverändert.',
+      'Kein MQTT-Broker — nicht nötig: Home Assistant bekommt alle Entitäten, Aktionen und ' +
+      'Auslöser über die Integration „Yapaia" (Einstellungen → Geräte & Dienste → Yapaia Go).',
   };
 }
 

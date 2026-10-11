@@ -18,8 +18,11 @@ Home Assistant → Einstellungen → Add-ons → Add-on-Store → ⋮ → Reposi
 `https://github.com/Yapaia/yapaia`. Danach jedes Modul einzeln installieren –
 nur die, die man braucht.
 
-> Solange dieses Repository privat ist, kommen die Add-ons noch aus den
-> bisherigen Einzel-Repositories.
+Jedes Add-on bringt die Integration **„Yapaia“** mit. Nach dem ersten Start
+einmal Home Assistant neu starten; dann erscheint jedes Modul unter
+*Einstellungen → Geräte & Dienste* als „… gefunden“ und wird mit einem Tipp
+eingerichtet. Der **Yapaia Router** (GL.iNet-Mobilfunk) ist kein Add-on: *Integration
+hinzufügen → Yapaia → GL.iNet-Router*.
 
 ## Grundsätze
 

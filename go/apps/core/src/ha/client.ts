@@ -258,13 +258,11 @@ export async function postHaState(
  * Liest gezielt EINZELNE Zustaende (`GET {apiBase}/states/{entity_id}`).
  *
  * Warum nicht `fetchHaStates`: das holt ALLE Zustaende einer Anlage --
- * Hunderte, jede Sekunde. Fuer die vier Bedien-Helfer
- * (`ha/commandWatcher.ts`) sind vier gezielte Abfragen die sparsamere und
- * ehrlichere Wahl.
+ * Hunderte. Wer nur wenige bestimmte braucht (Ansage-Ziele, Bordsensoren),
+ * fragt gezielt.
  *
  * Ein fehlender Zustand (404) fehlt im Ergebnis, statt einen Fehler zu
- * werfen: „gibt es noch nicht" ist hier der NORMALFALL -- genau daran
- * erkennt der Beobachter, dass er die Helfer erst anlegen muss.
+ * werfen: „gibt es (noch) nicht" ist ein normaler Fall.
  */
 export async function fetchHaStatesById(
   connection: HaConnection,

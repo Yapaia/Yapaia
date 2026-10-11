@@ -11,7 +11,21 @@
  */
 
 import type { HaConnection } from './config.js';
-import { wsUrlFor, type WebSocketAehnlich } from './commandHelpers.js';
+
+/** Die WebSocket-Adresse zu einer REST-Basis (Supervisor-Proxy oder direkt). */
+export function wsUrlFor(apiBase: string): string {
+  const ws = apiBase.replace(/^http/, 'ws');
+  if (ws.endsWith('/core/api')) return `${ws.slice(0, -'/core/api'.length)}/core/websocket`;
+  return `${ws}/websocket`;
+}
+
+/** Was von einem WebSocket gebraucht wird -- in Tests nachgebaut. */
+export interface WebSocketAehnlich {
+  send(data: string): void;
+  close(): void;
+  addEventListener(typ: 'message', hoerer: (ereignis: { data: unknown }) => void): void;
+  addEventListener(typ: 'open' | 'error' | 'close', hoerer: () => void): void;
+}
 
 export interface WsBefehlDeps {
   erzeugeSocket?: (url: string) => WebSocketAehnlich;

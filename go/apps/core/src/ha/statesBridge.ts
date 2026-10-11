@@ -1,54 +1,16 @@
-/* eslint-disable no-undef -- `setInterval`/`clearInterval` sind Standard-Globale
- * in Node 22 (typisiert ueber @types/node); dieselbe Begruendung wie in
- * ha/client.ts. */
-
 /**
- * Der zweite Weg zu Home Assistant: ohne MQTT-Broker.
+ * Was Yapaia Go an Werten fuer Home Assistant bildet -- rein aus dem, was der
+ * Core weiss.
  *
- * ─── WOFUER ─────────────────────────────────────────────────────────────────
- * Gefragt: „Kannst du bitte die Möglichkeit ha interne Kommunikation
- * hinzufügen? Ohne Mqtt." -- mit dem Ziel, spaeter „per esphome über die ha
- * api oder auch Mqtt auf die Daten zugreifen" zu koennen.
- *
- * Der Anlass war handfest: das fertige Dashboard zeigte in jeder Kachel
- * „Entitaet nicht gefunden", weil es ohne Broker ueberhaupt keine
- * Yapaia-Entitaeten in Home Assistant gab. Der Broker war damit eine
- * Voraussetzung, die nirgends stand.
- *
- * ─── WIE ────────────────────────────────────────────────────────────────────
- * `POST /api/states/<entity_id>` schreibt einen Zustand direkt in Home
- * Assistants Zustandsmaschine -- ueber denselben Supervisor-Zugang, den das
- * Add-on fuer Ansagen und Benachrichtigungen ohnehin hat. Es entstehen
- * dieselben Entity-IDs wie ueber MQTT (`sensor.yapaia_speed` und so fort),
- * lesbar von Automationen, Vorlagen, ESPHome und jedem Dashboard.
- *
- * ─── WAS DIESER WEG NICHT KANN, UND DAS GEHOERT DAZU ────────────────────────
- *  1. KEINE BEFEHLE AUF DIESEN ENTITAETEN. Eine so geschriebene Entitaet nimmt
- *     nichts entgegen; `button.yapaia_stop` und `select.yapaia_profile` gibt
- *     es nur mit MQTT. BEDIENEN geht seit 0.7.1 trotzdem, nur ueber andere
- *     Entitaeten: Yapaia legt dafuer Helfer an und hoert auf sie
- *     (`commandHelpers.ts`, `commandWatcher.ts`). Das erzeugte Dashboard
- *     nimmt, was es findet (`dashboard.ts#steuerungsKacheln`) -- und zeigt
- *     lieber gar keinen Knopf als einen toten.
- *  2. KEIN GERAET, KEINE REGISTRIERUNG. Die Entitaeten tauchen nicht unter
- *     „Geraete" auf und lassen sich in der Oberflaeche nicht umbenennen.
- *  3. SIE VERSCHWINDEN BEIM NEUSTART von Home Assistant -- bis zum naechsten
- *     Schreiben. Genau dagegen schreibt {@link HaStatesBridge} in Ruhe auch
- *     unveraenderte Werte turnusmaessig noch einmal; ohne das waere eine
- *     Entitaet, die sich selten aendert (das Ziel, der Fahrzustand), nach
- *     jedem HA-Neustart auf unbestimmte Zeit weg.
- *
- * ─── WARUM ER SICH ZURUECKHAELT, WENN MQTT LAEUFT ───────────────────────────
- * Beide Wege schreiben dieselben Entity-IDs. Liefen sie gleichzeitig, ueber-
- * schrieben sie sich gegenseitig, und niemand koennte mehr sagen, welcher
- * Wert gilt -- eine Anzeige, die flackert, ist schlimmer als eine, die fehlt.
- * Solange die MQTT-Bruecke verbunden ist, schreibt dieser Kanal deshalb
- * nichts. Faellt der Broker aus, uebernimmt er, und die Werte laufen weiter.
+ * Frueher schrieb eine Bruecke diese Zustaende ueber `POST /api/states` direkt
+ * nach Home Assistant. Das macht heute die Integration „Yapaia" ueber das
+ * Yapaia-Protokoll (`yapaia/beschreibung.ts` benennt die Werte nur um). Hier
+ * bleibt die Rechnung: welches Tempo gilt (Route vor GPS), wann ein
+ * Tempolimit ohne Route zaehlt, was „zu schnell" heisst. Keine
+ * Netzwerkzugriffe, damit sich jeder Wert einzeln pruefen laesst.
  */
 
 import type { NavState, Position } from '@yapaia/shared';
-import type { EventBus } from '../bus/index.js';
-import type { HaConnection } from './config.js';
 import { EIGENER_FAHRZEUG_TRACKER } from './eigeneEntitaeten.js';
 import { buildSpeedPayload, kreiselAttribut, maneuverIcon } from '../mqtt/mapping.js';
 import { tempoAusPosition, hoeheAusPosition } from './ausPosition.js';
@@ -301,136 +263,4 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   }
 
   return schreibt;
-}
-
-/** Ob sich ein Zustand gegenueber dem zuletzt geschriebenen geaendert hat. */
-export function hatSichGeaendert(neu: HaStateWrite, alt: HaStateWrite | undefined): boolean {
-  if (!alt) return true;
-  if (neu.state !== alt.state) return true;
-  return JSON.stringify(neu.attributes) !== JSON.stringify(alt.attributes);
-}
-
-/**
- * Wie oft geschrieben wird. Nicht bei jeder Meldung: der Fahrzustand kommt im
- * Sekundentakt, und jede Entitaet einzeln waere ein Dutzend Aufrufe pro
- * Sekunde fuer eine Anzeige, die niemand schneller liest.
- */
-export const SCHREIB_INTERVALL_MS = 1_000;
-
-/**
- * Wie oft ALLES noch einmal geschrieben wird, auch unveraendert.
- *
- * Gegen den Neustart von Home Assistant: dabei verliert die Zustandsmaschine
- * jede von aussen geschriebene Entitaet. Ohne diese Wiederholung waere das
- * Ziel oder der Fahrzustand danach so lange weg, bis sich der Wert zufaellig
- * einmal aendert -- bei stehendem Fahrzeug also nie.
- */
-export const AUFFRISCH_INTERVALL_MS = 5 * 60_000;
-
-export interface HaStatesBridgeDeps {
-  bus: EventBus;
-  /** Die HA-Verbindung, oder `null`, solange keine konfiguriert ist. */
-  verbindung: () => HaConnection | null;
-  /** Ob die MQTT-Bruecke die Entitaeten gerade selbst liefert. */
-  mqttLiefert: () => boolean;
-  /** Schreibt EINEN Zustand. Gibt zurueck, ob es geklappt hat. */
-  schreibe: (verbindung: HaConnection, write: HaStateWrite) => Promise<boolean>;
-  logger: { info: (msg: string, meta?: Record<string, unknown>) => void; warn: (msg: string, meta?: Record<string, unknown>) => void };
-  /**
-   * Das Tempolimit an der aktuellen Stelle, ohne Route.
-   *
-   * Optional: ohne diese Angabe verhaelt sich die Bruecke wie vor 0.14.1 --
-   * `speed_limit` bleibt ohne Route leer. Damit bleiben die bestehenden
-   * Pruefungen gueltig, die sie ohne diesen Dienst bauen.
-   */
-  tempoHier?: () => Tempoauskunft | null;
-  /** Das aktive Fahrzeug -- fuer die Fahrzeuggrenze ohne Route. */
-  fahrzeug?: () => FahrzeugAngaben | null;
-  intervallMs?: number;
-  auffrischMs?: number;
-  setIntervalImpl?: (fn: () => void, ms: number) => unknown;
-  clearIntervalImpl?: (handle: unknown) => void;
-}
-
-export class HaStatesBridge {
-  private readonly deps: HaStatesBridgeDeps;
-  private readonly unsubscribers: Array<() => void> = [];
-  private zustand: YapaiaZustand = { navState: null, position: null };
-  private zuletzt = new Map<string, HaStateWrite>();
-  private timer: unknown = null;
-  private naechsteAuffrischung = 0;
-  private mqttGemeldet = false;
-  private entsorgt = false;
-
-  constructor(deps: HaStatesBridgeDeps) {
-    this.deps = deps;
-    this.unsubscribers.push(
-      deps.bus.subscribe('nav/state', (state) => {
-        this.zustand.navState = state as NavState;
-      }),
-      deps.bus.subscribe('pos/update', (pos) => {
-        const p = pos as Position;
-        if (typeof p?.lat === 'number' && typeof p?.lon === 'number') this.zustand.position = p;
-      }),
-    );
-
-    const setIntervalFn = deps.setIntervalImpl ?? ((fn, ms) => setInterval(fn, ms));
-    this.timer = setIntervalFn(() => {
-      void this.takt();
-    }, deps.intervallMs ?? SCHREIB_INTERVALL_MS);
-  }
-
-  /** Ein Schreibtakt. Wirft nie -- eine stille Anzeige ist besser als ein
-   *  Kanal, der die Navigation mitreisst. */
-  async takt(jetzt: number = Date.now()): Promise<void> {
-    // Eine abgehaengte Bruecke schreibt nichts mehr. Ohne diese Zeile koennte
-    // ein Takt, der beim Herunterfahren gerade unterwegs ist, noch Zustaende
-    // in ein Home Assistant schreiben, von dem sich der Core schon
-    // verabschiedet hat.
-    if (this.entsorgt) return;
-    const verbindung = this.deps.verbindung();
-    if (!verbindung) return;
-
-    if (this.deps.mqttLiefert()) {
-      // Einmal sagen, nicht jede Sekunde.
-      if (!this.mqttGemeldet) {
-        this.mqttGemeldet = true;
-        this.deps.logger.info(
-          'HA-interner Kanal: MQTT liefert die Entitaeten -- der interne Kanal haelt sich zurueck.',
-        );
-      }
-      return;
-    }
-    if (this.mqttGemeldet) {
-      this.mqttGemeldet = false;
-      this.deps.logger.info('HA-interner Kanal: MQTT liefert nicht mehr -- der interne Kanal uebernimmt.');
-    }
-
-    const alleNeu = jetzt >= this.naechsteAuffrischung;
-    if (alleNeu) this.naechsteAuffrischung = jetzt + (this.deps.auffrischMs ?? AUFFRISCH_INTERVALL_MS);
-
-    for (const write of buildHaStates({
-      ...this.zustand,
-      tempoHier: this.deps.tempoHier?.() ?? null,
-      fahrzeug: this.deps.fahrzeug?.() ?? null,
-    })) {
-      if (!alleNeu && !hatSichGeaendert(write, this.zuletzt.get(write.entityId))) continue;
-      const ok = await this.deps.schreibe(verbindung, write);
-      // Nur merken, was wirklich angekommen ist -- sonst gilt ein
-      // fehlgeschlagener Schreibvorgang als erledigt und der Wert fehlt in
-      // Home Assistant, bis er sich das naechste Mal aendert.
-      if (ok) this.zuletzt.set(write.entityId, write);
-    }
-  }
-
-  dispose(): void {
-    this.entsorgt = true;
-    for (const unsub of this.unsubscribers) unsub();
-    this.unsubscribers.length = 0;
-    if (this.timer !== null) {
-      const clearIntervalFn = this.deps.clearIntervalImpl ?? ((h) => clearInterval(h as never));
-      clearIntervalFn(this.timer);
-      this.timer = null;
-    }
-  }
 }

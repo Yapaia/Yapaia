@@ -10,7 +10,7 @@
 name: "Yapaia Go"
 description: "Offline-fähige Motorhome-Navigation (Karten, Routing, GPS, MQTT/HA-Integration) als HA-Add-on."
 slug: "yapaia_go"
-version: "0.44.1"
+version: "0.45.0"
 # ─── MINDESTVERSION VON HOME ASSISTANT ──────────────────────────────────────
 # Seit 0.8.4 sind die selten angefassten Optionen in aufklappbaren Gruppen
 # zusammengefasst. Verschachtelte Konfiguration gibt es in Home Assistant aber
@@ -99,9 +99,9 @@ map:
 # Supervisor were to unwire it after install (see AcceptanceCriteria "App
 # bleibt ohne Broker voll funktional", E08-T1).
 services:
-  # `want`, NICHT `need` -- seit 0.7.0 gibt es einen zweiten Weg zu Home
-  # Assistant (`ha_internal`, siehe unten). `need` heisst „ohne das hier
-  # ergibt dieses Add-on keinen Sinn"; das stimmt seither nicht mehr, und wer
+  # `want`, NICHT `need` -- der Weg zu Home Assistant ist die Integration
+  # „Yapaia", MQTT nur ein zusaetzlicher. `need` hiesse „ohne das hier
+  # ergibt dieses Add-on keinen Sinn"; das stimmt nicht, und wer
   # `mqtt_enabled` ausschaltet, soll nicht trotzdem einen Broker vorhalten
   # muessen. Die Zugangsdaten kommen bei einem vorhandenen Broker unveraendert
   # automatisch (docs/04 §3 „MQTT-Credentials automatisch").
@@ -244,31 +244,14 @@ homeassistant_api: true
 # state: the Core starts into onboarding (E08-T5 builds the wizard UI; T4
 # only guarantees no crash -- see rootfs .../init-yapaia-config/run.sh and
 # DOCS.md "Plausibilität: kein Crash ohne Region").
-# ─── DIE ZWEI WEGE ZU HOME ASSISTANT ────────────────────────────────────────
+# ─── DER WEG ZU HOME ASSISTANT ──────────────────────────────────────────────
 #
-# `mqtt_enabled` -- der Weg ueber einen MQTT-Broker (Mosquitto-Add-on).
-#   Liefert vollwertige Entitaeten MIT Geraet, mit Verlauf, und die
-#   bedienbaren: die Schaltflaechen Pause/Weiter/Beenden und die
-#   Profilauswahl. Dafuer braucht es den Broker.
+# Die Integration „Yapaia" (Gerät „Yapaia Go", docs/integration-protokoll.md):
+# das Add-on bringt sie mit und meldet sich per Supervisor-Discovery an.
 #
-# `ha_internal` -- der Weg ohne Broker.
-#   Der Core schreibt die Werte direkt ueber die Home-Assistant-API
-#   (`apps/core/src/ha/statesBridge.ts`). Es entstehen dieselben Entity-IDs
-#   (`sensor.yapaia_speed` und so fort), lesbar von Automationen, Vorlagen,
-#   ESPHome und jedem Dashboard. Eine so geschriebene Entitaet kann selbst
-#   keine Befehle entgegennehmen -- BEDIENEN geht auf diesem Weg trotzdem:
-#   Yapaia legt dafuer Helfer an (`input_button.yapaia_pause` und
-#   Geschwister) und fuehrt aus, was gedrueckt wird
-#   (`apps/core/src/ha/commandHelpers.ts`). In 0.7.0 stand hier noch, es gehe
-#   nicht; das war zu frueh aufgegeben.
-#
-# BEIDE ZUGLEICH ist erlaubt und sinnvoll. Sie streiten sich nicht: solange
-# MQTT verbunden ist und die Entitaeten liefert, haelt sich der interne Kanal
-# zurueck -- zwei Schreiber auf derselben Entitaet ergaeben ein Flackern, bei
-# dem niemand mehr sagen kann, welcher Wert gilt. Faellt der Broker aus,
-# uebernimmt der interne Kanal, und die Werte laufen weiter.
-# Dasselbe gilt fuer die Bedienung: mit MQTT ruhen die Helfer, sonst gaebe es
-# zwei Saetze Knoepfe fuer dieselbe Sache.
+# `mqtt_enabled` -- ZUSAETZLICH ein MQTT-Broker (Mosquitto-Add-on), fuer alle,
+#   die die Fahrtdaten auch dort haben wollen. Aus als Vorgabe: ohne Broker
+#   fehlt nichts.
 options:
   region: ""
   # Voreinstellung `none` statt `usb`: ein USB-GPS-Empfaenger ist Zubehoer,
@@ -353,8 +336,7 @@ options:
     batterie_bis: 30
     frost_bis: 1
   home_assistant:
-    ha_internal: true
-    mqtt_enabled: true
+    mqtt_enabled: false
     mqtt_prefix: "yapaia"
   advanced:
     # `gps_simulator` -- den eingebauten Testfahrer freischalten.
@@ -424,7 +406,6 @@ schema:
     batterie_bis: "int(0,99)"
     frost_bis: "int(-20,10)"
   home_assistant:
-    ha_internal: "bool"
     mqtt_enabled: "bool"
     mqtt_prefix: "str"
   advanced:

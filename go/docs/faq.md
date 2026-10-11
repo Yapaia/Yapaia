@@ -110,25 +110,15 @@ nachdem der Bildschirm einmal berührt wurde — tippe zu Fahrtbeginn einmal
 auf die Karte.
 
 **Brauche ich MQTT für die Home-Assistant-Anbindung?**
-Nein. Es gibt zwei Kanäle, `mqtt_enabled` und `ha_internal`, beide
-standardmäßig an. Ohne Broker schreibt Yapaia dieselben Entitäten direkt über
-die HA-API. **Auch das Bedienen** (Pause/Weiter/Beenden, Profilwahl)
-funktioniert ohne Broker — Yapaia legt sich dafür Helfer an
-(`input_button.yapaia_*`). Laufen beide Kanäle, gelten die MQTT-Entitäten und
-die Helfer ruhen. Details: [Manual](manual.md#home-assistant) und
-`docs/04-home-assistant.md` §1b–1c.
+Nein. Yapaia Go meldet sich bei der Integration „Yapaia" an (Gerät „Yapaia
+Go", mit Entitäten, Aktionen und Auslösern). MQTT gibt es zusätzlich
+(`mqtt_enabled`, Vorgabe aus). Details: [Manual](manual.md#home-assistant).
 
 **Mein HA-Dashboard zeigt überall „Entität nicht gefunden".**
 Öffne `/local/yapaia/dashboard.txt` im Browser und lies den **Kopf der
-Datei**. Dort steht, was Yapaia beim Erzeugen vorgefunden hat: ob Home
-Assistant erreichbar war, wie viele Entitäten gefunden wurden und welche
-fehlen. Die häufigste Ursache ist, dass weder MQTT noch der interne Kanal
-eingeschaltet ist — dann gibt es schlicht nichts anzuzeigen.
-
-**Ein Knopf in Home Assistant tut nichts.**
-Wenn es einer der `input_button.yapaia_*`-Helfer ist und du MQTT laufen hast:
-das ist Absicht. Dann gelten die MQTT-Knöpfe, und die Helfer ruhen — zwei
-Sätze Knöpfe für dieselbe Sache wären nur Verwirrung.
+Datei**. Dort steht, was Yapaia beim Erzeugen vorgefunden hat. Die häufigste
+Ursache: „Yapaia Go" ist in der Integration „Yapaia" noch nicht eingerichtet
+(Einstellungen → Geräte & Dienste → „Yapaia Go gefunden" bestätigen).
 
 **Wie viel RAM brauche ich mindestens?**
 Kommt stark auf Kartengröße und ob Photon-Suche aktiv ist an — die konkrete

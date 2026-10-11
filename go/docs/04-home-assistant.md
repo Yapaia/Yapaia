@@ -73,63 +73,17 @@ Aktionen), **HA-Add-on-Packaging** (Installation & UI-Zugriff via Ingress).
   `hass.callWS({type: 'supervisor/api'})` — die drei genutzten Endpunkte sind
   dort auch ohne Administratorrechte erlaubt (`hassio/websocket_api.py`).
 
-## 1b. Der HA-interne Kanal (0.7.0) — dieselben Entitäten ohne Broker
+## 1b. Die Integration „Yapaia" — der Weg zu Home Assistant
 
-`apps/core/src/ha/statesBridge.ts` schreibt dieselben Entity-IDs direkt über
-`POST /api/states/<entity_id>` (Supervisor-Proxy). Zwei Schalter in
-`config.yaml`: `mqtt_enabled` und `ha_internal`, beide standardmäßig an.
+Yapaia Go spricht das Yapaia-Protokoll (`docs/integration-protokoll.md` im
+Monorepo, Code in `apps/core/src/yapaia/`) und erscheint als Gerät „Yapaia
+Go" mit echten, bedienbaren Entitäten, Aktionen (`yapaia.go_*`) und
+Auslösern. Das Add-on bringt die Integration mit, legt sie nach
+`custom_components/yapaia` und meldet sich per Supervisor-Discovery an.
 
-- **Sie streiten sich nicht.** Solange die MQTT-Bruecke verbunden ist
-  (`getHealthStatus() === 'ok'`), schreibt der interne Kanal nichts — zwei
-  Schreiber auf einer Entität ergäben ein Flackern. Fällt der Broker aus,
-  übernimmt er; das ist zugleich ein Ausfallschutz.
-- **Nur lesbare Entitäten.** Ein so geschriebener Zustand nimmt keine Befehle
-  entgegen: `button.yapaia_stop/pause/resume` und `select.yapaia_profile` gibt
-  es ausschließlich über MQTT. **Bedienen geht trotzdem** — über einen zweiten
-  Satz Entitäten, siehe §1c. In 0.7.0 stand hier noch, es gehe gar nicht; das
-  war zu früh aufgegeben.
-- **Kein Geräte-/Registrierungseintrag**, und die Zustände überleben keinen
-  HA-Neustart. Dagegen schreibt die Brücke alle 5 Minuten auch Unverändertes
-  noch einmal (`AUFFRISCH_INTERVALL_MS`).
-- Geschrieben wird im Sekundentakt und nur, was sich geändert hat; ein
-  fehlgeschlagener Schreibvorgang gilt NICHT als erledigt (sonst fehlte der
-  Wert bis zur nächsten Änderung).
-
-## 1c. Bedienen ohne MQTT (0.7.1) — Helfer, die Yapaia selbst anlegt
-
-Vorgabe war: *„sofern technisch überhaupt möglich soll alles funktionieren.
-Der User wählt ja seinen Kanal aus."* Der Weg über `POST /api/states` kann das
-nicht — ein so geschriebener Zustand ist eine Anzeige. Also nimmt Yapaia einen
-anderen: es legt in Home Assistant **Helfer** an und hört auf sie.
-
-| Helfer | Was er auslöst |
-|---|---|
-| `input_button.yapaia_pause` | `navigationService.pause()` |
-| `input_button.yapaia_weiter` | `…resume()` |
-| `input_button.yapaia_beenden` | `…stop()` |
-| `input_select.yapaia_profil` | `profileService.activate()` — gewählt über den **Namen**, aktiviert über die ID |
-
-- **Angelegt wird über die WebSocket-Schnittstelle** (`input_button/create`),
-  nicht über REST: die REST-API hat dafür keinen Endpunkt, `input_button`
-  registriert nur `DictStorageCollectionWebsocket`. Node 22 bringt `WebSocket`
-  mit, es kommt keine Abhängigkeit dazu (`ha/commandHelpers.ts`).
-- **Genau EIN Anlegeversuch pro Lauf.** Scheitert er (keine Rechte, WebSocket
-  blockiert), wäre ein Versuch pro Sekunde eine Dauerlast ohne Aussicht auf ein
-  anderes Ergebnis. Fehlende Bedienknöpfe sind ärgerlich; ein Add-on, das
-  deshalb nicht startet, wäre schlimmer — `legeHelferAn` wirft nie.
-- **Gedrückt wird ganz normal**, gelesen per REST im Sekundentakt
-  (`ha/commandWatcher.ts`). Kein Ereignis-Abonnement: vier Zustände zu fragen
-  kostet HA nichts Messbares und hat keinen der Fälle, die an einer
-  Dauerverbindung hängen (Wiederverbinden, halboffene Leitungen, verlorene
-  Ereignisse).
-- **Der ERSTE gelesene Wert löst nie etwas aus.** Der Zustand eines
-  `input_button` ist der *Zeitpunkt* des letzten Drucks — auch wenn der von
-  gestern ist. Ohne diese Regel beendete jeder Neustart des Add-ons die
-  laufende Fahrt, bevor jemand etwas angefasst hat.
-- **Mit MQTT hält sich der Weg zurück.** Zwei Sätze Knöpfe für dieselbe Sache
-  wären nur Verwirrung. Das erzeugte Dashboard nimmt dann die MQTT-Entitäten
-  und schreibt in den Dateikopf, dass die Helfer da sind und **ruhen** — sonst
-  suchte jemand den Fehler bei sich, wenn ein Helfer nicht reagiert.
+Der frühere Weg über geschriebene Zustände (`POST /api/states`) und die
+Bedien-Helfer (`input_button.*`) ist entfallen — die Integration ersetzt
+beide. MQTT bleibt als zusätzlicher Weg (`mqtt_enabled`, Vorgabe aus).
 
 ## 1d. Position aus der Companion-App (0.7.1)
 

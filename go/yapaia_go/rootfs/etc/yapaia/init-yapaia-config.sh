@@ -133,20 +133,13 @@ fi
 PHOTON_XMX_MB="$(config_wert 'search.photon_xmx_mb')"
 VALHALLA_MEMORY_MB="$(config_wert 'routing.valhalla_memory_mb')"
 GPS_SIMULATOR="$(config_wert 'advanced.gps_simulator')"
-# Die beiden Wege, auf denen Yapaia seine Werte an Home Assistant meldet.
-# Warum es zwei gibt und wie sie sich vertragen, steht in `config.yaml`.
+# MQTT ist ein zusaetzlicher Weg zu Home Assistant (der eigentliche ist die
+# Integration „Yapaia"). Leeres oder "null" heisst: aus, wie die Vorgabe in
+# `config.yaml`.
 MQTT_ENABLED="$(config_wert 'home_assistant.mqtt_enabled')"
-HA_INTERNAL="$(config_wert 'home_assistant.ha_internal')"
-# Beide sind in `config.yaml` mit Vorgabe `true` deklariert. Kaeme hier
-# trotzdem einmal Leeres oder das beruehmte "null" heraus (genau die Falle,
-# die `ha_device_tracker` oben schon gestellt hat), waere `bashio::var.true`
-# FALSCH -- und MQTT waere fuer alle still aus, ohne dass jemand etwas
-# umgestellt haette. Eine Vorgabe, die nur in `config.yaml` steht, ist keine.
-for schalter in MQTT_ENABLED HA_INTERNAL; do
-  if [ -z "${!schalter}" ] || [ "${!schalter}" = "null" ]; then
-    printf -v "${schalter}" 'true'
-  fi
-done
+if [ -z "${MQTT_ENABLED}" ] || [ "${MQTT_ENABLED}" = "null" ]; then
+  MQTT_ENABLED='false'
+fi
 
 # --- Plausibilitäts-Kriterium (E08-T4): no region configured -> onboarding, ---
 # --- NOT a crash. We only LOG here; apps/core/src/ already starts cleanly  ---
@@ -201,17 +194,6 @@ fi
 # -- confirmed against that file before wiring this.
 export_env "MQTT_PREFIX" "${MQTT_PREFIX}"
 
-# ---- Der HA-interne Kanal (ohne MQTT) --------------------------------------
-# Der Core schreibt die Werte dann direkt ueber die Home-Assistant-API
-# (`apps/core/src/ha/statesBridge.ts`). Nur eine Variable: die Entscheidung,
-# ob er es TUT, faellt hier; wann er sich zurueckhaelt, entscheidet er selbst
-# (solange MQTT die Entitaeten liefert, schreibt er nicht dagegen).
-if bashio::var.true "${HA_INTERNAL}"; then
-  export_env "HA_INTERNAL" "1"
-  bashio::log.info "init-yapaia-config: HA-interner Kanal eingeschaltet -- Entitaeten kommen auch ohne MQTT-Broker."
-else
-  bashio::log.info "init-yapaia-config: HA-interner Kanal ausgeschaltet."
-fi
 
 # ---- Ingress mode (docs/04 §3 + apps/core/src/index.ts resolveBindHost) ----
 # Always on for the add-on: HA's Ingress proxy handles auth + remote access,

@@ -196,26 +196,17 @@ Client sends `{type:'subscribe', topics:['pos/*','nav/*']}`. Server sends
 | `system/health` | as REST health | on change + every 30 s |
 | `event/security_violation` | `{vector, addonId, detail, at}` | on every blocked sandbox escape |
 
-### Home Assistant — two channels
+### Home Assistant — the Yapaia integration
 
-Both write the **same entity IDs**, and they coordinate rather than compete.
+Yapaia Go speaks the Yapaia protocol (`/yapaia/v1/*`, code in
+`apps/core/src/yapaia/`, spec in the monorepo's `docs/integration-protokoll.md`).
+The central integration `integration/custom_components/yapaia` turns the
+description into a device "Yapaia Go" with entities, actions
+(`yapaia.go_*`) and triggers. The add-on ships the integration and announces
+itself via Supervisor discovery. MQTT is an optional extra channel
+(`mqtt_enabled`, off by default).
 
-| | MQTT | HA-internal |
-|---|---|---|
-| Transport | Broker + auto-discovery | `POST /api/states` via Supervisor |
-| Option | `mqtt_enabled` | `ha_internal` |
-| Device & history | Yes | No |
-| Survives HA restart | Yes | No — hence the 5-minute refresh |
-| Commands | `button.*` / `select.*` | `input_button.*` / `input_select.*` helpers |
-
-**While MQTT is connected, the internal channel holds back.** Two writers on
-one entity would flap and nobody could say which value was current. When the
-broker drops, the internal channel takes over — collision avoidance that
-doubles as failover. The command side mirrors this exactly: the helpers idle
-while MQTT is live.
-
-Details, including why helpers must be created over the WebSocket API and not
-REST: [`04-home-assistant.md`](04-home-assistant.md).
+Details: [`04-home-assistant.md`](04-home-assistant.md).
 
 ### The add-on SDK
 

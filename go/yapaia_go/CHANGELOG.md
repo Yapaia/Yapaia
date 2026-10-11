@@ -10,6 +10,28 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.45.0
+
+**Neuanfang unter dem Namen Yapaia.** Für eine frische Installation gedacht –
+vorher die alte Version samt Integration in Home Assistant entfernen.
+
+- Alles heißt jetzt **Yapaia**: Add-on-Kennung `yapaia_go`, Daten unter
+  `/share/yapaia`, Dashboard-Dateien unter `/local/yapaia/…`, Karte
+  `custom:yapaia-map-card`, Entity-IDs. Das Add-on kommt aus dem Store
+  `https://github.com/Yapaia/yapaia`.
+- Der Weg zu Home Assistant ist **nur noch die Integration „Yapaia“** (Gerät
+  „Yapaia Go“). Der frühere Weg ohne Broker – geschriebene Zustände über
+  `POST /api/states` und die Bedien-Helfer `input_button.*` – ist entfallen,
+  ebenso die Option „Werte direkt melden“.
+- **MQTT** gibt es weiterhin zusätzlich, jetzt **aus** als Vorgabe.
+- **Sprachbefehle über Assist** laufen über die Aktion `yapaia.go_befehl`:
+  die Automation „Yapaia Sprachbefehle“ (⚙ → Sprache & Home Assistant →
+  einrichten) braucht keinen Helfer mehr.
+- Das **erzeugte Dashboard** und das **ESPHome-Display** nutzen die
+  Entitäten der Integration (`sensor.yapaia_go_tempo`, …).
+
+---
+
 ## 0.44.1
 
 - Bringt die Integration „Yapaia“ 0.4.0 mit: Darin ist jetzt auch der

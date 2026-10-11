@@ -1,4 +1,4 @@
-/* eslint-disable no-undef -- `setInterval`/`clearInterval` und `NodeJS.ProcessEnv` sind Node-Globale; die ESLint-Umgebung dieses Pakets kennt sie nicht (wie in `ha/commandWatcher.ts`). */
+/* eslint-disable no-undef -- `setInterval`/`clearInterval` und `NodeJS.ProcessEnv` sind Node-Globale; die ESLint-Umgebung dieses Pakets kennt sie nicht. */
 /**
  * Der Bordsensoren-Dienst: liest die eingerichteten Home-Assistant-Entitäten,
  * wendet die Regeln an und sucht zu jedem Hinweis die passende Station.

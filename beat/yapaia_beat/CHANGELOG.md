@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.14.1
+
+- Bringt die aktuelle Integration „Yapaia“ mit (mit Yapaia Router). An Beat
+  selbst ändert sich nichts.
+
 ## 1.14.0
 
 **Yapaia Beat gehört jetzt zur gemeinsamen Integration „Yapaia“.**

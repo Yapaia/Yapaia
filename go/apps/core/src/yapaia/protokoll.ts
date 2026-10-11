@@ -6,10 +6,8 @@
  *
  * Go meldet sich bei der zentralen Integration „Yapaia" an und erscheint dort
  * als Geraet „Yapaia Go" mit echten, bedienbaren Entitaeten, Aktionen
- * (`yapaia.go_ziel_setzen` …) und Ausloesern („Ziel erreicht"). Dieser Weg
- * ersetzt die geschriebenen Zustaende (`ha/statesBridge.ts`) und die
- * Bedien-Helfer (`ha/commandHelpers.ts`): solange die Integration verbunden
- * ist, halten sich beide zurueck.
+ * (`yapaia.go_ziel_setzen` …) und Ausloesern („Ziel erreicht"). Das ist DER
+ * Weg zu Home Assistant; MQTT gibt es zusaetzlich (`mqtt/`).
  *
  * Die Schnittstelle liegt unter `/yapaia/v1/*` und damit AUSSERHALB von
  * `/api/` -- der allgemeine API-Schutz (`auth/plugin.ts`) greift hier nicht.

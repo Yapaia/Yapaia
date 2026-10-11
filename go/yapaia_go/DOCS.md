@@ -248,8 +248,7 @@ minimum so the Supervisor says so plainly instead of drawing half a page.
 |  | `photon_xmx_mb` | int 256–4096 | `1024` | Photon JVM heap cap (`-Xmx`). See the RAM table above. |
 | `routing` | `valhalla_memory_mb` | int 512–8192 | `2048` | Documented RAM budget for Valhalla; informational (Valhalla's actual runtime cache size is set at graph-build time, not per-start — see `yapaia_go/rootfs/.../valhalla/run`'s comment). |
 | `display` | `theme` | `light` \| `dark` \| `system` \| `sun` | `light` | Light/dark for the interface **and** the map. `system` follows the device's own light/dark setting; `sun` follows sunrise/sunset at the current position — usually the better one in a vehicle. This is a **default**, not a remote control: it applies only to devices that have not picked a mode in the app under "Design". See "How the theme default works" below. |
-| `home_assistant` | `ha_internal` | bool | `true` | Publishes position, ETA, remaining distance and the next instruction as Home Assistant entities **without** a broker. |
-|  | `mqtt_enabled` | bool | `true` | Publishes the same values over MQTT. Both channels may run at once; losing the broker does not stop the direct one. |
+| `home_assistant` | `mqtt_enabled` | bool | `false` | Additionally publishes the values over MQTT (Mosquitto add-on). Not needed — Home Assistant gets everything through the Yapaia integration. |
 |  | `mqtt_prefix` | string | `yapaia` | MQTT topic prefix (docs/03-api-spec.md §4). |
 | `advanced` | `gps_simulator` | bool | `false` | Unlocks the built-in test driver (see below). **Off by default on purpose** — it can inject arbitrary positions and displaces the real receiver. |
 |  | `log_level` | `debug` \| `info` \| `warn` \| `error` | `info` | Core log verbosity (pino). |
@@ -314,7 +313,7 @@ like a fully known one.
 Turn the tick back off when you are done. The real position source takes over
 again after the next restart.
 
-## The Yapaia integration (0.44.0) — recommended
+## Home Assistant: the Yapaia integration
 
 Yapaia Go registers with the central Home Assistant integration **"Yapaia"**
 (the same one Yapaia Beat uses). The add-on brings it along:
@@ -349,70 +348,13 @@ like "Fahre mich nach Magdeburg", the answer comes back as the result.
 `yapaia_ereignis`): *Ziel erreicht*, *Zu schnell*, *GPS verloren*,
 *Neuberechnung fehlgeschlagen*.
 
-**While the integration is connected, the two older routes below step back**
-(no values written via `POST /api/states`, helpers idle), so nothing is
-shown twice. The generated dashboard switches to the new entities by itself.
-MQTT stays available for anyone who wants it.
+The generated dashboard (below) uses these entities. **MQTT** is available in
+addition (`mqtt_enabled`, off by default) for anyone who wants the values on a
+broker as well; the integration does not need it.
 
 The interface (`/yapaia/v1/…`) is protected by its own token, created on first
 start and stored in the add-on's private `/data`. See
 `docs/integration-protokoll.md` in the repository.
-
-## Two ways into Home Assistant (0.7.0)
-
-Both have their own switch in the add-on configuration, and both may be on.
-
-| Option | What it does |
-|---|---|
-| `mqtt_enabled` (default on) | The MQTT route. With the Mosquitto add-on (or any add-on providing the `mqtt` service) running, Yapaia Go picks up host/credentials via the Supervisor's Services API — no manual entry. Full entities with a device and history, including the *controllable* ones: pause/resume/stop and the profile select. |
-| `ha_internal` (default on) | The route **without a broker**. The add-on writes the values straight through Home Assistant's API (`POST /api/states/...`). Same entity IDs (`sensor.yapaia_speed` …), readable from automations, templates, **ESPHome** and any dashboard. |
-
-**Both at once is fine.** They don't fight: while MQTT is connected the
-internal channel stays quiet — two writers on one entity would flap, and
-nobody could tell which value is current. If the broker goes away, the
-internal channel takes over and the values keep flowing.
-
-**What the internal route cannot do** (and this is the whole list):
-
-- **No commands on *these* entities.** An entity written this way cannot
-  receive anything, so `button.yapaia_stop` and `select.yapaia_profile` need
-  MQTT. **Operating Yapaia does not** — see the next section. (0.7.0 said the
-  controls were MQTT-only; that gave up too early.)
-- **No device, no registry entry.** The entities do not appear under
-  "Devices" and cannot be renamed in the UI.
-- **They vanish on a Home Assistant restart** — until the next write. So the
-  add-on rewrites even unchanged values every five minutes; without that, a
-  rarely-changing entity (destination, nav state) would be gone for good
-  while the vehicle stands still.
-
-See `docs/04-home-assistant.md` §1 in the main repo for the full topic/entity
-table. The 🩺 preflight page names which route is currently live.
-
-### Operating Yapaia without a broker (0.7.1)
-
-The add-on creates four **helpers** in Home Assistant on start and listens to
-them:
-
-| Helper | What it does |
-|---|---|
-| `input_button.yapaia_pause` | pause the navigation |
-| `input_button.yapaia_weiter` | resume |
-| `input_button.yapaia_beenden` | end the trip |
-| `input_select.yapaia_profil` | switch the vehicle profile |
-
-They show up under *Settings → Devices & Services → Helpers* and work in
-dashboards, automations and voice commands like any other helper. **The
-generated dashboard uses them by itself** when the MQTT buttons are absent.
-
-- **With MQTT present they stay idle** — two sets of buttons for one thing
-  would only confuse. The dashboard file says so in its header, so a helper
-  that doesn't react doesn't look like a fault.
-- **Creating them is attempted exactly once per run.** If it fails (missing
-  permissions, for instance) the add-on logs why and carries on; retrying
-  every second would be constant load with no prospect of a different result.
-- **Restarting the add-on does not end your trip.** An `input_button`'s state
-  is the *timestamp* of the last press, even one from yesterday — so the first
-  value read after a start is never treated as a press.
 
 ## Your own Lovelace dashboard
 
@@ -435,21 +377,18 @@ Setup, all from the GUI:
 4. In the new dashboard: pencil → ⋮ → **Raw configuration editor**, replace
    everything with the copied text, save.
 
-**Why `dashboard.yaml` is generated rather than shipped:** the entity IDs are
-not fixed. Before 0.6.9 the MQTT discovery sent no `object_id`, so Home
-Assistant derived IDs from the *device* name plus the entity name
-(`sensor.yapaia_go_speed`), and the device name itself changed in 0.6.7. The
-add-on therefore looks up, 30 s after start, which entities actually exist
-(`apps/core/src/ha/dashboard.ts`) and writes those IDs into the file. Entities
-it cannot find get the documented name, and the add-on log says which ones.
+**Why `dashboard.yaml` is generated rather than shipped:** the entity IDs
+can be renamed in Home Assistant. The add-on looks up, 30 s after start,
+which entities actually exist (`apps/core/src/ha/dashboard.ts`) and writes
+those IDs into the file — first the ones of the Yapaia integration
+(`…yapaia_go_…`), otherwise MQTT ones if you use MQTT. Entities it cannot
+find get the documented name, and the file says which ones at the top.
 
-**If every card says "Entity not found":** there are probably no Yapaia
-entities in Home Assistant at all. Yapaia publishes them over MQTT — with no
-broker there is nothing to publish, so the dashboard is not broken, it has
-nothing to show (the map card still works; it comes straight from the add-on).
-Since 0.6.11 the generated file says so at the top. Check it in Yapaia Go
-under 🩺 **Installationsprüfung**, row "MQTT / Home-Assistant-Anbindung"; the
-Mosquitto add-on provides the broker.
+**If every card says "Entity not found":** "Yapaia Go" is not set up in the
+Yapaia integration yet (*Settings → Devices & Services*, confirm "Yapaia Go
+discovered"; if it does not appear, restart Home Assistant once after the
+first add-on start). The map card works regardless — it comes straight from
+the add-on.
 
 **And the numbers only live while the add-on receives positions.** With
 `gps_source: none` the position comes from the BROWSER — close Yapaia and the

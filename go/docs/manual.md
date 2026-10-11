@@ -479,50 +479,35 @@ what works, and for what does not, the reason and the fix.
 Yapaia publishes your trip to Home Assistant, so you can build automations on
 it: *"ETA under 30 minutes → turn on the boiler."*
 
-### Two channels — pick either, or both
+### Setting it up
 
-| Channel | Option | What you get |
-|---|---|---|
-| **MQTT** | `mqtt_enabled` | Full entities with a device and history. Needs a broker (the Mosquitto add-on) |
-| **HA-internal** | `ha_internal` | The same entity IDs with no broker at all |
+The add-on brings the integration **"Yapaia"** along. After the first start,
+restart Home Assistant once (a notification says so); then *Settings →
+Devices & Services* shows **"Yapaia Go discovered"** — confirm, done.
 
-**Both on at once is fine and sensible.** They do not fight: while MQTT is
-connected the internal channel stays quiet, and if the broker goes away the
-internal channel takes over. What starts as collision avoidance ends up as a
-failover.
-
-The internal channel has two limits worth knowing. Its entities do not appear
-under *Devices* and cannot be renamed in the UI; and they vanish when Home
-Assistant restarts, until the next write — which is why Yapaia rewrites even
-unchanged values every five minutes.
+You get a device **"Yapaia Go"** whose entities can be renamed, keep history
+and survive Home Assistant restarts.
 
 ### What appears in Home Assistant
 
-Speed, speed limit, a "speeding" flag, ETA, remaining distance, the next
-instruction and its distance, altitude, navigation state, the active vehicle,
-and the destination.
+Next instruction and its distance, arrival time, remaining distance,
+destination, navigation state, speed, speed limit (sign and vehicle), a
+"speeding" flag, altitude and the vehicle's position on the map.
 
 ### Operating Yapaia from Home Assistant
 
-Pause, resume, stop and the profile selector — available on **both** channels.
+- **Buttons:** pause, resume, stop. **Select:** vehicle profile. **Text field:**
+  "Ziel eingeben" — type a destination, Yapaia routes and starts.
+- **Actions** for automations and scripts: `yapaia.go_ziel_setzen`,
+  `yapaia.go_navigation_pausieren` / `…_fortsetzen` / `…_beenden`,
+  `yapaia.go_profil_waehlen`, `yapaia.go_befehl` (a spoken-style sentence; the
+  answer comes back).
+- **Triggers:** *Ziel erreicht*, *Zu schnell*, *GPS verloren*,
+  *Neuberechnung fehlgeschlagen* — pick them in the automation editor under the
+  device "Yapaia Go".
 
-With MQTT you get them as proper `button` and `select` entities. Without a
-broker, Yapaia creates four **helpers** on start and listens to them:
-
-| Helper | What it does |
-|---|---|
-| `input_button.yapaia_pause` | Pause navigation |
-| `input_button.yapaia_weiter` | Resume |
-| `input_button.yapaia_beenden` | End the trip |
-| `input_select.yapaia_profil` | Switch vehicle profile |
-
-They show up under **Settings → Devices & Services → Helpers** and work in
-dashboards, automations and voice commands like anything else.
-
-> **If you run MQTT, the helpers sit idle** and the MQTT buttons are the live
-> ones. Two sets of buttons for one job would only confuse. A helper that does
-> not react is therefore not broken — and the generated dashboard file says so
-> in its header.
+MQTT is available in addition (`mqtt_enabled`, off by default) if you want the
+values on a broker as well.
 
 ### The ready-made dashboard
 

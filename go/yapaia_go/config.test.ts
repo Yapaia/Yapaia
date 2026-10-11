@@ -156,11 +156,9 @@ describe('yapaia_go/config.yaml is valid YAML with the required HA add-on keys',
   });
 
   /**
-   * `want`, NICHT mehr `need`: seit 0.7.0 gibt es einen zweiten Weg zu Home
-   * Assistant (`ha_internal`), der ohne Broker auskommt. `need` hiesse „ohne
-   * das hier ergibt dieses Add-on keinen Sinn" -- das stimmt seither nicht
-   * mehr. Die Zugangsdaten kommen bei vorhandenem Broker unveraendert
-   * automatisch.
+   * `want`, NICHT `need`: der Weg zu Home Assistant ist die Integration
+   * „Yapaia"; MQTT ist ein zusaetzlicher. Die Zugangsdaten kommen bei
+   * vorhandenem Broker automatisch.
    */
   it('declares mqtt:want -- Broker automatisch, aber nicht mehr zwingend', () => {
     const config = loadConfig();
@@ -170,20 +168,23 @@ describe('yapaia_go/config.yaml is valid YAML with the required HA add-on keys',
   });
 
   /**
-   * Die zwei Wege zu Home Assistant, beide abschaltbar.
-   *
-   * Der Anlass: ohne MQTT-Broker gab es GAR KEINE Yapaia-Entitaeten, und das
-   * fertige Dashboard zeigte in jeder Kachel „Entitaet nicht gefunden".
+   * MQTT ist zusaetzlich und deshalb aus, bis jemand es will; einen
+   * HA-internen Kanal mit geschriebenen Zustaenden gibt es nicht mehr (die
+   * Integration „Yapaia" liefert die Entitaeten).
    */
-  it('bietet beide Kanaele als eigene Schalter an', () => {
+  it('MQTT ist ein Schalter, aus als Vorgabe; kein ha_internal mehr', () => {
     const config = loadConfig();
-    for (const key of ['home_assistant.mqtt_enabled', 'home_assistant.ha_internal']) {
-      expect(anPfad(config.options, key), `options.${key} fehlt`).toBeDefined();
-      expect(anPfad(config.schema, key), `schema.${key}`).toBe('bool');
-      expect(typeof anPfad(config.options, key), `options.${key} muss ein Schalter sein`).toBe(
-        'boolean',
-      );
-    }
+    expect(anPfad(config.options, 'home_assistant.mqtt_enabled')).toBe(false);
+    expect(anPfad(config.schema, 'home_assistant.mqtt_enabled')).toBe('bool');
+    expect(anPfad(config.options, 'home_assistant.ha_internal')).toBeUndefined();
+    expect(anPfad(config.schema, 'home_assistant.ha_internal')).toBeUndefined();
+  });
+
+  /**
+   * Die Integration „Yapaia" findet Go ueber die Supervisor-Discovery.
+   */
+  it('meldet sich per Discovery bei der Integration „Yapaia" an', () => {
+    expect(loadConfig().discovery).toEqual(['yapaia']);
   });
 
   /**
@@ -897,7 +898,6 @@ describe('init-yapaia-config.sh — die GPS-Quelle, ausgeführt', () => {
       'search.photon_enabled': 'false',
       'search.photon_xmx_mb': '1024',
       'routing.valhalla_memory_mb': '2048',
-      'home_assistant.ha_internal': 'true',
       'home_assistant.mqtt_enabled': 'true',
       'home_assistant.mqtt_prefix': 'yapaia',
       'advanced.gps_simulator': 'false',
@@ -1151,25 +1151,10 @@ describe('init-yapaia-config.sh — die GPS-Quelle, ausgeführt', () => {
     expect(env.MQTT_BROKER_URL).toBe('mqtt://test-broker:1883');
   });
 
-  it('schaltet den HA-internen Kanal ein und aus', () => {
-    // Nicht „0", sondern UNGESETZT: der Core prueft auf === '1', und so gilt
-    // genau eine Regel statt zweier, die auseinanderlaufen koennen.
-    expect(runInit({ 'home_assistant.ha_internal': 'true' }).HA_INTERNAL).toBe('1');
-    expect(runInit({ 'home_assistant.ha_internal': 'false' }).HA_INTERNAL).toBeUndefined();
-  });
-
-  it('bleibt bei leerem oder „null"-Wert eingeschaltet', () => {
-    // Dieselbe Falle wie bei `ha_device_tracker`: bashio liefert fuer eine
-    // nicht gesetzte Option den STRING "null". Ohne die Absicherung waere
-    // MQTT damit fuer alle still aus.
-    expect(runInitMitBroker({ 'home_assistant.mqtt_enabled': 'null', mqtt_enabled: 'null' }).MQTT_BROKER_URL).toBeTruthy();
-    expect(runInit({ 'home_assistant.ha_internal': '', ha_internal: '' }).HA_INTERNAL).toBe('1');
-  });
-
-  it('beide Wege lassen sich gleichzeitig einschalten', () => {
-    const env = runInitMitBroker({ 'home_assistant.mqtt_enabled': 'true', 'home_assistant.ha_internal': 'true' });
-    expect(env.MQTT_BROKER_URL).toBeTruthy();
-    expect(env.HA_INTERNAL).toBe('1');
+  it('ohne Wert (leer oder „null") bleibt MQTT aus, wie die Vorgabe', () => {
+    // bashio liefert fuer eine nicht gesetzte Option den STRING "null".
+    expect(runInitMitBroker({ 'home_assistant.mqtt_enabled': 'null', mqtt_enabled: 'null' }).MQTT_BROKER_URL).toBeUndefined();
+    expect(runInit({}).HA_INTERNAL).toBeUndefined();
   });
 });
 
@@ -1648,7 +1633,7 @@ describe('die Add-on-Konfiguration ist gegliedert und beschriftet', () => {
       'batterie_bis',
       'frost_bis',
     ],
-    home_assistant: ['ha_internal', 'mqtt_enabled', 'mqtt_prefix'],
+    home_assistant: ['mqtt_enabled', 'mqtt_prefix'],
     advanced: ['gps_simulator', 'log_level'],
   };
   /** Was OFFEN stehenbleibt -- das, was man wirklich einstellt. */
