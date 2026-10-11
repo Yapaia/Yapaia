@@ -86,8 +86,13 @@
 # `build.yaml` gelesen wird, gewinnt dessen `build_from`.
 ARG BUILD_FROM=ghcr.io/gis-ops/docker-valhalla/valhalla:latest
 
-# ---- Stage 1: build apps/core + apps/web (identical recipe to apps/core/Dockerfile) ----
-FROM node:22-slim AS core-build
+# ---- Stage 1a: Quelltext holen ----
+# Der Supervisor baut mit `yapaja_go/` als Kontext; die Go-Quellen liegen
+# ausserhalb und werden deshalb hier heruntergeladen. Die CI ersetzt die Stufe
+# `gosrc` (unten) per `--build-context gosrc=./go` durch den ausgecheckten
+# Stand und baut so genau den Quelltext des Pull Requests -- auch solange das
+# Repo privat und ein Download ohne Anmeldung nicht moeglich ist.
+FROM node:22-slim AS gosrc-download
 # Vom Supervisor bzw. `build.yaml` gesetzt; siehe Kopfkommentar.
 ARG YAPAIA_REPO=Apfelsafft/Yapaja-Go-Design
 ARG YAPAJA_REF=main
@@ -95,9 +100,6 @@ ARG YAPAJA_REF=main
 # (`--build-arg BUILD_VERSION=0.1.5`). Sie wird unten im Fetch-Schritt
 # GELESEN -- warum, steht dort ausfuehrlich.
 ARG BUILD_VERSION=dev
-RUN corepack enable
-WORKDIR /app
-ENV CI=true
 
 # `curl`/`ca-certificates` sind in node:22-slim nicht enthalten; `tar` schon,
 # wird aber mit angefordert, damit ein kuenftig noch schlankeres Basis-Image
@@ -132,16 +134,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # kein Update aus -- der Bau wuerde jetzt auch den alten Quelltext behalten.
 #
 # `--strip-components=1` entfernt das von GitHub erzeugte
-# `<repo>-<ref>/`-Wurzelverzeichnis, sodass in /app exakt dieselbe
-# Verzeichnisstruktur liegt wie vorher durch die COPY-Zeilen.
+# `<repo>-<ref>/`-Wurzelverzeichnis, sodass in /src exakt die
+# Verzeichnisstruktur des Go-Arbeitsbereichs liegt.
 RUN set -eux; \
     echo "Quelltext fuer Add-on-Version ${BUILD_VERSION} aus ${YAPAJA_REF}"; \
+    mkdir -p /src; \
     curl -fsSL --retry 3 --retry-delay 5 \
       "https://codeload.github.com/${YAPAIA_REPO}/tar.gz/${YAPAJA_REF}" \
       -o /tmp/yapaja-src.tar.gz; \
-    tar -xzf /tmp/yapaja-src.tar.gz -C /app --strip-components=1; \
-    rm /tmp/yapaja-src.tar.gz; \
-    test -f pnpm-lock.yaml && test -d apps/core && test -d apps/web && test -d packages
+    tar -xzf /tmp/yapaja-src.tar.gz -C /src --strip-components=1; \
+    rm /tmp/yapaja-src.tar.gz
+
+# ---- Stage 1b: der Go-Arbeitsbereich, sonst nichts ----
+# Eine eigene, leere Stufe, damit `--build-context gosrc=<ordner>` sie
+# vollstaendig ersetzen kann (BuildKit: ein gleichnamiger Kontext ueberschreibt
+# die Stufe).
+FROM scratch AS gosrc
+COPY --from=gosrc-download /src/ /
+
+# ---- Stage 1c: build apps/core + apps/web (identical recipe to apps/core/Dockerfile) ----
+FROM node:22-slim AS core-build
+RUN corepack enable
+WORKDIR /app
+ENV CI=true
+COPY --from=gosrc / /app/
+RUN test -f pnpm-lock.yaml && test -d apps/core && test -d apps/web && test -d packages
+
 
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
