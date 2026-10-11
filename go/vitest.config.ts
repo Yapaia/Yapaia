@@ -22,7 +22,7 @@ export default defineConfig({
       'apps/**/*.test.tsx',
       'packages/**/*.test.ts',
       'packages/**/*.test.tsx',
-      'yapaja_go/**/*.test.ts',
+      'yapaia_go/**/*.test.ts',
       // Die Prüfumgebung der ESPHome-Anzeige — und zwar SIE SELBST.
       //
       // `esphome/test/run.mjs` übersetzt die Zeichenroutine gegen einen

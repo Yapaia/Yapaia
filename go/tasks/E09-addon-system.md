@@ -10,7 +10,7 @@ zwei Referenz-Add-ons. **Gate-Beitrag G4. Sicherheits-Schwerpunkt (W-10/11/13/14
 - **Abhängigkeiten:** E08-T3 (Auth) · **Kontext:** docs/05 §1/§2/§5; docs/03 §2 Add-ons
 - **Pfade:** `apps/core/src/addons/`
 
-**Aufgabe:** Manifest-Schema (`yapaja-addon.json`, docs/05 §2) in shared.
+**Aufgabe:** Manifest-Schema (`yapaia-addon.json`, docs/05 §2) in shared.
 Installations-Pipeline: Tarball (Upload ODER URL) → sha256-Check (bei
 Registry-Install Pflicht) → Manifest validieren → `core_api`-semver-Check
 (inkompatibel: Abbruch mit klarer Meldung, W-11) → Scope-Liste an UI zur
@@ -64,8 +64,8 @@ Test (jede Methode × mit/ohne Scope); Playwright: Fixture-Add-on-Flow.
 - **Pfade:** `apps/core/src/addons/service-host.ts`
 
 **Aufgabe:** `runtime: node18|20`-Add-ons als Child-Prozess starten:
-Env enthält `YAPAJA_API_URL`, `YAPAJA_TOKEN` (scoped, pro Add-on, bei disable
-sofort invalidiert), `YAPAJA_DATA_DIR`; Prozess-CWD = Add-on-Dir; Node mit
+Env enthält `YAPAIA_API_URL`, `YAPAIA_TOKEN` (scoped, pro Add-on, bei disable
+sofort invalidiert), `YAPAIA_DATA_DIR`; Prozess-CWD = Add-on-Dir; Node mit
 `--permission --allow-fs-read/write` auf Add-on-Dirs beschränkt (dokumentierte
 Best-Effort-Härtung; echte Isolation = runtime external). Scoped-Token-Auth im
 Core: Token→Scope-Prüfung auf jeder REST/WS-Route (Scope-Mapping aus docs/05 §2;
@@ -185,7 +185,7 @@ fehlende Felder); Playwright: Store-Flows on/offline.
 - **Pfade:** `apps/core/src/mqtt/`, `apps/core/src/addons/`
 
 **Aufgabe:** Add-on-Events (`addon/{id}/*` mit Scope events.publish) zusätzlich
-als `yapaja/addon/{id}/*` via MQTT publizieren (Rate-Limit 5 msg/s pro Add-on,
+als `yapaia/addon/{id}/*` via MQTT publizieren (Rate-Limit 5 msg/s pro Add-on,
 Payload ≤ 16 KB, Drossel-Log). Optional pro Add-on abschaltbar (Store-Detail-
 Toggle „In Home Assistant verfügbar"). Doku-Beispiel: HA-Automation, die auf
 Track-Recorder-Event reagiert.
@@ -193,5 +193,5 @@ Track-Recorder-Event reagiert.
 **Akzeptanz:** 1. Recorder-Start/Stop-Events erscheinen als MQTT-Topics;
 2. Rate-Limit greift nachweislich; 3. Toggle wirkt sofort.
 **Pflicht-Tests:** Integration mit Testcontainer; Limit-Unit.
-**Plausibilität:** Add-on kann keine `yapaja/cmd/*`- oder Core-Status-Topics
+**Plausibilität:** Add-on kann keine `yapaia/cmd/*`- oder Core-Status-Topics
 publizieren (Topic-Namespace-Test).

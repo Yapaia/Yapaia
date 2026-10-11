@@ -128,7 +128,7 @@ describe('POI-Normalisierung', () => {
 
 describe('Suche im gebauten Index', () => {
   function buildIndex(): { dbPath: string; cleanup: () => void } {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-poi-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-poi-'));
     const dbPath = join(dir, 'lite_search.db');
     const lines = [
       feature({ place: 'city', name: 'Mannheim' }),
@@ -208,7 +208,7 @@ describe('Suche im gebauten Index', () => {
    * kommen.
    */
   it('lässt jede in LITE_KINDS geführte Art durch den Arten-Filter', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-kinds-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-kinds-'));
     const dbPath = join(dir, 'lite_search.db');
     try {
       buildLiteIndexFile(

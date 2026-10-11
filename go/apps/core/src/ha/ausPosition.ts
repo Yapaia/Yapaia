@@ -4,13 +4,13 @@
  * ─── DER GEMELDETE FALL ─────────────────────────────────────────────────────
  * Aus den Entwicklerwerkzeugen, alle Yapaia-Entitäten nebeneinander:
  *
- *     device_tracker.yapaja_vehicle   not_home
+ *     device_tracker.yapaia_vehicle   not_home
  *                                     latitude: 49.239076998
  *                                     longitude: 8.320296238
  *                                     gps_accuracy: 53.2
- *     sensor.yapaja_nav_state         idle
- *     sensor.yapaja_speed             unknown
- *     sensor.yapaja_altitude          unknown
+ *     sensor.yapaia_nav_state         idle
+ *     sensor.yapaia_speed             unknown
+ *     sensor.yapaia_altitude          unknown
  *
  * Das GPS lieferte also gerade eine Position — auf zehn Nachkommastellen —,
  * und im selben Augenblick stand beim Tempo „unbekannt". Beides zugleich.

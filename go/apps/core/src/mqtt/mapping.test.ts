@@ -1,6 +1,6 @@
 /**
  * Unit tests for the bus-payload -> MQTT-payload mappers (E08-T1). Includes
- * the mandatory PLAUSIBILITY check: `speeding` in `yapaja/nav/speed` agrees
+ * the mandatory PLAUSIBILITY check: `speeding` in `yapaia/nav/speed` agrees
  * with `speed_kmh` vs `speed_limit_kmh` (docs/03 §4/§5).
  */
 import { describe, it, expect } from 'vitest';

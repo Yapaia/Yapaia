@@ -14,7 +14,7 @@
  *
  * ─── WARUM NICHT AUS GRENZEN ────────────────────────────────────────────────
  * Sauber wäre die Gemeindegrenze (`boundary=administrative`). Die steckt aber
- * nicht im Extrakt, den `yapaja-build-lite-index` zieht, und sie mitzunehmen
+ * nicht im Extrakt, den `yapaia-build-lite-index` zieht, und sie mitzunehmen
  * hiesse: Relationen aufloesen, Polygone bauen, Punkt-in-Polygon fuer
  * Millionen Datensaetze. Auf dem Geraet des Betreibers gebaut, mit dem
  * Deutschland-Extrakt als Ziel, ist das die falsche Rechnung.

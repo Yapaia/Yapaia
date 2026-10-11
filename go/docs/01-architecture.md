@@ -15,7 +15,7 @@
 │  ┌───────────── VM/LXC oder HAOS-Add-on: Yapaia Go ────────────────┐  │
 │  │                                                                 │  │
 │  │  ┌───────────────┐   ┌─────────────────────────────────────┐    │  │
-│  │  │ yapaja-core   │   │ Daten-Services (Docker/Prozesse)    │    │  │
+│  │  │ yapaia-core   │   │ Daten-Services (Docker/Prozesse)    │    │  │
 │  │  │ (Node/Fastify)│──▶│  • Valhalla (Routing, :8002)        │    │  │
 │  │  │  REST + WS    │   │  • Photon  (Geocoding, :2322)       │    │  │
 │  │  │  MQTT-Bridge  │   │  • gpsd    (USB-GPS, :2947)         │    │  │
@@ -24,14 +24,14 @@
 │  │  └──────┬────────┘                                              │  │
 │  │         │ statisch ausgeliefert                                 │  │
 │  │  ┌──────▼────────┐   ┌───────────────┐                          │  │
-│  │  │ yapaja-web    │   │ Add-ons       │                          │  │
+│  │  │ yapaia-web    │   │ Add-ons       │                          │  │
 │  │  │ (React SPA)   │   │ (Sandbox/Svc) │                          │  │
 │  │  └───────────────┘   └───────────────┘                          │  │
 │  └─────────────────────────────────────────────────────────────────┘  │
 │                                                                       │
 │  ┌──────────────── HAOS-VM: Home Assistant ────────────────┐          │
-│  │  Mosquitto (MQTT-Broker)  ◀──── MQTT ────  yapaja-core  │          │
-│  │  HA REST/WS API           ◀──── REST ────  yapaja-core  │          │
+│  │  Mosquitto (MQTT-Broker)  ◀──── MQTT ────  yapaia-core  │          │
+│  │  HA REST/WS API           ◀──── REST ────  yapaia-core  │          │
 │  └──────────────────────────────────────────────────────────┘         │
 └───────────────────────────────────────────────────────────────────────┘
           ▲ HTTP(S)                          ▲ USB
@@ -134,7 +134,7 @@ Schnittstellen an, nie direkt an die internen Services.
   selbst wenn kein Browser offen ist.
 
 ### ADR-008: Auslieferung = Docker Compose (standalone) + HA-Add-on (gleiches Image)
-- **Entscheidung:** Ein Multi-Arch-Container-Image `yapaja/core` (amd64/aarch64).
+- **Entscheidung:** Ein Multi-Arch-Container-Image `yapaia/core` (amd64/aarch64).
   Standalone: `docker-compose.yml` (core + valhalla + photon + gpsd).
   HA-Add-on: eigenes Add-on-Repository, `config.yaml` mit `ingress: true`,
   s6-overlay startet alle Prozesse in einem Add-on-Container (HA-Add-ons erlauben
@@ -145,7 +145,7 @@ Schnittstellen an, nie direkt an die internen Services.
 ### ADR-009: Add-on-System = Manifest + zwei Plugin-Typen + Git-Registry
 - **Entscheidung:** Frontend-Plugins (sandboxed iframe + postMessage-SDK) und
   Service-Plugins (eigener Prozess/Container, sprechen Core-REST/WS mit scoped Token).
-  Manifest `yapaja-addon.json` mit deklarierten Permissions; Registry = statisches
+  Manifest `yapaia-addon.json` mit deklarierten Permissions; Registry = statisches
   Git-Repo mit `index.json`; Store-UI im Frontend. Details in `docs/05-addon-system.md`.
 - **Begründung:** Core bleibt unangetastet (Open/Closed-Prinzip); Sandbox begrenzt
   Schadpotenzial; statische Registry funktioniert mit sporadischem Internet.
@@ -161,7 +161,7 @@ Schnittstellen an, nie direkt an die internen Services.
 ## 3. Monorepo-Struktur (Zielbild für die Implementierung)
 
 ```
-yapaja-go/
+yapaia-go/
 ├── apps/
 │   ├── core/            # Fastify-Backend (REST, WS, MQTT, Plugin-Host, Tiles)
 │   └── web/             # React-SPA/PWA
@@ -173,7 +173,7 @@ yapaja-go/
 │   ├── valhalla/        # Dockerfile, valhalla.json-Template, Daten-Download-Skripte
 │   ├── photon/          # Dockerfile, Index-Download-Skripte
 │   └── gpsd/            # Setup-/udev-Doku, Container-Variante
-├── yapaja_go/           # Home-Assistant-Add-on (config.yaml, Dockerfile, s6) --
+├── yapaia_go/           # Home-Assistant-Add-on (config.yaml, Dockerfile, s6) --
 │                        # liegt bewusst auf oberster Ebene, damit der HA-Supervisor
 │                        # es zusammen mit repository.yaml (Wurzel) findet
 ├── repository.yaml      # HA-Add-on-Repository-Deskriptor (Store-Weg via ⋮ -> Repositories)
@@ -189,7 +189,7 @@ Playwright, GitHub Actions, Conventional Commits, Changesets für Versionierung.
 
 | Komponente | RAM (Ziel) | Disk | CPU (Idle/Last) |
 |---|---|---|---|
-| yapaja-core (Node) | ≤ 300 MB | 200 MB | <2 % / 1 Kern |
+| yapaia-core (Node) | ≤ 300 MB | 200 MB | <2 % / 1 Kern |
 | Valhalla | ≤ 1,5 GB | ~3 GB Graph | 0 % / 1–2 Kerne beim Routing |
 | Photon (JVM, -Xmx) | ≤ 1 GB | ~2 GB Index | 0 % / 1 Kern bei Suche |
 | gpsd | ≤ 10 MB | – | vernachlässigbar |

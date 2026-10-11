@@ -53,7 +53,7 @@ function walk(dir: string, onFile: (full: string) => void): void {
 describe('E09-T6: the evil fixture is never in the store/registry', () => {
   it('the manifest really carries the id this guard protects', () => {
     const manifest = JSON.parse(
-      readFileSync(join(HERE, 'yapaja-addon.json'), 'utf-8'),
+      readFileSync(join(HERE, 'yapaia-addon.json'), 'utf-8'),
     ) as { id: string; name: string };
     expect(manifest.id).toBe(EVIL_ADDON_ID);
     // Loud in every UI that ever renders a name, as a last line of defence.

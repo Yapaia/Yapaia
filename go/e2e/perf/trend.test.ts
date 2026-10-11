@@ -39,7 +39,7 @@ function report(values: Record<string, number>, overrides: Partial<Measurement>[
     return { id: d.id, value: values[d.id], ...override };
   });
   return {
-    schema: 'yapaja.perf.v1',
+    schema: 'yapaia.perf.v1',
     generatedAt: '2026-08-03T00:00:00.000Z',
     gitSha: 'deadbeef',
     environment: ENV,
@@ -229,7 +229,7 @@ describe('renderTrendComment()', () => {
   it('weist nicht gemessene Budgets ausdruecklich als solche aus', () => {
     const defs = [...RUNTIME_BUDGETS.slice(0, 1), budgetById('rss_valhalla_mb')];
     const partial: PerfReport = {
-      schema: 'yapaja.perf.v1',
+      schema: 'yapaia.perf.v1',
       generatedAt: '2026-08-03T00:00:00.000Z',
       gitSha: null,
       environment: ENV,

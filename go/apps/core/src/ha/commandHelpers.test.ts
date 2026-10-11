@@ -29,7 +29,7 @@ describe('welche Helfer es gibt', () => {
   });
 
   it('kollidiert nicht mit den MQTT-Entitaeten', () => {
-    // `button.yapaja_stop` (MQTT) und `input_button.yapaia_beenden` (Helfer)
+    // `button.yapaia_stop` (MQTT) und `input_button.yapaia_beenden` (Helfer)
     // sind verschiedene Bereiche -- sonst schriebe man sich gegenseitig zu.
     for (const id of IDS) {
       expect(id.startsWith('input_')).toBe(true);

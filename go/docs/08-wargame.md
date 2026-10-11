@@ -79,7 +79,7 @@ Schweregrade: 🔴 sicherheitsrelevant · 🟠 funktionskritisch · 🟡 Komfort
   nicht erst beim Add-on-Bau.
 
 ### W-16 🔴 Add-on-/App-Update zerstört Kartendaten oder Einstellungen
-- **Vorbereitet in:** Daten strikt außerhalb des Containers (`/share/yapaja`,
+- **Vorbereitet in:** Daten strikt außerhalb des Containers (`/share/yapaia`,
   Volume bei Compose); SQLite-Migrationen mit Schema-Version + Backup-Datei vor
   Migration; E2E „Update von v(n−1)" in Release-Pipeline.
 - **Test:** E08-T6 Update-/Migrationstest.

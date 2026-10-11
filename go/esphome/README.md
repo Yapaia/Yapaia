@@ -1,6 +1,6 @@
 # Yapaia Go auf dem ESP32-2424S012
 
-`yapaja-nav-display.yaml` macht aus dem runden 1,28-Zoll-Modul ein
+`yapaia-nav-display.yaml` macht aus dem runden 1,28-Zoll-Modul ein
 Navigationsinstrument fürs Armaturenbrett: nächstes Manöver mit Pfeil und
 Entfernung, Tempo gegen Tempolimit, Ankunftszeit.
 
@@ -80,14 +80,14 @@ Im Einzelnen:
 
 | Was | Woher | Besonderheit |
 |---|---|---|
-| Manöverpfeil | Attribut `type` von `sensor.yapaja_instruction` | gezeichnet, keine Symbolschrift |
-| Kreisel | Attribut `roundabout` von `sensor.yapaja_instruction` (`"2\|90"` = 2. Ausfahrt, 90° nach rechts) | der Bogen, den man fährt (Viertel = rechts, Hälfte = geradeaus, drei Viertel = links), der Pfeil in Richtung der Ausfahrt und ihre Nummer in der Mitte |
-| Entfernung zum Manöver | `sensor.yapaja_instruction_distance` | unter 1 km in Metern, auf 10 m gerundet |
-| Anweisungstext | `sensor.yapaja_instruction` | bereits auf Deutsch, bei Überlänge gekürzt |
-| Tempo | `sensor.yapaja_speed` | rot, wenn `binary_sensor.yapaja_speeding` an ist |
-| Tempolimit | `sensor.yapaja_speed_limit` | als rundes Schild — **nur**, wenn die Karte eines kennt |
-| Ankunftszeit | `sensor.yapaja_eta` | aus UTC in Ihre Zeitzone **gerechnet** |
-| Fahrzustand | `sensor.yapaja_nav_state` | ohne Route steht da, warum, statt eines Pfeils ins Nichts |
+| Manöverpfeil | Attribut `type` von `sensor.yapaia_instruction` | gezeichnet, keine Symbolschrift |
+| Kreisel | Attribut `roundabout` von `sensor.yapaia_instruction` (`"2\|90"` = 2. Ausfahrt, 90° nach rechts) | der Bogen, den man fährt (Viertel = rechts, Hälfte = geradeaus, drei Viertel = links), der Pfeil in Richtung der Ausfahrt und ihre Nummer in der Mitte |
+| Entfernung zum Manöver | `sensor.yapaia_instruction_distance` | unter 1 km in Metern, auf 10 m gerundet |
+| Anweisungstext | `sensor.yapaia_instruction` | bereits auf Deutsch, bei Überlänge gekürzt |
+| Tempo | `sensor.yapaia_speed` | rot, wenn `binary_sensor.yapaia_speeding` an ist |
+| Tempolimit | `sensor.yapaia_speed_limit` | als rundes Schild — **nur**, wenn die Karte eines kennt |
+| Ankunftszeit | `sensor.yapaia_eta` | aus UTC in Ihre Zeitzone **gerechnet** |
+| Fahrzustand | `sensor.yapaia_nav_state` | ohne Route steht da, warum, statt eines Pfeils ins Nichts |
 
 Zwei Entscheidungen, die man beim Lesen sonst für Zufall hält:
 
@@ -129,8 +129,8 @@ Platz leer.
    `!secret`-Verweis der Konfiguration auch hier in der Anleitung steht —
    genau das ist bis 0.13.1 auseinandergelaufen:
 
-   > Damals verwies die Datei auf `yapaja_display_api_key` und
-   > `yapaja_display_ota_password`. Beide gab es nirgends; wer die Datei
+   > Damals verwies die Datei auf `yapaia_display_api_key` und
+   > `yapaia_display_ota_password`. Beide gab es nirgends; wer die Datei
    > übernahm, bekam Verweise ins Leere — bemerkt erst beim Übersetzen auf
    > dem eigenen Gerät.
 
@@ -167,7 +167,7 @@ Platz leer.
 3. Für dieses Board ist nichts weiter zu tun. Für ein anderes den
    `display:`-Block und `rund` anpassen — siehe unten.
 4. Übersetzen und flashen: in Home Assistant über das ESPHome-Add-on, oder
-   `esphome run esphome/yapaja-nav-display.yaml`.
+   `esphome run esphome/yapaia-nav-display.yaml`.
 
 Yapaia muss seine Werte nach Home Assistant melden. Beide Wege funktionieren
 und erzeugen **dieselben** Entity-IDs — in der Add-on-Konfiguration unter
@@ -299,7 +299,7 @@ diese Konfiguration sie sucht.**
 
 Home Assistant vergibt die Entity-ID aus Geräte- *plus* Entitätsnamen, solange
 die MQTT-Discovery kein `object_id` mitschickt. Seit Yapaia 0.6.9 schickt sie
-eines mit, und dann heißt sie `sensor.yapaja_nav_state`. **Ältere
+eines mit, und dann heißt sie `sensor.yapaia_nav_state`. **Ältere
 Installationen behalten ihre einmal vergebene ID** — dort heißt dieselbe
 Entität `sensor.yapaia_go_nav_state`. Eine Registrierung benennt nichts um.
 
@@ -342,7 +342,7 @@ heraus stellen.
 #### „Restzeit statt Ankunft"
 
 Gedacht für den Vergleich mit dem Dashboard. Home Assistant zeigt
-`sensor.yapaja_eta` als Countdown an („in 13 Minuten"), weil der Sensor ein
+`sensor.yapaia_eta` als Countdown an („in 13 Minuten"), weil der Sensor ein
 Zeitstempel ist; das Display zeigte eine Uhrzeit. Beide meinen denselben
 Augenblick, aber zwei verschiedene Größen nebeneinander lassen sich nicht
 vergleichen.

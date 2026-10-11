@@ -210,21 +210,21 @@ jobs:
           echo "path=release-notes.md" >> "$GITHUB_OUTPUT"
 
       # HA-Add-on-Version-Bump: siehe scripts/bump-addon-version.mjs'
-      # Kopfkommentar -- das bumpt `yapaja_go/config.yaml` in DIESEM Repo,
+      # Kopfkommentar -- das bumpt `yapaia_go/config.yaml` in DIESEM Repo,
       # das seit `feat/gui-install-path` selbst das HA-Add-on-Repository ist
-      # (`repository.yaml` in der Wurzel, Add-on-Ordner `yapaja_go/` auf
+      # (`repository.yaml` in der Wurzel, Add-on-Ordner `yapaia_go/` auf
       # oberster Ebene -- docs/04-home-assistant.md §3,
-      # yapaja_go/PACKAGING.md). Ein Spiegel-Push in ein separates
-      # `yapaja-go-ha-addon`-Repo ist damit fuer den GUI-Installationsweg
+      # yapaia_go/PACKAGING.md). Ein Spiegel-Push in ein separates
+      # `yapaia-go-ha-addon`-Repo ist damit fuer den GUI-Installationsweg
       # NICHT mehr noetig; er bleibt als optionaler spaeterer Schritt
       # moeglich und ist unten als Notiz vermerkt, nicht verschwiegen.
-      - name: HA-Add-on-Version bumpen (yapaja_go/config.yaml)
+      - name: HA-Add-on-Version bumpen (yapaia_go/config.yaml)
         run: node scripts/bump-addon-version.mjs "${{ steps.version.outputs.version }}"
 
       - name: "Hinweis: Add-on-Repository ist dieses Repo selbst"
         run: |
-          echo "::notice::yapaja_go/config.yaml wurde auf ${{ steps.version.outputs.version }} gebumpt."
-          echo "::notice::Nutzer tragen dieses Repository direkt als HA-Add-on-Repository ein (repository.yaml in der Wurzel); ein separates Spiegel-Repo ist optional, siehe yapaja_go/PACKAGING.md."
+          echo "::notice::yapaia_go/config.yaml wurde auf ${{ steps.version.outputs.version }} gebumpt."
+          echo "::notice::Nutzer tragen dieses Repository direkt als HA-Add-on-Repository ein (repository.yaml in der Wurzel); ein separates Spiegel-Repo ist optional, siehe yapaia_go/PACKAGING.md."
 
       - name: Geänderte Dateien als Artefakt hochladen (Changelog + Add-on-Version)
         uses: actions/upload-artifact@v4
@@ -232,7 +232,7 @@ jobs:
           name: release-changelog-${{ steps.version.outputs.version }}
           path: |
             go/CHANGELOG.md
-            go/yapaja_go/config.yaml
+            go/yapaia_go/config.yaml
             go/release-notes.md
           retention-days: 90
 
@@ -245,13 +245,13 @@ jobs:
       - name: Changelog-/Add-on-Version-Stand zurück nach main committen (nur bei echtem Tag)
         if: github.event_name == 'push'
         run: |
-          if git diff --quiet -- CHANGELOG.md yapaja_go/config.yaml 'apps/*/CHANGELOG.md' 'apps/*/package.json' 'packages/*/package.json'; then
+          if git diff --quiet -- CHANGELOG.md yapaia_go/config.yaml 'apps/*/CHANGELOG.md' 'apps/*/package.json' 'packages/*/package.json'; then
             echo "Keine Änderungen -- nichts zu committen (erwarteter Fall, siehe Kopfkommentar)."
             exit 0
           fi
-          git config user.name "yapaja-release-bot"
+          git config user.name "yapaia-release-bot"
           git config user.email "release-bot@users.noreply.github.com"
-          git add CHANGELOG.md yapaja_go/config.yaml 'apps/*/CHANGELOG.md' 'apps/*/package.json' 'packages/*/package.json'
+          git add CHANGELOG.md yapaia_go/config.yaml 'apps/*/CHANGELOG.md' 'apps/*/package.json' 'packages/*/package.json'
           git commit -m "chore(release): ${{ steps.version.outputs.version }} Changelog + Add-on-Version [skip ci]"
           git push origin HEAD:main
 

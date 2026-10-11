@@ -220,7 +220,7 @@ Orchestrator protokolliert die tatsächlichen Dispatches im ABSCHLUSSBERICHT.
 ### 3.1 Automatisierte Bestätigung (~30 Min., auf deinem Rechner oder Mini-PC)
 
 ```bash
-git clone <repo> yapaja-go && cd yapaja-go
+git clone <repo> yapaia-go && cd yapaia-go
 pnpm install
 pnpm lint && pnpm typecheck && pnpm test          # muss komplett grün sein
 ./services/valhalla/build-tiles.sh liechtenstein  # kleiner Test-Datensatz
@@ -246,8 +246,8 @@ alle Gate-Kommentare in den Issues #1–#11 verlinkt und grün.
 9. Store öffnen → Referenz-Add-on „Stellplätze" installieren → Layer sichtbar
    → deinstallieren → Layer weg.
 10. MQTT prüfen (falls Broker konfiguriert):
-    `mosquitto_sub -t 'yapaja/#' -v` zeigt Position/ETA/Anweisung;
-    `mosquitto_pub -t yapaja/cmd/navigation -m '"stop"'` stoppt die Navigation.
+    `mosquitto_sub -t 'yapaia/#' -v` zeigt Position/ETA/Anweisung;
+    `mosquitto_pub -t yapaia/cmd/navigation -m '"stop"'` stoppt die Navigation.
 
 ### 3.3 Ziel-Umgebung (dein Mini-PC, ~1–2 Std. inkl. Downloads)
 
@@ -256,7 +256,7 @@ alle Gate-Kommentare in den Issues #1–#11 verlinkt und grün.
 2. USB-GPS-Maus anschließen → Settings → GPS-Quelle: gpsd → Fix abwarten
    (kalt < 60 s), Position plausibel.
 3. HA: Gerät „Yapaia Go" unter MQTT-Integrationen → Entitäten (Speed, ETA,
-   Anweisung, Höhe …) vorhanden; Test-Automation: `select.yapaja_profile`
+   Anweisung, Höhe …) vorhanden; Test-Automation: `select.yapaia_profile`
    umschalten wirkt in der App.
 4. Erst danach: echte Probefahrt nach Hardware-Checkliste
    (docs/07-testing-qa.md §7) — Beifahrer bedient!

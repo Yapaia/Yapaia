@@ -4,7 +4,7 @@
  * pipeline (E04-T5).
  *
  * Factored out of `POST /navigation/destination`'s route handler so E08-T1's
- * `yapaja/cmd/destination` / `yapaja/cmd/favorite` MQTT commands reuse the
+ * `yapaia/cmd/destination` / `yapaia/cmd/favorite` MQTT commands reuse the
  * EXACT SAME sequence of service calls (SearchService -> RoutingService ->
  * NavigationService) instead of re-implementing it -- "call the same
  * services, don't duplicate business logic" (docs/03 §4, E08-T1 task brief).

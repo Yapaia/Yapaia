@@ -15,7 +15,7 @@ describe('listRegions', () => {
   });
 
   it('returns an empty list when tilesDir does not exist', async () => {
-    const missingDir = join(tmpdir(), 'yapaja-does-not-exist-' + Date.now());
+    const missingDir = join(tmpdir(), 'yapaia-does-not-exist-' + Date.now());
     const warnings: unknown[] = [];
     const regions = await listRegions(missingDir, { warn: (o) => warnings.push(o) });
     expect(regions).toEqual([]);

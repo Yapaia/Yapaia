@@ -88,9 +88,9 @@ jobs:
     # flaky/unavailable third-party Action must never block a merge (same
     # reasoning as golden-routes-de / photon-li-nightly above). The fast,
     # deterministic, in-repo structural check
-    # (yapaja_go/config.test.ts) is what actually gates PRs --
+    # (yapaia_go/config.test.ts) is what actually gates PRs --
     # see .github/workflows/ci.yml job `addon-config-check` and
-    # yapaja_go/PACKAGING.md "CI strategy" for the full split rationale. This
+    # yapaia_go/PACKAGING.md "CI strategy" for the full split rationale. This
     # job exists to surface the FULL Supervisor add-on schema's findings
     # nightly so a human can act on anything the narrower per-PR check
     # doesn't cover.
@@ -100,13 +100,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Lint yapaja_go/ against the Supervisor add-on schema
+      - name: Lint yapaia_go/ against the Supervisor add-on schema
         uses: frenck/action-addon-linter@v2
         with:
-          path: "./go/yapaja_go"
+          path: "./go/yapaia_go"
 
-  # E08-T4 / STAND 0.3.8: `yapaja_go/Dockerfile` wird jetzt gebaut -- in
-  # `.github/workflows/addon-image.yml`, pfadgefiltert auf `yapaja_go/**`,
+  # E08-T4 / STAND 0.3.8: `yapaia_go/Dockerfile` wird jetzt gebaut -- in
+  # `.github/workflows/addon-image.yml`, pfadgefiltert auf `yapaia_go/**`,
   # amd64, mit Pruefungen IM Container.
   #
   # Dass es das vorher nicht gab, war der strukturelle Grund, warum jeder
@@ -118,7 +118,7 @@ jobs:
   # Mini-PC (amd64); eine zweite Architektur verdoppelte die Kosten fuer
   # einen Fall, den es hier noch nicht gibt. Er bleibt manuell, per
   # `workflow_dispatch` auf `addon-image.yml` mit passendem `BUILD_FROM`
-  # aus `yapaja_go/build.yaml`.
+  # aus `yapaia_go/build.yaml`.
 
   perf-soak-24h:
     name: Performance-Soak 24 h (E10-T2, woechentlich)

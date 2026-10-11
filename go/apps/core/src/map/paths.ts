@@ -59,8 +59,8 @@ export function parseRegionParam(regionParam: string): string | null {
  * Verzeichnis mit dem Valhalla-Routinggraphen.
  *
  * Dieselbe Umgebungsvariable, die das Add-on-Init-Skript setzt
- * (`VALHALLA_TILES_DIR`, siehe `yapaja_go/rootfs/etc/yapaja/`), und derselbe
- * Default wie in `yapaja-build-graph` -- laufen die beiden auseinander,
+ * (`VALHALLA_TILES_DIR`, siehe `yapaia_go/rootfs/etc/yapaia/`), und derselbe
+ * Default wie in `yapaia-build-graph` -- laufen die beiden auseinander,
  * meldet die Übersicht „nicht gebaut" fuer einen Graphen, der da ist.
  */
 export function resolveGraphDir(): string {

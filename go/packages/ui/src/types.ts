@@ -21,7 +21,7 @@ export type WidgetSize = 'S' | 'M' | 'L';
 /**
  * Slots the shell exposes (docs/05 Section 4, docs/06 Section 1/2). This is
  * literally the add-on interface: a Frontend-Add-on's manifest
- * (`yapaja-addon.json` -> `ui.widgets[].slots`) declares widgets against this
+ * (`yapaia-addon.json` -> `ui.widgets[].slots`) declares widgets against this
  * SAME vocabulary, so the Core never has to special-case add-on widgets vs.
  * its own.
  */

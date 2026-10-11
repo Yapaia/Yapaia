@@ -233,32 +233,32 @@ export function werte(z: GoZustand): Record<string, unknown> {
   const s = new Map(buildHaStates(z).map((w) => [w.entityId, w]));
   const st = (id: string) => s.get(id)?.state;
   const at = (id: string) => s.get(id)?.attributes ?? {};
-  const anweisung = at('sensor.yapaja_instruction');
-  const ziel = at('sensor.yapaja_destination');
-  const zuSchnell = at('binary_sensor.yapaja_speeding');
+  const anweisung = at('sensor.yapaia_instruction');
+  const ziel = at('sensor.yapaia_destination');
+  const zuSchnell = at('binary_sensor.yapaia_speeding');
   const tracker = s.get(EIGENER_FAHRZEUG_TRACKER)?.attributes;
-  const zielName = textOderNull(st('sensor.yapaja_destination'));
+  const zielName = textOderNull(st('sensor.yapaia_destination'));
   return {
-    anweisung: textOderNull(st('sensor.yapaja_instruction')),
+    anweisung: textOderNull(st('sensor.yapaia_instruction')),
     anweisung_symbol: anweisung.icon ?? null,
     anweisung_typ: anweisung.type ?? null,
     anweisung_strassen: anweisung.street_names ?? null,
     anweisung_kreisel: anweisung.roundabout ?? null,
-    anweisung_entfernung: zahl(st('sensor.yapaja_instruction_distance')),
-    ankunft: textOderNull(st('sensor.yapaja_eta')),
-    restweg: zahl(st('sensor.yapaja_distance_remaining')),
+    anweisung_entfernung: zahl(st('sensor.yapaia_instruction_distance')),
+    ankunft: textOderNull(st('sensor.yapaia_eta')),
+    restweg: zahl(st('sensor.yapaia_distance_remaining')),
     ziel: zielName,
     ziel_eingabe: zielName ?? '',
     ziel_breite: ziel.lat ?? null,
     ziel_laenge: ziel.lon ?? null,
-    zustand: textOderNull(st('sensor.yapaja_nav_state')),
-    tempo: zahl(st('sensor.yapaja_speed')),
-    tempolimit: zahl(st('sensor.yapaja_speed_limit')),
-    tempolimit_fahrzeug: zahl(st('sensor.yapaja_speed_limit_vehicle')),
-    zu_schnell: st('binary_sensor.yapaja_speeding') === 'on',
+    zustand: textOderNull(st('sensor.yapaia_nav_state')),
+    tempo: zahl(st('sensor.yapaia_speed')),
+    tempolimit: zahl(st('sensor.yapaia_speed_limit')),
+    tempolimit_fahrzeug: zahl(st('sensor.yapaia_speed_limit_vehicle')),
+    zu_schnell: st('binary_sensor.yapaia_speeding') === 'on',
     grenze_kmh: zuSchnell.grenze_kmh ?? null,
     grenze_quelle: zuSchnell.quelle ?? null,
-    hoehe: zahl(st('sensor.yapaja_altitude')),
+    hoehe: zahl(st('sensor.yapaia_altitude')),
     standort: tracker
       ? { breite: tracker.latitude, laenge: tracker.longitude, genauigkeit: tracker.gps_accuracy ?? 0 }
       : null,

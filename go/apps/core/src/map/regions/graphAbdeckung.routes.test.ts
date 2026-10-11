@@ -84,11 +84,11 @@ describe('POST /:id/build-graph — ein Graph über alle installierten Karten', 
    * @param mitExtrakt   Regionen, deren `.osm.pbf` schon im Zwischenlager liegt.
    */
   async function setUp(installiert: string[], mitExtrakt: string[]): Promise<void> {
-    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-abdeckung-tiles-'));
-    const katalogDir = mkdtempSync(join(tmpdir(), 'yapaja-abdeckung-katalog-'));
+    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-abdeckung-tiles-'));
+    const katalogDir = mkdtempSync(join(tmpdir(), 'yapaia-abdeckung-katalog-'));
     // Das Zwischenlager liegt zwei Ebenen über dem Graphverzeichnis — so
-    // leitet `yapaja-build-graph` es ab, und genau so `pbfLagerPfad()`.
-    const valhallaWurzel = mkdtempSync(join(tmpdir(), 'yapaja-abdeckung-valhalla-'));
+    // leitet `yapaia-build-graph` es ab, und genau so `pbfLagerPfad()`.
+    const valhallaWurzel = mkdtempSync(join(tmpdir(), 'yapaia-abdeckung-valhalla-'));
     tempDirs.push(tilesDir, katalogDir, valhallaWurzel);
 
     for (const region of installiert) {

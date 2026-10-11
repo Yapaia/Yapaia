@@ -7,7 +7,7 @@
  * Deliberately publishes on its own `pos/extrapolated` topic, never on
  * `pos/update` -- an extrapolated fix must never be mistaken for a real one.
  * This matters beyond the puck's gray styling: the future MQTT bridge
- * (E08) only republishes `pos/update` as `yapaja/position`, so keeping
+ * (E08) only republishes `pos/update` as `yapaia/position`, so keeping
  * extrapolation on its own topic means a dead-reckoned guess is never
  * forwarded to external consumers as a real fix. See
  * deadReckoning.test.ts's `it.todo` for the explicit invariant that
@@ -141,7 +141,7 @@ export class DeadReckoningController {
     const extrapolated = this.provider.extrapolate(this.lastFix, elapsedMs);
     if (extrapolated !== null) {
       // Own topic, not `pos/update` -- see module docstring: keeps
-      // dead-reckoned guesses out of the future MQTT `yapaja/position`
+      // dead-reckoned guesses out of the future MQTT `yapaia/position`
       // mapping (E08), which only republishes `pos/update`.
       const payload: ExtrapolatedPosition = { ...extrapolated, extrapolated: true };
       this.bus.publish('pos/extrapolated', payload);

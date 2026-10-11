@@ -291,7 +291,7 @@ export function getValidationErrorsHistoryEntry(data: unknown): string[] {
 }
 
 /**
- * Add-on manifest (`yapaja-addon.json`, E09-T1) validation: layers the
+ * Add-on manifest (`yapaia-addon.json`, E09-T1) validation: layers the
  * hand-rolled semver checks (`isValidSemver`/`isValidRange`, `./semver.ts`)
  * on top of the AJV structural schema, since AJV alone can't express "is
  * this a valid semver range". Both layers must pass. The semver checks only

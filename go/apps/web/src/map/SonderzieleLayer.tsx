@@ -31,8 +31,8 @@ import { useStyleStore, wirksamesPoiAus } from '../state/styleStore.js';
 import { runWhenStyleReady } from './styleReady.js';
 import { useSonderzieleStore } from './sonderzieleStore.js';
 
-export const SONDERZIELE_SOURCE_ID = 'yapaja-sonderziele';
-export const SONDERZIELE_LAYER_ID = 'yapaja-sonderziele-marken';
+export const SONDERZIELE_SOURCE_ID = 'yapaia-sonderziele';
+export const SONDERZIELE_LAYER_ID = 'yapaia-sonderziele-marken';
 
 const LEER = { type: 'FeatureCollection' as const, features: [] };
 

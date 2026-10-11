@@ -226,7 +226,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     onProfileChanged: (profile) => {
       eventBus.publish('event/profile_changed', { id: profile.id, name: profile.name });
     },
-    // E08-T2: create/update/delete -> re-publish `select.yapaja_profile`'s
+    // E08-T2: create/update/delete -> re-publish `select.yapaia_profile`'s
     // HA discovery `options` (see `mqtt/bridge.ts`'s `event/profile_list_changed`
     // subscription).
     onProfileListChanged: () => {
@@ -513,7 +513,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
         const host = address.address === '::' || address.address === '0.0.0.0' ? '127.0.0.1' : address.address;
         return `http://${host.includes(':') ? `[${host}]` : host}:${address.port}`;
       }
-      return process.env.YAPAJA_API_URL ?? `http://127.0.0.1:${process.env.PORT ?? '8080'}`;
+      return process.env.YAPAIA_API_URL ?? `http://127.0.0.1:${process.env.PORT ?? '8080'}`;
     },
   });
   fastify.decorate('addonServiceHost', addonServiceHost);
@@ -659,7 +659,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
           enabled: discoveryConfig.enabled,
           discoveryPrefix: discoveryConfig.discoveryPrefix,
           device: {
-            identifiers: ['yapaja_go'],
+            identifiers: ['yapaia_go'],
             name: 'Yapaia Go',
             // SAME version `/api/v1/health` reports (`readAddonVersion()` above).
             sw_version: version,
@@ -1212,10 +1212,10 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   // GET /api/v1/bord -- was die Bordsensoren gerade sagen, samt Hinweisen.
   fastify.get('/api/v1/bord', async (_request, reply) => reply.code(200).send({ data: bordDienst.zustand() }));
 
-  // Fertiges Lovelace-Dashboard (`/local/yapaja/dashboard.yaml`).
+  // Fertiges Lovelace-Dashboard (`/local/yapaia/dashboard.yaml`).
   //
   // Nur im Add-on: `YAPAIA_HA_WWW_DIR` setzt das Init-Skript auf
-  // `<ha-config>/www/yapaja` -- denselben Ordner, in den es die Dashboard-Karte
+  // `<ha-config>/www/yapaia` -- denselben Ordner, in den es die Dashboard-Karte
   // legt. Eigenstaendig laufende Cores haben kein HA-Verzeichnis, und dort
   // passiert dann auch nichts (siehe `ha/dashboard.ts`).
   const dashboardPflegeBeenden = starteDashboardPflege({
@@ -1325,7 +1325,7 @@ async function main(): Promise<void> {
     await fastify.listen({ port, host });
     logger.info(`Server running at http://${host}:${port}`);
     // E09-T3: start every ENABLED add-on service AFTER the server is
-    // listening, so each child gets a `YAPAJA_API_URL` that already works.
+    // listening, so each child gets a `YAPAIA_API_URL` that already works.
     (fastify as unknown as { addonServiceHost: { startAll(): void } }).addonServiceHost.startAll();
   } catch (err) {
     logger.error(err);

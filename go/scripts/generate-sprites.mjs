@@ -47,7 +47,7 @@ export const OUT_DIR = join(
 );
 
 /** Basisname; MapLibre hängt `.json`/`.png` und `@2x` selbst an. */
-export const SPRITE_NAME = 'yapaja';
+export const SPRITE_NAME = 'yapaia';
 
 // ───────────────────────────── Die Schilder ─────────────────────────────────
 

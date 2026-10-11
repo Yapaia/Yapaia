@@ -5,7 +5,7 @@
 
 /**
  * MqttBridge (E08-T1, docs/03 §4 + Wargame W-06): mirrors the internal event
- * bus to MQTT for Home Assistant and accepts `yapaja/cmd/*` commands back.
+ * bus to MQTT for Home Assistant and accepts `yapaia/cmd/*` commands back.
  *
  * Connection lifecycle mirrors `position/gpsd/index.ts`'s `GpsdSource`
  * (same "own connect(), reconnect via scheduleReconnect() with doubling
@@ -62,7 +62,7 @@ import {
 } from './commands.js';
 import { buildDiscoveryConfigs, buildSelectProfileConfig, type DiscoveryDevice } from './discovery.js';
 
-const DEFAULT_PREFIX = 'yapaja';
+const DEFAULT_PREFIX = 'yapaia';
 const DEFAULT_MIN_BACKOFF_MS = 1000;
 const DEFAULT_MAX_BACKOFF_MS = 60_000;
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
@@ -95,7 +95,7 @@ export interface AddonMqttToggleLookup {
  *  DB column's own `DEFAULT 1` (opt-OUT, not opt-in) -- see migration
  *  `004_addon_mqtt_enabled.ts`. This default is not itself a security
  *  boundary: whatever an add-on may publish here is ALREADY confined to its
- *  own `yapaja/addon/{id}/*` namespace by `normalizeAddonEventTopic` +
+ *  own `yapaia/addon/{id}/*` namespace by `normalizeAddonEventTopic` +
  *  `buildAddonMqttTopic`, so "publish by default" only affects HA
  *  visibility, never namespace safety. */
 const alwaysMqttEnabled: AddonMqttToggleLookup = { isMqttEnabled: () => true };
@@ -151,13 +151,13 @@ export interface MqttBridgeOptions {
   brokerUrl: string;
   username?: string;
   password?: string;
-  /** Default `'yapaja'`. */
+  /** Default `'yapaia'`. */
   prefix?: string;
 
   navigationService: NavigationService;
   profileService: MqttProfileLookup;
   favoriteService: MqttFavoriteLookup;
-  /** Route lookup for `yapaja/route/summary` (RoutingService satisfies it). */
+  /** Route lookup for `yapaia/route/summary` (RoutingService satisfies it). */
   routeProvider?: RouteProvider;
   /** Reroute/route-compute entry point for `cmd/destination` + `cmd/favorite`
    *  (the SAME shared RoutingService instance production wires everywhere else). */
@@ -440,7 +440,7 @@ export class MqttBridge {
       ),
       this.bus.subscribe('event/reroute_failed', (payload) => this.publishEvent('reroute_failed', payload)),
       this.bus.subscribe('event/reroute_loop', (payload) => this.publishEvent('reroute_loop', payload)),
-      // E08-T2: `select.yapaja_profile`'s discovery `options` follow the
+      // E08-T2: `select.yapaia_profile`'s discovery `options` follow the
       // live profile list -- `event/profile_list_changed` (create/update/
       // rename/delete) is the primary trigger; `event/profile_changed`
       // (activate) never changes the list itself but is cheap/idempotent to
@@ -450,7 +450,7 @@ export class MqttBridge {
       this.bus.subscribe('event/profile_changed', () => this.publishProfileSelectDiscovery()),
       // E09-T8: every add-on event (published under `addon/{id}/*` via the
       // `events.publish` scope, docs/05 §2) additionally goes out as
-      // `yapaja/addon/{id}/*`. `'addon/*'` is a PREFIX pattern on the bus
+      // `yapaia/addon/{id}/*`. `'addon/*'` is a PREFIX pattern on the bus
       // (`topicMatches()`, `../bus/index.ts`) -- it catches every add-on's
       // events through one subscription, same shape as this bridge already
       // uses for its own status topics.
@@ -479,7 +479,7 @@ export class MqttBridge {
     this.maybePublishRouteSummary(state);
   }
 
-  /** `yapaja/route/summary`, published once per NEW route_id (docs/03 §4:
+  /** `yapaia/route/summary`, published once per NEW route_id (docs/03 §4:
    *  "bei neuer Route") -- fires for both a fresh `start()` and any reroute,
    *  since both surface as a route_id change on `nav/state`. */
   private maybePublishRouteSummary(state: NavState): void {
@@ -495,7 +495,7 @@ export class MqttBridge {
     this.publishRetained(`${this.prefix}/nav/instruction`, buildInstructionPayload(payload));
   }
 
-  /** `yapaja/event/#` -- transient, retain ✘ (docs/03 §4), never tracked in `lastKnown`. */
+  /** `yapaia/event/#` -- transient, retain ✘ (docs/03 §4), never tracked in `lastKnown`. */
   private publishEvent(name: string, payload: unknown): void {
     this.safePublish(`${this.prefix}/event/${name}`, JSON.stringify(payload), {
       retain: false,
@@ -504,7 +504,7 @@ export class MqttBridge {
   }
 
   /**
-   * `yapaja/addon/{id}/*` (E09-T8, docs/05 §2) -- an add-on's own
+   * `yapaia/addon/{id}/*` (E09-T8, docs/05 §2) -- an add-on's own
    * `events.publish` output, republished to MQTT. Four independent gates,
    * in order (any one failing means "drop, log, never publish"):
    *
@@ -520,7 +520,7 @@ export class MqttBridge {
    *  3. the 16 KB payload cap ({@link MAX_ADDON_EVENT_PAYLOAD_BYTES}).
    *  4. the 5 msg/s rate limit ({@link addonEventLimiter}, docs/05 §2).
    *
-   * Never retained (`retain: false`): like `yapaja/event/#` above, an
+   * Never retained (`retain: false`): like `yapaia/event/#` above, an
    * add-on event is a point-in-time notification (e.g. "recording
    * started"), not a durable state -- a client that subscribes later must
    * never be handed a replay of something that already happened. Add-ons
@@ -648,7 +648,7 @@ export class MqttBridge {
     }
   }
 
-  /** Just `select.yapaja_profile` -- the live-options republish on a profile list/name change. */
+  /** Just `select.yapaia_profile` -- the live-options republish on a profile list/name change. */
   private publishProfileSelectDiscovery(): void {
     if (!this.discoveryEnabled || !this.discoveryDevice) return;
     const config = buildSelectProfileConfig({

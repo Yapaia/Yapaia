@@ -1,0 +1,135 @@
+---
+# Add-on configuration labels. Without this file Home Assistant shows the raw
+# keys. The structure mirrors the schema in `config.yaml`: since 0.8.4 the
+# rarely-touched options are nested in groups, which Home Assistant draws as
+# collapsible blocks — so here, too, the group name comes first and its
+# options sit underneath. See `de.yaml` for the full reasoning.
+configuration:
+  region:
+    name: Region
+    description: Which map region Yapaia uses (for example "germany" or "liechtenstein").
+      Leave empty and the setup wizard inside Yapaia walks you through it. Downloading
+      and building regions does not happen here but in Yapaia itself, under "Regions"
+      — that is a job with progress, not a setting.
+  gps_source:
+    name: Source
+    description: 'Where your position comes from. "usb": a GPS receiver on the USB
+      port. "network": a gpsd on another machine. "companion_app": the Home Assistant
+      Companion App on a phone, tablet or car radio — the right choice when Home
+      Assistant runs over http://, because no browser will release its location
+      sensor then. "none": the position comes from the browser. A browser position
+      is accepted at every setting.'
+  gps_device:
+    name: USB device
+    description: 'Which port the GPS receiver is on. Normally leave empty — Yapaia
+      finds it itself. You only need to fill this in when the health check asks:
+      that means several serial devices are plugged in (often a Zigbee or Z-Wave
+      stick) and none identifies itself as a GPS. Use the path under /dev/serial/by-id/
+      rather than /dev/ttyACM0 — the number shifts as soon as another USB stick
+      appears.'
+  ha_device_tracker:
+    name: Companion App device
+    description: Which device supplies the position, e.g. "device_tracker.my_phone".
+      Only needed when several devices run the Companion App — with exactly one,
+      Yapaia picks it itself. You can also choose it inside Yapaia (health check
+      → "Companion App device"); that takes effect immediately.
+  search:
+    name: Search
+    description: Address search and its memory. Only touch this when memory is tight.
+    photon_enabled:
+      name: Address search with Photon
+      description: 'Full address search including house numbers. It is the single
+        biggest consumer of memory in Yapaia. Turned off, search still works: a
+        built-in lightweight index finds places and street names, just not house
+        numbers.'
+    photon_xmx_mb:
+      name: Memory for Photon (MB)
+      description: Upper limit for the address search. Too little and search dies;
+        too much and it takes memory away from Home Assistant. 1024 is enough for
+        one country.
+  routing:
+    name: Routing
+    description: How much memory route calculation gets.
+    valhalla_memory_mb:
+      name: Memory for Valhalla (MB)
+      description: Upper limit for route calculation. Grows with the size of the
+        region; 2048 is a good starting point for one country.
+  display:
+    name: Appearance
+    description: Light or dark — for the interface and the map together.
+    theme:
+      name: Theme
+      description: 'A DEFAULT for devices that have not chosen inside Yapaia; choosing
+        something there under "Design" overrides it for that device. "light"/"dark":
+        fixed. "system": follows the device''s light/dark setting. "sun": follows
+        the sun at your position — usually the better one in a vehicle, because
+        it goes dark when it gets dark outside.'
+  online:
+    name: Online services
+    description: Extras that need an internet connection. Yapaia navigates fully without them.
+    enabled:
+      name: Allow online services
+      description: 'Off by default. When on, Yapaia may fetch roadworks, closures and warnings from the German motorway authority and, for a place you tap, details from OpenStreetMap, Wikipedia and Wikimedia Commons. Only the request leaves the house, plus the tapped place''s coordinates and name — never your own position, route or a device identifier. Without a connection only this is lost; navigation keeps working offline.'
+    tankerkoenig_api_key:
+      name: Tankerkönig key (fuel prices)
+      description: 'Optional. With a free key from creativecommons.tankerkoenig.de, the fuel station search shows the current price for the active profile''s fuel type (German stations). For this, the area of the stations found, rounded to about 5 km, is sent to Tankerkönig. Only works with online services switched on. Empty or without a connection, no price is shown. Data: MTS-K via Tankerkönig, CC BY 4.0.'
+  bord:
+    name: On-board sensors
+    description: 'Tank levels, battery and outside temperature from Home Assistant. When
+      a threshold is reached, Yapaia says so — for grey and fresh water together with
+      the next station ahead on the route, which you can take as your next stop. Sensors
+      left empty are ignored.'
+    grauwasser:
+      name: Grey water (sensor)
+      description: The entity with the grey-water tank level in percent, e.g. "sensor.grey_water_level".
+    frischwasser:
+      name: Fresh water (sensor)
+      description: The entity with the fresh-water tank level in percent.
+    batterie:
+      name: House battery (sensor)
+      description: The entity with the house battery's state of charge in percent.
+    aussentemperatur:
+      name: Outside temperature (sensor)
+      description: The entity with the outside temperature in °C.
+    grauwasser_ab:
+      name: Report grey water from (%)
+      description: From this level up, Yapaia reports the grey-water tank.
+    frischwasser_bis:
+      name: Report fresh water at (%)
+      description: At this level and below, Yapaia reports the fresh-water tank.
+    batterie_bis:
+      name: Report battery at (%)
+      description: At this charge and below, Yapaia reports the house battery.
+    frost_bis:
+      name: Report frost at (°C)
+      description: At this outside temperature and below, Yapaia reminds you to protect the water system from frost.
+  home_assistant:
+    name: Home Assistant
+    description: How Yapaia reports its values to Home Assistant.
+    ha_internal:
+      name: Report values directly
+      description: Publishes position, ETA, remaining distance and the next instruction
+        as Home Assistant entities without an MQTT broker. The simplest route if
+        you do not run MQTT.
+    mqtt_enabled:
+      name: Report values over MQTT
+      description: The same over an MQTT broker. Useful when other devices should
+        listen in (ESPHome, your own automations). Both channels may be on at once;
+        if the broker fails, values keep flowing over the direct one.
+    mqtt_prefix:
+      name: MQTT topic prefix
+      description: The prefix the topics are published under, e.g. "yapaia/nav/eta".
+        Only change it if the name is already taken on your broker.
+  advanced:
+    name: Advanced
+    description: Test driver and log level. In everyday use nothing here needs changing.
+    gps_simulator:
+      name: Enable the test driver
+      description: 'Unlocks the built-in simulator so you can try a drive without
+        a vehicle. Off by default, deliberately: the simulator feeds arbitrary positions
+        and displaces the real receiver while it does. That must not happen by accident
+        in a moving vehicle.'
+    log_level:
+      name: Log level
+      description: How verbose the add-on log is. Only turn on "debug" to chase
+        a problem — it writes a lot.

@@ -119,15 +119,15 @@ static RealTimeClock s_uhr;
 static BaseFont *font_xl=&f_xl,*font_l=&f_l,*font_m=&f_m,*font_s=&f_s;
 static Color &c_hintergrund=k_h,&c_text=k_t,&c_gedaempft=k_g,&c_pfeil=k_p,
              &c_warnung=k_w,&c_gut=k_gut,&c_schild=k_s;
-static sensor::Sensor *yapaja_tempo=&s_tempo,*yapaja_tempolimit=&s_limit,
-  *yapaja_tempolimit_fahrzeug=&s_limit_fz,*yapaja_manoever_entfernung=&s_mdist,
-  *yapaja_reststrecke=&s_rest,*neigung_lr=&s_lr,*neigung_vh=&s_vh;
+static sensor::Sensor *yapaia_tempo=&s_tempo,*yapaia_tempolimit=&s_limit,
+  *yapaia_tempolimit_fahrzeug=&s_limit_fz,*yapaia_manoever_entfernung=&s_mdist,
+  *yapaia_reststrecke=&s_rest,*neigung_lr=&s_lr,*neigung_vh=&s_vh;
 static switch_::Switch *waage_erzwingen=&s_erzwingen,*waage_fahrzeug=&s_fahrzeug,
   *eta_als_restzeit=&s_restzeit;
 static RealTimeClock *ha_zeit=&s_uhr;
-static binary_sensor::BinarySensor *yapaja_zu_schnell=&s_schnell;
-static text_sensor::TextSensor *yapaja_anweisung=&s_anweisung,*yapaja_manoever_art=&s_art,
-  *yapaja_fahrzustand=&s_zustand,*yapaja_ankunft=&s_ankunft,*yapaja_kreisel=&s_kreisel;
+static binary_sensor::BinarySensor *yapaia_zu_schnell=&s_schnell;
+static text_sensor::TextSensor *yapaia_anweisung=&s_anweisung,*yapaia_manoever_art=&s_art,
+  *yapaia_fahrzustand=&s_zustand,*yapaia_ankunft=&s_ankunft,*yapaia_kreisel=&s_kreisel;
 
 static void zeichne(Display &it) {
 #include "lambda_body.inc"

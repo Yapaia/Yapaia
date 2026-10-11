@@ -490,7 +490,7 @@ describe('Positionsprüfung', () => {
     const report = await runPreflight(
       healthyDeps({
         // `GPSD_ENABLED: 'false'`, weil `gps_source: companion_app` gpsd
-        // ausschaltet (init-yapaja-config.sh) -- sonst gewinnt der
+        // ausschaltet (init-yapaia-config.sh) -- sonst gewinnt der
         // gpsd-Zweig, und der Test prüfte gar nicht, was er soll.
         env: {
           ...healthyDeps().env,
@@ -582,7 +582,7 @@ describe('Positionsprüfung', () => {
     expect(seen).toContainEqual(['gps-box', 3333]);
   });
 
-  // ─── Die Zusage aus yapaja_go/config.yaml ────────────────────────────────
+  // ─── Die Zusage aus yapaia_go/config.yaml ────────────────────────────────
   // Dort stand seit 0.3.0: „Welche Entitaeten in Frage kommen, sagt die
   // Installationspruefung: sie listet alle gefundenen `device_tracker.*` MIT
   // Koordinaten auf." Sie tat es nicht. Diese Tests sind der Grund, warum der

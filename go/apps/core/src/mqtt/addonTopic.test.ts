@@ -2,7 +2,7 @@
  * Unit tests for the add-on bus-topic -> MQTT-topic translation (E09-T8).
  *
  * These are the HOSTILE-INPUT tests the task's plausibility criterion asks
- * for: "Add-on kann keine `yapaja/cmd/*`- oder Core-Status-Topics
+ * for: "Add-on kann keine `yapaia/cmd/*`- oder Core-Status-Topics
  * publizieren (Topic-Namespace-Test)". `buildAddonMqttTopic` is exercised
  * DIRECTLY here (bypassing the REST layer) so every case is a pure,
  * deterministic function call; `bridge.integration.test.ts` separately
@@ -20,7 +20,7 @@ import { Buffer } from 'node:buffer';
 import { parseAddonBusTopic, buildAddonMqttTopic, MAX_MQTT_TOPIC_BYTES } from './addonTopic.js';
 import { normalizeAddonEventTopic } from '../addons/scopeMatrix.js';
 
-const PREFIX = 'yapaja';
+const PREFIX = 'yapaia';
 const ID = 'com.example.addon';
 
 /** NUL and DEL, built via String.fromCharCode -- deliberately never a
@@ -142,10 +142,10 @@ describe('never produces a topic outside {prefix}/addon/{id}/*', () => {
     }
   });
 
-  it('can never produce yapaja/cmd/* or yapaja/nav/* however the suffix is crafted', () => {
+  it('can never produce yapaia/cmd/* or yapaia/nav/* however the suffix is crafted', () => {
     // Even a suffix that literally SPELLS "cmd/destination" just nests
     // harmlessly under the add-on's own namespace -- it is not, and cannot
-    // become, the real `yapaja/cmd/destination` topic.
+    // become, the real `yapaia/cmd/destination` topic.
     const mqttTopic = buildAddonMqttTopic(PREFIX, `addon/${ID}/cmd/destination`);
     expect(mqttTopic).toBe(`${PREFIX}/addon/${ID}/cmd/destination`);
     expect(mqttTopic).not.toBe(`${PREFIX}/cmd/destination`);

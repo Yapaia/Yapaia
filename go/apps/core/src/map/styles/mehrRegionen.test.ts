@@ -14,7 +14,7 @@ import type { MapRegionInfo } from '../regions';
 import { enthaelt, flaeche, sichtbareRegionen, verdeckteRegionen } from './mehrRegionen';
 import { rewriteToRegions, regionSourceId, tileUrlForRegion } from './rewrite';
 import { REGION_SOURCE_ID } from './constants';
-import { buildYapaiaLightStyle } from './yapaja-light';
+import { buildYapaiaLightStyle } from './yapaia-light';
 
 function region(name: string, bounds: MapRegionInfo['bounds']): MapRegionInfo {
   return {

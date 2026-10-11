@@ -37,7 +37,7 @@ function currentVersion(db: Database.Database): number {
 
 const dirs: string[] = [];
 function tempDbPath(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'yapaja-migrations-'));
+  const dir = mkdtempSync(join(tmpdir(), 'yapaia-migrations-'));
   dirs.push(dir);
   return join(dir, 'test.db');
 }

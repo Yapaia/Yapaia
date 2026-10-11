@@ -1,0 +1,167 @@
+#!/command/with-contenv bash
+# ==============================================================================
+# yapaia-build-pmtiles -- Kartenkacheln fuer eine Region bauen, VON INNEN.
+#
+# ─── WOZU DIESER WRAPPER ────────────────────────────────────────────────────
+# `services/tiles/build-pmtiles.sh` ist fuer einen Checkout des Repositories
+# geschrieben: es leitet `TILES_DIR` aus der Repo-Wurzel ab und ruft
+# standardmaessig `docker run` auf. Beides trifft im Add-on-Container nicht
+# zu -- es gibt kein Repository und keinen Docker-Socket.
+#
+# Dieser Wrapper setzt genau die drei Dinge, die dort anders sind:
+#   * TILES_DIR      -> das persistente Add-on-Verzeichnis unter /share
+#   * PLANETILER_JAR -> schaltet das Skript vom Docker- in den JAR-Modus
+#   * PLANETILER_XMX -> Heap, aus dem tatsaechlich vorhandenen Arbeitsspeicher
+#                       abgeleitet (siehe unten)
+#
+# ─── WARUM DIE JAR NICHT IM IMAGE LIEGT ─────────────────────────────────────
+# ~100 MB, die jeder Betreiber mitschleppen wuerde, auch wenn er nie eine
+# Region baut (etwa weil er die fertige Datei per „Samba share" ablegt).
+# Sie wird beim ERSTEN Bau nach /share/yapaia/tools/ geladen und bleibt
+# dort -- ausserhalb des Containers, also ueber Add-on-Updates hinweg.
+#
+# ─── VERWENDUNG ─────────────────────────────────────────────────────────────
+#   yapaia-build-pmtiles <pbf-url-oder-pfad> [region-id]
+#
+# Beispiele:
+#   yapaia-build-pmtiles https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+#   yapaia-build-pmtiles https://download.geofabrik.de/europe/germany/rheinland-pfalz-latest.osm.pbf
+#
+# Ohne region-id wird sie aus dem Dateinamen abgeleitet
+# ("liechtenstein-latest.osm.pbf" -> "liechtenstein").
+#
+# Nach einem erfolgreichen Lauf ist KEIN Neustart noetig: der Core listet die
+# Regionen bei jeder Anfrage frisch aus dem Verzeichnis. In der Oberflaeche
+# genuegt ein Reload.
+# ==============================================================================
+set -euo pipefail
+
+PLANETILER_VERSION="${PLANETILER_VERSION:-v0.10.2}"
+TOOLS_DIR="${YAPAIA_TOOLS_DIR:-/share/yapaia/tools}"
+JAR_PATH="${PLANETILER_JAR:-$TOOLS_DIR/planetiler-$PLANETILER_VERSION.jar}"
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  cat >&2 <<'EOF'
+Usage: yapaia-build-pmtiles <pbf-url-oder-pfad> [region-id]
+
+Beispiel:
+  yapaia-build-pmtiles https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+
+Env-Overrides:
+  TILES_DIR        Zielverzeichnis (Default: /share/yapaia/tiles)
+  PLANETILER_JAR   eigene planetiler.jar statt der automatisch geladenen
+  PLANETILER_XMX   JVM-Heap (Default: 2g)
+EOF
+  exit 1
+fi
+
+# TILES_DIR kommt normalerweise aus dem Container-Environment (gesetzt von
+# rootfs/etc/yapaia/init-yapaia-config.sh). Der Default hier ist nur der
+# Rueckfall, wenn jemand den Wrapper ausserhalb des s6-Kontexts aufruft.
+export TILES_DIR="${TILES_DIR:-/share/yapaia/tiles}"
+# ─── HEAP: AUS DEM VORHANDENEN SPEICHER, NICHT AUS EINER FESTEN ZAHL ───────
+# Hier stand fest "2g". Das passte, solange die HAOS-VM 8 GB hatte und
+# Liechtenstein das Ziel war. Fuer einen grossen Extrakt ist es zu wenig:
+# planetiler laeuft dann entweder ewig oder bricht mit OutOfMemory ab -- nach
+# Stunden, und ohne dass vorher irgendetwas darauf hingewiesen haette.
+#
+# (Der Kopfkommentar behauptete ausserdem, der Wert stamme aus der Option
+# `valhalla_memory_mb`. Das tat er nie -- es gibt keine Stelle, die ihn
+# gesetzt haette. Wieder ein beschriebener Weg, den es nicht gab.)
+#
+# Genommen werden 40 % des Arbeitsspeichers, hoechstens 8 GB.
+#
+# Bewusst NICHT mehr: planetiler legt seine Zwischenstaende als Dateien ab
+# (`--nodemap-type=sortedtable`) und liest sie ueber den Dateisystem-Cache.
+# Ein grosser Heap nimmt genau diesem Cache den Platz weg -- ab einem Punkt
+# wird der Bau durch mehr Heap also LANGSAMER, nicht schneller. Dazu laufen im
+# selben Container noch Valhalla, Photon und der Core.
+#
+# Bei 16 GB sind das rund 6,4 GB Heap und knapp 10 GB fuer Cache und den Rest.
+#
+# Wer es genau wissen will, setzt PLANETILER_XMX selbst -- das gewinnt.
+if [ -z "${PLANETILER_XMX:-}" ]; then
+  MEM_TOTAL_KB="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+  if [ "${MEM_TOTAL_KB:-0}" -gt 0 ]; then
+    XMX_MB=$(( MEM_TOTAL_KB / 1024 * 40 / 100 ))
+    [ "$XMX_MB" -lt 2048 ] && XMX_MB=2048
+    [ "$XMX_MB" -gt 8192 ] && XMX_MB=8192
+    PLANETILER_XMX="${XMX_MB}m"
+  else
+    PLANETILER_XMX="2g"
+  fi
+  echo "Heap fuer planetiler automatisch gewaehlt: $PLANETILER_XMX (RAM: $(( ${MEM_TOTAL_KB:-0} / 1024 )) MB)"
+fi
+export PLANETILER_XMX
+
+# ─── ARBEITSVERZEICHNIS GEHOERT AUF DIESELBE PLATTE WIE DAS ERGEBNIS ────────
+# `build-pmtiles.sh` legt sein Arbeitsverzeichnis unter ${TMPDIR:-/tmp} an --
+# im Container also in dessen beschreibbarer Schicht, NICHT unter /share.
+# Waehrend des Baus liegt dort der weitaus groesste Teil des Platzbedarfs
+# (planetiler haelt Knoten- und Wege-Zwischenstaende); die fertige .pmtiles
+# ist der kleinere Rest.
+#
+# Genau diesen Bedarf prueft der Core vor dem Start (BUILD_DISK_FACTOR = 3)
+# -- aber er misst `TILES_DIR`, also /share. Blieb die Arbeit in /tmp, war
+# die Vorpruefung eine Messung am falschen Dateisystem: sie haette bei einer
+# 350-MB-Region gruenes Licht gegeben und der Lauf waere Stunden spaeter in
+# der Container-Schicht am Platz gescheitert. Beides zeigt jetzt auf
+# dieselbe Platte, damit die geprueften Zahlen auch die zutreffenden sind.
+export TMPDIR="${TMPDIR:-$(dirname "$TILES_DIR")/tmp}"
+
+# ─── GEMEINSAME BASISDATEN GEHOEREN NEBEN DIE KACHELN, NICHT IN DEN CONTAINER ─
+# Das OpenMapTiles-Profil braucht neben dem OSM-Extrakt drei nicht
+# regionsspezifische Quellen (Wasserflaechen, Natural Earth,
+# Seen-Mittellinien). Sie werden beim ERSTEN Bau geladen -- mehrere hundert MB
+# -- und danach von jeder weiteren Region wiederverwendet. Deshalb unter
+# /share: ueberlebt Add-on-Updates, und der zweite Regionsbau laedt nichts
+# mehr nach.
+export PLANETILER_SOURCES_DIR="${PLANETILER_SOURCES_DIR:-$(dirname "$TILES_DIR")/planetiler-sources}"
+
+mkdir -p "$TILES_DIR" "$TOOLS_DIR" "$TMPDIR" "$PLANETILER_SOURCES_DIR"
+
+if [ ! -s "$JAR_PATH" ]; then
+  echo "== planetiler $PLANETILER_VERSION wird einmalig geladen (~100 MB) nach $JAR_PATH =="
+  # Erst in eine .part-Datei, dann umbenennen: ein abgebrochener Download
+  # darf beim naechsten Lauf nicht als fertige JAR durchgehen.
+  curl -fL --retry 3 --retry-delay 5 \
+    "https://github.com/onthegomap/planetiler/releases/download/$PLANETILER_VERSION/planetiler.jar" \
+    -o "$JAR_PATH.part"
+  mv "$JAR_PATH.part" "$JAR_PATH"
+fi
+
+export PLANETILER_JAR="$JAR_PATH"
+
+# ─── ANGEBROCHENE BASISDATEN AUSSORTIEREN ───────────────────────────────────
+# planetilers `--download` laedt nur, was NICHT existiert. Eine abgebrochene
+# Uebertragung hinterlaesst aber eine Datei, die existiert -- und wird damit
+# nie wieder erneuert. Der naechste Bau liest sie und stirbt an:
+#
+#   java.util.zip.ZipException: zip END header not found
+#
+# Ohne Gegenmassnahme ist das eine Sackgasse: die Datei liegt in /share, und
+# der vorgesehene Bedienweg (nur GUI) hat kein Mittel, sie zu loeschen. Ein
+# einziger abgebrochener erster Bau haette den Kachelbau dauerhaft
+# unbrauchbar gemacht.
+#
+# Geprueft wird die Signatur des ZIP-Zentralverzeichnisses (PK\x05\x06) im
+# letzten Stueck der Datei -- sie steht per Format am Ende, fehlt also genau
+# dann, wenn die Uebertragung abbrach. Das braucht kein `unzip` und kein
+# Python, die im Image beide nicht sicher vorhanden sind.
+for src in "$PLANETILER_SOURCES_DIR"/*.zip; do
+  [ -e "$src" ] || continue
+  if ! tail -c 131072 "$src" | LC_ALL=C grep -qa $'PK\x05\x06'; then
+    echo "== Unvollstaendige Basisdatei wird verworfen und neu geladen: $(basename "$src") =="
+    rm -f "$src"
+  fi
+done
+
+echo "== Baue Kacheln nach $TILES_DIR (Heap $PLANETILER_XMX, JAR $PLANETILER_JAR) =="
+if [ -z "$(ls -A "$PLANETILER_SOURCES_DIR" 2>/dev/null)" ]; then
+  echo "== Erster Bau: die gemeinsamen Basisdaten (Wasserflaechen, Natural Earth,"
+  echo "   Seen-Mittellinien) werden einmalig nach $PLANETILER_SOURCES_DIR geladen."
+  echo "   Das sind mehrere hundert MB und dauert entsprechend; jede weitere"
+  echo "   Region benutzt danach dieselben Dateien. =="
+fi
+
+exec /opt/yapaia/bin/build-pmtiles.sh "$@"

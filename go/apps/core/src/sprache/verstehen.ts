@@ -35,7 +35,7 @@ export type Absicht =
   | { art: 'unbekannt'; text: string };
 
 /** Wie Spracherkennung „Yapaia" schreibt -- und das Wort davor weg. */
-const ANREDE = /^(?:(?:hey|hallo|ok(?:ay)?)\s+)?(?:yapaia|yapaja|japaja|japaia|yapaya|japaya|ja\s*paja|navi)\b[\s,:]*/;
+const ANREDE = /^(?:(?:hey|hallo|ok(?:ay)?)\s+)?(?:yapa[ijy]a|japa[ijy]a|ja\s*pa[ij]a|navi)\b[\s,:]*/;
 
 /** Glätten: klein, ohne Satzzeichen, ohne Anrede und Füllwörter. */
 export function glaetten(text: string): string {

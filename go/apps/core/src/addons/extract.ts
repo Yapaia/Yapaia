@@ -61,7 +61,7 @@ import { TarballSecurityError } from './errors.js';
 import { resolveEntryPath } from './paths.js';
 
 /** Manifest file every add-on tarball must carry at its ROOT. */
-export const MANIFEST_FILENAME = 'yapaja-addon.json';
+export const MANIFEST_FILENAME = 'yapaia-addon.json';
 
 /** Neutral, non-writable anchor used to run the traversal-resolve check in
  *  dry-run mode (`destDir === null`) -- never actually touched on disk;
@@ -78,7 +78,7 @@ export interface ExtractAddonTarballOptions {
 }
 
 export interface ExtractAddonTarballResult {
-  /** Raw (unparsed) contents of `yapaja-addon.json` at the tarball root. */
+  /** Raw (unparsed) contents of `yapaia-addon.json` at the tarball root. */
   manifestRaw: string;
   totalUncompressedBytes: number;
   fileCount: number;

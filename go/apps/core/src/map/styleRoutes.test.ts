@@ -35,13 +35,13 @@ describe('Map / style routes integration', () => {
       // Diese Liste ist das, was im Kartenmenue erscheint -- ein Stil, der in
       // der Registry steht, aber hier fehlt, waere fuer den Nutzer nicht da.
       expect(body.data.map((s) => s.id).sort()).toEqual([
-        'yapaja-contrast',
-        'yapaja-dark',
-        'yapaja-light',
-        'yapaja-minimal',
-        'yapaja-outdoor',
+        'yapaia-contrast',
+        'yapaia-dark',
+        'yapaia-light',
+        'yapaia-minimal',
+        'yapaia-outdoor',
         // 0.41.0: Satellitenbilder (online) mit Straßen und Namen darüber.
-        'yapaja-satellit',
+        'yapaia-satellit',
       ]);
       for (const style of body.data) {
         expect(style.name).toBeTruthy();
@@ -51,7 +51,7 @@ describe('Map / style routes integration', () => {
 
   describe('GET /api/v1/map/styles/:id', () => {
     it('returns a valid style JSON with the source URL rewritten to the installed region', async () => {
-      const response = await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaja-light' });
+      const response = await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaia-light' });
       expect(response.statusCode).toBe(200);
 
       const style = response.json() as {
@@ -81,18 +81,18 @@ describe('Map / style routes integration', () => {
     });
 
     it('serves all three known ids with 200', async () => {
-      for (const id of ['yapaja-light', 'yapaja-dark', 'yapaja-contrast']) {
+      for (const id of ['yapaia-light', 'yapaia-dark', 'yapaia-contrast']) {
         const response = await server.inject({ method: 'GET', url: `/api/v1/map/styles/${id}` });
         expect(response.statusCode).toBe(200);
       }
     });
 
-    it('yapaja-dark has a dark background, yapaja-light a light one (never accidentally swapped)', async () => {
+    it('yapaia-dark has a dark background, yapaia-light a light one (never accidentally swapped)', async () => {
       const dark = (
-        await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaja-dark' })
+        await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaia-dark' })
       ).json() as { layers: Array<{ id: string; paint?: Record<string, string> }> };
       const light = (
-        await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaja-light' })
+        await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaia-light' })
       ).json() as { layers: Array<{ id: string; paint?: Record<string, string> }> };
 
       const darkBg = dark.layers.find((l) => l.id === 'background')?.paint?.['background-color'];
@@ -109,7 +109,7 @@ describe('Map / style routes integration', () => {
       it('?lang=name_de rewrites label text-field', async () => {
         const response = await server.inject({
           method: 'GET',
-          url: '/api/v1/map/styles/yapaja-light?lang=name_de',
+          url: '/api/v1/map/styles/yapaia-light?lang=name_de',
         });
         const style = response.json() as { layers: Array<{ id: string; layout?: { 'text-field'?: unknown } }> };
         const placeLabels = style.layers.find((l) => l.id === 'place-labels');
@@ -126,7 +126,7 @@ describe('Map / style routes integration', () => {
       it('biegt das alte ?lang=name:de auf das Feld um, das die Kacheln fuehren', async () => {
         const response = await server.inject({
           method: 'GET',
-          url: '/api/v1/map/styles/yapaja-light?lang=name%3Ade',
+          url: '/api/v1/map/styles/yapaia-light?lang=name%3Ade',
         });
         const style = response.json() as { layers: Array<{ id: string; layout?: { 'text-field'?: unknown } }> };
         const placeLabels = style.layers.find((l) => l.id === 'place-labels');
@@ -135,10 +135,10 @@ describe('Map / style routes integration', () => {
 
       it('?labelScale=1.2 increases text-size', async () => {
         const base = (
-          await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaja-light' })
+          await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaia-light' })
         ).json() as { layers: Array<{ id: string; layout?: { 'text-size'?: number } }> };
         const scaled = (
-          await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaja-light?labelScale=1.2' })
+          await server.inject({ method: 'GET', url: '/api/v1/map/styles/yapaia-light?labelScale=1.2' })
         ).json() as { layers: Array<{ id: string; layout?: { 'text-size'?: number } }> };
 
         const baseSize = base.layers.find((l) => l.id === 'place-labels')?.layout?.['text-size'];
@@ -150,7 +150,7 @@ describe('Map / style routes integration', () => {
       it('?poi=off hides the poi-labels layer', async () => {
         const response = await server.inject({
           method: 'GET',
-          url: '/api/v1/map/styles/yapaja-light?poi=off',
+          url: '/api/v1/map/styles/yapaia-light?poi=off',
         });
         const style = response.json() as { layers: Array<{ id: string; layout?: { visibility?: string } }> };
         const poiLabels = style.layers.find((l) => l.id === 'poi-labels');
@@ -160,7 +160,7 @@ describe('Map / style routes integration', () => {
       it('invalid option values are ignored (200, default behavior), never 400/500', async () => {
         const response = await server.inject({
           method: 'GET',
-          url: '/api/v1/map/styles/yapaja-light?lang=xx&labelScale=abc&poi=lots&poiAus=quatsch',
+          url: '/api/v1/map/styles/yapaia-light?lang=xx&labelScale=abc&poi=lots&poiAus=quatsch',
         });
         expect(response.statusCode).toBe(200);
       });
@@ -174,7 +174,7 @@ describe('Map / style routes integration', () => {
       it('?poiAus= filtert die abgeschaltete Kategorie aus der POI-Ebene', async () => {
         const antwort = await server.inject({
           method: 'GET',
-          url: '/api/v1/map/styles/yapaja-light?poiAus=poi-tanken',
+          url: '/api/v1/map/styles/yapaia-light?poiAus=poi-tanken',
         });
         expect(antwort.statusCode).toBe(200);
         const stil = antwort.json() as { layers: Array<{ id: string; filter?: unknown }> };
@@ -187,7 +187,7 @@ describe('Map / style routes integration', () => {
         // gesetzt wuerde und der Test oben ihn nur wiederfindet.
         const antwort = await server.inject({
           method: 'GET',
-          url: '/api/v1/map/styles/yapaja-light',
+          url: '/api/v1/map/styles/yapaia-light',
         });
         const stil = antwort.json() as { layers: Array<{ id: string; filter?: unknown }> };
         const poi = stil.layers.find((l) => l.id === 'poi-labels');

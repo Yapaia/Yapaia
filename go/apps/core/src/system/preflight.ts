@@ -204,8 +204,8 @@ async function defaultListDir(path: string): Promise<string[]> {
 export const SERIAL_BY_ID_DIR = '/dev/serial/by-id';
 
 /** Wo der gpsd-Dienst hinterlegt, warum er läuft oder nicht.
- *  Denselben Pfad exportiert `init-yapaja-config.sh` als `GPS_STATUS_DATEI`. */
-export const GPS_STATUS_DATEI = '/run/yapaja/gps-status';
+ *  Denselben Pfad exportiert `init-yapaia-config.sh` als `GPS_STATUS_DATEI`. */
+export const GPS_STATUS_DATEI = '/run/yapaia/gps-status';
 
 /**
  * Die Begründung des gpsd-Dienstes, oder `null`.
@@ -342,7 +342,7 @@ async function defaultHttpProbe(url: string, timeoutMs: number): Promise<boolean
 /**
  * Fragt Home Assistant selbst, welche Tracker es gibt.
  *
- * Bis 2026-09-03 stand in `yapaja_go/config.yaml`, diese Pruefung liste die
+ * Bis 2026-09-03 stand in `yapaia_go/config.yaml`, diese Pruefung liste die
  * in Frage kommenden Entitaeten auf. Sie tat es nicht -- der Satz war eine
  * Zusage an den Betreiber, die niemand eingeloest hat, und er stand
  * ausgerechnet an der Stelle, an der man die Entity-ID sonst raten muss.
@@ -411,7 +411,7 @@ async function checkTiles(tilesDir: string, listDir: ListDirFn): Promise<Preflig
     'Rheinland-Pfalz deutlich länger; der Fortschritt steht im Panel. Danach einmal ' +
     '„Fehlendes bauen" für Routing und Suche. ' +
     'Ganz Deutschland ist für dieses Gerät zu groß: auf einem anderen Rechner bauen und ' +
-    'die fertige .pmtiles per „Samba share" nach /share/yapaja/tiles/ legen. ' +
+    'die fertige .pmtiles per „Samba share" nach /share/yapaia/tiles/ legen. ' +
     'Ausführlich: docs/installation.md §C.';
 
   let entries: string[];

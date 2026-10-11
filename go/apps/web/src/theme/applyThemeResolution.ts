@@ -5,8 +5,8 @@
  * Bildaufbau lang auseinanderliegen (E07-T3).
  *
  * ─── SEIT 0.21: NUR NOCH UMSCHALTEN, NIE ÜBERSCHREIBEN ─────────────────────
- * Bis 0.20 schrieb diese Funktion die Stilwahl auf `yapaja-light` bzw.
- * `yapaja-dark` um -- mit einer Ausnahme für „Kontrast" und einer Regel, wann
+ * Bis 0.20 schrieb diese Funktion die Stilwahl auf `yapaia-light` bzw.
+ * `yapaia-dark` um -- mit einer Ausnahme für „Kontrast" und einer Regel, wann
  * überhaupt geschrieben werden durfte. Gemeldet wurde, was davon übrig blieb:
  * wer einen anderen Stil wählte, verlor den Wechsel zwischen Hell und Dunkel
  * (dunkles Thema mit heller Karte), oder er verlor beim nächsten Wechsel

@@ -73,7 +73,7 @@ check:
 This is the recommended route and needs no terminal.
 
 1. **Settings → Add-ons → Add-on Store → ⋮ (top right) → Repositories**
-2. Paste `https://github.com/Apfelsafft/Yapaja-Go-Design` and add it.
+2. Paste `https://github.com/Yapaia/yapaia` and add it.
 3. Find **Yapaia Go** in the store and install it.
 
 > **The progress bar will sit at 0 % for several minutes.** This is normal.
@@ -530,13 +530,13 @@ Yapaia writes a complete Lovelace dashboard for you, using the entity IDs that
 actually exist on *your* installation.
 
 1. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   URL `/local/yapaja/yapaja-map-card.js`, type *JavaScript module*.
+   URL `/local/yapaia/yapaia-map-card.js`, type *JavaScript module*.
    (Once only. Without this the map card stays empty.)
 2. **Settings → Dashboards → Add dashboard → New from scratch**
 3. In the new dashboard: **pencil → ⋮ → Raw configuration editor**
-4. Replace everything with the contents of `/local/yapaja/dashboard.txt` and save.
+4. Replace everything with the contents of `/local/yapaia/dashboard.txt` and save.
 
-Open that file in your browser — `http://<your-ha>:8123/local/yapaja/dashboard.txt`.
+Open that file in your browser — `http://<your-ha>:8123/local/yapaia/dashboard.txt`.
 It is also written as `.yaml`; the `.txt` copy exists because Safari on an iPad
 downloads `.yaml` files instead of showing them.
 
@@ -687,7 +687,7 @@ Common cases:
 | Symptom | Likely cause |
 |---|---|
 | No position at all | Home Assistant runs on `http://`, so the browser refuses GPS. Use the Companion App |
-| Dashboard full of "entity not found" | Read the header of `/local/yapaja/dashboard.txt` — it says which channel is live |
+| Dashboard full of "entity not found" | Read the header of `/local/yapaia/dashboard.txt` — it says which channel is live |
 | Search finds nothing | `photon_enabled` is off and the lightweight index has no house numbers; or the region is not installed |
 | Screen keeps sleeping | Tap the map once — some browsers only permit it after a touch |
 | Route ignores my dimensions | Check that the right profile is **active** — only one is at a time |
@@ -703,4 +703,4 @@ symptom → cause → fix, and the [FAQ](faq.md) (German) covers the rest.
 - [Installation Guide](installation.md) (German) — the full install, both routes
 - [Troubleshooting](troubleshooting.md) (German) — when something breaks
 - [Developer Guide](developers.md) — if you want to contribute code
-- [Add-on Changelog](../yapaja_go/CHANGELOG.md) (German) — what changed and why
+- [Add-on Changelog](../yapaia_go/CHANGELOG.md) (German) — what changed and why

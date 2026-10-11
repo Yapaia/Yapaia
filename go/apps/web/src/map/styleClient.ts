@@ -43,7 +43,7 @@ export interface StyleSummary {
   preview?: string;
 }
 
-export const DEFAULT_STYLE_ID = 'yapaja-light';
+export const DEFAULT_STYLE_ID = 'yapaia-light';
 
 export const DEFAULT_STYLE_OPTIONS: StyleOptions = {
   lang: 'name',
@@ -199,7 +199,7 @@ function stilBasis(): string {
  * blauen Straßenschilder. Gezeichnet wurde keines davon. MapLibre 6 verlangt
  * für `sprite` eine ABSOLUTE Adresse und meldet sonst nur in die Konsole:
  *
- *   Invalid sprite URL "./sprites/yapaja", must be absolute.
+ *   Invalid sprite URL "./sprites/yapaia", must be absolute.
  *
  * Für `glyphs` gilt das nicht, darum erschien die Schrift und alles sah fast
  * richtig aus. Der Kern liefert die Adresse bewusst relativ (er kennt den

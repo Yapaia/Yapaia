@@ -37,7 +37,7 @@ postMessage-SDK.
 
 ```
 poi-overlay/
-├── yapaja-addon.json
+├── yapaia-addon.json
 └── ui/
     └── index.html
 ```
@@ -130,10 +130,10 @@ Illustration ohne Build-Schritt.
 ### 1.4 Paketieren
 
 ```sh
-tar czf poi-overlay.tar.gz yapaja-addon.json ui/
+tar czf poi-overlay.tar.gz yapaia-addon.json ui/
 ```
 
-`yapaja-addon.json` **muss** auf oberster Ebene im Tarball liegen (kein
+`yapaia-addon.json` **muss** auf oberster Ebene im Tarball liegen (kein
 Unterverzeichnis) – siehe `apps/core/src/addons/extract.ts#MANIFEST_FILENAME`.
 **Wichtig für Build-Skripte:** listet die Top-Level-Einträge explizit auf (wie
 oben), statt `tar czf out.tgz -C stage/ .` zu verwenden – GNU tars `-C dir .`
@@ -167,7 +167,7 @@ keine internen Importe (`apps/core/src/addons/service-host.ts`).
 
 ```
 traffic-warner/
-├── yapaja-addon.json
+├── yapaia-addon.json
 └── service/
     └── main.js
 ```
@@ -194,8 +194,8 @@ traffic-warner/
 ```js
 import { connectAddon } from '@yapaia/addon-sdk';
 
-// Läuft als Core-Kindprozess: YAPAJA_API_URL / YAPAJA_TOKEN / YAPAJA_ADDON_ID /
-// YAPAJA_DATA_DIR stehen bereits in process.env -- connectAddon() erkennt daran
+// Läuft als Core-Kindprozess: YAPAIA_API_URL / YAPAIA_TOKEN / YAPAIA_ADDON_ID /
+// YAPAIA_DATA_DIR stehen bereits in process.env -- connectAddon() erkennt daran
 // automatisch den "service"-Transport, kein Konfigurationsaufwand nötig.
 const addon = await connectAddon();
 
@@ -220,11 +220,11 @@ und funktioniert **nur** für Hosts, die als `net.fetch:<host>` im Manifest steh
 
 ### 2.4 Paketieren + Installieren
 
-Identisch zu §1.4/§1.5 (Tarball mit `yapaja-addon.json` + `service/`). Nach
+Identisch zu §1.4/§1.5 (Tarball mit `yapaia-addon.json` + `service/`). Nach
 `enable` startet der Core den Prozess automatisch (`apps/core/src/addons/service-host.ts`);
 `stdout`/`stderr` landen in den Core-Logs mit Präfix `[addon <id>] …`.
 
-## 3. Manifest-Referenz (`yapaja-addon.json`)
+## 3. Manifest-Referenz (`yapaia-addon.json`)
 
 Struktureller Typ: `AddonManifest` in `packages/shared/src/types.ts`, geprüft von
 `addonManifestSchema` in `packages/shared/src/schemas/addon-manifest.ts`.
@@ -267,7 +267,7 @@ serverseitige Quelle der Wahrheit: `protocol.ts#METHOD_SCOPES` (UI) und
 | `route.propose` | `route.propose()` – schlägt eine Route vor, **aktiviert nie** etwas ohne Nutzerbestätigung (Wargame W-10) | **nur UI** |
 | `map.layer.write` | `map.addLayer/addMarkers/removeLayer()` | **nur UI** – es gibt keine Karte in einem Headless-Prozess |
 | `widget.register` | `widgets.register/update()` | **nur UI** |
-| `events.publish` | `events.publish()` unter dem eigenen `addon/{id}/*`-Namensraum -- zusätzlich als `yapaja/addon/{id}/*` via MQTT (Rate-Limit 5 msg/s pro Add-on, Payload ≤ 16 KB, pro Add-on über die Store-Detailseite abschaltbar; E09-T8) | UI + Service |
+| `events.publish` | `events.publish()` unter dem eigenen `addon/{id}/*`-Namensraum -- zusätzlich als `yapaia/addon/{id}/*` via MQTT (Rate-Limit 5 msg/s pro Add-on, Payload ≤ 16 KB, pro Add-on über die Store-Detailseite abschaltbar; E09-T8) | UI + Service |
 | `storage.own` | `storage.get/set()` (beide), `storage.delete()` (**nur Service** – die UI-Bridge kennt kein Delete) | UI + Service |
 | `net.fetch:<host>` | `fetch(url)` gegen genau diesen Host über den Core-Egress-Proxy | **nur Service** |
 | `ha.notify` | `notify.send(message, title?)` – Benachrichtigung über den HA-Kanal | **nur Service** |
@@ -283,7 +283,7 @@ Navigation steuern könnte.
 `connectAddon()` erkennt den Transport ohne jede Konfiguration
 (`packages/addon-sdk/src/detect.ts`):
 
-1. Ist `process.env.YAPAJA_TOKEN` gesetzt (nicht leer) → **Service**-Transport
+1. Ist `process.env.YAPAIA_TOKEN` gesetzt (nicht leer) → **Service**-Transport
    (REST + WS). Das ist der vom Core gesetzte Prozess-Vertrag.
 2. Sonst, wenn `window`/`window.parent` existiert → **postMessage**-Transport
    (UI-Add-on im Sandbox-Iframe).
@@ -291,7 +291,7 @@ Navigation steuern könnte.
    `connectAddon({ transport: 'postMessage' | 'service' })`.
 
 Das Env-Signal gewinnt bewusst, falls (unüblich) beide gleichzeitig vorliegen –
-`YAPAJA_TOKEN` ist ein bewusst vom Core ausgestelltes Credential, ein bloßes
+`YAPAIA_TOKEN` ist ein bewusst vom Core ausgestelltes Credential, ein bloßes
 `window`-Objekt ist ein schwächeres Signal.
 
 ## 6. SDK-Oberfläche im Überblick
@@ -375,13 +375,13 @@ Aufruf unabhängig noch einmal (§0).
    > `"core_api": "^0.1"` scheitert deshalb beim lokalen Testen mit
    > `INCOMPATIBLE_CORE_API`, obwohl es gegen einen echten/produktiven Core
    > passen würde. Zum lokalen Testen entweder `"core_api": "*"` verwenden
-   > (siehe `addons-examples/*/yapaja-addon.json`) oder die tatsächlich lokal
+   > (siehe `addons-examples/*/yapaia-addon.json`) oder die tatsächlich lokal
    > gemeldete Version (`curl localhost:8080/api/v1/health`) explizit in der
    > Range berücksichtigen.
 
 2. **Tarball bauen** (siehe §1.4/§2.4):
    ```sh
-   tar czf my-addon.tar.gz yapaja-addon.json ui/ service/  # je nach Add-on-Typ
+   tar czf my-addon.tar.gz yapaia-addon.json ui/ service/  # je nach Add-on-Typ
    ```
 
 3. **Zwei-Schritt-Installation** (`apps/core/src/addons/routes.ts`):

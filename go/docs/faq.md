@@ -81,7 +81,7 @@ und der [Add-on-Entwicklungsleitfaden](addon-dev-guide.md) für Add-on-Autoren.
 
 **Überlebt ein Update meine Kartendaten und Einstellungen?**
 Ja — alle Nutzdaten liegen bewusst außerhalb des jeweiligen Containers
-(HA-Add-on: `/share/yapaja`; Compose: eigenes Docker-Volume unter `./data`)
+(HA-Add-on: `/share/yapaia`; Compose: eigenes Docker-Volume unter `./data`)
 und werden von einem Image-Update nicht angefasst; SQLite-Migrationen legen
 zusätzlich automatisch eine Sicherungsdatei an. Vor größeren Updates trotzdem
 ein Backup anlegen (siehe [Installations-Guide → B.5](installation.md#b5-backup-vor-einem-update)).
@@ -119,7 +119,7 @@ die Helfer ruhen. Details: [Manual](manual.md#home-assistant) und
 `docs/04-home-assistant.md` §1b–1c.
 
 **Mein HA-Dashboard zeigt überall „Entität nicht gefunden".**
-Öffne `/local/yapaja/dashboard.txt` im Browser und lies den **Kopf der
+Öffne `/local/yapaia/dashboard.txt` im Browser und lies den **Kopf der
 Datei**. Dort steht, was Yapaia beim Erzeugen vorgefunden hat: ob Home
 Assistant erreichbar war, wie viele Entitäten gefunden wurden und welche
 fehlen. Die häufigste Ursache ist, dass weder MQTT noch der interne Kanal
@@ -134,7 +134,7 @@ Sätze Knöpfe für dieselbe Sache wären nur Verwirrung.
 Kommt stark auf Kartengröße und ob Photon-Suche aktiv ist an — die konkrete
 Tabelle steht in `docs/01-architecture.md` §4 und, für den HA-Add-on-Fall
 speziell (geteilte VM mit HA selbst), in
-`yapaja_go/DOCS.md` §„RAM recommendation". Bei knappem RAM: Photon
+`yapaia_go/DOCS.md` §„RAM recommendation". Bei knappem RAM: Photon
 deaktivieren (`photon_enabled: false` bzw. `PHOTON_ENABLED=false`) —
 Suche fällt automatisch auf einen deutlich schlankeren Offline-Index zurück
 ([Troubleshooting W-12](troubleshooting.md#w-12--suche-reagiert-nicht-mehrvereinfachte-suche)).

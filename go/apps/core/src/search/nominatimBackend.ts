@@ -15,7 +15,7 @@ import { RateLimiter } from './rateLimiter.js';
 import type { GeocoderBackend, ReverseQuery, SearchLogger, SearchQuery } from './types.js';
 
 export const DEFAULT_NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
-export const DEFAULT_NOMINATIM_USER_AGENT = 'YapaiaGo/0.1 (+https://github.com/yapaja/yapaja-go)';
+export const DEFAULT_NOMINATIM_USER_AGENT = 'YapaiaGo/0.1 (+https://github.com/Yapaia/yapaia)';
 export const DEFAULT_NOMINATIM_RATE_LIMIT_MS = 1_000;
 export const DEFAULT_BACKEND_TIMEOUT_MS = 3_000;
 

@@ -55,7 +55,7 @@ export interface GraphBauPlan {
  * Eine Quelle, die sich nicht gefahrlos an ein Skript weiterreichen lässt,
  * ist keine Quelle.
  *
- * Der Plan geht als Zeilen „<region> <url>" an `yapaja-build-graph`. Eine URL
+ * Der Plan geht als Zeilen „<region> <url>" an `yapaia-build-graph`. Eine URL
  * mit Leerraum darin würde dort in zwei Felder zerfallen — das Ergebnis wäre
  * ein Download, der auf einen abgeschnittenen Pfad zielt, und eine Region,
  * die lautlos fehlt. Lieber hier als unbrauchbar melden.
@@ -124,7 +124,7 @@ export function graphBauPlan(args: {
 }
 
 /**
- * Der Plan in der Form, in der `yapaja-build-graph` ihn liest: eine Zeile je
+ * Der Plan in der Form, in der `yapaia-build-graph` ihn liest: eine Zeile je
  * nachzuladendem Extrakt, `<region> <url>`.
  *
  * Eine Umgebungsvariable und keine Datei, weil der Bau ohnehin über

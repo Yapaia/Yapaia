@@ -2,8 +2,8 @@
  * Persisted style selection + options (E01-T4).
  *
  * Persists to localStorage:
- *  - `yapaja.stilHell` / `yapaja.stilDunkel`  der Stil je Thema (seit 0.21)
- *  - `yapaja.styleOptions` the {lang, labelScale, poi} option set (JSON)
+ *  - `yapaia.stilHell` / `yapaia.stilDunkel`  der Stil je Thema (seit 0.21)
+ *  - `yapaia.styleOptions` the {lang, labelScale, poi} option set (JSON)
  */
 
 import { create } from 'zustand';
@@ -17,7 +17,7 @@ import {
   type StylePoiDensity,
 } from '../map/styleClient';
 
-const STYLE_OPTIONS_KEY = 'yapaja.styleOptions';
+const STYLE_OPTIONS_KEY = 'yapaia.styleOptions';
 
 const VALID_LANG: readonly StyleLang[] = ['name', 'name_de', 'name_en'];
 
@@ -46,10 +46,10 @@ const VALID_POI: readonly StylePoiDensity[] = ['full', 'reduced', 'off'];
 // ihn stehen. Wer „Natur" wählte, bekam beim nächsten Sonnenuntergang
 // „Dunkel", oder eben gar keinen Wechsel. Jetzt gibt es zwei Plätze, und das
 // Thema wählt nur noch, WELCHER gilt. Die Wahl selbst fasst es nie an.
-export const STIL_HELL_KEY = 'yapaja.stilHell';
-export const STIL_DUNKEL_KEY = 'yapaja.stilDunkel';
+export const STIL_HELL_KEY = 'yapaia.stilHell';
+export const STIL_DUNKEL_KEY = 'yapaia.stilDunkel';
 export const STANDARD_STIL_HELL = DEFAULT_STYLE_ID;
-export const STANDARD_STIL_DUNKEL = 'yapaja-dark';
+export const STANDARD_STIL_DUNKEL = 'yapaia-dark';
 
 export type StilThema = 'light' | 'dark';
 
@@ -145,7 +145,7 @@ function persist(key: string, value: string): void {
 //
 // Ist mindestens ein Chip an, zeigt die Karte NUR dessen Kategorien; die
 // Schalter in den Einstellungen bleiben dabei unberührt.
-export const POI_CHIPS_KEY = 'yapaja.poiChips';
+export const POI_CHIPS_KEY = 'yapaia.poiChips';
 export const STANDARD_POI_CHIPS: readonly string[] = [
   'poi-wohnmobil',
   'poi-camping',

@@ -18,7 +18,7 @@
 
 import type { ThemeMode } from './resolveTheme.js';
 
-const LOCAL_STORAGE_KEY = 'yapaja.theme.mode';
+const LOCAL_STORAGE_KEY = 'yapaia.theme.mode';
 const SETTINGS_KEY = 'theme';
 
 const VALID_MODES: readonly ThemeMode[] = ['light', 'dark', 'auto', 'system'];
@@ -29,12 +29,12 @@ const VALID_MODES: readonly ThemeMode[] = ['light', 'dark', 'auto', 'system'];
  * the REAL device clock (`sunResolution.ts#resolveClockTheme`) -- if it were
  * the default, then every one of this app's 30+ pre-existing e2e specs that
  * never touch theming at all would non-deterministically render dark
- * (`<html class="dark">`, `yapaja-dark` map style) whenever the CI run's
+ * (`<html class="dark">`, `yapaia-dark` map style) whenever the CI run's
  * real wall-clock happens to land between 19:00-07:00, purely as a side
  * effect of this task existing. A theme mode is an explicit user choice
  * (docs/06 §3 lists three: hell/dunkel/auto) with no historical default to
  * infer -- `'light'` matches this app's pre-existing, deterministic default
- * (`state/styleStore.ts`'s `DEFAULT_STYLE_ID = 'yapaja-light'`), so a fresh
+ * (`state/styleStore.ts`'s `DEFAULT_STYLE_ID = 'yapaia-light'`), so a fresh
  * install/reload behaves identically regardless of time of day unless/until
  * the user (or E08/HA) explicitly opts into `'auto'`.
  */

@@ -15,19 +15,19 @@ import { DEFAULT_STYLE_OPTIONS } from '../map/styleClient.js';
 import type { ThemeResolution } from './resolveTheme.js';
 
 function dunkel(): ThemeResolution {
-  return { theme: 'dark', styleId: 'yapaja-dark', overrideActive: false, nextBoundaryAt: null };
+  return { theme: 'dark', styleId: 'yapaia-dark', overrideActive: false, nextBoundaryAt: null };
 }
 
 function hell(): ThemeResolution {
-  return { theme: 'light', styleId: 'yapaja-light', overrideActive: false, nextBoundaryAt: null };
+  return { theme: 'light', styleId: 'yapaia-light', overrideActive: false, nextBoundaryAt: null };
 }
 
 describe('applyThemeResolution', () => {
   beforeEach(() => {
     useStyleStore.setState({
-      styleId: 'yapaja-light',
-      stilHell: 'yapaja-light',
-      stilDunkel: 'yapaja-dark',
+      styleId: 'yapaia-light',
+      stilHell: 'yapaia-light',
+      stilDunkel: 'yapaia-dark',
       thema: 'light',
       options: DEFAULT_STYLE_OPTIONS,
     });
@@ -39,33 +39,33 @@ describe('applyThemeResolution', () => {
 
   it('zeigt bei Dunkel den Dunkel-Stil und bei Hell den Hell-Stil', () => {
     applyThemeResolution(dunkel());
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark');
     applyThemeResolution(hell());
-    expect(useStyleStore.getState().styleId).toBe('yapaja-light');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-light');
   });
 
   it('der gemeldete Fall: ein frei gewählter Stil überlebt den Wechsel in beide Richtungen', () => {
     // Bei Hell „Natur", bei Dunkel „Kontrast" gewählt.
-    useStyleStore.getState().setStilFuer('light', 'yapaja-natur');
-    useStyleStore.getState().setStilFuer('dark', 'yapaja-contrast');
+    useStyleStore.getState().setStilFuer('light', 'yapaia-natur');
+    useStyleStore.getState().setStilFuer('dark', 'yapaia-contrast');
 
     applyThemeResolution(dunkel());
-    expect(useStyleStore.getState().styleId).toBe('yapaja-contrast');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-contrast');
     applyThemeResolution(hell());
-    expect(useStyleStore.getState().styleId).toBe('yapaja-natur');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-natur');
     applyThemeResolution(dunkel());
-    expect(useStyleStore.getState().styleId).toBe('yapaja-contrast');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-contrast');
 
     // Die Wahl selbst ist unberührt.
-    expect(useStyleStore.getState().stilHell).toBe('yapaja-natur');
-    expect(useStyleStore.getState().stilDunkel).toBe('yapaja-contrast');
+    expect(useStyleStore.getState().stilHell).toBe('yapaia-natur');
+    expect(useStyleStore.getState().stilDunkel).toBe('yapaia-contrast');
   });
 
   it('eine Wahl im Menü gilt für das gerade aktive Thema', () => {
     applyThemeResolution(dunkel());
-    useStyleStore.getState().setStyleId('yapaja-reduziert');
-    expect(useStyleStore.getState().stilDunkel).toBe('yapaja-reduziert');
-    expect(useStyleStore.getState().stilHell).toBe('yapaja-light');
-    expect(useStyleStore.getState().styleId).toBe('yapaja-reduziert');
+    useStyleStore.getState().setStyleId('yapaia-reduziert');
+    expect(useStyleStore.getState().stilDunkel).toBe('yapaia-reduziert');
+    expect(useStyleStore.getState().stilHell).toBe('yapaia-light');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-reduziert');
   });
 });

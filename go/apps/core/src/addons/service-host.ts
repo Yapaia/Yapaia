@@ -12,10 +12,10 @@
  * THE PROCESS CONTRACT (docs/05 §1B)
  * ----------------------------------
  *   cwd  = data/addons/{id}                (its own code directory)
- *   env  = YAPAJA_API_URL   -- the Core's REST/WS base URL
- *          YAPAJA_TOKEN     -- its scoped token (see `tokens.ts`)
- *          YAPAJA_DATA_DIR  -- data/addon-storage/{id}, its ONLY writable dir
- *          YAPAJA_ADDON_ID  -- its own id
+ *   env  = YAPAIA_API_URL   -- the Core's REST/WS base URL
+ *          YAPAIA_TOKEN     -- its scoped token (see `tokens.ts`)
+ *          YAPAIA_DATA_DIR  -- data/addon-storage/{id}, its ONLY writable dir
+ *          YAPAIA_ADDON_ID  -- its own id
  * The environment is built from SCRATCH, not inherited. That is deliberate and
  * load-bearing: `process.env` of the Core carries `API_AUTH_TOKEN`,
  * `SUPERVISOR_TOKEN` (HA), `DB_PATH`, MQTT credentials -- handing all of that
@@ -247,7 +247,7 @@ export class AddonServiceHost {
     this.addonsStorageRootDir = opts.addonsStorageRootDir ?? resolveAddonStorageRootDir();
     this.apiUrlProvider =
       opts.apiUrlProvider ??
-      ((): string => process.env.YAPAJA_API_URL ?? `http://127.0.0.1:${process.env.PORT ?? '8080'}`);
+      ((): string => process.env.YAPAIA_API_URL ?? `http://127.0.0.1:${process.env.PORT ?? '8080'}`);
     this.spawnImpl = opts.spawn ?? (nodeSpawn as unknown as SpawnLike);
     this.nodeExecPath = opts.nodeExecPath ?? process.execPath;
     this.nodeVersion = opts.nodeVersion ?? process.version;
@@ -403,10 +403,10 @@ export class AddonServiceHost {
       // Deliberately minimal -- see the module doc.
       PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
       NODE_ENV: process.env.NODE_ENV ?? 'production',
-      YAPAJA_API_URL: this.apiUrlProvider(),
-      YAPAJA_TOKEN: token,
-      YAPAJA_DATA_DIR: storageDir,
-      YAPAJA_ADDON_ID: record.id,
+      YAPAIA_API_URL: this.apiUrlProvider(),
+      YAPAIA_TOKEN: token,
+      YAPAIA_DATA_DIR: storageDir,
+      YAPAIA_ADDON_ID: record.id,
     };
 
     let child: ChildProcessLike;

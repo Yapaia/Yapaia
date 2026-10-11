@@ -21,7 +21,7 @@
  * deshalb beides: die reine Entscheidung und die Verdrahtung an BEIDEN
  * Einstiegspunkten (`main.tsx` und `shell/main.tsx`).
  *
- * Dieselbe Art struktureller Pruefung benutzt `yapaja_go/config.test.ts`
+ * Dieselbe Art struktureller Pruefung benutzt `yapaia_go/config.test.ts`
  * bereits fuer das Add-on.
  */
 

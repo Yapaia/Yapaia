@@ -12,7 +12,7 @@
  *      (`node <entry>`, `apps/core/src/addons/service-host.ts`) always runs
  *      it as an ES module regardless of any nearby `package.json`'s `type`
  *      field -- the installed add-on package ships no `package.json` at all.
- *   3. `dist/track-recorder.tgz` -- `yapaja-addon.json` at the top level
+ *   3. `dist/track-recorder.tgz` -- `yapaia-addon.json` at the top level
  *      (required) + `ui/` + `service/`.
  */
 import * as esbuild from 'esbuild';
@@ -68,7 +68,7 @@ function bundleService(stageDir) {
 function stageAndPack() {
   rmSync(STAGE_DIR, { recursive: true, force: true });
   mkdirSync(STAGE_DIR, { recursive: true });
-  cpSync(join(__dirname, 'yapaja-addon.json'), join(STAGE_DIR, 'yapaja-addon.json'));
+  cpSync(join(__dirname, 'yapaia-addon.json'), join(STAGE_DIR, 'yapaia-addon.json'));
   cpSync(join(__dirname, 'ui'), join(STAGE_DIR, 'ui'), { recursive: true });
   bundleService(STAGE_DIR);
 
@@ -76,7 +76,7 @@ function stageAndPack() {
   if (existsSync(tarballPath)) rmSync(tarballPath);
   // Explicit top-level entry names, not `.` -- see poi-campsites/build.mjs's
   // identical comment for why (`extract.ts` rejects a `.`/empty entry name).
-  execFileSync('tar', ['czf', tarballPath, '-C', STAGE_DIR, 'yapaja-addon.json', 'ui', 'service'], {
+  execFileSync('tar', ['czf', tarballPath, '-C', STAGE_DIR, 'yapaia-addon.json', 'ui', 'service'], {
     stdio: 'inherit',
   });
   console.log(`Built ${tarballPath}`);

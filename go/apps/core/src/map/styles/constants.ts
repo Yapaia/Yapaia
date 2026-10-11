@@ -3,7 +3,7 @@
  */
 
 /** Vector source id used by every Yapaia-served style. */
-export const REGION_SOURCE_ID = 'yapaja-region';
+export const REGION_SOURCE_ID = 'yapaia-region';
 
 /**
  * Placeholder source URL baked into the static style documents. Always

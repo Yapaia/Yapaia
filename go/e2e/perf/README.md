@@ -23,7 +23,7 @@ npx vitest run e2e/perf      # Unit-Tests der Auswertungs-/Schwellenlogik
 | fps während simulierter Fahrt | ≥ 30 | docs/00, W-04 | `10-fps.spec.ts` |
 | Reroute-Latenz nach Abweichung | < 3 s | docs/00, W-05 | `20-reroute.spec.ts` |
 | WS-Latenz Position → UI | < 500 ms | docs/00 | `30-ws-latency.spec.ts` |
-| RSS `yapaja-core` | ≤ 300 MB | docs/01 §4 | `90-rss.spec.ts` |
+| RSS `yapaia-core` | ≤ 300 MB | docs/01 §4 | `90-rss.spec.ts` |
 | RSS Valhalla / Photon / gpsd / Summe | 1,5 GB / 1 GB / 10 MB / 2,9 GB | docs/01 §4 | **nicht messbar**, s. §4 |
 
 Die Tabelle steht als Daten in `budgets.ts`; jede Zeile trägt ihre
@@ -148,7 +148,7 @@ E10-T2 — es ist als Folgearbeit notiert, statt es hier halb zu bauen.
 
 ## 4. Welche RSS-Zahlen hier ehrlich messbar sind
 
-**Messbar: `yapaja-core`.** Ein echter Node-Prozess auf diesem Host; RSS über
+**Messbar: `yapaia-core`.** Ein echter Node-Prozess auf diesem Host; RSS über
 `/proc/<pid>/stat`, gelesen mit dem Parser aus `apps/core/src/addons/watchdog.ts`
 (E09-T3) — es gibt weiterhin genau eine Stelle im Repo, die `/proc` zerlegt.
 Gemessen **nach** der Last der übrigen Specs (`90-rss.spec.ts` läuft zuletzt).

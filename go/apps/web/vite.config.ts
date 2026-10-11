@@ -118,7 +118,7 @@ export default defineConfig({
             urlPattern: /\/fonts\/.*\.pbf$/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'yapaja-map-glyphs',
+              cacheName: 'yapaia-map-glyphs',
               expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
             },

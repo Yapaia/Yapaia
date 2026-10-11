@@ -87,7 +87,7 @@ const FIXTURE_INDEX_HTML = `<!doctype html>
 `;
 
 const FIXTURE_ADDON_JS = `(function () {
-  var NS = 'yapaja-addon';
+  var NS = 'yapaia-addon';
   var V = 1;
   var seq = 0;
 

@@ -55,7 +55,7 @@ export const SPRACH_HELFER: HelferSoll = {
  */
 export const SAETZE: readonly string[] = [
   'Yapaia {befehl}',
-  'Yapaja {befehl}',
+  'Yapaia {befehl}',
   'Japaja {befehl}',
   'Japaia {befehl}',
   'Ja Paja {befehl}',

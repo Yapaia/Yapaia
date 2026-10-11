@@ -22,7 +22,7 @@
  * only the container around the broker is gone.
  *
  * END STATE ASSERTED BOTH WAYS:
- *  - MQTT/API: `yapaja/nav/state` really becomes `navigating` on the wire, and
+ *  - MQTT/API: `yapaia/nav/state` really becomes `navigating` on the wire, and
  *    the Core's own `GET /api/v1/navigation/state` agrees; every status topic
  *    docs/03 §4 lists is checked for presence AND payload shape.
  *  - UI: the browser attached to that same Core switches into drive mode

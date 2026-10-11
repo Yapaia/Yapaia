@@ -17,7 +17,7 @@ describe('styleStore', () => {
   });
 
   it('starts with the default style id and options', () => {
-    expect(useStyleStore.getState().styleId).toBe('yapaja-light');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-light');
     expect(useStyleStore.getState().options).toEqual({
       lang: 'name',
       labelScale: '1.0',
@@ -27,8 +27,8 @@ describe('styleStore', () => {
   });
 
   it('setStyleId updates the selected style', () => {
-    useStyleStore.getState().setStyleId('yapaja-dark');
-    expect(useStyleStore.getState().styleId).toBe('yapaja-dark');
+    useStyleStore.getState().setStyleId('yapaia-dark');
+    expect(useStyleStore.getState().styleId).toBe('yapaia-dark');
   });
 
   it('setLang updates only the lang option, leaving others untouched', () => {
@@ -55,7 +55,7 @@ describe('styleStore', () => {
   });
 
   it('setStyleId does not throw when window/localStorage is unavailable (Node test env)', () => {
-    expect(() => useStyleStore.getState().setStyleId('yapaja-contrast')).not.toThrow();
+    expect(() => useStyleStore.getState().setStyleId('yapaia-contrast')).not.toThrow();
   });
 
   /**

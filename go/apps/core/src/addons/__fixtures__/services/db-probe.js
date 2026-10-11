@@ -3,9 +3,9 @@
  * the Core's SQLite database, and records exactly what happened.
  *
  * It probes the paths a real attacker would try, given that its cwd is
- * `data/addons/{id}` and `YAPAJA_DATA_DIR` is `data/addon-storage/{id}`:
+ * `data/addons/{id}` and `YAPAIA_DATA_DIR` is `data/addon-storage/{id}`:
  *   ../../db.sqlite                    (relative to its own code directory)
- *   <YAPAJA_DATA_DIR>/../../db.sqlite  (relative to its own storage directory)
+ *   <YAPAIA_DATA_DIR>/../../db.sqlite  (relative to its own storage directory)
  * -- both of which `path.join` turns into the REAL absolute path of the Core
  * database -- plus `/etc/passwd` as a generic "anything outside my grants"
  * probe, a directory listing of the data root, and a write attempt outside
@@ -16,7 +16,7 @@
  * never learns `DB_PATH`. Deriving it from its own cwd is the realistic
  * attack, and it is exactly what this does.)
  *
- * The outcome is written to `<YAPAJA_DATA_DIR>/probe-result.json` (its ONE
+ * The outcome is written to `<YAPAIA_DATA_DIR>/probe-result.json` (its ONE
  * writable location) and the test asserts every read FAILED. Reporting through
  * the filesystem rather than the API keeps the plausibility check independent
  * of the HTTP layer.
@@ -25,7 +25,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const dataDir = process.env.YAPAJA_DATA_DIR;
+const dataDir = process.env.YAPAIA_DATA_DIR;
 const results = {};
 
 function probeRead(label, target) {

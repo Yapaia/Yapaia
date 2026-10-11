@@ -2,7 +2,7 @@
  * Das Tempolimit an der Stelle, an der das Fahrzeug GERADE steht.
  *
  * ─── DIE LÜCKE ──────────────────────────────────────────────────────────────
- * `sensor.yapaja_speed_limit` blieb `unknown`, solange keine Route lief. Von
+ * `sensor.yapaia_speed_limit` blieb `unknown`, solange keine Route lief. Von
  * den zehn Yapaia-Entitäten war es die einzige, die zu Unrecht leer war: ETA
  * und Anweisung gibt es ohne Ziel wirklich nicht, ein Tempolimit schon.
  *

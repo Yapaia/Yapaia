@@ -142,7 +142,7 @@ export interface FixtureDirHandle {
 export function createFixtureTilesDir(
   files: Record<string, FixtureFileOptions>,
 ): FixtureDirHandle {
-  const dir = mkdtempSync(join(tmpdir(), 'yapaja-pmtiles-fixture-'));
+  const dir = mkdtempSync(join(tmpdir(), 'yapaia-pmtiles-fixture-'));
   for (const [region, opts] of Object.entries(files)) {
     const buf = buildPMTilesFixtureBuffer(opts);
     writeFileSync(join(dir, `${region}.pmtiles`), buf);

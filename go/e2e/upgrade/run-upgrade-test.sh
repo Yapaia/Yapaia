@@ -11,8 +11,8 @@
 # n-1 release image to test against before v1.0).
 #
 # Usage:
-#   PREV_IMAGE=ghcr.io/<org>/yapaja-core:v0.9.0 \
-#   NEW_IMAGE=ghcr.io/<org>/yapaja-core:v1.0.0 \
+#   PREV_IMAGE=ghcr.io/<org>/yapaia-core:v0.9.0 \
+#   NEW_IMAGE=ghcr.io/<org>/yapaia-core:v1.0.0 \
 #     ./run-upgrade-test.sh
 #
 # Both env vars are required (no defaults) -- silently picking "the current
@@ -114,7 +114,7 @@ curl -sf "${BASE_URL}/api/v1/settings/layouts" | grep -q 'upgrade_e2e_marker' \
 log 'Dumping schema_version (migration log) from the upgraded container'
 MIGRATION_LOG=$(docker compose -f "$COMPOSE_FILE" exec -T core node -e "
   const Database = require('better-sqlite3');
-  const db = new Database('/app/data/db/yapaja.db', { readonly: true });
+  const db = new Database('/app/data/db/yapaia.db', { readonly: true });
   const rows = db.prepare('SELECT version, name, applied_at FROM schema_version ORDER BY version').all();
   console.log(JSON.stringify(rows));
 ") || fail 'could not read schema_version from the new container'

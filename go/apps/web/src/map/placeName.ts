@@ -47,7 +47,7 @@ import type { GeoJSONFeature, Map as MapLibreMap } from 'maplibre-gl';
  * Die Quelle, die `apps/core/src/map/styles/constants.ts` im Stil anlegt.
  *
  * ─── DIESER STRING WAR FALSCH, UND ZWAR STILL ───────────────────────────────
- * In 0.3.2 stand hier `'region'`. Die Quelle heisst aber `'yapaja-region'`.
+ * In 0.3.2 stand hier `'region'`. Die Quelle heisst aber `'yapaia-region'`.
  * `querySourceFeatures` wirft bei einer unbekannten Quelle, der `catch`
  * unten hat das geschluckt, und `resolvePlaceName` lieferte AUSNAHMSLOS
  * `null` — jedes angetippte Ziel blieb bei seinen Koordinaten. Die Funktion
@@ -60,7 +60,7 @@ import type { GeoJSONFeature, Map as MapLibreMap } from 'maplibre-gl';
  * Core — die beiden koennen nicht mehr auseinanderlaufen, ohne dass ein Test
  * umfaellt.
  */
-export const REGION_SOURCE_ID = 'yapaja-region';
+export const REGION_SOURCE_ID = 'yapaia-region';
 
 /**
  * In welcher Reihenfolge gefragt wird. Eine Straße ist die genaueste Auskunft
@@ -198,7 +198,7 @@ export function resolvePlaceName({
   // unten still uebersprungen. Eine fehlende QUELLE dagegen heisst: hier
   // steht der falsche Name, und dann liefert diese Funktion fuer immer
   // `null`, ohne dass irgendetwas darauf hinweist. Genau so ist der Tippfehler
-  // `'region'` statt `'yapaja-region'` durch 0.3.2 gekommen. Einmal ins
+  // `'region'` statt `'yapaia-region'` durch 0.3.2 gekommen. Einmal ins
   // Protokoll, damit der naechste Fall in einer Minute statt in einer Version
   // gefunden wird.
   if (typeof map.getSource === 'function' && !map.getSource(sourceId)) {
@@ -215,7 +215,7 @@ export function resolvePlaceName({
   // ─── SEIT 0.9.1 GIBT ES MEHRERE KACHELQUELLEN ────────────────────────────
   // Wer Deutschland und die Schweiz installiert hat, bekommt je Region eine
   // eigene Quelle (`rewrite.ts#rewriteToRegions`). Nur die Hauptregion heisst
-  // weiter `yapaja-region`; die uebrigen tragen ein Suffix.
+  // weiter `yapaia-region`; die uebrigen tragen ein Suffix.
   //
   // Wuerde hier nur die Hauptquelle gefragt, haette jedes Ziel jenseits ihrer
   // Grenze keinen Namen mehr -- und zwar ohne Fehlermeldung, weil eine

@@ -1,0 +1,1750 @@
+/**
+ * In-repo, fully deterministic structural check for `config.yaml` (E08-T4).
+ *
+ * This is the PER-PR merge-gate counterpart to `frenck/action-addon-linter`
+ * (which runs nightly, `continue-on-error`, see `yapaia_go/PACKAGING.md` "CI
+ * strategy" for the full rationale). It does not attempt to reproduce the
+ * Supervisor's entire config schema -- only the specific, load-bearing keys
+ * `tasks/E08-home-assistant.md` and `docs/04-home-assistant.md` §3 call out
+ * explicitly, so a typo/regression in any of them fails fast, in-repo, with
+ * no network dependency and no third-party Action that could itself be
+ * flaky or unavailable.
+ */
+
+import { describe, it, expect } from 'vitest';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { basename, dirname, join } from 'node:path';
+import { load } from 'js-yaml';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ADDON_DIR = __dirname;
+const CONFIG_PATH = join(ADDON_DIR, 'config.yaml');
+
+/** Supervisor's default when `ingress_port` is omitted from config.yaml. */
+const SUPERVISOR_DEFAULT_INGRESS_PORT = 8099;
+
+interface AddonConfig {
+  name: string;
+  slug: string;
+  version: string;
+  arch: string[];
+  ingress: boolean;
+  ingress_port?: number;
+  ports: Record<string, unknown>;
+  map: string[];
+  services: string[];
+  usb: boolean;
+  udev: boolean;
+  options: Record<string, unknown>;
+  schema: Record<string, unknown>;
+}
+
+function loadConfig(): AddonConfig {
+  const raw = readFileSync(CONFIG_PATH, 'utf-8');
+  const parsed = load(raw);
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new Error('config.yaml did not parse to an object');
+  }
+  return parsed as AddonConfig;
+}
+
+/**
+ * Optionen und Schema sind seit 0.8.4 VERSCHACHTELT: die selten angefassten
+ * Schluessel liegen in Gruppen (`search.photon_enabled`), damit Home Assistant
+ * sie als aufklappbaren Block zeichnet -- wie „Terminal & SSH" es mit „Server"
+ * macht.
+ *
+ * Diese beiden Helfer machen daraus wieder eine flache Sicht, damit die Tests
+ * ueber Pfade reden koennen statt ueber Verschachtelung.
+ */
+function anPfad(wurzel: unknown, pfad: string): unknown {
+  return pfad
+    .split('.')
+    .reduce<unknown>(
+      (aktuell, teil) =>
+        aktuell && typeof aktuell === 'object'
+          ? (aktuell as Record<string, unknown>)[teil]
+          : undefined,
+      wurzel,
+    );
+}
+
+/** Alle Blatt-Pfade, gepunktet: `region`, `search.photon_enabled`, ... */
+function blattPfade(wurzel: Record<string, unknown>, praefix = ''): string[] {
+  return Object.entries(wurzel).flatMap(([schluessel, wert]) => {
+    const pfad = praefix ? `${praefix}.${schluessel}` : schluessel;
+    return wert !== null && typeof wert === 'object' && !Array.isArray(wert)
+      ? blattPfade(wert as Record<string, unknown>, pfad)
+      : [pfad];
+  });
+}
+
+describe('yapaia_go/config.yaml is valid YAML with the required HA add-on keys', () => {
+  it('parses as YAML without error', () => {
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  it('has the required top-level identity fields', () => {
+    const config = loadConfig();
+    expect(config.name).toBe('Yapaia Go');
+    expect(config.slug).toBe('yapaia_go');
+    expect(typeof config.version).toBe('string');
+    expect(config.version.length).toBeGreaterThan(0);
+  });
+
+  it('declares amd64 + aarch64 architectures', () => {
+    const config = loadConfig();
+    expect(Array.isArray(config.arch)).toBe(true);
+    expect(config.arch).toContain('amd64');
+    expect(config.arch).toContain('aarch64');
+  });
+
+  /**
+   * `ingress_port` is deliberately NOT set in config.yaml: 8099 is already the
+   * Supervisor default, and `frenck/action-addon-linter` (nightly, E08-T4)
+   * rejects keys that only restate a default.
+   *
+   * That makes the port coupling IMPLICIT, so this test makes it explicit
+   * again -- which is the more valuable assertion anyway. What actually has to
+   * hold is that the port the container LISTENS on is the port Ingress will
+   * dial. Asserting `typeof ingress_port === 'number'` (the previous version)
+   * never checked that: it would have happily passed with a port the Core
+   * does not serve.
+   */
+  it('is Ingress-enabled, and the container listens on exactly the Ingress port', () => {
+    const config = loadConfig();
+    expect(config.ingress).toBe(true);
+
+    // Not set = Supervisor default 8099.
+    const ingressPort = config.ingress_port ?? SUPERVISOR_DEFAULT_INGRESS_PORT;
+    expect(Number.isInteger(ingressPort)).toBe(true);
+    expect(ingressPort).toBeGreaterThan(0);
+
+    // ... and that is the port the container is actually configured to serve.
+    const initScript = readFileSync(
+      join(ADDON_DIR, 'rootfs', 'etc', 'yapaia', 'init-yapaia-config.sh'),
+      'utf-8',
+    );
+    const exported = /export_env "PORT" "(\d+)"/.exec(initScript);
+    expect(exported, 'init-yapaia-config.sh must export a PORT default').not.toBeNull();
+    expect(Number(exported?.[1])).toBe(ingressPort);
+
+    const dockerfile = readFileSync(join(ADDON_DIR, 'Dockerfile'), 'utf-8');
+    expect(dockerfile).toContain(`EXPOSE ${ingressPort}`);
+  });
+
+  it('is Ingress-only by default (no published ports)', () => {
+    const config = loadConfig();
+    expect(config.ports).toEqual({});
+  });
+
+  it('maps /share as read-write (W-16: data survives updates)', () => {
+    const config = loadConfig();
+    expect(Array.isArray(config.map)).toBe(true);
+    expect(config.map).toContain('share:rw');
+  });
+
+  /**
+   * `want`, NICHT mehr `need`: seit 0.7.0 gibt es einen zweiten Weg zu Home
+   * Assistant (`ha_internal`), der ohne Broker auskommt. `need` hiesse „ohne
+   * das hier ergibt dieses Add-on keinen Sinn" -- das stimmt seither nicht
+   * mehr. Die Zugangsdaten kommen bei vorhandenem Broker unveraendert
+   * automatisch.
+   */
+  it('declares mqtt:want -- Broker automatisch, aber nicht mehr zwingend', () => {
+    const config = loadConfig();
+    expect(Array.isArray(config.services)).toBe(true);
+    expect(config.services).toContain('mqtt:want');
+    expect(config.services).not.toContain('mqtt:need');
+  });
+
+  /**
+   * Die zwei Wege zu Home Assistant, beide abschaltbar.
+   *
+   * Der Anlass: ohne MQTT-Broker gab es GAR KEINE Yapaia-Entitaeten, und das
+   * fertige Dashboard zeigte in jeder Kachel „Entitaet nicht gefunden".
+   */
+  it('bietet beide Kanaele als eigene Schalter an', () => {
+    const config = loadConfig();
+    for (const key of ['home_assistant.mqtt_enabled', 'home_assistant.ha_internal']) {
+      expect(anPfad(config.options, key), `options.${key} fehlt`).toBeDefined();
+      expect(anPfad(config.schema, key), `schema.${key}`).toBe('bool');
+      expect(typeof anPfad(config.options, key), `options.${key} muss ein Schalter sein`).toBe(
+        'boolean',
+      );
+    }
+  });
+
+  /**
+   * ─── SICHTBAR IST NICHT GEOEFFNET ────────────────────────────────────────
+   * Dieser Test hiess bis 0.8.9 „declares usb + udev for GPS-receiver
+   * passthrough" und war die ganze Zeit gruen -- waehrend das Add-on den
+   * Empfaenger nicht oeffnen konnte.
+   *
+   * `usb`/`udev` machen das Geraet SICHTBAR: es erschien unter
+   * /dev/serial/by-id/, die Installationspruefung listete es, die
+   * Geraetewahl waehlte es aus, das Protokoll meldete „benutze …". Das
+   * OEFFNEN scheiterte trotzdem:
+   *
+   *   gpsd:ERROR: SER: device open of … failed: Operation not permitted(1)
+   *   gpsd:ERROR: can't run with neither control socket nor devices open
+   *
+   * Dafuer ist `uart` da. Zum Vergleich: das ESPHome-Add-on, das ueber
+   * USB-Seriell flasht, deklariert `uart: true` und gar kein `usb`.
+   *
+   * Der Test prueft jetzt das, worauf es ankommt -- und nicht mehr nur das,
+   * was zufaellig dastand.
+   */
+  it('declares uart, so the container may actually OPEN the serial device', () => {
+    const config = loadConfig();
+    expect(
+      config.uart,
+      'Ohne `uart: true` ist der Empfänger sichtbar, aber nicht zu öffnen: ' +
+        'gpsd bekommt EPERM und beendet sich, s6 startet im Sekundentakt neu.',
+    ).toBe(true);
+  });
+
+  it('declares udev, so a receiver plugged in later is noticed', () => {
+    expect(loadConfig().udev).toBe(true);
+  });
+
+  it('has the required option/schema keys from docs/04 §3 (region, mqtt_prefix, photon, gps_source, log_level, memory tuning)', () => {
+    const config = loadConfig();
+    const requiredKeys = [
+      'region',
+      'gps_source',
+      'home_assistant.mqtt_prefix',
+      'search.photon_enabled',
+      'search.photon_xmx_mb',
+      'routing.valhalla_memory_mb',
+      'advanced.log_level',
+    ];
+    for (const key of requiredKeys) {
+      expect(anPfad(config.options, key), `options.${key} missing`).toBeDefined();
+      expect(anPfad(config.schema, key), `schema.${key} missing`).toBeDefined();
+    }
+  });
+
+  // 0.3.0 BUILT the Companion-App position source but never listed it here.
+  // The Configuration tab therefore offered usb/network/none only, and the
+  // one operator running the add-on reported exactly that: "den ha tracker
+  // kann ich nicht auswaehlen. In der Konfiguration sehe ich nur usb."
+  // A feature that cannot be selected is not a feature.
+  it('offers every implemented position source in gps_source, including the Companion App', () => {
+    const config = loadConfig();
+    const schema = config.schema.gps_source as string;
+    const match = /^list\((.+)\)$/.exec(schema);
+    expect(match, `gps_source schema is not a list(): ${schema}`).not.toBeNull();
+    const values = (match as RegExpExecArray)[1].split('|');
+    expect(values).toContain('companion_app');
+    // Der ALTE Name ist seit 0.8.8 draussen. Bis 0.8.7 stand er zusaetzlich
+    // im Schema, damit ein Update keine bestehende Installation still ohne
+    // Positionsquelle laesst -- bezahlt mit ZWEI Knoepfen auf der
+    // Konfigurationsseite, die dasselbe bedeuten. Es gibt keine fremden
+    // Installationen, auf die Ruecksicht zu nehmen waere.
+    expect(values).not.toContain('ha_tracker');
+    expect(values).toContain('usb');
+    expect(values).toContain('network');
+    expect(values).toContain('none');
+    // The default must itself be one of the offered values -- the Supervisor
+    // rejects the add-on outright otherwise, and it would do so on the
+    // operator's machine, not here.
+    expect(values).toContain(config.options.gps_source);
+  });
+
+  it('every options key has a matching schema key and vice versa (no orphaned entries)', () => {
+    const config = loadConfig();
+    const optionKeys = Object.keys(config.options).sort();
+    const schemaKeys = Object.keys(config.schema).sort();
+    expect(optionKeys).toEqual(schemaKeys);
+  });
+});
+
+/**
+ * The GUI install path (Settings -> Add-ons -> Add-on Store -> ⋮ ->
+ * Repositories) only works if the Supervisor can actually FIND this add-on:
+ * it requires `repository.yaml` in the repository ROOT and discovers add-ons
+ * as directories exactly ONE level below that root, each holding a
+ * `config.yaml`. Before `feat/gui-install-path` this package lived at
+ * `ha-addon/yapaia_go/` -- two levels deep, therefore invisible, which is
+ * why `docs/installation.md` §A used to warn that the store path did not
+ * work. These assertions pin that layout so a future reorganisation cannot
+ * silently break the one path an operator actually uses (see
+ * `yapaia_go/PACKAGING.md`).
+ */
+describe('repository layout makes the add-on discoverable via the HA GUI', () => {
+  // Seit dem Umzug ins Yapaia-Repo: go/yapaia_go/ unter der gemeinsamen
+  // Store-Wurzel. Der Supervisor sucht Add-ons in allen Unterordnern
+  // (supervisor/store/data.py, `path.glob("**/config.*")`), die Store-
+  // Beschreibung `repository.yaml` muss aber an der Wurzel liegen.
+  const GO_ROOT = join(ADDON_DIR, '..');
+  const REPO_ROOT = join(GO_ROOT, '..');
+
+  it('the add-on directory sits in go/, next to the Go workspace', () => {
+    expect(basename(ADDON_DIR)).toBe('yapaia_go');
+    expect(basename(GO_ROOT)).toBe('go');
+    expect(existsSync(join(GO_ROOT, 'pnpm-workspace.yaml'))).toBe(true);
+  });
+
+  it('a repository.yaml exists in the repository root', () => {
+    expect(existsSync(join(REPO_ROOT, 'repository.yaml'))).toBe(true);
+  });
+
+  it('repository.yaml carries name, url and maintainer', () => {
+    const parsed = load(readFileSync(join(REPO_ROOT, 'repository.yaml'), 'utf-8'));
+    expect(typeof parsed).toBe('object');
+    const repo = parsed as { name?: string; url?: string; maintainer?: string };
+    expect(repo.name).toBe('Yapaia');
+    expect(repo.url).toMatch(/^https:\/\/github\.com\/.+/);
+    expect(typeof repo.maintainer).toBe('string');
+    expect((repo.maintainer ?? '').length).toBeGreaterThan(0);
+  });
+
+  it('config.yaml `url` points at the same repository operators add in the store', () => {
+    const config = loadConfig() as AddonConfig & { url?: string };
+    const repo = load(readFileSync(join(REPO_ROOT, 'repository.yaml'), 'utf-8')) as { url?: string };
+    expect(config.url).toBe(repo.url);
+  });
+});
+
+/**
+ * ─── DIE INSTALLATION MUSS TATSAECHLICH MOEGLICH SEIN ───────────────────────
+ *
+ * Diese Gruppe existiert wegen eines konkreten Fehlschlags am 2026-09-02: die
+ * GUI-Installation auf einer echten HAOS-Instanz brach ab mit
+ *
+ *   Can't install ghcr.io/yapaia/yapaia-go-amd64:0.1.0:
+ *   [403] Head ".../manifests/0.1.0": denied
+ *
+ * Zwei unabhaengige Fehler lagen hintereinander, und der erste verdeckte den
+ * zweiten:
+ *
+ *   1. `config.yaml` deklarierte `image: ghcr.io/yapaia/yapaia-go-{arch}`.
+ *      Steht dort ein `image:`, ZIEHT der Supervisor und baut nicht. Dieses
+ *      Image existierte nie -- `yapaia` ist nicht einmal der Namensraum
+ *      dieses Repositories, und kein Workflow hat `yapaia_go/Dockerfile` je
+ *      gebaut oder gepusht.
+ *   2. Der Dockerfile kopierte aus der REPO-WURZEL (`COPY apps/ ...`). Der
+ *      Supervisor baut aber mit dem ADD-ON-VERZEICHNIS als Kontext. Waere
+ *      Fehler 1 allein behoben worden, waere der Bau an
+ *      „COPY failed: file not found" gescheitert.
+ *
+ * Die 14 bestehenden Tests dieser Datei waren dabei gruen. Sie pruefen die
+ * Struktur der Konfiguration und die Auffindbarkeit im Store -- aber nichts,
+ * was die Installation tatsaechlich vollzieht. Genau diese Luecke schliessen
+ * die folgenden Tests.
+ */
+describe('die Installation kann tatsaechlich durchlaufen', () => {
+  const DOCKERFILE_PATH = join(ADDON_DIR, 'Dockerfile');
+  // Seit dem Umzug ins Yapaia-Repo liegen die Workflows an der Repo-Wurzel,
+  // zwei Ebenen über dem Add-on (go/yapaia_go/).
+  const WORKFLOW_DIR = join(ADDON_DIR, '..', '..', '.github', 'workflows');
+
+  /** Alle `COPY`/`ADD`-Zeilen mit ihren Quellpfaden, ohne `--from=`-Stufen
+   *  (die beziehen sich auf eine vorherige Build-Stufe, nicht auf den
+   *  Kontext) und ohne `--chown=`/`--chmod=`-Flags. */
+  function contextCopySources(dockerfile: string): string[] {
+    const sources: string[] = [];
+    for (const rawLine of dockerfile.split('\n')) {
+      const line = rawLine.trim();
+      const match = /^(COPY|ADD)\s+(.*)$/i.exec(line);
+      if (!match) continue;
+      if (/--from=/i.test(match[2])) continue; // Quelle ist eine Build-Stufe
+      const tokens = match[2]
+        .split(/\s+/)
+        .filter((t) => t.length > 0 && !t.startsWith('--'));
+      // Letztes Token ist das Ziel im Image, alles davor sind Quellen.
+      sources.push(...tokens.slice(0, -1));
+    }
+    return sources;
+  }
+
+  /**
+   * DER TEST, DER DEN ZWEITEN FEHLER GEFANGEN HAETTE.
+   *
+   * Der Supervisor baut ein Add-on mit dem Add-on-Verzeichnis als
+   * Docker-Build-Kontext -- auch beim Store-Weg, wo er zwar das ganze
+   * Repository klont, aber aus `<clone>/yapaia_go/` baut. Jede `COPY`-Quelle
+   * muss also innerhalb dieses Verzeichnisses liegen. `COPY ../..` ist in
+   * Docker ohnehin verboten; der praktisch gefaehrliche Fall ist ein Pfad,
+   * der von der Repo-Wurzel aus existiert und deshalb beim Entwickeln
+   * (`docker build -f yapaia_go/Dockerfile .`) funktioniert -- und nur beim
+   * echten Add-on-Bau fehlschlaegt.
+   */
+  it('kopiert nichts aus dem Build-Kontext, was ausserhalb von yapaia_go/ liegt', () => {
+    const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf-8');
+    const sources = contextCopySources(dockerfile);
+
+    // Plausibilitaet: der Test waere wertlos, wenn er gar keine Zeile faende.
+    expect(sources.length).toBeGreaterThan(0);
+
+    for (const source of sources) {
+      expect(source.startsWith('/'), `"${source}" ist ein absoluter Pfad`).toBe(false);
+      expect(source.startsWith('..'), `"${source}" zeigt aus dem Kontext heraus`).toBe(false);
+      const cleaned = source.replace(/\/$/, '');
+      expect(
+        existsSync(join(ADDON_DIR, cleaned)),
+        `COPY-Quelle "${source}" liegt nicht in yapaia_go/ und ist beim Add-on-Bau nicht erreichbar`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * DER TEST, DER DEN ERSTEN FEHLER GEFANGEN HAETTE.
+   *
+   * Ein `image:` ist eine Zusage: „dieses Image gibt es fertig zum Ziehen".
+   * Sie ist nur dann wahr, wenn irgendein Workflow `yapaia_go/Dockerfile`
+   * baut UND in genau diesen Namensraum pusht. Der Test formuliert deshalb
+   * eine Implikation statt eines Verbots -- wer spaeter Images
+   * veroeffentlicht, darf `image:` wieder setzen, muss dann aber den
+   * Workflow mitliefern.
+   */
+  it('deklariert `image:` nur, wenn ein Workflow dieses Image auch baut und pusht', () => {
+    const config = loadConfig() as AddonConfig & { image?: string };
+    if (config.image === undefined) {
+      return; // Kein Versprechen gemacht -- der Supervisor baut lokal.
+    }
+
+    const workflows = existsSync(WORKFLOW_DIR)
+      ? readdirSync(WORKFLOW_DIR)
+          .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+          .map((f) => readFileSync(join(WORKFLOW_DIR, f), 'utf-8'))
+      : [];
+
+    // Der Namensraum ohne den `{arch}`-Platzhalter, z. B.
+    // "ghcr.io/yapaia/yapaia-go-" aus "ghcr.io/yapaia/yapaia-go-{arch}".
+    const namespace = config.image.split('{arch}')[0];
+
+    const publishing = workflows.filter(
+      (text) => text.includes(namespace) && text.includes('yapaia_go/Dockerfile'),
+    );
+
+    expect(
+      publishing.length,
+      `config.yaml verspricht das fertige Image "${config.image}", aber kein Workflow baut ` +
+        `yapaia_go/Dockerfile und pusht nach "${namespace}". Genau diese Luecke liess die ` +
+        `GUI-Installation am 2026-09-02 mit "403 denied" abbrechen.`,
+    ).toBeGreaterThan(0);
+  });
+
+  /** Jedes Build-Argument aus `build.yaml` muss im Dockerfile als `ARG`
+   *  deklariert sein -- sonst reicht der Supervisor einen Wert durch, den
+   *  niemand liest, und der Bau nimmt still den Default. */
+  it('jedes Argument aus build.yaml ist im Dockerfile als ARG deklariert', () => {
+    const build = load(readFileSync(join(ADDON_DIR, 'build.yaml'), 'utf-8')) as {
+      args?: Record<string, unknown>;
+    };
+    const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf-8');
+
+    const args = Object.keys(build.args ?? {});
+    expect(args.length).toBeGreaterThan(0);
+
+    for (const arg of args) {
+      expect(
+        new RegExp(`^\\s*ARG\\s+${arg}(\\s|=|$)`, 'm').test(dockerfile),
+        `build.yaml uebergibt "${arg}", der Dockerfile deklariert dafuer kein ARG`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * DER TEST FUER DIE DRITTE SCHICHT (2026-09-02).
+   *
+   * Docker kennt zwei getrennte ARG-Gueltigkeitsbereiche: alles VOR dem
+   * ersten `FROM` ist global und steht jeder `FROM`-Zeile zur Verfuegung,
+   * alles danach gehoert zu genau der Stufe, in der es steht. Ein `ARG`, das
+   * in einer `FROM`-Zeile verwendet wird, muss deshalb global deklariert
+   * sein.
+   *
+   * `ARG BUILD_FROM` stand unmittelbar vor der letzten `FROM`-Zeile -- aber
+   * nach zwei vorherigen Stufen, also im Scope von niemandem. Der Supervisor
+   * uebergab `--build-arg BUILD_FROM=...` korrekt, der Wert kam nie an:
+   *
+   *     ERROR: failed to solve: base name (${BUILD_FROM}) should not be blank
+   *
+   * Der Fehler steckte seit E08-T4 in der Datei und wurde erst sichtbar,
+   * nachdem die beiden Fehler davor behoben waren und ueberhaupt zum ersten
+   * Mal gebaut wurde.
+   */
+  it('jedes ARG, das in einem FROM verwendet wird, ist vor dem ersten FROM deklariert', () => {
+    const lines = readFileSync(DOCKERFILE_PATH, 'utf-8').split('\n');
+    const firstFrom = lines.findIndex((l) => /^\s*FROM\s/i.test(l));
+    expect(firstFrom, 'Dockerfile enthaelt kein FROM').toBeGreaterThanOrEqual(0);
+
+    const globalArgs = new Set<string>();
+    for (const line of lines.slice(0, firstFrom)) {
+      const m = /^\s*ARG\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
+      if (m) globalArgs.add(m[1]);
+    }
+
+    const referenced: Array<{ name: string; line: number }> = [];
+    lines.forEach((line, i) => {
+      if (!/^\s*FROM\s/i.test(line)) return;
+      for (const m of line.matchAll(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g)) {
+        referenced.push({ name: m[1], line: i + 1 });
+      }
+    });
+
+    // Plausibilitaet: dieser Dockerfile MUSS ein ARG in einem FROM verwenden
+    // (`FROM ${BUILD_FROM}`) -- sonst prueft der Test nichts.
+    expect(referenced.length).toBeGreaterThan(0);
+
+    for (const { name, line } of referenced) {
+      expect(
+        globalArgs.has(name),
+        `Zeile ${line} benutzt \${${name}} in einem FROM, aber ARG ${name} ist nicht vor ` +
+          `dem ersten FROM (Zeile ${firstFrom + 1}) deklariert. Docker expandiert es dann zu ` +
+          `nichts: "base name should not be blank".`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * DER TEST FUER DIE VIERTE SCHICHT (2026-09-02).
+   *
+   * Docker fuehrt jedes `RUN` als den zuletzt gesetzten `USER` aus, und der
+   * wird von `FROM` mit uebernommen. Das Valhalla-Basisimage setzt einen
+   * nicht-privilegierten Benutzer, weshalb der erste `apt-get` der letzten
+   * Stufe scheiterte:
+   *
+   *     E: Could not open lock file /var/lib/apt/lists/lock
+   *        - open (13: Permission denied)
+   *
+   * Die letzte Stufe MUSS root sein -- nicht nur fuer apt, sondern weil
+   * dieses Add-on s6-overlay als PID 1 mitbringt (`ENTRYPOINT ["/init"]`),
+   * und das braucht root. Der Test verankert das an der Stelle, an der es
+   * gilt: vor dem ersten `RUN` der letzten Stufe.
+   */
+  it('die letzte Build-Stufe setzt USER root vor ihrem ersten RUN', () => {
+    const lines = readFileSync(DOCKERFILE_PATH, 'utf-8').split('\n');
+
+    const fromIdx = lines.reduce(
+      (acc, l, i) => (/^\s*FROM\s/i.test(l) ? i : acc),
+      -1,
+    );
+    expect(fromIdx, 'Dockerfile enthaelt kein FROM').toBeGreaterThanOrEqual(0);
+
+    const finalStage = lines.slice(fromIdx + 1);
+    const firstRun = finalStage.findIndex((l) => /^\s*RUN\s/i.test(l));
+    const userRoot = finalStage.findIndex((l) => /^\s*USER\s+root\s*$/i.test(l));
+
+    // Plausibilitaet: die letzte Stufe MUSS ein RUN haben, sonst prueft der
+    // Test nichts.
+    expect(firstRun).toBeGreaterThanOrEqual(0);
+
+    expect(
+      userRoot,
+      'Die letzte Build-Stufe setzt nirgends `USER root`. Das Basisimage ' +
+        'bestimmt dann den Benutzer -- beim Valhalla-Image ist das ein ' +
+        'unprivilegierter, und jedes apt-get/Schreiben nach /usr, /var oder / ' +
+        'scheitert mit "Permission denied".',
+    ).toBeGreaterThanOrEqual(0);
+
+    expect(
+      userRoot,
+      `\`USER root\` steht erst nach dem ersten RUN der letzten Stufe ` +
+        `(RUN in Zeile ${fromIdx + firstRun + 2}, USER root in Zeile ` +
+        `${fromIdx + userRoot + 2}). Das erste RUN laeuft dann noch als der ` +
+        `Benutzer des Basisimages.`,
+    ).toBeLessThan(firstRun);
+  });
+
+  /**
+   * DIE SECHSTE SCHICHT (2026-09-02): das Add-on liess sich installieren,
+   * startete aber nicht.
+   *
+   *     s6-supervise valhalla: warning: unable to spawn ./run
+   *                            (waiting 60 seconds): No such file or directory
+   *
+   * "No such file or directory" beim Starten einer vorhandenen, ausfuehrbaren
+   * Datei heisst fast immer: der INTERPRETER aus dem Shebang fehlt. Die
+   * Skripte begannen mit `#!/usr/bin/with-contenv bash`. Diesen Pfad legen
+   * nur die offiziellen HA-Basisimages an; s6-overlay v3 selbst installiert
+   * das Werkzeug nach `/command/with-contenv` (nachgeprueft im Release-
+   * Archiv v3.1.6.2: `./command/with-contenv` ist enthalten, ein
+   * `usr/bin/with-contenv` kommt darin ueberhaupt nicht vor). Wir bauen auf
+   * dem Valhalla-Image, also gab es den Pfad nicht.
+   */
+  const ROOTFS_DIR = join(ADDON_DIR, 'rootfs');
+
+  function rootfsScripts(): string[] {
+    const out: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.isFile() && readFileSync(full, 'utf-8').startsWith('#!')) out.push(full);
+      }
+    };
+    walk(ROOTFS_DIR);
+    return out;
+  }
+
+  it('kein Skript unter rootfs/ benutzt den HA-Basisimage-Pfad /usr/bin/with-contenv', () => {
+    const scripts = rootfsScripts();
+    // Plausibilitaet: ohne Skripte prueft der Test nichts.
+    expect(scripts.length).toBeGreaterThan(0);
+
+    for (const file of scripts) {
+      const shebang = readFileSync(file, 'utf-8').split('\n')[0];
+      expect(
+        shebang.includes('/usr/bin/with-contenv'),
+        `${file.replace(ADDON_DIR, 'yapaia_go')} benutzt /usr/bin/with-contenv. Den Pfad legen ` +
+          `nur die offiziellen HA-Basisimages an; dieses Add-on baut auf dem Valhalla-Image ` +
+          `und installiert s6-overlay v3 selbst, das /command/with-contenv mitbringt. ` +
+          `s6 meldet den fehlenden Interpreter als "unable to spawn ./run: ` +
+          `No such file or directory".`,
+      ).toBe(false);
+    }
+  });
+
+  /**
+   * Die zweite Haelfte desselben Startfehlers: `init-yapaia-config.sh` lief
+   * unter nacktem `bash` (das `up`-Skript rief es so auf) und scheiterte an
+   * `bashio::log.info: command not found`. Ein Skript, das
+   * bashio-Funktionen benutzt, muss `bashio` als Interpreter haben --
+   * `bash` allein kennt sie nicht.
+   */
+  it('jedes Skript, das bashio:: benutzt, hat auch bashio als Interpreter', () => {
+    // Kommentarzeilen zaehlen NICHT als Verwendung -- mehrere dieser Skripte
+    // zitieren die Fehlermeldung `bashio::log.info: command not found` in
+    // ihrem Kopfkommentar, um zu erklaeren, warum der Shebang so aussieht,
+    // wie er aussieht.
+    const usesBashio = (file: string): boolean =>
+      readFileSync(file, 'utf-8')
+        .split('\n')
+        .some((l) => !l.trimStart().startsWith('#') && l.includes('bashio::'));
+    const users = rootfsScripts().filter(usesBashio);
+    // Plausibilitaet: es MUSS solche Skripte geben, sonst ist der Test leer.
+    expect(users.length).toBeGreaterThan(0);
+
+    for (const file of users) {
+      const shebang = readFileSync(file, 'utf-8').split('\n')[0];
+      expect(
+        /\bbashio\s*$/.test(shebang),
+        `${file.replace(ADDON_DIR, 'yapaia_go')} benutzt bashio::-Funktionen, sein Shebang ` +
+          `endet aber nicht auf "bashio": "${shebang}". Unter nacktem bash fuehrt das zu ` +
+          `"bashio::…: command not found".`,
+      ).toBe(true);
+    }
+  });
+
+  /**
+   * Und die Stelle, an der die beiden auseinanderliefen: das `up`-Skript des
+   * Oneshots rief `bash /etc/yapaia/init-yapaia-config.sh` auf und umging
+   * damit den Shebang des Skripts. Der Interpreter gehoert an EINE Stelle.
+   */
+  it('das oneshot-up-Skript umgeht den Shebang des init-Skripts nicht', () => {
+    const up = readFileSync(
+      join(ROOTFS_DIR, 'etc/s6-overlay/s6-rc.d/init-yapaia-config/up'),
+      'utf-8',
+    );
+    const body = up
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('#') && l.trim().length > 0)
+      .join('\n');
+    expect(body).toContain('/etc/yapaia/init-yapaia-config.sh');
+    expect(
+      /\b(bash|sh)\s+\/etc\/yapaia\/init-yapaia-config\.sh/.test(body),
+      'Das up-Skript ruft init-yapaia-config.sh mit einem explizitem Interpreter auf und ' +
+        'umgeht damit dessen Shebang -- genau so lief es unter nacktem bash ohne bashio.',
+    ).toBe(false);
+  });
+
+  /**
+   * Die Go-Quellen kommen nur als Bau-Kontext `gosrc` (CI), nie aus dem Netz.
+   *
+   * Frueher lud Stage 1 den Quelltext von GitHub -- mit allen Tuecken eines
+   * beweglichen `main` im Docker-Cache (das Update kam nie an). Seit der
+   * Supervisor fertige Images zieht, baut nur noch die CI, und die gibt den
+   * gepruefen Stand als Kontext mit.
+   */
+  it('baut die Go-Quellen nur aus dem Kontext gosrc, ohne Download', () => {
+    const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf-8');
+    const befehle = dockerfile
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('#'))
+      .join('\n');
+    expect(befehle).not.toMatch(/codeload\.github\.com|github\.com\/Yapaia\//i);
+    expect(befehle).toMatch(/^FROM scratch AS gosrc$/m);
+    expect(befehle).toMatch(/COPY --from=gosrc \/ \/app\//);
+  });
+
+  /**
+   * DIE ACHTE SCHICHT (2026-09-02): das Add-on-Protokoll bestand fast nur
+   * noch aus einer einzigen Zeile.
+   *
+   *     /usr/lib/bashio/log.sh: line 107: info: unbound variable
+   *
+   * bashio liest seinen Log-Level DIREKT aus der Umgebung und erwartet dort
+   * eine ZAHL (lib/bashio.sh:31):
+   *
+   *     declare __BASHIO_LOG_LEVEL=${LOG_LEVEL:-${__BASHIO_DEFAULT_LOG_LEVEL}}
+   *
+   * und vergleicht ihn arithmetisch (lib/log.sh:107):
+   *
+   *     if [[ "${level}" -gt "${__BASHIO_LOG_LEVEL}" ]]; then
+   *
+   * `init-yapaia-config.sh` exportierte aber `LOG_LEVEL=info` -- einen
+   * NAMEN -- in die GETEILTE Container-Umgebung. Alles unter
+   * `/run/s6/container_environment/` landet in jedem `with-contenv`-Skript,
+   * also auch in bashio. Der `-gt`-Vergleich wertete `info` arithmetisch aus
+   * und brach unter `set -u` bei JEDEM Log-Aufruf ab. Kein s6-Dienst konnte
+   * mehr protokollieren.
+   *
+   * Der Name gehoert deshalb nicht in die geteilte Umgebung. Der Core will
+   * `LOG_LEVEL` weiterhin (pino) -- das setzt `core/run` lokal.
+   */
+  it('exportiert keine Variable in die geteilte Umgebung, die bashio belegt', () => {
+    const init = readFileSync(
+      join(ROOTFS_DIR, 'etc/yapaia/init-yapaia-config.sh'),
+      'utf-8',
+    );
+
+    // Namen, die bashio selbst aus der Umgebung liest und die deshalb nicht
+    // von uns global belegt werden duerfen. Jeder weitere Eintrag braucht
+    // denselben Nachweis: Fundstelle in bashios Quelltext.
+    const RESERVED_BY_BASHIO = ['LOG_LEVEL'];
+
+    const exported = [...init.matchAll(/^\s*export_env\s+"([A-Z0-9_]+)"/gm)].map((m) => m[1]);
+    // Plausibilitaet: ohne Exporte prueft der Test nichts.
+    expect(exported.length).toBeGreaterThan(0);
+
+    for (const reserved of RESERVED_BY_BASHIO) {
+      expect(
+        exported.includes(reserved),
+        `init-yapaia-config.sh exportiert "${reserved}" in die geteilte ` +
+          `Container-Umgebung. bashio liest genau diesen Namen (lib/bashio.sh:31) und ` +
+          `erwartet eine Zahl -- ein Name wie "info" laesst jeden bashio-Log-Aufruf ` +
+          `mit "unbound variable" abbrechen. Lokal im jeweiligen run-Skript setzen.`,
+      ).toBe(false);
+    }
+  });
+
+  /** Der Core braucht `LOG_LEVEL` trotzdem (pino). Wenn es nicht mehr global
+   *  kommt, muss es lokal gesetzt werden -- sonst ist die Option des
+   *  Betreibers stillschweigend wirkungslos. */
+  it('core/run setzt LOG_LEVEL lokal aus YAPAIA_LOG_LEVEL', () => {
+    const run = readFileSync(
+      join(ROOTFS_DIR, 'etc/s6-overlay/s6-rc.d/core/run'),
+      'utf-8',
+    );
+    expect(run).toMatch(/export\s+LOG_LEVEL=.*YAPAIA_LOG_LEVEL/);
+  });
+
+  /**
+   * CHANGELOG.md ist das, was Home Assistant dem Betreiber VOR dem Klick auf
+   * „Aktualisieren" anzeigt. Ein Update ohne Eintrag ist damit ein Update,
+   * ueber das er nichts erfaehrt -- und weil `version:` erhoeht werden MUSS,
+   * damit der Supervisor ueberhaupt eines anbietet, faellt genau dann auf,
+   * wenn beides auseinanderlaeuft.
+   *
+   * Geprueft wird die Kopplung, nicht der Inhalt: zu jeder ausgelieferten
+   * Version muss eine Ueberschrift existieren.
+   */
+  it('CHANGELOG.md hat einen Eintrag fuer die ausgelieferte Version', () => {
+    const changelog = readFileSync(join(ADDON_DIR, 'CHANGELOG.md'), 'utf-8');
+    const { version } = loadConfig();
+    const heading = new RegExp(`^##\\s+v?${version.replace(/\./g, '\\.')}\\s*$`, 'm');
+    expect(
+      changelog,
+      `CHANGELOG.md hat keine Ueberschrift "## ${version}". Home Assistant zeigt ` +
+        'diese Datei beim Update an -- ohne Eintrag erfaehrt der Betreiber nicht, ' +
+        'was sich aendert.',
+    ).toMatch(heading);
+  });
+
+  /**
+   * Ohne diesen Symlink laedt KEIN Routinggraph.
+   *
+   * `valhalla_build_config` backt absolute Pfade in die valhalla.json, und
+   * das gis-ops-Image setzt sie hart unter `/custom_files`
+   * (`scripts/helpers.sh`). `valhalla_service` startet hier aber mit
+   * `/share/yapaia/valhalla/tiles/valhalla.json`. Zeigt `/custom_files`
+   * nicht auf genau dieses Verzeichnis, findet der Dienst seine Kacheln
+   * nicht -- und zwar unabhaengig davon, ob der Graph hier gebaut oder
+   * anderswo gebaut und hereinkopiert wurde.
+   */
+  it('Dockerfile legt /custom_files als Symlink auf das Valhalla-Verzeichnis an', () => {
+    const dockerfile = readFileSync(join(ADDON_DIR, 'Dockerfile'), 'utf-8');
+    expect(
+      dockerfile,
+      'Ohne den Symlink /custom_files -> /share/yapaia/valhalla/tiles zeigen die ' +
+        'absoluten Pfade in der von Valhalla erzeugten valhalla.json ins Leere.',
+    ).toMatch(/ln\s+-s\s+\/share\/yapaia\/valhalla\/tiles\s+\/custom_files/);
+  });
+
+  /** Der Core startet dieses Werkzeug per Pfad (`GRAPH_BUILD_COMMAND`).
+   *  Fehlt es im Image, scheitert der Knopf „Routing bauen" beim ersten
+   *  Druck -- genau die Sorte Versprechen, die diese Datei verhindern soll. */
+  it('der Wrapper fuer den Routinggraphen liegt im rootfs und ist ausfuehrbar', () => {
+    const wrapper = join(ROOTFS_DIR, 'usr/bin/yapaia-build-graph');
+    expect(existsSync(wrapper), `${wrapper} fehlt`).toBe(true);
+    const mode = statSync(wrapper).mode;
+    // eslint-disable-next-line no-bitwise -- Ausfuehrbar-Bit pruefen
+    expect(mode & 0o111, 'yapaia-build-graph ist nicht ausfuehrbar').toBeGreaterThan(0);
+  });
+
+  /**
+   * Der Suchindex-Bauer -- dieselbe Absicherung wie fuer den Routinggraphen.
+   *
+   * Bis 0.3.3 sagten Installationspruefung, Dockerfile und Doku
+   * uebereinstimmend, der Index lasse sich auf dem Geraet nicht bauen. Das
+   * beschrieb keine Grenze, sondern zwei Auslassungen: `osmium-tool` lag
+   * nicht im Image, und das Werkzeug fehlte, weil der Core-Build nur
+   * `src/index.ts` als Einstiegspunkt fuehrte. Beides muss zusammen
+   * vorhanden sein, sonst ist der Knopf „Suche bauen" wieder ein Versprechen.
+   */
+  it('der Wrapper fuer den Suchindex liegt im rootfs und ist ausfuehrbar', () => {
+    const wrapper = join(ROOTFS_DIR, 'usr/bin/yapaia-build-lite-index');
+    expect(existsSync(wrapper), `${wrapper} fehlt`).toBe(true);
+    const mode = statSync(wrapper).mode;
+    // eslint-disable-next-line no-bitwise -- Ausfuehrbar-Bit pruefen
+    expect(mode & 0o111, 'yapaia-build-lite-index ist nicht ausfuehrbar').toBeGreaterThan(0);
+  });
+
+  it('das Image installiert osmium-tool -- ohne das ist der Wrapper eine Attrappe', () => {
+    const dockerfile = readFileSync(join(ADDON_DIR, 'Dockerfile'), 'utf-8');
+    expect(
+      /^\s*osmium-tool\s*\\?$/m.test(dockerfile),
+      'Im Dockerfile fehlt `osmium-tool` in der apt-Zeile. Der Wrapper ' +
+        '`yapaia-build-lite-index` bricht dann bei jedem Aufruf ab, und die ' +
+        'Adresssuche bleibt leer.',
+    ).toBe(true);
+  });
+
+  /** Der Core-Build muss das Index-Werkzeug ueberhaupt erzeugen. Ohne diesen
+   *  Einstiegspunkt liegt `dist/lite-index.js` nicht im Image -- der Wrapper
+   *  bricht ab, und wir waeren wieder bei „geht auf dem Geraet nicht". */
+  it('der Core-Build fuehrt den Einstiegspunkt fuer das Index-Werkzeug', () => {
+    const tsup = readFileSync(join(ADDON_DIR, '../apps/core/tsup.config.ts'), 'utf-8');
+    expect(
+      tsup.includes("'lite-index': 'src/search/lite/cli.ts'"),
+      'apps/core/tsup.config.ts fuehrt keinen Einstiegspunkt `lite-index` mehr. ' +
+        'Dann fehlt dist/lite-index.js im Add-on-Image.',
+    ).toBe(true);
+  });
+
+  /** `build_from` muss jede unter `arch:` genannte Architektur abdecken --
+   *  sonst schlaegt der Bau genau auf der Hardware fehl, fuer die das Add-on
+   *  sich zustaendig erklaert. */
+  it('build.yaml nennt fuer jede unterstuetzte Architektur ein Basis-Image', () => {
+    const config = loadConfig();
+    const build = load(readFileSync(join(ADDON_DIR, 'build.yaml'), 'utf-8')) as {
+      build_from?: Record<string, string>;
+    };
+    for (const arch of config.arch) {
+      expect(
+        build.build_from?.[arch],
+        `build.yaml hat kein build_from fuer arch "${arch}"`,
+      ).toBeTruthy();
+    }
+  });
+});
+
+/**
+ * Was `init-yapaia-config.sh` WIRKLICH exportiert.
+ *
+ * Der Unterschied zu jeder Textprüfung darüber: hier läuft das Skript. Ein
+ * `expect(quelltext).toContain('ha_tracker')` wäre grün gewesen, seit das
+ * Wort irgendwo im Skript steht — auch dann, wenn die Fallunterscheidung
+ * darunter gpsd trotzdem einschaltet. Genau diese Sorte Lücke („die Zeile ist
+ * da, der Weg ist trotzdem nicht begehbar") hat dieses Add-on schon mehrfach
+ * gekostet.
+ *
+ * Dafür wird bashio gefälscht: es ist im Testcontainer nicht vorhanden, und
+ * es soll auch nicht sein — geprüft wird unsere Logik, nicht seine.
+ */
+describe('init-yapaia-config.sh — die GPS-Quelle, ausgeführt', () => {
+  const INIT_SCRIPT = join(ADDON_DIR, 'rootfs', 'etc', 'yapaia', 'init-yapaia-config.sh');
+
+  /** Führt das Skript mit den angegebenen Add-on-Optionen aus und liefert die
+   *  Container-Umgebung, die es geschrieben hat.
+   *
+   *  `nahtstellen` ersetzt die beiden Pfade, die es nur im echten Container
+   *  gibt (HA-Konfigurationsordner, Kartendatei im Image) — ohne sie liesse
+   *  sich der Dashboard-Block gar nicht ausführen. */
+  function runInit(
+    options: Record<string, string>,
+    nahtstellen: { haConfigDirs?: string; cardSrc?: string; mqttVorhanden?: boolean } = {},
+  ): Record<string, string> {
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-init-'));
+    const envDir = join(dir, 'container_environment');
+    mkdirSync(envDir, { recursive: true });
+    const shareDir = join(dir, 'share');
+
+    // Seit 0.8.4 liegen die selten angefassten Optionen in Gruppen. Der
+    // gefälschte `bashio::config` antwortet deshalb auf die GEPUNKTETEN
+    // Schlüssel -- und auf „null" für alles, was ein Test nicht setzt. Genau
+    // so verhält sich bashio bei einem fehlenden Schlüssel, und nur dadurch
+    // lässt sich der Rückfall auf die alte, flache Form überhaupt prüfen.
+    const defaults: Record<string, string> = {
+      region: 'liechtenstein',
+      gps_source: 'none',
+      gps_device: '',
+      ha_device_tracker: '',
+      'search.photon_enabled': 'false',
+      'search.photon_xmx_mb': '1024',
+      'routing.valhalla_memory_mb': '2048',
+      'home_assistant.ha_internal': 'true',
+      'home_assistant.mqtt_enabled': 'true',
+      'home_assistant.mqtt_prefix': 'yapaia',
+      'advanced.gps_simulator': 'false',
+      'advanced.log_level': 'info',
+      ...options,
+    };
+
+    const stub = [
+      '#!/usr/bin/env bash',
+      // bashio::config gibt die Option aus; alles andere ist ein No-op bzw.
+      // meldet "kein MQTT" (der Zweig, der ohne Broker läuft).
+      'bashio::config() {',
+      ...Object.entries(defaults).map(
+        ([key, value]) => `  if [ "$1" = "${key}" ]; then printf '%s' ${JSON.stringify(value)}; return 0; fi`,
+      ),
+      // Wie bashio: ein Schlüssel, den es nicht gibt, ist "null".
+      '  printf "null"',
+      '}',
+      'bashio::log.info() { :; }',
+      'bashio::log.warning() { :; }',
+      nahtstellen.mqttVorhanden
+        ? [
+            'bashio::services.available() { return 0; }',
+            'bashio::services() {',
+            "  case \"$2\" in host) printf 'test-broker';; port) printf '1883';; username) printf 'u';; password) printf 'p';; ssl) printf 'false';; esac",
+            '}',
+          ].join('\n')
+        : 'bashio::services.available() { return 1; }',
+      // Wie das echte bashio: nur „true"/„1"/„yes"/„on" gelten als wahr.
+      'bashio::var.true() { case "$1" in true|True|TRUE|1|yes|on) return 0;; *) return 1;; esac; }',
+      `source ${JSON.stringify(INIT_SCRIPT)}`,
+    ].join('\n');
+
+    const stubPath = join(dir, 'run.sh');
+    writeFileSync(stubPath, stub);
+
+    // `DATA_ROOT` im Skript ist /share/yapaia -- im Test nicht schreibbar.
+    // Deshalb wird `mkdir` so umgebogen, dass es unter dem Tempverzeichnis
+    // landet: geprüft werden die Exporte, nicht das Anlegen von Ordnern.
+    const binDir = join(dir, 'bin');
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(
+      join(binDir, 'mkdir'),
+      `#!/usr/bin/env bash\nexec /bin/mkdir "\${@/#\\/share/${shareDir.replace(/\//g, '\\/')}}"\n`,
+      { mode: 0o755 },
+    );
+
+    execFileSync('bash', [stubPath], {
+      env: {
+        ...process.env,
+        PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        S6_CONTAINER_ENVIRONMENT_DIR: envDir,
+        ...(nahtstellen.haConfigDirs ? { YAPAIA_HA_CONFIG_DIRS: nahtstellen.haConfigDirs } : {}),
+        ...(nahtstellen.cardSrc ? { YAPAIA_CARD_SRC: nahtstellen.cardSrc } : {}),
+      },
+      stdio: 'pipe',
+    });
+
+    const result: Record<string, string> = {};
+    for (const name of readdirSync(envDir)) {
+      result[name] = readFileSync(join(envDir, name), 'utf-8');
+    }
+    return result;
+  }
+
+  /**
+   * ─── DER TESTFAHRER MUSS IM ADD-ON UEBERHAUPT ERREICHBAR SEIN ────────────
+   * Der Core laeuft hier mit NODE_ENV=production, und dort antworten alle
+   * Simulator-Routen mit 403, solange `ENABLE_SIMULATOR` nicht gesetzt ist.
+   * Bis 0.5.7 gab es keinen Weg, diese Variable zu setzen -- der Simulator
+   * war gebaut, getestet, dokumentiert und im Add-on trotzdem tot.
+   *
+   * Deshalb wird hier das SKRIPT AUSGEFUEHRT und die Umgebung nachgesehen.
+   * Eine Textpruefung waere gruen, sobald „ENABLE_SIMULATOR" irgendwo im
+   * Skript steht -- auch dann, wenn die Bedingung darum herum nie zutrifft.
+   */
+  it('schaltet den GPS-Simulator frei, wenn der Haken gesetzt ist', () => {
+    expect(runInit({ 'advanced.gps_simulator': 'true' }).ENABLE_SIMULATOR).toBe('1');
+  });
+
+  it('laesst den Simulator ohne Haken gesperrt -- und setzt die Variable gar nicht erst', () => {
+    // Nicht „0", sondern UNGESETZT: so gilt genau die Sperre des Cores und
+    // nicht eine zweite, hier nachgebaute Regel. Der Core prueft auf === '1'.
+    const env = runInit({ 'advanced.gps_simulator': 'false' });
+    expect(env.ENABLE_SIMULATOR).toBeUndefined();
+  });
+
+  it('ist ohne Haken die Vorgabe -- ein fahrendes Fahrzeug bleibt geschuetzt', () => {
+    // Der Simulator kann beliebige Positionen einspeisen und verdraengt
+    // dabei den echten Empfaenger. Das darf nicht aus Versehen gehen.
+    expect(runInit({}).ENABLE_SIMULATOR).toBeUndefined();
+  });
+
+  // ─── DAS ERSCHEINUNGSBILD: „sun" HEISST IM KERN „auto" ───────────────────
+  // Die Option bietet `sun` an, weil „Nach Sonnenstand" das ist, was sie tut.
+  // Der Kern kennt die Betriebsart seit E07-T3 aber als `auto`. Ohne
+  // Übersetzung reicht das Add-on „sun" durch, die Weboberfläche verwirft den
+  // Wert als ungültigen Modus — und die Vorgabe fällt STILL durch: kein
+  // Fehler, keine Meldung, nur eine Option, die nichts tut.
+  //
+  // Eine Textprüfung wäre grün, sobald das Wort irgendwo im Skript steht.
+  // Deshalb wird hier AUSGEFÜHRT und die Umgebung nachgesehen.
+  it('reicht die Bordsensoren an den Kern weiter -- leere gar nicht', () => {
+    const env = runInit({
+      'bord.grauwasser': 'sensor.grauwasser',
+      'bord.frischwasser': '',
+      'bord.grauwasser_ab': '75',
+    });
+    expect(env.YAPAIA_BORD_GRAUWASSER).toBe('sensor.grauwasser');
+    expect(env.YAPAIA_BORD_GRAUWASSER_AB).toBe('75');
+    // Leer bzw. nicht gesetzt ("null" von bashio): keine Variable, statt eines
+    // leeren Namens, den der Kern bei Home Assistant erfragen wuerde.
+    expect(env.YAPAIA_BORD_FRISCHWASSER).toBeUndefined();
+    expect(env.YAPAIA_BORD_BATTERIE).toBeUndefined();
+  });
+
+  it('übersetzt „sun" in den Modus, den der Kern kennt', () => {
+    expect(runInit({ 'display.theme': 'sun' }).THEME_MODE).toBe('auto');
+  });
+
+  it.each(['light', 'dark', 'system'])('reicht „%s" unverändert durch', (wert) => {
+    expect(runInit({ 'display.theme': wert }).THEME_MODE).toBe(wert);
+  });
+
+  it('macht ohne gesetzte Option keine Vorgabe — statt eine namens „null"', () => {
+    // B-05: `bashio::config` liefert für eine ungesetzte Option den String
+    // "null". Käme der durch, meldete der Kern eine Vorgabe „null", und die
+    // Weboberfläche verwürfe sie — wieder ein stiller Fehlschlag.
+    expect(runInit({}).THEME_MODE).toBe('');
+  });
+
+  it('reicht den Wert der Companion App unverändert durch', () => {
+    const env = runInit({ gps_source: 'companion_app' });
+    expect(env.GPS_SOURCE).toBe('companion_app');
+    expect(env.GPSD_ENABLED).toBe('false');
+  });
+
+  it('schaltet gpsd bei "usb" ein', () => {
+    const env = runInit({ gps_source: 'usb' });
+    expect(env.GPSD_ENABLED).toBe('true');
+    expect(env.GPS_SOURCE).toBe('usb');
+  });
+
+  // Der eigentliche Punkt: eine Installation ohne USB-Empfänger soll nicht
+  // dauerhaft melden, dass ein Gerät nicht antwortet, das es nie gab.
+  // ─── DIE GRUPPIERTEN SCHLUESSEL, UND NUR DIESE ───────────────────────────
+  // Seit 0.8.4 liegen die selten angefassten Optionen in Gruppen
+  // (`search.photon_enabled`). Bis 0.8.7 las das Skript zusaetzlich die alte,
+  // FLACHE Stelle, damit ein Update bestehende Werte nicht verliert. Seit
+  // 0.8.8 nicht mehr -- es gibt keine fremden Installationen, auf die
+  // Ruecksicht zu nehmen waere.
+  //
+  // Geprueft wird das AUSGEFUEHRT: der gefaelschte `bashio::config` liefert
+  // fuer die flache Stelle einen Wert und fuer die gruppierte „null" (so
+  // verhaelt sich bashio bei einem fehlenden Schluessel). Frueher gewann die
+  // flache; jetzt darf sie nicht mehr durchschlagen.
+  it('liest die flache Stelle NICHT mehr', () => {
+    const env = runInit({
+      'search.photon_xmx_mb': 'null',
+      photon_xmx_mb: '512',
+      'routing.valhalla_memory_mb': 'null',
+      valhalla_memory_mb: '4096',
+    });
+    expect(env.PHOTON_XMX_MB, 'die flache Stelle darf nicht mehr gelten').not.toBe('512');
+    expect(env.VALHALLA_MEMORY_MB).not.toBe('4096');
+  });
+
+  it('macht aus einem fehlenden Schluessel keinen Wert namens „null"', () => {
+    // B-05, eine Ebene hoeher: genau diesen Fehler trug die alte
+    // Rueckfallebene -- den String "null" der flachen Stelle gab sie
+    // unveraendert weiter.
+    const env = runInit({ 'search.photon_xmx_mb': 'null' });
+    expect(env.PHOTON_XMX_MB).toBe('');
+  });
+
+  it('nimmt den gruppierten Wert', () => {
+    expect(runInit({ 'search.photon_xmx_mb': '2048' }).PHOTON_XMX_MB).toBe('2048');
+  });
+
+  it('schaltet gpsd bei der Companion App AUS und reicht die Quelle an den Core weiter', () => {
+    // Stand bis 0.8.2 auf `gps_source: 'ha_tracker'` und erwartete denselben
+    // Wert zurück. Seit der Umbenennung schreibt das Skript ihn um; der alte
+    // Wert hat jetzt einen eigenen Test direkt darüber.
+    const env = runInit({ gps_source: 'companion_app' });
+    expect(env.GPSD_ENABLED).toBe('false');
+    expect(env.GPS_SOURCE).toBe('companion_app');
+  });
+
+  it('schaltet gpsd bei "none" aus', () => {
+    expect(runInit({ gps_source: 'none' }).GPSD_ENABLED).toBe('false');
+  });
+
+  /** `str?` liefert bei leerer Option den String "null". Das ist KEINE
+   *  Entity-ID -- ohne diese Umsetzung sucht der Core eine Entität namens
+   *  "null" und findet nie eine Position. */
+  it('macht aus bashios "null" eine leere Entity-ID', () => {
+    expect(runInit({ ha_device_tracker: 'null' }).HA_DEVICE_TRACKER).toBe('');
+    expect(runInit({ ha_device_tracker: 'device_tracker.telefon' }).HA_DEVICE_TRACKER).toBe(
+      'device_tracker.telefon',
+    );
+  });
+  /**
+   * ─── DER ORDNER, IN DEN DAS FERTIGE DASHBOARD GESCHRIEBEN WIRD ───────────
+   * Der Core kann ihn nicht raten: der Supervisor haengt `homeassistant_config`
+   * je nach Fassung unter `/homeassistant` ODER `/config` ein. Nachgesehen hat
+   * das Init-Skript; ohne diesen Export schreibt der Core gar nichts, und
+   * `/local/yapaia/dashboard.yaml` bliebe fuer immer eine 404.
+   *
+   * Der Export steht im ERFOLGSZWEIG des Kopierens -- er ist damit zugleich
+   * der Beweis, dass die Dashboard-Karte wirklich abgelegt wurde.
+   */
+  it('exportiert den www-Ordner, wenn die Karte abgelegt werden konnte', () => {
+    const haDir = mkdtempSync(join(tmpdir(), 'yapaia-ha-'));
+    const cardSrc = join(haDir, 'yapaia-map-card.js');
+    writeFileSync(cardSrc, '// Karte');
+
+    const env = runInit({}, { haConfigDirs: haDir, cardSrc });
+    expect(env.YAPAIA_HA_WWW_DIR).toBe(join(haDir, 'www', 'yapaia'));
+    expect(existsSync(join(haDir, 'www', 'yapaia', 'yapaia-map-card.js'))).toBe(true);
+  });
+
+  it('exportiert nichts, wenn es keinen HA-Konfigurationsordner gibt', () => {
+    // Der Core soll dann still nichts tun statt in ein geratenes
+    // Verzeichnis zu schreiben.
+    const env = runInit({}, { haConfigDirs: join(tmpdir(), 'gibt-es-nicht-yapaia') });
+    expect(env.YAPAIA_HA_WWW_DIR).toBeUndefined();
+  });
+
+  /**
+   * ─── DIE ZWEI SCHALTER, AUSGEFUEHRT ──────────────────────────────────────
+   * Ein Schalter, der nichts schaltet, ist der teuerste Fehler in diesem
+   * Add-on: er sieht aus wie eine Funktion. `mqtt_enabled` haette genau so
+   * einer werden koennen -- bashio findet einen laufenden Broker im Haus
+   * unabhaengig davon, was der Betreiber eingestellt hat.
+   *
+   * Der gefaelschte bashio meldet hier absichtlich einen VORHANDENEN Broker
+   * (`bashio::services.available` -> 0), damit die Abfrage wirklich etwas zu
+   * tun hat.
+   */
+  function runInitMitBroker(options: Record<string, string>): Record<string, string> {
+    return runInit(options, { mqttVorhanden: true });
+  }
+
+  it('schaltet MQTT ab, obwohl ein Broker vorhanden ist', () => {
+    const env = runInitMitBroker({ 'home_assistant.mqtt_enabled': 'false' });
+    expect(env.MQTT_BROKER_URL).toBeUndefined();
+  });
+
+  it('nutzt den vorhandenen Broker, solange der Schalter an ist', () => {
+    const env = runInitMitBroker({ 'home_assistant.mqtt_enabled': 'true' });
+    expect(env.MQTT_BROKER_URL).toBe('mqtt://test-broker:1883');
+  });
+
+  it('schaltet den HA-internen Kanal ein und aus', () => {
+    // Nicht „0", sondern UNGESETZT: der Core prueft auf === '1', und so gilt
+    // genau eine Regel statt zweier, die auseinanderlaufen koennen.
+    expect(runInit({ 'home_assistant.ha_internal': 'true' }).HA_INTERNAL).toBe('1');
+    expect(runInit({ 'home_assistant.ha_internal': 'false' }).HA_INTERNAL).toBeUndefined();
+  });
+
+  it('bleibt bei leerem oder „null"-Wert eingeschaltet', () => {
+    // Dieselbe Falle wie bei `ha_device_tracker`: bashio liefert fuer eine
+    // nicht gesetzte Option den STRING "null". Ohne die Absicherung waere
+    // MQTT damit fuer alle still aus.
+    expect(runInitMitBroker({ 'home_assistant.mqtt_enabled': 'null', mqtt_enabled: 'null' }).MQTT_BROKER_URL).toBeTruthy();
+    expect(runInit({ 'home_assistant.ha_internal': '', ha_internal: '' }).HA_INTERNAL).toBe('1');
+  });
+
+  it('beide Wege lassen sich gleichzeitig einschalten', () => {
+    const env = runInitMitBroker({ 'home_assistant.mqtt_enabled': 'true', 'home_assistant.ha_internal': 'true' });
+    expect(env.MQTT_BROKER_URL).toBeTruthy();
+    expect(env.HA_INTERNAL).toBe('1');
+  });
+});
+
+/**
+ * ─── WELCHES GERÄT IST DER GPS-EMPFÄNGER? ───────────────────────────────────
+ * Der Anlass ist eine Frage zum VK-162, einem u-blox-7-Empfänger, der sich
+ * unter `/dev/ttyACM0` meldet. Genau dort meldet sich auf einem
+ * Home-Assistant-Rechner aber auch der Zigbee-Koordinator oder der
+ * Z-Wave-Stick, und `usb: true` reicht ALLE davon in den Container.
+ *
+ * Bis 0.8.1 nahm `gpsd/run` schlicht das erste Gerät, das passte. Diese Tests
+ * FÜHREN die Auswahl mit einem nachgebauten `/dev` AUS -- eine Textprüfung
+ * wäre grün, sobald das Wort „by-id" irgendwo im Skript steht, auch wenn die
+ * Bedingung darum herum nie zutrifft.
+ */
+describe('find-gps-device.sh — die Geräteauswahl, ausgeführt', () => {
+  const FIND_SCRIPT = join(ADDON_DIR, 'rootfs', 'etc', 'yapaia', 'find-gps-device.sh');
+
+  interface Auswahl {
+    /** Gerätepfad OHNE das Temp-Präfix, so wie er im Container stünde. */
+    device: string;
+    grund: string;
+    code: number;
+  }
+
+  /** Baut ein `/dev` aus den angegebenen Pfaden und lässt das Skript wählen. */
+  function waehle(geraete: string[], gpsDevice = ''): Auswahl {
+    const wurzel = mkdtempSync(join(tmpdir(), 'yapaia-dev-'));
+    for (const pfad of geraete) {
+      const ziel = join(wurzel, pfad);
+      mkdirSync(dirname(ziel), { recursive: true });
+      writeFileSync(ziel, '');
+    }
+
+    const stubPath = join(wurzel, 'run.sh');
+    writeFileSync(
+      stubPath,
+      [
+        '#!/usr/bin/env bash',
+        `source ${JSON.stringify(FIND_SCRIPT)}`,
+        // Bewusst ohne `$(...)`: genau so ruft `gpsd/run` die Funktion auch.
+        // Der erste Entwurf tat es mit Subshell -- und verlor dabei die
+        // Begruendung, im Test wie im Betrieb.
+        'gps_device_waehlen; CODE=$?',
+        'printf "%s\\n%s\\n%s" "${CODE}" "${GPS_DEVICE_PFAD}" "${GPS_DEVICE_GRUND}"',
+      ].join('\n'),
+    );
+
+    const ausgabe = execFileSync('bash', [stubPath], {
+      env: { ...process.env, YAPAIA_DEV_ROOT: wurzel, GPS_DEVICE: gpsDevice },
+      encoding: 'utf-8',
+    });
+    const [code, device, ...rest] = ausgabe.split('\n');
+    return {
+      code: Number(code),
+      // Das Temp-Präfix wieder abziehen, damit die Erwartungen lesbar bleiben.
+      device: device.replace(wurzel, ''),
+      grund: rest.join('\n'),
+    };
+  }
+
+  const UBLOX = '/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_7_-_GPS_GNSS_Receiver-if00';
+  const SKYCONNECT =
+    '/dev/serial/by-id/usb-Nabu_Casa_SkyConnect_v1.0_9e2adbd75b8beb119fe564a0f320645d-if00-port0';
+  const ZWAVE = '/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0';
+
+  it('erkennt den u-blox-Empfänger neben einem Zigbee-Stick', () => {
+    // DER FALL, UM DEN ES GEHT. Vorher gewann schlicht, was zuerst kam.
+    const ergebnis = waehle([SKYCONNECT, UBLOX]);
+    expect(ergebnis.code).toBe(0);
+    expect(ergebnis.device).toBe(UBLOX);
+  });
+
+  it('fasst gar nichts an, wenn mehrere Geräte da sind und keines GPS sagt', () => {
+    // Lieber kein GPS als gpsd, das auf einem fremden Funk-Koordinator
+    // herumschreibt. Der Hinweis muss beide Geräte benennen, sonst weiss der
+    // Betreiber nicht, was er eintragen soll.
+    const ergebnis = waehle([SKYCONNECT, ZWAVE]);
+    expect(ergebnis.code).toBe(2);
+    expect(ergebnis.device).toBe('');
+    expect(ergebnis.grund).toContain('SkyConnect');
+    expect(ergebnis.grund).toContain('CP2102');
+    expect(ergebnis.grund).toContain('gps_device');
+  });
+
+  it('nimmt das einzige serielle Gerät, auch ohne sprechenden Namen', () => {
+    // Ein Empfänger mit Prolific- oder CH340-Wandler sagt im Namen nichts über
+    // sich. Steckt sonst nichts, ist eine Verwechslung ausgeschlossen -- dann
+    // wäre eine Nachfrage nur Schikane.
+    const ergebnis = waehle(['/dev/ttyUSB0']);
+    expect(ergebnis.code).toBe(0);
+    expect(ergebnis.device).toBe('/dev/ttyUSB0');
+  });
+
+  it('meldet sauber, wenn gar nichts angesteckt ist', () => {
+    const ergebnis = waehle([]);
+    expect(ergebnis.code).toBe(1);
+    expect(ergebnis.device).toBe('');
+  });
+
+  it('bevorzugt den stabilen by-id-Pfad vor dem rohen Knoten', () => {
+    // `ttyACM0` kann nach dem nächsten Neustart ein anderes Gerät sein, sobald
+    // ein USB-Stick dazukommt; der by-id-Pfad bleibt derselbe.
+    const ergebnis = waehle([UBLOX, '/dev/ttyACM0']);
+    expect(ergebnis.device).toBe(UBLOX);
+  });
+
+  it('nimmt das ausdrücklich angegebene Gerät, auch wenn ein anderes nach GPS aussieht', () => {
+    const ergebnis = waehle([UBLOX, '/dev/ttyUSB0'], '/dev/ttyUSB0');
+    expect(ergebnis.code).toBe(0);
+    expect(ergebnis.device).toBe('/dev/ttyUSB0');
+  });
+
+  it('weicht NICHT auf ein anderes Gerät aus, wenn das angegebene fehlt', () => {
+    // Wer ein Gerät benennt, bekommt kein anderes. Still etwas anderes zu
+    // öffnen wäre genau der Fehler, den diese Datei beseitigt -- und der
+    // Betreiber suchte den Grund an der falschen Stelle.
+    const ergebnis = waehle([UBLOX], '/dev/ttyUSB9');
+    expect(ergebnis.code).toBe(1);
+    expect(ergebnis.device).toBe('');
+    expect(ergebnis.grund).toContain('/dev/ttyUSB9');
+  });
+
+  // ─── DERSELBE EMPFÄNGER UNTER ANDEREM NAMEN ────────────────────────────────
+  // Gemeldet am 2026-09-30: eingetragen war UBLOX, der VK-162 hieß nach dem
+  // Neustart aber UBLOX_NUMMER -- udev nimmt die Produktnummer (01a7), wenn die
+  // Textangaben beim Hochfahren nicht sauber ankommen.
+  const UBLOX_NUMMER = '/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_01a7-if00';
+
+  it('findet denselben u-blox-Empfänger, wenn udev ihn umbenannt hat', () => {
+    const ergebnis = waehle([SKYCONNECT, UBLOX_NUMMER], UBLOX);
+    expect(ergebnis.code).toBe(0);
+    expect(ergebnis.device).toBe(UBLOX_NUMMER);
+    expect(ergebnis.grund).toContain(UBLOX);
+    expect(ergebnis.grund).toContain(UBLOX_NUMMER);
+  });
+
+  it('weicht nicht aus, wenn zwei Empfänger desselben Herstellers passen', () => {
+    const zweiter = '/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_GNSS_receiver-if00';
+    const ergebnis = waehle([UBLOX_NUMMER, zweiter], UBLOX);
+    expect(ergebnis.code).toBe(1);
+    expect(ergebnis.device).toBe('');
+  });
+
+  it('nimmt nie einen Stick desselben Wandler-Herstellers, der nicht GPS sagt', () => {
+    // Ein GPS mit Silicon-Labs-Wandler ist eingetragen und fehlt; der
+    // Zigbee-/Z-Wave-Stick hat denselben Hersteller und dieselbe
+    // Schnittstelle. Er darf trotzdem nicht geöffnet werden.
+    const gps = '/dev/serial/by-id/usb-Silicon_Labs_GPS_Receiver_0002-if00-port0';
+    const ergebnis = waehle([ZWAVE], gps);
+    expect(ergebnis.code).toBe(1);
+    expect(ergebnis.device).toBe('');
+  });
+
+  it('weicht bei einem rohen Knoten nicht aus', () => {
+    // ttyUSB9 fehlt, ttyUSB0 ist ein anderer Knoten -- ob es derselbe
+    // Empfänger ist, sagt der Name nicht.
+    const ergebnis = waehle([UBLOX_NUMMER], '/dev/ttyUSB9');
+    expect(ergebnis.code).toBe(1);
+  });
+
+  // ─── DER FEHLENDE FÜHRENDE SCHRÄGSTRICH ───────────────────────────────────
+  // Gemeldet mit genau diesem Inhalt im Feld „USB-Gerät":
+  //   dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_7_-_GPS_GNSS_Receiver-if00
+  // Beim Abtippen aus der Prüfmeldung geht der Schrägstrich leicht verloren,
+  // und er ist im Eingabefeld nicht zu sehen. Ohne Behandlung ist das ein
+  // RELATIVER Pfad: was er bedeutet, hängt am Arbeitsverzeichnis des
+  // s6-Dienstes — mal trifft er zufällig, mal nichts.
+  it('berichtigt einen Pfad ohne führenden Schrägstrich', () => {
+    const ergebnis = waehle([UBLOX], UBLOX.slice(1));
+    expect(ergebnis.code).toBe(0);
+    expect(ergebnis.device).toBe(UBLOX);
+  });
+
+  it('sagt auch, DASS berichtigt wurde — sonst bleibt es in der Konfiguration falsch', () => {
+    const ergebnis = waehle([UBLOX], UBLOX.slice(1));
+    expect(ergebnis.grund).toContain('Schrägstrich');
+    expect(ergebnis.grund).toContain(UBLOX);
+  });
+
+  it('macht aus einem falschen relativen Pfad kein richtiges Gerät', () => {
+    // Die Berichtigung darf nur den Schrägstrich ergänzen, nicht raten.
+    const ergebnis = waehle([UBLOX], 'dev/ttyUSB9');
+    expect(ergebnis.code).toBe(1);
+    expect(ergebnis.device).toBe('');
+  });
+
+  it('lässt einen bereits absoluten Pfad unangetastet', () => {
+    const ergebnis = waehle([UBLOX], UBLOX);
+    expect(ergebnis.code).toBe(0);
+    expect(ergebnis.device).toBe(UBLOX);
+    expect(ergebnis.grund).not.toContain('Schrägstrich');
+  });
+
+  /**
+   * ─── DIE BEGRÜNDUNG MUSS DEN DIENST VERLASSEN ─────────────────────────────
+   * `find-gps-device.sh` bildet einen genauen Klartext. Bis 0.8.6 ging der nur
+   * ins Add-on-Protokoll, und die Installationsprüfung zeigte „gpsd antwortet
+   * nicht" samt einer Liste zum Durchprobieren. Gemeldet wurde genau daran:
+   * „Der VK-162 scheint aber korrekt erkannt zu werden. Gpsd aber nicht?"
+   *
+   * Geprüft wird hier, dass `gpsd/run` die Datei WIRKLICH schreibt — ohne sie
+   * ist der Weg in der Prüfung eine leere Zusicherung. Eine Textprüfung wäre
+   * grün, sobald „status_schreiben" irgendwo im Skript steht.
+   */
+  describe('gpsd/run hinterlegt die Begründung für die Installationsprüfung', () => {
+    const GPSD_RUN = join(ADDON_DIR, 'rootfs', 'etc/s6-overlay/s6-rc.d/gpsd/run');
+
+    /** Führt `gpsd/run` so weit aus, bis es entweder gpsd startet oder einmal
+     *  erfolglos gesucht hat, und liefert die hinterlegte Statusdatei. */
+    interface Lauf {
+      status: string;
+      grund: string;
+      ausgabe: string;
+    }
+
+    interface Umstaende {
+      /** Liegt ein `gpsd` im PATH? */
+      gpsdVorhanden?: boolean;
+      /** Beendet es sich sofort (und mit welchem Code)? `null` = laeuft. */
+      gpsdCode?: number | null;
+      /** Wie lange der letzte Start her ist, in Sekunden. */
+      letzterStartVorS?: number;
+      /** Nach dieser Zeit abbrechen — für den Fall, dass gpsd am Leben bleibt
+       *  und das Skript wie im Betrieb in `wait` steht. */
+      abbruchNachMs?: number;
+    }
+
+    /**
+     * Führt `gpsd/run` aus und liefert die Statusdatei samt Protokollausgabe.
+     *
+     * `gpsd` selbst gibt es im Testcontainer nicht — und es soll auch nicht.
+     * Untergeschoben wird ein Skript, dessen Verhalten der Test bestimmt:
+     * fehlend, sofort sterbend, oder laufend. Nur so lässt sich der gemeldete
+     * Fall überhaupt nachstellen.
+     */
+    function laufLassen(
+      geraete: string[],
+      gpsDevice = '',
+      umstaende: Umstaende = {},
+      /** Vorhandenes Arbeitsverzeichnis weiterbenutzen — so lässt sich ein
+       *  ZWEITER Lauf mit derselben Startmarke prüfen, wie ihn s6 auslöst. */
+      wurzelVorgabe?: string,
+    ): Lauf & { wurzel: string } {
+      const { gpsdVorhanden = true, gpsdCode = 0, letzterStartVorS, abbruchNachMs = 20_000 } = umstaende;
+      const wurzel = wurzelVorgabe ?? mkdtempSync(join(tmpdir(), 'yapaia-gpsd-'));
+      for (const pfad of geraete) {
+        const ziel = join(wurzel, pfad);
+        mkdirSync(dirname(ziel), { recursive: true });
+        writeFileSync(ziel, '');
+      }
+      const statusDatei = join(wurzel, 'gps-status');
+
+      // Ein PATH, der NUR das enthält, was der Test erlaubt — sonst fände das
+      // Skript womöglich ein echtes gpsd des Build-Rechners.
+      const binDir = join(wurzel, 'bin');
+      mkdirSync(binDir, { recursive: true });
+      if (gpsdVorhanden) {
+        writeFileSync(
+          join(binDir, 'gpsd'),
+          gpsdCode === null
+            ? '#!/usr/bin/env bash\nsleep 30\n'
+            : `#!/usr/bin/env bash\nexit ${gpsdCode}\n`,
+          { mode: 0o755 },
+        );
+      }
+      if (letzterStartVorS !== undefined) {
+        writeFileSync(
+          join(wurzel, 'gpsd-letzter-start'),
+          String(Math.floor(Date.now() / 1000) - letzterStartVorS),
+        );
+      }
+
+      const echt = readFileSync(GPSD_RUN, 'utf-8');
+      const rumpf = echt
+        .slice(echt.indexOf('source /etc/yapaia/find-gps-device.sh'))
+        .replace('source /etc/yapaia/find-gps-device.sh', `source ${JSON.stringify(FIND_SCRIPT)}`)
+        // Nicht ewig weitersuchen: eine Runde genügt für die Aussage.
+        .replace('sleep "${PAUSE_S}"', 'exit 0');
+
+      const stubPath = join(wurzel, 'run.sh');
+      writeFileSync(
+        stubPath,
+        [
+          '#!/usr/bin/env bash',
+          'bashio::log.info() { echo "INFO: $*"; }',
+          'bashio::log.warning() { echo "WARN: $*"; }',
+          'bashio::log.error() { echo "ERROR: $*"; }',
+          rumpf,
+        ].join('\n'),
+      );
+
+      let ausgabe = '';
+      try {
+        ausgabe = execFileSync('bash', [stubPath], {
+          env: {
+            // `PATH` bewusst eng: nur der Stub-Ordner und die Systemwerkzeuge,
+            // die das Skript selbst braucht.
+            PATH: `${binDir}:/usr/bin:/bin`,
+            YAPAIA_DEV_ROOT: wurzel,
+            GPS_DEVICE: gpsDevice,
+            GPS_SOURCE: 'usb',
+            GPS_STATUS_DATEI: statusDatei,
+            // Im Test wird nicht gewartet.
+            GPSD_FEHLT_WARTE_S: '0',
+            GPSD_BREMSE_S: '0',
+          },
+          encoding: 'utf-8',
+          timeout: abbruchNachMs,
+        });
+      } catch (fehler) {
+        // Ein Exit ungleich 0 ist hier ein ERGEBNIS, kein Testfehler: genau so
+        // verlässt das Skript den Dienst, wenn gpsd stirbt.
+        const e = fehler as { stdout?: string; stderr?: string };
+        ausgabe = `${e.stdout ?? ''}${e.stderr ?? ''}`;
+      }
+
+      const [status, ...rest] = readFileSync(statusDatei, 'utf-8').split('\n');
+      return {
+        wurzel,
+        status,
+        grund: rest.join('\n').replace(new RegExp(wurzel, 'g'), '').trim(),
+        ausgabe: ausgabe.replace(new RegExp(wurzel, 'g'), ''),
+      };
+    }
+
+    it('schreibt „bereit", solange gpsd wirklich läuft', () => {
+      // `gpsdCode: null` = das untergeschobene gpsd bleibt am Leben, das
+      // Skript steht also wie im Betrieb in `wait`. Der Abbruch danach ist
+      // kein Fehlschlag, sondern der einzige Weg, den LAUFENDEN Zustand zu
+      // beobachten -- danach stünde dort zu Recht „fehler".
+      const ergebnis = laufLassen([UBLOX], '', { gpsdCode: null, abbruchNachMs: 2500 });
+      expect(ergebnis.status).toBe('bereit');
+      expect(ergebnis.grund).toContain(UBLOX);
+    });
+
+    it('schreibt bei Misserfolg den GRUND — das ist der gemeldete Fall', () => {
+      const ergebnis = laufLassen([UBLOX], '/dev/ttyUSB9');
+      expect(ergebnis.status).toBe('suchend');
+      expect(ergebnis.grund).toContain('/dev/ttyUSB9');
+      expect(ergebnis.grund).toContain('dort liegt nichts');
+    });
+
+    it('meldet auch die Mehrdeutigkeit, statt sie zu verschweigen', () => {
+      const ergebnis = laufLassen([SKYCONNECT, ZWAVE]);
+      expect(ergebnis.status).toBe('suchend');
+      expect(ergebnis.grund).toContain('SkyConnect');
+    });
+
+    /**
+     * ─── DER GEMELDETE FALL ───────────────────────────────────────────────
+     * Aus dem Protokoll, im Sekundentakt:
+     *
+     *   [23:51:37] INFO: gpsd: benutze /dev/serial/by-id/usb-u-blox_AG_-…
+     *   [23:51:38] INFO: gpsd: benutze /dev/serial/by-id/usb-u-blox_AG_-…
+     *   [23:51:39] INFO: gpsd: benutze /dev/serial/by-id/usb-u-blox_AG_-…
+     *
+     * Das Gerät WURDE gefunden. gpsd startete, starb sofort, s6 startete den
+     * Dienst neu — und das Protokoll las sich wie ein gesunder Dienst. Nirgends
+     * stand, dass etwas fehlschlug; der Core meldete nur ECONNREFUSED auf 2947.
+     *
+     * Diese Tests halten fest, dass so etwas ab jetzt SAGT, was los ist.
+     */
+    describe('wenn gpsd nicht läuft', () => {
+      it('sagt es, wenn gpsd im Image gar nicht auffindbar ist', () => {
+        // `exec` auf ein fehlendes Programm endet mit 127, s6 startet neu, und
+        // im Protokoll steht weiter nur „benutze /dev/…". Dass `osmium` in
+        // diesem Image schon einmal ganz fehlte, macht den Fall real.
+        const ergebnis = laufLassen([UBLOX], '', { gpsdVorhanden: false });
+        expect(ergebnis.status).toBe('fehler');
+        expect(ergebnis.grund).toContain('nicht auffindbar');
+        expect(ergebnis.ausgabe).toContain('ERROR');
+      });
+
+      it('nennt den Exit-Code, wenn gpsd sich beendet', () => {
+        const ergebnis = laufLassen([UBLOX], '', { gpsdCode: 1 });
+        expect(ergebnis.status).toBe('fehler');
+        expect(ergebnis.grund).toContain('Code 1');
+        // Und sagt ausdrücklich, dass es NICHT an der Gerätewahl liegt --
+        // genau die Verwechslung, die hier Zeit gekostet hat.
+        expect(ergebnis.grund).toContain('nicht an der Geräte');
+      });
+
+      it('erkennt die Neustartschleife am Abstand zum letzten Start', () => {
+        const ergebnis = laufLassen([UBLOX], '', { gpsdCode: 1, letzterStartVorS: 1 });
+        expect(ergebnis.ausgabe).toContain('Neustartschleife');
+      });
+
+      it('hält einen normalen Neustart NICHT für eine Schleife', () => {
+        // Lief gpsd stundenlang und stirbt dann, ist das ein Neustart und
+        // keine Schleife. Eine Warnung, die immer leuchtet, liest niemand.
+        const ergebnis = laufLassen([UBLOX], '', { gpsdCode: 1, letzterStartVorS: 3600 });
+        expect(ergebnis.ausgabe).not.toContain('Neustartschleife');
+        // Der Exit-Code steht trotzdem da.
+        expect(ergebnis.grund).toContain('Code 1');
+      });
+
+      it('merkt sich den Start, damit der NÄCHSTE Lauf die Schleife sieht', () => {
+        // Der eigentliche Mechanismus. Die Tests darüber legen die Startmarke
+        // selbst an und prüfen damit nur das Lesen; hier läuft das Skript
+        // ZWEIMAL im selben Verzeichnis — so, wie s6 es neu startet.
+        const erster = laufLassen([UBLOX], '', { gpsdCode: 1 });
+        expect(erster.ausgabe, 'der erste Lauf ist noch keine Schleife').not.toContain(
+          'Neustartschleife',
+        );
+        const zweiter = laufLassen([UBLOX], '', { gpsdCode: 1 }, erster.wurzel);
+        expect(zweiter.ausgabe, 'der zweite Lauf kurz darauf schon').toContain(
+          'Neustartschleife',
+        );
+      });
+
+      it('sucht den Empfänger anfangs jede Sekunde, später alle 15 s', () => {
+        // Gemeldet: „wenn Home Assistant startet braucht der gpsd immer recht
+        // lange bis er gestartet hat." Ein Empfänger, der beim Booten eine
+        // Sekunde nach dem ersten Blick erschien, wartete bis 0.20.0 14 s.
+        //
+        // Ausgeführt werden genau die beiden Zeilen des echten Skripts, die
+        // die Pause bestimmen -- nicht eine Abschrift von ihnen.
+        const echt = readFileSync(GPSD_RUN, 'utf-8');
+        const zeilen = echt
+          .split('\n')
+          .filter((z) => /PAUSE_S=1; else PAUSE_S=15|GESUCHT_S=\$\(\(GESUCHT_S \+ PAUSE_S\)\)/.test(z));
+        expect(zeilen).toHaveLength(2);
+        const skript = ['GESUCHT_S=0', 'for i in $(seq 1 100); do', ...zeilen, 'echo "$PAUSE_S"', 'done'].join('\n');
+        const pausen = execFileSync('bash', ['-c', skript], { encoding: 'utf-8' }).trim().split('\n').map(Number);
+        // 90 Sekunden lang jede Sekunde ...
+        expect(pausen.slice(0, 90).every((p) => p === 1)).toBe(true);
+        // ... danach nur noch alle 15 s.
+        expect(pausen.slice(90).every((p) => p === 15)).toBe(true);
+      });
+
+      it('startet gpsd mit -D 2, damit es überhaupt etwas sagen kann', () => {
+        // Ohne das stirbt gpsd stumm, und der einzige Hinweis ist, dass das
+        // Skript eine Sekunde später wieder anläuft.
+        const quelltext = readFileSync(GPSD_RUN, 'utf-8');
+        expect(quelltext).toMatch(/gpsd -N -n -D 2 /);
+      });
+    });
+  });
+});
+
+/**
+ * ─── DIE KONFIGURATIONSSEITE MUSS LESBAR SEIN ───────────────────────────────
+ * Gewünscht: „Hier sollten wir ein wenig aufräumen. Bitte gruppiere die
+ * Einstellungen besser."
+ *
+ * Die Add-on-Konfiguration kennt keine Überschriften — Home Assistant zeichnet
+ * die Optionen in der Reihenfolge untereinander, in der sie in `config.yaml`
+ * stehen. Gruppen entstehen deshalb aus der REIHENFOLGE plus den NAMEN in
+ * `translations/`. Beides muss zusammenpassen, und beides driftet sonst
+ * auseinander, sobald jemand eine Option hinzufügt.
+ */
+describe('die Add-on-Konfiguration ist gegliedert und beschriftet', () => {
+  const SPRACHEN = ['de', 'en'] as const;
+
+  /** Die Gruppen und was in sie gehoert. Aendert sich das, aendert sich die
+   *  Seite, die der Betreiber sieht -- deshalb steht es hier und nicht nur in
+   *  `config.yaml`. */
+  const GRUPPEN: Record<string, string[]> = {
+    search: ['photon_enabled', 'photon_xmx_mb'],
+    routing: ['valhalla_memory_mb'],
+    display: ['theme'],
+    // Seit 0.10.0. Eigene Gruppe und nicht unter `advanced`: es ist keine
+    // Feineinstellung, sondern die Entscheidung, ob dieses Add-on ueberhaupt
+    // nach draussen ruft.
+    online: ['enabled', 'tankerkoenig_api_key'],
+    // Seit 0.19.0: welche HA-Entitaeten Fuellstaende, Batterie und
+    // Temperatur liefern, und die Schwellen dazu.
+    bord: [
+      'grauwasser',
+      'frischwasser',
+      'batterie',
+      'aussentemperatur',
+      'grauwasser_ab',
+      'frischwasser_bis',
+      'batterie_bis',
+      'frost_bis',
+    ],
+    home_assistant: ['ha_internal', 'mqtt_enabled', 'mqtt_prefix'],
+    advanced: ['gps_simulator', 'log_level'],
+  };
+  /** Was OFFEN stehenbleibt -- das, was man wirklich einstellt. */
+  const OFFEN = ['region', 'gps_source', 'gps_device', 'ha_device_tracker'];
+
+  function ladeUebersetzung(sprache: string): Record<string, unknown> {
+    const pfad = join(ADDON_DIR, 'translations', `${sprache}.yaml`);
+    const daten = load(readFileSync(pfad, 'utf-8')) as { configuration?: Record<string, unknown> };
+    return daten.configuration ?? {};
+  }
+
+  it('die selten angefassten Optionen liegen in Gruppen, der Rest offen', () => {
+    // DAS ist die Gliederung: ein verschachtelter Schluessel wird von Home
+    // Assistant als aufklappbarer Block gezeichnet. Flach mit Praefix im
+    // Namen (bis 0.8.3) war nur ein Ersatz dafuer.
+    const config = loadConfig();
+    for (const schluessel of OFFEN) {
+      const wert = anPfad(config.schema, schluessel);
+      expect(typeof wert, `${schluessel} muss OFFEN stehen, nicht in einer Gruppe`).toBe('string');
+    }
+    for (const [gruppe, kinder] of Object.entries(GRUPPEN)) {
+      const block = anPfad(config.schema, gruppe);
+      expect(typeof block, `schema.${gruppe} muss eine Gruppe sein`).toBe('object');
+      expect(Object.keys(block as Record<string, unknown>).sort()).toEqual([...kinder].sort());
+    }
+  });
+
+  it('options und schema haben dieselbe Form', () => {
+    // Sonst gilt die eine Gliederung und die andere ist Zierde.
+    const config = loadConfig();
+    expect(blattPfade(config.options as Record<string, unknown>).sort()).toEqual(
+      blattPfade(config.schema as Record<string, unknown>).sort(),
+    );
+  });
+
+  it('die Verschachtelung bleibt bei hoechstens zwei Ebenen', () => {
+    // Home Assistant unterstuetzt verschachtelte Konfiguration erst ab 2025.10
+    // und dort ausdruecklich nur bis Tiefe zwei. Eine dritte Ebene waere eine
+    // Seite, die bei niemandem so aussieht, wie sie hier gemeint ist.
+    const config = loadConfig();
+    for (const pfad of blattPfade(config.schema as Record<string, unknown>)) {
+      expect(pfad.split('.').length, `zu tief verschachtelt: ${pfad}`).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('config.yaml nennt die Home-Assistant-Mindestversion', () => {
+    // Ohne sie installiert der Supervisor das Add-on auch auf einer zu alten
+    // Version -- und zeichnet die Gruppen dann nicht. Wer sie nicht sieht,
+    // kommt an Photon, das Routing-Budget und die HA-Kanaele nicht mehr heran.
+    const config = loadConfig() as unknown as { homeassistant?: string };
+    expect(config.homeassistant, 'Schluessel `homeassistant` fehlt').toBeTruthy();
+    const [jahr, monat] = String(config.homeassistant).split('.').map(Number);
+    expect(jahr * 100 + monat, 'muss mindestens 2025.10 sein').toBeGreaterThanOrEqual(2025 * 100 + 10);
+  });
+
+  for (const sprache of SPRACHEN) {
+    it(`jede Option hat in ${sprache}.yaml einen Namen und eine Beschreibung`, () => {
+      const config = loadConfig();
+      const eintraege = ladeUebersetzung(sprache);
+      for (const pfad of blattPfade(config.options as Record<string, unknown>)) {
+        const eintrag = anPfad(eintraege, pfad) as { name?: string; description?: string } | undefined;
+        expect(eintrag, `Option "${pfad}" fehlt in ${sprache}.yaml`).toBeDefined();
+        expect(eintrag?.name, `Name fehlt für "${pfad}"`).toBeTruthy();
+        expect(eintrag?.description, `Beschreibung fehlt für "${pfad}"`).toBeTruthy();
+      }
+    });
+
+    it(`jede Gruppe hat in ${sprache}.yaml eine eigene Überschrift`, () => {
+      // Der Block traegt in der Oberflaeche NUR diesen Namen. Fehlt er, steht
+      // dort der rohe Schluessel „home_assistant".
+      const eintraege = ladeUebersetzung(sprache);
+      for (const gruppe of Object.keys(GRUPPEN)) {
+        const eintrag = eintraege[gruppe] as { name?: string; description?: string } | undefined;
+        expect(eintrag?.name, `Überschrift fehlt für Gruppe "${gruppe}"`).toBeTruthy();
+        expect(eintrag?.description, `Beschreibung fehlt für Gruppe "${gruppe}"`).toBeTruthy();
+      }
+    });
+
+    it(`${sprache}.yaml beschriftet nichts, was es nicht gibt`, () => {
+      const config = loadConfig();
+      const echt = new Set([
+        ...blattPfade(config.options as Record<string, unknown>),
+        ...Object.keys(GRUPPEN),
+      ]);
+      const eintraege = ladeUebersetzung(sprache);
+      for (const [schluessel, wert] of Object.entries(eintraege)) {
+        expect([...echt], `"${schluessel}" in ${sprache}.yaml`).toContain(schluessel);
+        // Und innerhalb einer Gruppe dasselbe -- ein Kind, das es im Schema
+        // nicht gibt, bliebe sonst unbemerkt liegen.
+        for (const kind of Object.keys(wert as Record<string, unknown>)) {
+          if (kind === 'name' || kind === 'description') continue;
+          expect([...echt], `"${schluessel}.${kind}" in ${sprache}.yaml`).toContain(
+            `${schluessel}.${kind}`,
+          );
+        }
+      }
+    });
+  }
+});

@@ -71,18 +71,18 @@ log "Starte Core auf ${BASE} (Auth erzwungen, In-Memory-DB) ..."
   PORT="$PORT" HOST=127.0.0.1 DB_PATH=':memory:' API_AUTH_TOKEN="$TOKEN" \
     GPSD_ENABLED=false NODE_ENV=production \
     node dist/index.js
-) >/tmp/yapaja-security-smoke.log 2>&1 &
+) >/tmp/yapaia-security-smoke.log 2>&1 &
 CORE_PID=$!
 
 for _ in $(seq 1 60); do
   if curl -fsS "${BASE}/api/v1/health" >/dev/null 2>&1; then break; fi
   if ! kill -0 "$CORE_PID" 2>/dev/null; then
-    log "Core-Prozess ist gestorben:"; cat /tmp/yapaja-security-smoke.log; exit 1
+    log "Core-Prozess ist gestorben:"; cat /tmp/yapaia-security-smoke.log; exit 1
   fi
   sleep 0.5
 done
 curl -fsS "${BASE}/api/v1/health" >/dev/null || {
-  log "Core wurde nicht gesund:"; cat /tmp/yapaja-security-smoke.log; exit 1
+  log "Core wurde nicht gesund:"; cat /tmp/yapaia-security-smoke.log; exit 1
 }
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ status 401 "GET /api/v1/../api/v1/profiles (nicht-kanonisch) OHNE Token -> 401" 
   --path-as-is "${BASE}/api/v1/../api/v1/profiles"
 
 # Der Token darf nie im Log auftauchen (Plausibilitaet E08-T3).
-if grep -qF "$TOKEN" /tmp/yapaja-security-smoke.log; then
+if grep -qF "$TOKEN" /tmp/yapaia-security-smoke.log; then
   fail "Der API-Token taucht im Server-Log auf"
 else
   pass "Der API-Token taucht in keiner Log-Zeile auf"
@@ -178,5 +178,5 @@ if [[ "$FAILURES" -eq 0 ]]; then
   exit 0
 fi
 log "API-SECURITY-SMOKE ROT — ${FAILURES} von ${CHECKS} Pruefungen fehlgeschlagen."
-log "Server-Log:"; cat /tmp/yapaja-security-smoke.log
+log "Server-Log:"; cat /tmp/yapaia-security-smoke.log
 exit 1

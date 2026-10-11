@@ -10,7 +10,7 @@
  *
  * ─── WARUM DAS PASSIEREN KONNTE ─────────────────────────────────────────────
  * Es gibt EINEN Routinggraphen, nicht einen je Region. Seit 0.4.0 baut
- * `yapaja-build-graph` ihn über JEDE `.osm.pbf`, die im Zwischenlager liegt —
+ * `yapaia-build-graph` ihn über JEDE `.osm.pbf`, die im Zwischenlager liegt —
  * das sollte „alles, was installiert ist" bedeuten.
  *
  * Tat es aber nicht. Der KACHELBAU lud seinen OSM-Extrakt in ein temporäres
@@ -51,7 +51,7 @@ const PBF_SUFFIX = '.osm.pbf';
 /**
  * Das Zwischenlager der OSM-Extrakte.
  *
- * Abgeleitet wie in `yapaja-build-graph`: zwei Ebenen über dem
+ * Abgeleitet wie in `yapaia-build-graph`: zwei Ebenen über dem
  * Graphverzeichnis, dann `planetiler-sources`. Stünde der Pfad hier frei
  * daneben, könnten Skript und Kern auf verschiedene Ordner sehen — und der
  * Kern meldete beruhigt eine Abdeckung, die der Bau nie herstellt.

@@ -8,7 +8,7 @@
 
 import { DEFAULT_HANDEDNESS, isHandedness, type Handedness } from './handedness.js';
 
-const LOCAL_STORAGE_KEY = 'yapaja.handedness';
+const LOCAL_STORAGE_KEY = 'yapaia.handedness';
 const SETTINGS_KEY = 'handedness';
 
 function apiUrl(path: string): string {

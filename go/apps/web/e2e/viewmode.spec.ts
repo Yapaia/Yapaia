@@ -95,7 +95,7 @@ test('view mode persists across reload', async ({ page }) => {
   await expect.poll(() => readPitch(page), { timeout: 5_000 }).toBeGreaterThan(50);
 
   // Persisted value should be in localStorage.
-  const stored = await page.evaluate(() => window.localStorage.getItem('yapaja.viewMode'));
+  const stored = await page.evaluate(() => window.localStorage.getItem('yapaia.viewMode'));
   expect(stored).toBe('3d-course');
 
   // Reload: the persisted mode must be re-applied once the map is ready.

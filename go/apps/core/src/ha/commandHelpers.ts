@@ -31,13 +31,6 @@
  * benutzt wird; eine dauerhafte WebSocket-Verbindung mit allem, was daran
  * haengt (Wiederverbinden, Zaehlerstaende, halboffene Leitungen), braucht es
  * dafuer nicht.
- *
- * ─── WARUM DIE HELFER „yapaia_" HEISSEN UND NICHT „yapaja_" ─────────────────
- * Weil sie neu sind. Die bestehenden Entitaeten heissen `yapaja_*`, weil
- * Home Assistant einmal vergebene IDs nie umbenennt und der Name aus der Zeit
- * vor der Korrektur stammt (0.6.7). Was hier NEU entsteht, bekommt die
- * richtige Schreibweise. Verwechseln kann man sie ohnehin nicht: `button.*`
- * und `input_button.*` sind verschiedene Bereiche.
  */
 
 import type { HaConnection } from './config.js';

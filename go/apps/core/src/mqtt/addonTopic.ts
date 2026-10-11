@@ -1,6 +1,6 @@
 /**
  * Bus-topic -> MQTT-topic translation for add-on events (E09-T8, docs/03 §4,
- * docs/05 §2 `events.publish`: "auch -> MQTT `yapaja/addon/{id}/*`").
+ * docs/05 §2 `events.publish`: "auch -> MQTT `yapaia/addon/{id}/*`").
  *
  * THE UPSTREAM GUARANTEE THIS BUILDS ON, AND WHY IT IS NOT ENOUGH ALONE:
  * `addon/*` bus events are published from EXACTLY ONE place --

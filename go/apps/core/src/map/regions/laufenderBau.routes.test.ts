@@ -50,8 +50,8 @@ describe('GET /api/v1/map/regions/laufender-bau', () => {
   });
 
   async function setUp(): Promise<void> {
-    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-laufend-tiles-'));
-    const katalogDir = mkdtempSync(join(tmpdir(), 'yapaja-laufend-katalog-'));
+    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-laufend-tiles-'));
+    const katalogDir = mkdtempSync(join(tmpdir(), 'yapaia-laufend-katalog-'));
     tempDirs.push(tilesDir, katalogDir);
 
     const katalogPfad = join(katalogDir, 'catalog.json');

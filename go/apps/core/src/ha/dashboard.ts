@@ -14,7 +14,7 @@
  *
  * ─── WARUM DIE DATEI ERZEUGT UND NICHT MITGELIEFERT WIRD ────────────────────
  * Weil die Entity-IDs nicht feststehen. `docs/04-home-assistant.md` nennt seit
- * jeher `sensor.yapaja_speed` -- Home Assistant vergibt aber, solange die
+ * jeher `sensor.yapaia_speed` -- Home Assistant vergibt aber, solange die
  * Discovery kein `object_id` mitschickt, eine ID aus GERAETE- plus
  * Entitaetsnamen: `sensor.yapaia_go_speed`. Seit 0.6.9 schickt sie eines mit
  * (`mqtt/discovery.ts`), doch bestehende Anlagen behalten ihre einmal
@@ -39,8 +39,8 @@ import type { HaEntityState } from './client.js';
 import { HELFER } from './commandHelpers.js';
 
 /**
- * Die Dateinamen unter `www/yapaja/` -- also `/local/yapaja/dashboard.yaml`
- * und `/local/yapaja/dashboard.txt`. Warum zweimal: siehe
+ * Die Dateinamen unter `www/yapaia/` -- also `/local/yapaia/dashboard.yaml`
+ * und `/local/yapaia/dashboard.txt`. Warum zweimal: siehe
  * {@link writeDashboardYaml}.
  */
 export const DASHBOARD_DATEINAMEN = ['dashboard.yaml', 'dashboard.txt'] as const;
@@ -82,49 +82,49 @@ export interface DashboardEntity {
 
 /** Genau die Entitaeten, die die Vorlage unten einsetzt. */
 export const DASHBOARD_ENTITIES: readonly DashboardEntity[] = [
-  { schluessel: 'instruction', protokoll: 'anweisung', domain: 'sensor', objectId: 'yapaja_instruction', name: 'Instruction' },
+  { schluessel: 'instruction', protokoll: 'anweisung', domain: 'sensor', objectId: 'yapaia_instruction', name: 'Instruction' },
   {
     schluessel: 'instruction_distance',
     protokoll: 'anweisung_entfernung',
     domain: 'sensor',
-    objectId: 'yapaja_instruction_distance',
+    objectId: 'yapaia_instruction_distance',
     name: 'Instruction Distance',
   },
-  { schluessel: 'speed', protokoll: 'tempo', domain: 'sensor', objectId: 'yapaja_speed', name: 'Speed' },
+  { schluessel: 'speed', protokoll: 'tempo', domain: 'sensor', objectId: 'yapaia_speed', name: 'Speed' },
   {
     schluessel: 'speed_limit',
     protokoll: 'tempolimit',
     domain: 'sensor',
-    objectId: 'yapaja_speed_limit',
+    objectId: 'yapaia_speed_limit',
     name: 'Speed Limit',
   },
   {
     schluessel: 'speeding',
     protokoll: 'zu_schnell',
     domain: 'binary_sensor',
-    objectId: 'yapaja_speeding',
+    objectId: 'yapaia_speeding',
     name: 'Speeding',
   },
-  { schluessel: 'eta', protokoll: 'ankunft', domain: 'sensor', objectId: 'yapaja_eta', name: 'ETA' },
+  { schluessel: 'eta', protokoll: 'ankunft', domain: 'sensor', objectId: 'yapaia_eta', name: 'ETA' },
   {
     schluessel: 'distance_remaining',
     protokoll: 'restweg',
     domain: 'sensor',
-    objectId: 'yapaja_distance_remaining',
+    objectId: 'yapaia_distance_remaining',
     name: 'Distance Remaining',
   },
   {
     schluessel: 'destination',
     protokoll: 'ziel',
     domain: 'sensor',
-    objectId: 'yapaja_destination',
+    objectId: 'yapaia_destination',
     name: 'Destination',
   },
-  { schluessel: 'nav_state', protokoll: 'zustand', domain: 'sensor', objectId: 'yapaja_nav_state', name: 'Nav State' },
-  { schluessel: 'profile', protokoll: 'profil', domain: 'select', objectId: 'yapaja_profile', name: 'Profile' },
-  { schluessel: 'stop', protokoll: 'beenden', domain: 'button', objectId: 'yapaja_stop', name: 'Stop' },
-  { schluessel: 'pause', protokoll: 'pausieren', domain: 'button', objectId: 'yapaja_pause', name: 'Pause' },
-  { schluessel: 'resume', protokoll: 'fortsetzen', domain: 'button', objectId: 'yapaja_resume', name: 'Resume' },
+  { schluessel: 'nav_state', protokoll: 'zustand', domain: 'sensor', objectId: 'yapaia_nav_state', name: 'Nav State' },
+  { schluessel: 'profile', protokoll: 'profil', domain: 'select', objectId: 'yapaia_profile', name: 'Profile' },
+  { schluessel: 'stop', protokoll: 'beenden', domain: 'button', objectId: 'yapaia_stop', name: 'Stop' },
+  { schluessel: 'pause', protokoll: 'pausieren', domain: 'button', objectId: 'yapaia_pause', name: 'Pause' },
+  { schluessel: 'resume', protokoll: 'fortsetzen', domain: 'button', objectId: 'yapaia_resume', name: 'Resume' },
 ] as const;
 
 export type EntityIds = Record<string, string>;
@@ -167,9 +167,9 @@ export function resolveEntityIds(zustaende: readonly HaEntityState[]): Aufgeloes
       continue;
     }
     const vorgesehen = `${eintrag.domain}.${eintrag.objectId}`;
-    // Die Endung, an der die Entitaet haengt: aus `yapaja_speed` wird
-    // `_speed`, aus `yapaja_distance_remaining` wird `_distance_remaining`.
-    const endung = eintrag.objectId.replace(/^yapaja/, '');
+    // Die Endung, an der die Entitaet haengt: aus `yapaia_speed` wird
+    // `_speed`, aus `yapaia_distance_remaining` wird `_distance_remaining`.
+    const endung = eintrag.objectId.replace(/^yapaia/, '');
     const passend = zustaende.filter((z) => {
       if (typeof z.entity_id !== 'string') return false;
       if (!z.entity_id.startsWith(`${eintrag.domain}.`)) return false;
@@ -313,7 +313,7 @@ export function befundText(befund?: Befund): string {
  * (Dashboard -> Bearbeiten -> ⋮ -> Rohkonfigurationseditor).
  */
 export function buildDashboardYaml(ids: EntityIds, befund?: Befund): string {
-  const e = (schluessel: string): string => ids[schluessel] ?? `sensor.yapaja_${schluessel}`;
+  const e = (schluessel: string): string => ids[schluessel] ?? `sensor.yapaia_${schluessel}`;
   return `# Yapaia Go — fertiges Dashboard
 #
 # Erzeugt vom Add-on beim Start. Die Entity-IDs unten sind die, die in DIESER
@@ -322,7 +322,7 @@ export function buildDashboardYaml(ids: EntityIds, befund?: Befund): string {
 ${befundText(befund)}#
 # So kommt es ins Dashboard:
 #   1. Einstellungen → Dashboards → ⋮ → Ressourcen → Ressource hinzufügen
-#        URL: /local/yapaja/yapaja-map-card.js     Typ: JavaScript-Modul
+#        URL: /local/yapaia/yapaia-map-card.js     Typ: JavaScript-Modul
 #      (einmalig; ohne diesen Schritt bleibt die Kartenkachel leer)
 #   2. Einstellungen → Dashboards → Dashboard hinzufügen → Neu von Grund auf
 #   3. Im neuen Dashboard: Stift → ⋮ → Rohkonfigurationseditor
@@ -332,7 +332,7 @@ views:
     path: yapaia
     icon: mdi:map-marker-path
     cards:
-      - type: custom:yapaja-map-card
+      - type: custom:yapaia-map-card
         title: Karte mit Route
         height: 420
 
@@ -395,7 +395,7 @@ ${steuerungsKacheln(ids, befund)}`;
  * Die bedienbaren Kacheln -- aus dem Kanal, den es auf DIESER Anlage gibt.
  *
  * ─── ZWEI WEGE, EINE KACHELREIHE ────────────────────────────────────────────
- * Mit MQTT gibt es `button.yapaja_pause` und `select.yapaja_profile`: echte
+ * Mit MQTT gibt es `button.yapaia_pause` und `select.yapaia_profile`: echte
  * bedienbare Entitaeten, an denen Yapaia haengt.
  *
  * Ohne MQTT gibt es sie nicht -- eine Entitaet, die der HA-interne Kanal ueber
@@ -412,7 +412,7 @@ ${steuerungsKacheln(ids, befund)}`;
  * dem Bildschirmfoto des Betreibers war genau das zu sehen.
  */
 export function steuerungsKacheln(ids: EntityIds, befund?: Befund): string {
-  const e = (schluessel: string): string => ids[schluessel] ?? `sensor.yapaja_${schluessel}`;
+  const e = (schluessel: string): string => ids[schluessel] ?? `sensor.yapaia_${schluessel}`;
   const fehlt = new Set(befund?.vorgabe ?? []);
   const helfer = new Set(befund?.helfer ?? []);
   // Ohne Befund (noch nicht nachgesehen) bleiben sie drin: die erste Fassung
@@ -558,7 +558,7 @@ export async function writeDashboardYaml(
 
 /** Alles, was die Pflege braucht -- eingereicht, damit sie pruefbar ist. */
 export interface DashboardPflegeDeps {
-  /** `<ha-config>/www/yapaja`, oder `null` ausserhalb des Add-ons. */
+  /** `<ha-config>/www/yapaia`, oder `null` ausserhalb des Add-ons. */
   wwwDir: string | null;
   /** Die HA-Verbindung, oder `null`, solange keine konfiguriert ist. */
   verbindung: () => HaVerbindung | null;
@@ -630,7 +630,7 @@ export function starteDashboardPflege(deps: DashboardPflegeDeps): () => void {
         helfer: findeHelfer(zustaende),
       };
       await writeDashboardYaml(wwwDir, buildDashboardYaml(ids, befund), deps.datei);
-      deps.datei.logger.info('Dashboard-Vorlage geschrieben (/local/yapaja/dashboard.yaml)', {
+      deps.datei.logger.info('Dashboard-Vorlage geschrieben (/local/yapaia/dashboard.yaml)', {
         gefunden: gefunden.length,
         vorgabe,
         zustaende: zustaende.length,

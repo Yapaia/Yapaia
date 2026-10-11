@@ -183,39 +183,39 @@ describe('regionsQuellen', () => {
 
   it('nennt die Hauptquelle zuerst', () => {
     const q = regionsQuellen(
-      karte({ 'yapaja-region': {}, 'yapaja-region-switzerland': {} }),
-      'yapaja-region',
+      karte({ 'yapaia-region': {}, 'yapaia-region-switzerland': {} }),
+      'yapaia-region',
     );
-    expect(q[0]).toBe('yapaja-region');
+    expect(q[0]).toBe('yapaia-region');
   });
 
   it('findet die zusätzlichen Regionen', () => {
     const q = regionsQuellen(
       karte({
-        'yapaja-region': {},
-        'yapaja-region-switzerland': {},
-        'yapaja-region-france': {},
+        'yapaia-region': {},
+        'yapaia-region-switzerland': {},
+        'yapaia-region-france': {},
       }),
-      'yapaja-region',
+      'yapaia-region',
     );
-    expect(q).toEqual(['yapaja-region', 'yapaja-region-france', 'yapaja-region-switzerland']);
+    expect(q).toEqual(['yapaia-region', 'yapaia-region-france', 'yapaia-region-switzerland']);
   });
 
   it('nimmt keine fremden Quellen mit', () => {
     // Eine GeoJSON-Quelle für die Route hat hier nichts zu suchen — eine
     // Abfrage darauf kostet nur Zeit und liefert Unsinn.
     const q = regionsQuellen(
-      karte({ 'yapaja-region': {}, route: {}, 'yapaja-marker': {} }),
-      'yapaja-region',
+      karte({ 'yapaia-region': {}, route: {}, 'yapaia-marker': {} }),
+      'yapaia-region',
     );
-    expect(q).toEqual(['yapaja-region']);
+    expect(q).toEqual(['yapaia-region']);
   });
 
   it('kommt ohne geladenen Stil zurecht', () => {
     // Vor dem ersten `load` gibt es noch keinen Stil. Dann ist die
     // Hauptquelle die einzige, und das ist das Verhalten von vor 0.9.1.
     const ohne = { getStyle: () => undefined } as unknown as MapLibreMap;
-    expect(regionsQuellen(ohne, 'yapaja-region')).toEqual(['yapaja-region']);
+    expect(regionsQuellen(ohne, 'yapaia-region')).toEqual(['yapaia-region']);
   });
 
   it('fängt einen werfenden Stilzugriff ab', () => {
@@ -224,6 +224,6 @@ describe('regionsQuellen', () => {
         throw new Error('style not done');
       },
     } as unknown as MapLibreMap;
-    expect(regionsQuellen(wirft, 'yapaja-region')).toEqual(['yapaja-region']);
+    expect(regionsQuellen(wirft, 'yapaia-region')).toEqual(['yapaia-region']);
   });
 });

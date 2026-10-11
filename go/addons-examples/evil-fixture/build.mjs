@@ -19,7 +19,7 @@ const STAGE_DIR = join(DIST_DIR, '_stage');
 
 rmSync(STAGE_DIR, { recursive: true, force: true });
 mkdirSync(STAGE_DIR, { recursive: true });
-cpSync(join(__dirname, 'yapaja-addon.json'), join(STAGE_DIR, 'yapaja-addon.json'));
+cpSync(join(__dirname, 'yapaia-addon.json'), join(STAGE_DIR, 'yapaia-addon.json'));
 cpSync(join(__dirname, 'ui'), join(STAGE_DIR, 'ui'), { recursive: true });
 cpSync(join(__dirname, 'service'), join(STAGE_DIR, 'service'), { recursive: true });
 
@@ -27,7 +27,7 @@ const tarballPath = join(DIST_DIR, 'evil-fixture.tgz');
 if (existsSync(tarballPath)) rmSync(tarballPath);
 // Explizite Top-Level-Namen statt `.` -- `extract.ts` weist einen `.`/leeren
 // Eintragsnamen ab (siehe ../poi-campsites/build.mjs, gleiche Begruendung).
-execFileSync('tar', ['czf', tarballPath, '-C', STAGE_DIR, 'yapaja-addon.json', 'ui', 'service'], {
+execFileSync('tar', ['czf', tarballPath, '-C', STAGE_DIR, 'yapaia-addon.json', 'ui', 'service'], {
   stdio: 'inherit',
 });
 console.log(`Built ${tarballPath} -- TEST-FIXTURE, niemals veroeffentlichen.`);

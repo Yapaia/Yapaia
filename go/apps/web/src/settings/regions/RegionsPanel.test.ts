@@ -32,7 +32,7 @@
  * dafür einzuführen wäre unverhältnismässig. Der Test liest deshalb die
  * Quelle. Das ist schwächer als ein gerenderter Baum — aber es hätte genau
  * diese Fehler gefangen, und das ist der Zweck. Dieselbe Bauart nutzen
- * `yapaja_go/config.test.ts` (liest den Dockerfile) und `preflight.test.ts`.
+ * `yapaia_go/config.test.ts` (liest den Dockerfile) und `preflight.test.ts`.
  */
 
 import { describe, it, expect } from 'vitest';

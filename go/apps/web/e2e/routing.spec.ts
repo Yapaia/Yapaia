@@ -304,7 +304,7 @@ test('click destination -> request route -> tap alternative -> style switch surv
   // same pattern as the E01-T4 "dummy layer survives a switch" test.
   await oeffneEinstellung(page, 'style-panel-toggle');
   await expect(page.locator('[data-testid="style-panel"]')).toBeVisible();
-  await page.locator('[data-testid="style-option-yapaja-dark"]').click();
+  await page.locator('[data-testid="style-option-yapaia-dark"]').click();
 
   await expect
     .poll(() => page.evaluate(() => Boolean(window.__yapaiaMapController?.getMap()?.getLayer('route-main-accent'))))

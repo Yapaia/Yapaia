@@ -2,9 +2,9 @@
 
 **Offline navigation for motorhomes, running on your own hardware.**
 
-[![CI](https://github.com/Apfelsafft/Yapaja-Go-Design/actions/workflows/ci.yml/badge.svg)](https://github.com/Apfelsafft/Yapaja-Go-Design/actions/workflows/ci.yml)
+[![CI](https://github.com/Yapaia/yapaia/actions/workflows/ci.yml/badge.svg)](https://github.com/Yapaia/yapaia/actions/workflows/ci.yml)
 [![Home Assistant add-on](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](#installing)
-[![Changelog](https://img.shields.io/badge/changelog-what%20changed-blue)](yapaja_go/CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/changelog-what%20changed-blue)](yapaia_go/CHANGELOG.md)
 
 Yapaia Go routes your motorhome around the bridge that is too low and the road
 that is too narrow — with **no internet connection, no account, and no data
@@ -76,7 +76,7 @@ Being straight about this saves you an evening:
 **As a Home Assistant add-on** (the recommended path — no terminal needed):
 
 1. In Home Assistant, go to **Settings → Add-ons → Add-on Store → ⋮ → Repositories**.
-2. Add `https://github.com/Apfelsafft/Yapaja-Go-Design`.
+2. Add `https://github.com/Yapaia/yapaia`.
 3. Install **Yapaia Go** from the store, then start it.
 4. Open it from the Home Assistant sidebar. A setup wizard walks you through
    language and units, your map region, your vehicle's dimensions, where the
@@ -140,7 +140,7 @@ Reading the code, running it yourself and reporting problems are welcome.
 | 💻 **Contributing code** | [**Developer Guide**](docs/developers.md) — architecture, interfaces, CI/CD |
 | 🧩 **Writing an add-on** | [Add-on Development Guide](docs/addon-dev-guide.md) (German) · [`@yapaia/addon-sdk`](packages/addon-sdk) |
 | 🏠 **Home Assistant details** | [HA Integration](docs/04-home-assistant.md) (German) |
-| 📋 **What changed** | [Add-on Changelog](yapaja_go/CHANGELOG.md) (German, shown in HA before an update) |
+| 📋 **What changed** | [Add-on Changelog](yapaia_go/CHANGELOG.md) (German, shown in HA before an update) |
 
 Design records from the planning phase live in `docs/00-` … `docs/08-` and in
 `tasks/`. They document *why* decisions were made and are kept for that reason;
@@ -174,6 +174,6 @@ run the test suites, and the pitfalls that have cost time before.
 
 ## Naming
 
-The product is **Yapaia Go**. The technical name is `yapaja-go` (npm scope
+The product is **Yapaia Go**. The technical name is `yapaia-go` (npm scope
 `@yapaia`) — an early transliteration that Home Assistant entity IDs still
 carry, because HA never renames an ID once it is assigned.

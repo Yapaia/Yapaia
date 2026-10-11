@@ -19,12 +19,12 @@
  * `POST /api/states/<entity_id>` schreibt einen Zustand direkt in Home
  * Assistants Zustandsmaschine -- ueber denselben Supervisor-Zugang, den das
  * Add-on fuer Ansagen und Benachrichtigungen ohnehin hat. Es entstehen
- * dieselben Entity-IDs wie ueber MQTT (`sensor.yapaja_speed` und so fort),
+ * dieselben Entity-IDs wie ueber MQTT (`sensor.yapaia_speed` und so fort),
  * lesbar von Automationen, Vorlagen, ESPHome und jedem Dashboard.
  *
  * ─── WAS DIESER WEG NICHT KANN, UND DAS GEHOERT DAZU ────────────────────────
  *  1. KEINE BEFEHLE AUF DIESEN ENTITAETEN. Eine so geschriebene Entitaet nimmt
- *     nichts entgegen; `button.yapaja_stop` und `select.yapaja_profile` gibt
+ *     nichts entgegen; `button.yapaia_stop` und `select.yapaia_profile` gibt
  *     es nur mit MQTT. BEDIENEN geht seit 0.7.1 trotzdem, nur ueber andere
  *     Entitaeten: Yapaia legt dafuer Helfer an und hoert auf sie
  *     (`commandHelpers.ts`, `commandWatcher.ts`). Das erzeugte Dashboard
@@ -143,8 +143,8 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   };
 
   // ─── TEMPO: ROUTE ZUERST, SONST DAS GPS ─────────────────────────────────
-  // Gemeldet aus den Entwicklerwerkzeugen: `device_tracker.yapaja_vehicle`
-  // fuehrte eine Position auf zehn Nachkommastellen, und `sensor.yapaja_speed`
+  // Gemeldet aus den Entwicklerwerkzeugen: `device_tracker.yapaia_vehicle`
+  // fuehrte eine Position auf zehn Nachkommastellen, und `sensor.yapaia_speed`
   // stand im selben Augenblick auf `unknown`. Der Grund war, dass hier
   // ausschliesslich `navState` gelesen wurde -- und den gibt es nur, solange
   // eine Route laeuft. Die GPS-Position liegt dagegen immer an und bringt
@@ -154,13 +154,13 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // Wert aus `navState`, weil er auf die Route bezogen ist (und dieselbe
   // Quelle speist wie `speeding`). Das GPS springt nur ein, wo bisher
   // `unknown` stand.
-  dazu('sensor.yapaja_speed', zahl(tempo?.speed_kmh ?? tempoAusPosition(position)), 'Speed', {
+  dazu('sensor.yapaia_speed', zahl(tempo?.speed_kmh ?? tempoAusPosition(position)), 'Speed', {
     unit_of_measurement: 'km/h',
     device_class: 'speed',
     state_class: 'measurement',
     icon: 'mdi:speedometer',
   });
-  dazu('sensor.yapaja_speed_limit', zahl(schild), 'Speed Limit', {
+  dazu('sensor.yapaia_speed_limit', zahl(schild), 'Speed Limit', {
     unit_of_measurement: 'km/h',
     device_class: 'speed',
     state_class: 'measurement',
@@ -171,7 +171,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // das Schild `unknown` und die Fahrzeuggrenze 80. Eine einzige Zahl liesse
   // offen, welche davon man draussen wiederfindet.
   dazu(
-    'sensor.yapaja_speed_limit_vehicle',
+    'sensor.yapaia_speed_limit_vehicle',
     zahl(fahrzeugGrenzeJetzt),
     'Speed Limit Vehicle',
     {
@@ -184,7 +184,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // Das Tempo kommt seit 0.13.1 auch aus dem GPS, die Grenze seit 0.14.1
   // auch ohne Route -- also kann jetzt auch OHNE Fahrt gewarnt werden.
   dazu(
-    'binary_sensor.yapaja_speeding',
+    'binary_sensor.yapaia_speeding',
     faehrtZuSchnell(tempo?.speed_kmh ?? tempoAusPosition(position), massgeblich.grenze)
       ? 'on'
       : 'off',
@@ -202,12 +202,12 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
     stand_ohne_route: hier?.stand ?? 'unbekannt',
     },
   );
-  dazu('sensor.yapaja_eta', navState?.eta ?? UNBEKANNT, 'ETA', {
+  dazu('sensor.yapaia_eta', navState?.eta ?? UNBEKANNT, 'ETA', {
     device_class: 'timestamp',
     icon: 'mdi:clock-outline',
   });
   dazu(
-    'sensor.yapaja_distance_remaining',
+    'sensor.yapaia_distance_remaining',
     navState?.distance_remaining_m === null || navState?.distance_remaining_m === undefined
       ? UNBEKANNT
       : (navState.distance_remaining_m / 1000).toFixed(2),
@@ -232,7 +232,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // jedem Takt neu gebildet.
   const manoever = navState?.next_maneuver ?? null;
   dazu(
-    'sensor.yapaja_instruction',
+    'sensor.yapaia_instruction',
     manoever?.instruction ?? UNBEKANNT,
     'Instruction',
     manoever
@@ -250,7 +250,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
       : { icon: 'mdi:navigation' },
   );
   dazu(
-    'sensor.yapaja_instruction_distance',
+    'sensor.yapaia_instruction_distance',
     zahl(manoever ? (navState?.distance_to_maneuver_m ?? null) : null),
     'Instruction Distance',
     {
@@ -260,17 +260,17 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
     },
   );
   // Die Hoehe ebenso -- aber nur bei einem 3D-Fix, siehe `ausPosition.ts`.
-  dazu('sensor.yapaja_altitude', zahl(navState?.altitude_m ?? hoeheAusPosition(position)), 'Altitude', {
+  dazu('sensor.yapaia_altitude', zahl(navState?.altitude_m ?? hoeheAusPosition(position)), 'Altitude', {
     unit_of_measurement: 'm',
     device_class: 'distance',
     state_class: 'measurement',
     icon: 'mdi:altimeter',
   });
-  dazu('sensor.yapaja_nav_state', navState?.status ?? 'idle', 'Nav State', {
+  dazu('sensor.yapaia_nav_state', navState?.status ?? 'idle', 'Nav State', {
     icon: 'mdi:navigation-variant',
   });
   dazu(
-    'sensor.yapaja_destination',
+    'sensor.yapaia_destination',
     navState?.destination?.name ?? UNBEKANNT,
     'Destination',
     navState?.destination

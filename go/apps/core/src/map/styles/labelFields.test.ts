@@ -29,7 +29,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parseStyleOptions, applyStyleOptions } from './options';
-import { buildYapaiaLightStyle } from './yapaja-light';
+import { buildYapaiaLightStyle } from './yapaia-light';
 
 /** Was `OmtLanguageUtils.getNames` an jedes beschriftbare Element schreibt. */
 const TILE_NAME_FIELDS: ReadonlySet<string> = new Set([

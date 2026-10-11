@@ -5,7 +5,7 @@
  * Aus dem Protokoll einer echten Installation:
  *
  *     ha_tracker: konfigurierte Entitaet nicht gefunden -- Quelle bleibt inaktiv
- *     { entityId: "device_tracker.yapaja_vehicle",
+ *     { entityId: "device_tracker.yapaia_vehicle",
  *       verfuegbar: ["device_tracker.ipad_2"] }
  *
  * Yapaia war als seine eigene Positionsquelle eingestellt.
@@ -41,7 +41,7 @@
  * Er entsteht ueber beide Wege nach Home Assistant, den MQTT-Broker und die
  * HA-API, und heisst in beiden Faellen gleich.
  */
-export const EIGENER_FAHRZEUG_TRACKER = 'device_tracker.yapaja_vehicle';
+export const EIGENER_FAHRZEUG_TRACKER = 'device_tracker.yapaia_vehicle';
 
 /**
  * Ob eine Entity-ID eine ist, die Yapaia selbst schreibt.

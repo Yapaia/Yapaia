@@ -261,7 +261,7 @@ export function runDownloadJob(
         message:
           `Für die Region "${entry.id}" gibt es keine Download-Quelle. ` +
           'Diese Kacheln werden aus einem OSM-Extrakt gebaut. Im Add-on-Container: ' +
-          'yapaja-build-pmtiles <url-oder-pfad-zur.osm.pbf>. ' +
+          'yapaia-build-pmtiles <url-oder-pfad-zur.osm.pbf>. ' +
           'Aus einem Repository-Checkout: services/tiles/build-pmtiles.sh <pfad>.',
       });
       return;

@@ -44,13 +44,13 @@ export interface ThemeOverride {
   expiresAt: number;
 }
 
-export type MapStyleId = 'yapaja-light' | 'yapaja-dark';
+export type MapStyleId = 'yapaia-light' | 'yapaia-dark';
 
 export interface ThemeResolution {
   theme: ResolvedTheme;
   /** The theme-coupled map style for `theme` -- see `themeStore.ts`'s doc
-   *  comment for why a manually-picked `yapaja-contrast` is deliberately
-   *  NOT reflected here (this is only ever `yapaja-light`/`yapaja-dark`;
+   *  comment for why a manually-picked `yapaia-contrast` is deliberately
+   *  NOT reflected here (this is only ever `yapaia-light`/`yapaia-dark`;
    *  the caller decides whether to actually apply it). */
   styleId: MapStyleId;
   /** True if this resolution came from an still-active manual override
@@ -68,7 +68,7 @@ export interface GeoPosition {
 }
 
 export function mapStyleIdFor(theme: ResolvedTheme): MapStyleId {
-  return theme === 'dark' ? 'yapaja-dark' : 'yapaja-light';
+  return theme === 'dark' ? 'yapaia-dark' : 'yapaia-light';
 }
 
 /** The sun (if a position fix is available) or fixed-clock (docs/06 §3

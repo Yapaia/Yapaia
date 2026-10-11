@@ -1,4 +1,4 @@
-# Track-Recorder (`com.yapaja.track-recorder`)
+# Track-Recorder (`com.yapaia.track-recorder`)
 
 Referenz-Add-on Typ B + Mini-UI (E09-T5, [docs/05 §6.2](../../docs/05-addon-system.md#6-referenz-add-ons-teil-von-e09-dienen-als-lebende-doku)).
 Der Service abonniert `pos/update` und schreibt die Fahrt als GPX (mit
@@ -56,7 +56,7 @@ Seit E09-T8 (MQTT-Erweiterung für Add-ons) publiziert der Service ZWEI
 schlanke Events -- `started` beim Aufnahme-Start, `stopped` beim Ende (inkl.
 `TrackSummary`: Distanz, Punktzahl, Segmentzahl) -- unter `addon/{id}/*`
 (Scope `events.publish`). Der Core republiziert sie automatisch als
-`yapaja/addon/com.yapaja.track-recorder/started`/`.../stopped` (Rate-Limit
+`yapaia/addon/com.yapaia.track-recorder/started`/`.../stopped` (Rate-Limit
 5 msg/s, Payload ≤ 16 KB, siehe `apps/core/src/mqtt/bridge.ts`) -- damit kann
 z. B. eine Home-Assistant-Automation auf "Aufzeichnung gestartet/beendet"
 reagieren (Worked Example: [`docs/04-home-assistant.md`
@@ -125,7 +125,7 @@ PENDING=$(curl -s -X POST http://localhost:8080/api/v1/addons/install \
   -H 'content-type: application/json' \
   -d "{\"source\":\"upload\",\"data\":\"$BASE64\"}" | jq -r '.data.pending_id')
 curl -s -X POST "http://localhost:8080/api/v1/addons/install/$PENDING/confirm"
-curl -s -X POST http://localhost:8080/api/v1/addons/com.yapaja.track-recorder/enable
+curl -s -X POST http://localhost:8080/api/v1/addons/com.yapaia.track-recorder/enable
 ```
 
 ## Testen

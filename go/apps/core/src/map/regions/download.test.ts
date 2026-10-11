@@ -49,13 +49,13 @@ describe('existingPartBytes', () => {
   });
 
   it('returns 0 when the .part file does not exist', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-part-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-part-'));
     tempDirs.push(dir);
     expect(await existingPartBytes(join(dir, 'nope.pmtiles.part'))).toBe(0);
   });
 
   it('returns the exact byte size of an existing .part file', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'yapaja-part-'));
+    const dir = mkdtempSync(join(tmpdir(), 'yapaia-part-'));
     tempDirs.push(dir);
     const path = join(dir, 'region.pmtiles.part');
     writeFileSync(path, Buffer.alloc(12345));

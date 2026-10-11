@@ -1,5 +1,5 @@
 /**
- * Unit tests for the `yapaja/position` publish-rate throttle (E08-T1,
+ * Unit tests for the `yapaia/position` publish-rate throttle (E08-T1,
  * mandatory unit test: "Raten-Drossel" / rate-throttle, docs/03 §4 "1 Hz
  * fahrend / 0,1 Hz stehend").
  */

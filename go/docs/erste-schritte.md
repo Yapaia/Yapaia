@@ -122,7 +122,7 @@ betreffen, aber im Alltag zählen. Alle ausführlich im
   Auf manchen Geräten erst nach einer einmaligen Berührung.
 - **Bediensperre ab 10 km/h** — Einstellungen, Editor und Profilbearbeitung
   sperren sich während der Fahrt.
-- **Fertiges HA-Dashboard** — liegt unter `/local/yapaja/dashboard.txt`,
+- **Fertiges HA-Dashboard** — liegt unter `/local/yapaia/dashboard.txt`,
   fertig zum Einfügen in den Rohkonfigurationseditor.
 - **Bedienen aus Home Assistant** — Pause/Weiter/Beenden und Profilwahl,
   wahlweise über MQTT oder über selbst angelegte Helfer.

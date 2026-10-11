@@ -307,7 +307,7 @@ leeren Konfiguration.
 
 **Ursache:** Dieser Fall sollte durch die Architektur ausgeschlossen sein —
 alle Nutzdaten liegen bewusst **außerhalb** des Containers (HA-Add-on:
-`/share/yapaja`; Compose: eigenständiges Docker-Volume), und jede
+`/share/yapaia`; Compose: eigenständiges Docker-Volume), und jede
 SQLite-Migration legt vorher automatisch eine Sicherungsdatei an. Tritt der
 Fall dennoch auf, deutet das auf einen Fehler in der Update-/Migrationslogik
 hin.
@@ -398,12 +398,12 @@ Supervisor-Protokoll, die beim Einrichten auftreten können. Beide sind am
 ### „403 denied" beim Herunterladen des Images
 
 ```
-Failed to fetch manifest for ghcr.io/yapaja/yapaja-go-amd64:0.1.0 - 401
-Can't install ghcr.io/yapaja/yapaja-go-amd64:0.1.0:
-[403] Head "https://ghcr.io/v2/yapaja/yapaja-go-amd64/manifests/0.1.0": denied
+Failed to fetch manifest for ghcr.io/yapaia/yapaia-go-amd64:0.1.0 - 401
+Can't install ghcr.io/yapaia/yapaia-go-amd64:0.1.0:
+[403] Head "https://ghcr.io/v2/yapaia/yapaia-go-amd64/manifests/0.1.0": denied
 ```
 
-**Ursache (behoben):** `yapaja_go/config.yaml` deklarierte einen
+**Ursache (behoben):** `yapaia_go/config.yaml` deklarierte einen
 `image:`-Schlüssel. Steht dort ein `image:`, **zieht** der Supervisor dieses
 Image aus einer Registry und baut nichts selbst. Das genannte Image hat aber
 nie existiert — `yapaia` ist nicht einmal der Namensraum dieses Repositories,
@@ -474,7 +474,7 @@ einen unprivilegierten Benutzer.
 ```
 s6-supervise valhalla: warning: unable to spawn ./run
                        (waiting 60 seconds): No such file or directory
-/etc/yapaja/init-yapaja-config.sh: line 44: bashio::log.info: command not found
+/etc/yapaia/init-yapaia-config.sh: line 44: bashio::log.info: command not found
 ```
 
 **Ursache (behoben):** „No such file or directory" beim Starten einer
@@ -489,7 +489,7 @@ Werkzeug unter `/command/with-contenv` mit. Im Release-Archiv v3.1.6.2 ist
 überhaupt nicht vor.
 
 Die zweite Meldung ist dieselbe Wurzel an anderer Stelle: das `up`-Skript des
-Oneshots rief `bash /etc/yapaja/init-yapaja-config.sh` auf und umging damit
+Oneshots rief `bash /etc/yapaia/init-yapaia-config.sh` auf und umging damit
 den Shebang des Skripts. Unter nacktem `bash` sind bashio-Funktionen nicht
 definiert.
 
@@ -582,13 +582,13 @@ Zeile steht zusätzlich in der Fehlermeldung selbst. Danach suchen:
 
 ```
 Fehler: Der Kachelbau ist mit Code 1 fehlgeschlagen. Zuletzt: „- die
-.pmtiles auf einem anderen Rechner bauen und nach /share/yapaja/tiles/
+.pmtiles auf einem anderen Rechner bauen und nach /share/yapaia/tiles/
 kopieren".
 ```
 
 **Ursache (behoben, ab 0.1.7):** `build-pmtiles.sh` kann planetiler auf zwei
 Wegen starten — als Docker-Container oder direkt als `java -jar`. Der
-Add-on-Wrapper `yapaja-build-pmtiles` setzt korrekt `PLANETILER_JAR`, weil es
+Add-on-Wrapper `yapaia-build-pmtiles` setzt korrekt `PLANETILER_JAR`, weil es
 im Container keinen Docker-Socket gibt. Die Prüfung `command -v docker` stand
 im Skript aber **vor** der Auswertung von `PLANETILER_JAR` und lief
 unabhängig davon. Der JAR-Modus war damit unerreichbar: der Knopf „Kacheln
@@ -603,7 +603,7 @@ eigener Test drin.
 
 **Lösung:** Auf 0.1.7 aktualisieren und „Kacheln bauen" erneut drücken. Beim
 ersten Lauf wird `planetiler.jar` (~100 MB) einmalig nach
-`/share/yapaja/tools/` geladen; das steht als erste Zeile im Protokoll.
+`/share/yapaia/tools/` geladen; das steht als erste Zeile im Protokoll.
 
 **Gleich mit behoben:** Das Arbeitsverzeichnis des Baus lag unter `/tmp`,
 also in der beschreibbaren Schicht des Containers — während die
@@ -611,7 +611,7 @@ Platz-Vorprüfung des Core `/share` misst. Bei einer kleinen Region fällt das
 nicht auf; bei Rheinland-Pfalz (~350 MB PBF) hätte die Vorprüfung grünes
 Licht gegeben und der Lauf wäre Stunden später am Platz gescheitert, auf
 einem anderen Dateisystem als dem geprüften. Der Bau arbeitet jetzt unter
-`/share/yapaja/tmp`.
+`/share/yapaia/tmp`.
 
 ### Kachelbau bricht ab mit „lake_centerline.shp.zip does not exist"
 
@@ -636,7 +636,7 @@ die Argumente selbst.
 **Lösung:** Auf 0.1.8 aktualisieren.
 
 **Was du dabei erwarten solltest:** Der **erste** Bau lädt diese gemeinsamen
-Basisdaten einmalig nach `/share/yapaja/planetiler-sources/`. Das sind mehrere
+Basisdaten einmalig nach `/share/yapaia/planetiler-sources/`. Das sind mehrere
 hundert MB — er dauert also spürbar länger als der eigentliche Bau von
 Liechtenstein, und das ist kein Hänger. Jede weitere Region benutzt danach
 dieselben Dateien und lädt nichts mehr nach. Die genauen Größen stehen im
@@ -645,7 +645,7 @@ Protokoll.
 ### „could not read Username for 'https://github.com'"
 
 ```
-Can't clone https://github.com/Apfelsafft/Yapaja-Go-Design repository:
+Can't clone https://github.com/Yapaia/yapaia repository:
 fatal: could not read Username for 'https://github.com': No such device or address
 ```
 

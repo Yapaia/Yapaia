@@ -53,10 +53,10 @@ function createMockMap(opts: MockMapOptions = {}): {
 }
 
 const CORE_STYLE: Pick<StyleSpecification, 'layers' | 'sources'> = {
-  sources: { 'yapaja-region': { type: 'vector', url: 'pmtiles://./tiles/germany.pmtiles' } },
+  sources: { 'yapaia-region': { type: 'vector', url: 'pmtiles://./tiles/germany.pmtiles' } },
   layers: [
     { id: 'background', type: 'background', paint: {} },
-    { id: 'region-transportation', type: 'line', source: 'yapaja-region', 'source-layer': 'transportation' },
+    { id: 'region-transportation', type: 'line', source: 'yapaia-region', 'source-layer': 'transportation' },
   ],
 } as unknown as Pick<StyleSpecification, 'layers' | 'sources'>;
 
@@ -107,7 +107,7 @@ describe('styleSwitch', () => {
 
     const nextStyle = {
       version: 8,
-      sources: { 'yapaja-region': { type: 'vector', url: 'pmtiles://./tiles/france.pmtiles' } },
+      sources: { 'yapaia-region': { type: 'vector', url: 'pmtiles://./tiles/france.pmtiles' } },
       layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#000' } }],
     } as unknown as StyleSpecification;
 
@@ -117,9 +117,9 @@ describe('styleSwitch', () => {
 
     expect(merged?.layers.map((l) => l.id)).toEqual(['background', 'position-puck-layer']);
     expect(Object.keys(merged?.sources ?? {})).toContain('position-puck-source');
-    expect(Object.keys(merged?.sources ?? {})).toContain('yapaja-region');
+    expect(Object.keys(merged?.sources ?? {})).toContain('yapaia-region');
     // The next style's own (rewritten) source URL wins, not the old one.
-    expect((merged?.sources['yapaja-region'] as { url: string }).url).toBe('pmtiles://./tiles/france.pmtiles');
+    expect((merged?.sources['yapaia-region'] as { url: string }).url).toBe('pmtiles://./tiles/france.pmtiles');
   });
 
   it('returns the next style unchanged when there is no previous live style', () => {
@@ -158,7 +158,7 @@ describe('styleSwitch', () => {
     // First switch: light -> dark (a different core style, e.g. renamed ids).
     const darkStyle = {
       version: 8,
-      sources: { 'yapaja-region': { type: 'vector', url: 'pmtiles://./tiles/germany.pmtiles' } },
+      sources: { 'yapaia-region': { type: 'vector', url: 'pmtiles://./tiles/germany.pmtiles' } },
       layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#111417' } }],
     } as unknown as StyleSpecification;
     const { map: map1 } = createMockMap({ previousLiveStyle: { ...CORE_STYLE, version: 8 } as unknown as StyleSpecification });

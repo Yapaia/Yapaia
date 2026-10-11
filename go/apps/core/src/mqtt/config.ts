@@ -29,7 +29,7 @@ export interface ResolveMqttConfigInput {
   env?: Record<string, string | undefined>;
 }
 
-const DEFAULT_PREFIX = 'yapaja';
+const DEFAULT_PREFIX = 'yapaia';
 
 interface MqttSettingsShape {
   broker_url?: unknown;

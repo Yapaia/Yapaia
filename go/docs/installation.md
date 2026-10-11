@@ -68,15 +68,15 @@ Beide Wege enthalten außerdem einen eigenen Abschnitt zur
 ## A. Home-Assistant-Add-on
 
 Der vollständige, technische Referenztext für diesen Weg ist
-[`yapaja_go/DOCS.md`](../yapaja_go/DOCS.md) (Englisch, das
+[`yapaia_go/DOCS.md`](../yapaia_go/DOCS.md) (Englisch, das
 ist der Text, den die Add-on-Store-Seite in HA tatsächlich anzeigt) — dieser
 Abschnitt hier ist die deutschsprachige Schritt-für-Schritt-Fassung
 zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
 
 > **Dieses Repository ist selbst das Add-on-Repository.** In der Wurzel liegt
-> `repository.yaml`, das Add-on-Paket eine Ebene darunter als `yapaja_go/` —
+> `repository.yaml`, das Add-on-Paket eine Ebene darunter als `yapaia_go/` —
 > genau das Layout, das der HA-Supervisor beim Eintragen einer
-> Repository-URL erwartet (Hintergrund: `yapaja_go/PACKAGING.md`,
+> Repository-URL erwartet (Hintergrund: `yapaia_go/PACKAGING.md`,
 > `docs/04-home-assistant.md` §3). Schritt 1 unten ist deshalb der
 > GUI-Weg; der frühere „lokales Add-on nach `/addons/` kopieren"-Umweg steht
 > nur noch als Alternative dabei.
@@ -86,7 +86,7 @@ zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
    Repositories**, dort diese URL hinzufügen:
 
    ```
-   https://github.com/Apfelsafft/Yapaja-Go-Design
+   https://github.com/Yapaia/yapaia
    ```
 
    Danach den Dialog schließen und die Store-Seite neu laden (bzw. **⋮ → Nach
@@ -97,23 +97,23 @@ zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
    Fehlermeldung im selben Dialog. Bleibt der Abschnitt leer ohne Fehler, hat
    der Supervisor das Repository zwar geladen, aber kein Add-on darin
    gefunden — dann fehlt entweder `repository.yaml` in der Wurzel oder
-   `yapaja_go/config.yaml`. Beides prüft der CI-Job `addon-config-check`
-   (`yapaja_go/config.test.ts`) bei jedem PR mit.
+   `yapaia_go/config.yaml`. Beides prüft der CI-Job `addon-config-check`
+   (`yapaia_go/config.test.ts`) bei jedem PR mit.
 
    *Alternative ohne Store (falls das Repository nicht erreichbar ist):* das
-   Verzeichnis `yapaja_go/` aus diesem Repository in den `addons`-Ordner der
+   Verzeichnis `yapaia_go/` aus diesem Repository in den `addons`-Ordner der
    Home-Assistant-Installation kopieren — erreichbar z. B. über das
    offizielle „Samba share"- oder „Advanced SSH & Web Terminal"-Add-on:
 
    ```bash
    # auf dem HA-Host, im Ordner /addons/
-   git clone https://github.com/Apfelsafft/Yapaja-Go-Design.git /tmp/yapaja
-   cp -r /tmp/yapaja/yapaja_go /addons/yapaja_go
-   rm -rf /tmp/yapaja
+   git clone https://github.com/Yapaia/yapaia.git /tmp/yapaia
+   cp -r /tmp/yapaia/yapaia_go /addons/yapaia_go
+   rm -rf /tmp/yapaia
    ```
 
    „Yapaia Go" erscheint dann im Abschnitt **„Lokale Add-ons"**. Im Ordner
-   `/addons/yapaja_go/` müssen `config.yaml` und `Dockerfile` unmittelbar
+   `/addons/yapaia_go/` müssen `config.yaml` und `Dockerfile` unmittelbar
    liegen (keine weitere Zwischenebene).
 
 2. Add-on öffnen, **Installieren** klicken. Der Container wird dabei **auf dem
@@ -132,10 +132,10 @@ zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
    [Troubleshooting I-01](troubleshooting.md#i-01--die-add-on-installation-bricht-ab).
 3. **Vor dem ersten Start**: den Reiter **Konfiguration** des Add-ons öffnen
    und mindestens `region` setzen (siehe Optionstabelle in
-   `yapaja_go/DOCS.md` §„Configuration options"). Ohne `region`
+   `yapaia_go/DOCS.md` §„Configuration options"). Ohne `region`
    startet das Add-on zwar (kein Absturz), aber ohne nutzbare Karte.
 4. Empfohlen bei knappem RAM auf einer geteilten HAOS-VM: die
-   RAM-Empfehlungstabelle in `yapaja_go/DOCS.md` §„RAM
+   RAM-Empfehlungstabelle in `yapaia_go/DOCS.md` §„RAM
    recommendation" **vor** dem ersten Start lesen — Home Assistant selbst,
    Mosquitto und alle anderen Add-ons teilen sich dieselbe VM.
 5. Add-on **starten** (Toggle „Start on boot" zusätzlich aktivieren, wenn das
@@ -166,8 +166,8 @@ Sonderpfad, sondern der am häufigsten durchgespielte.
 ### B.1 Repository holen
 
 ```bash
-git clone <URL-dieses-Repositories> yapaja-go
-cd yapaja-go
+git clone <URL-dieses-Repositories> yapaia-go
+cd yapaia-go
 cp .env.example .env
 ```
 
@@ -234,16 +234,16 @@ W-12.)
 docker compose --profile routing --profile search up -d
 ```
 
-Erwartung: drei Container starten (`yapaja-core`, `yapaja-valhalla`,
-`yapaja-photon`).
+Erwartung: drei Container starten (`yapaia-core`, `yapaia-valhalla`,
+`yapaia-photon`).
 
-> **`yapaja-valhalla` zeigt „Restarting"? Das ist erwartbar, kein Fehler.**
+> **`yapaia-valhalla` zeigt „Restarting"? Das ist erwartbar, kein Fehler.**
 > Valhalla läuft mit `restart: on-failure:3` und beendet sich, solange unter
 > `data/valhalla/tiles/` noch kein fertiger Graph liegt — es versucht es
 > dreimal und bleibt dann gestoppt. Wer Schritt B.3 (Graph bauen) noch nicht
 > ausgeführt hat, sieht genau das. Der Health-Check unten meldet dann
 > `"valhalla": "down"`; sobald der Graph existiert und der Container gestartet
-> ist, springt er auf `"ok"`. Dasselbe gilt für `yapaja-photon` ohne Index.
+> ist, springt er auf `"ok"`. Dasselbe gilt für `yapaia-photon` ohne Index.
 
 Prüfen:
 
@@ -276,7 +276,7 @@ Favoriten-Datenbank) liegen unter `./data/` **außerhalb** der Container
 nicht an. Trotzdem vor jedem größeren Update ein Backup anlegen:
 
 ```bash
-tar czf "yapaja-backup-$(date +%Y%m%d).tar.gz" data/ .env
+tar czf "yapaia-backup-$(date +%Y%m%d).tar.gz" data/ .env
 ```
 
 (Siehe auch W-16 in [Troubleshooting](troubleshooting.md), falls nach einem
@@ -354,7 +354,7 @@ das Gerät selbst, auch eine HAOS-VM mit 8 GB.
 
 Liechtenstein braucht Minuten, ein Bundesland wie Rheinland-Pfalz deutlich
 länger. Beim **ersten** Bau lädt das Add-on einmalig `planetiler.jar`
-(~100 MB) nach `/share/yapaja/tools/` — die bleibt dort über Updates hinweg.
+(~100 MB) nach `/share/yapaia/tools/` — die bleibt dort über Updates hinweg.
 
 Der Core lehnt den Start ab, wenn zu wenig Plattenplatz **oder** zu wenig
 freier Arbeitsspeicher da ist, und sagt in beiden Fällen, was zu tun ist. Auf
@@ -368,13 +368,13 @@ einer 8-GB-VM heißt das meistens: Photon abschalten (§C.6).
 ist und `docker` zur Verfügung steht):
 
 ```bash
-docker exec -it $(docker ps --format '{{.Names}}' | grep yapaja_go) bash
-yapaja-build-pmtiles https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+docker exec -it $(docker ps --format '{{.Names}}' | grep yapaia_go) bash
+yapaia-build-pmtiles https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
 ```
 
-`yapaja-build-pmtiles` ist ein Wrapper, der `TILES_DIR` auf
-`/share/yapaja/tiles` setzt und beim **ersten** Aufruf einmalig
-`planetiler.jar` (~100 MB) nach `/share/yapaja/tools/` lädt — dort bleibt sie
+`yapaia-build-pmtiles` ist ein Wrapper, der `TILES_DIR` auf
+`/share/yapaia/tiles` setzt und beim **ersten** Aufruf einmalig
+`planetiler.jar` (~100 MB) nach `/share/yapaia/tools/` lädt — dort bleibt sie
 über Add-on-Updates hinweg. Er nutzt den JAR-Modus, weil es im Add-on-Container
 keinen Docker-Socket gibt.
 
@@ -422,7 +422,7 @@ statt ob nach einer Installation alles wieder passt.
 Es läuft immer nur **ein** schwerer Bau gleichzeitig — zwei davon nebeneinander
 sprengen den Speicher einer 8-GB-VM, auf der auch Home Assistant läuft.
 
-> **Eine selbst abgelegte `.pmtiles`** (per Samba nach `/share/yapaja/tiles/`)
+> **Eine selbst abgelegte `.pmtiles`** (per Samba nach `/share/yapaia/tiles/`)
 > steht in keinem Katalog. Für sie gibt es keine OpenStreetMap-Quelle, also
 > lässt sich für sie weder Routing noch Suche bauen — der Lauf überspringt sie
 > und sagt es. Gezeichnet wird sie trotzdem.
@@ -449,8 +449,8 @@ Die Ergebnisse lassen sich weiterhin per **„Samba share"**- oder
 
 | Datei | Ziel auf der HAOS-VM |
 |---|---|
-| Valhalla-Graph | `/share/yapaja/valhalla/tiles/` |
-| `lite_search.db` | `/share/yapaja/lite-search/` |
+| Valhalla-Graph | `/share/yapaia/valhalla/tiles/` |
+| `lite_search.db` | `/share/yapaia/lite-search/` |
 
 Welche Formate genau passen — auch für Karten, die Bekannte selbst gebaut
 haben — und wie man sie ablegt: [Eigene Karten, Routen und Suche](eigene-karten.md).
@@ -467,13 +467,13 @@ funktioniert dort also nicht. Dafür gibt es den JAR-Modus:
 
 ```bash
 # einmalig: planetiler holen (~100 MB)
-curl -fL -o /share/yapaja/planetiler.jar \
+curl -fL -o /share/yapaia/planetiler.jar \
   https://github.com/onthegomap/planetiler/releases/download/v0.10.2/planetiler.jar
 
 # bauen, ohne Docker
-PLANETILER_JAR=/share/yapaja/planetiler.jar \
+PLANETILER_JAR=/share/yapaia/planetiler.jar \
 PLANETILER_XMX=2g \
-TILES_DIR=/share/yapaja/tiles \
+TILES_DIR=/share/yapaia/tiles \
   services/tiles/build-pmtiles.sh https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
 ```
 
@@ -502,7 +502,7 @@ HAOS-VM**:
 2. Einen separaten LXC nur für den Build anlegen und die fertige Datei
    herüberkopieren.
 3. Die `.pmtiles` auf einem Desktop/Server bauen und per **„Samba share"**-
-   oder **„File editor"**-Add-on nach `/share/yapaja/tiles/<region>.pmtiles`
+   oder **„File editor"**-Add-on nach `/share/yapaia/tiles/<region>.pmtiles`
    legen. Das ist der einzige Weg, der gar keinen zweiten *eigenen* Rechner
    voraussetzt, falls jemand die Datei bereitstellt.
 
@@ -560,7 +560,7 @@ Supervisor USB-Geräte automatisch durchreicht. Ablauf:
    sobald `gpsd` einen hat (freie Sicht zum Himmel nötig, siehe
    [Troubleshooting W-01](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung)).
 
-Details: `yapaja_go/DOCS.md` §„USB-GPS passthrough".
+Details: `yapaia_go/DOCS.md` §„USB-GPS passthrough".
 
 ### Weg B (Docker Compose / Proxmox-LXC)
 

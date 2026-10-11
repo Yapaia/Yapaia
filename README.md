@@ -38,7 +38,7 @@ nur die, die man braucht.
   Prüfungen der geänderten Module** (`.github/workflows/ci.yml`); der Check
   **„Gate“** fasst sie zusammen und entscheidet über das Mergen.
 - Versionen und Änderungslisten führt jedes Modul selbst
-  (`go/yapaja_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`).
+  (`go/yapaia_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`).
   Release-Tags tragen das Modul im Namen, z. B. `go-v0.43.0`.
 - Die Geschichte der früheren Einzel-Repositories ist vollständig erhalten
   (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`, `git log -- router/`).

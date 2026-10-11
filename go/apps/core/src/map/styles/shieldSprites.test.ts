@@ -47,7 +47,7 @@ import { POI_KATEGORIEN, FEHLENDE_KLASSEN } from '@yapaia/shared';
 /** Muss zu `SPRITE_NAME` in `scripts/generate-sprites.mjs` passen.
  *  Der Abgleich gegen den Erzeuger steht in `scripts/shield-sprites.test.ts`
  *  -- dort, wo `.mjs` importiert werden darf. */
-const SPRITE_NAME = 'yapaja';
+const SPRITE_NAME = 'yapaia';
 
 /** `apps/web/public/sprites` — von hier aus fünf Ebenen hoch. */
 const SPRITES_DIR = join(

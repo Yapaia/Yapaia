@@ -51,7 +51,7 @@ export function createDb(path: string): Database.Database {
  */
 export function getDb(): Database.Database {
   if (!dbInstance) {
-    const dbPath = process.env.DB_PATH || 'data/db/yapaja.db';
+    const dbPath = process.env.DB_PATH || 'data/db/yapaia.db';
     dbInstance = createDb(dbPath);
   }
   return dbInstance;

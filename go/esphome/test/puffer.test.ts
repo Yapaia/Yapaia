@@ -40,7 +40,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
-const YAML = join(HIER, '..', 'yapaja-nav-display.yaml');
+const YAML = join(HIER, '..', 'yapaia-nav-display.yaml');
 
 /**
  * Was ein ESP32-C3 OHNE PSRAM realistisch am Stück hergibt, nachdem WLAN,

@@ -1,4 +1,4 @@
-# Stellplätze-Overlay (`com.yapaja.poi-campsites`)
+# Stellplätze-Overlay (`com.yapaia.poi-campsites`)
 
 Referenz-UI-Add-on (Typ A, E09-T5, [docs/05 §6.1](../../docs/05-addon-system.md#6-referenz-add-ons-teil-von-e09-dienen-als-lebende-doku)).
 Zeigt ~200 gebündelte Stellplatz-POIs als Kartenlayer; Klick auf einen
@@ -91,7 +91,7 @@ PENDING=$(curl -s -X POST http://localhost:8080/api/v1/addons/install \
   -H 'content-type: application/json' \
   -d "{\"source\":\"upload\",\"data\":\"$BASE64\"}" | jq -r '.data.pending_id')
 curl -s -X POST "http://localhost:8080/api/v1/addons/install/$PENDING/confirm"
-curl -s -X POST http://localhost:8080/api/v1/addons/com.yapaja.poi-campsites/enable
+curl -s -X POST http://localhost:8080/api/v1/addons/com.yapaia.poi-campsites/enable
 ```
 
 ## Testen

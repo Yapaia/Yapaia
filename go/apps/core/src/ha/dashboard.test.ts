@@ -41,17 +41,17 @@ function zustand(entity_id: string, friendly_name?: string): HaEntityState {
 describe('die Entitaeten in einer echten Anlage finden', () => {
   it('nimmt die dokumentierten IDs, wenn es sie gibt', () => {
     const { ids, vorgabe } = resolveEntityIds([
-      zustand('sensor.yapaja_speed'),
-      zustand('sensor.yapaja_eta'),
+      zustand('sensor.yapaia_speed'),
+      zustand('sensor.yapaia_eta'),
     ]);
-    expect(ids.speed).toBe('sensor.yapaja_speed');
-    expect(ids.eta).toBe('sensor.yapaja_eta');
+    expect(ids.speed).toBe('sensor.yapaia_speed');
+    expect(ids.eta).toBe('sensor.yapaia_eta');
     expect(vorgabe).toContain('nav_state'); // nicht vorhanden -> Vorgabe
   });
 
   it('mit der Integration „Yapaia": die neuen IDs gewinnen vor den alten', () => {
     const { ids, gefunden } = resolveEntityIds([
-      zustand('sensor.yapaja_speed'),
+      zustand('sensor.yapaia_speed'),
       zustand('sensor.yapaia_go_tempo'),
       zustand('sensor.yapaia_go_tempolimit'),
       zustand('binary_sensor.yapaia_go_zu_schnell'),
@@ -71,8 +71,8 @@ describe('die Entitaeten in einer echten Anlage finden', () => {
     // baute die ID dann aus Geraete- plus Entitaetsnamen -- und der
     // Geraetename hat sich in 0.6.7 auch noch geaendert. Beide Formen gibt es
     // draussen wirklich.
-    const alt = resolveEntityIds([zustand('sensor.yapaja_go_speed', 'Yapaja Go Speed')]);
-    expect(alt.ids.speed).toBe('sensor.yapaja_go_speed');
+    const alt = resolveEntityIds([zustand('sensor.yapaia_go_speed', 'Yapaia Go Speed')]);
+    expect(alt.ids.speed).toBe('sensor.yapaia_go_speed');
 
     const neu = resolveEntityIds([zustand('sensor.yapaia_go_speed', 'Yapaia Go Speed')]);
     expect(neu.ids.speed).toBe('sensor.yapaia_go_speed');
@@ -85,7 +85,7 @@ describe('die Entitaeten in einer echten Anlage finden', () => {
       zustand('sensor.speed'),
       zustand('sensor.wind_speed', 'Wind Speed'),
     ]);
-    expect(ids.speed).toBe('sensor.yapaja_speed'); // die Vorgabe
+    expect(ids.speed).toBe('sensor.yapaia_speed'); // die Vorgabe
     expect(vorgabe).toContain('speed');
   });
 
@@ -108,13 +108,13 @@ describe('die Entitaeten in einer echten Anlage finden', () => {
   });
 
   it('achtet auf die Domain', () => {
-    // `button.yapaja_stop` und ein `sensor.yapaja_stop` waeren zwei
+    // `button.yapaia_stop` und ein `sensor.yapaia_stop` waeren zwei
     // verschiedene Dinge; die Schaltflaeche braucht die Schaltflaeche.
     const { ids } = resolveEntityIds([
-      zustand('sensor.yapaja_stop'),
-      zustand('button.yapaja_go_stop', 'Yapaia Go Stop'),
+      zustand('sensor.yapaia_stop'),
+      zustand('button.yapaia_go_stop', 'Yapaia Go Stop'),
     ]);
-    expect(ids.stop).toBe('button.yapaja_go_stop');
+    expect(ids.stop).toBe('button.yapaia_go_stop');
   });
 
   it('waehlt bei mehreren Treffern immer dieselbe', () => {
@@ -155,7 +155,7 @@ describe('die Datei selbst', () => {
     const geladen = load(yaml) as { views: Array<{ cards: Array<Record<string, unknown>> }> };
     expect(geladen.views).toHaveLength(1);
     const typen = geladen.views[0].cards.map((k) => k.type);
-    expect(typen).toContain('custom:yapaja-map-card'); // Karte mit Route
+    expect(typen).toContain('custom:yapaia-map-card'); // Karte mit Route
     expect(typen).toContain('markdown'); // naechste Richtungsanzeige
     expect(typen).toContain('gauge'); // Geschwindigkeit
     expect(typen).toContain('entities'); // Entfernung und ETA
@@ -164,7 +164,7 @@ describe('die Datei selbst', () => {
   it('setzt die gefundenen IDs ein, nicht die Vorgabe', () => {
     expect(yaml).toContain('sensor.yapaia_go_speed');
     expect(yaml).toContain('sensor.yapaia_go_eta');
-    expect(yaml).not.toContain('sensor.yapaja_speed\n');
+    expect(yaml).not.toContain('sensor.yapaia_speed\n');
   });
 
   it('nennt die Schaltflaechen mit der Aktion, die sie ausloest', () => {
@@ -174,7 +174,7 @@ describe('die Datei selbst', () => {
   it('erklaert oben, wie man sie benutzt', () => {
     // Ohne die Ressource bleibt die Kartenkachel leer -- das ist der
     // haeufigste Grund, warum „das Dashboard nicht klappt".
-    expect(yaml).toContain('/local/yapaja/yapaja-map-card.js');
+    expect(yaml).toContain('/local/yapaia/yapaia-map-card.js');
     expect(yaml).toContain('Rohkonfigurationseditor');
   });
 });
@@ -208,16 +208,16 @@ describe('schreiben', () => {
     };
   }
 
-  it('legt die Datei unter www/yapaja ab -- zweimal', async () => {
+  it('legt die Datei unter www/yapaia ab -- zweimal', async () => {
     // `.txt` daneben, damit der Browser den Text ANZEIGT statt ihn
     // herunterzuladen: auf einem iPad ist eine heruntergeladene Datei
     // praktisch weg.
     const a = depsBauen();
-    expect(await writeDashboardYaml('/homeassistant/www/yapaja', 'inhalt', a.deps)).toBe(true);
-    expect(a.ordner).toEqual(['/homeassistant/www/yapaja']);
+    expect(await writeDashboardYaml('/homeassistant/www/yapaia', 'inhalt', a.deps)).toBe(true);
+    expect(a.ordner).toEqual(['/homeassistant/www/yapaia']);
     expect(a.geschrieben.map((g) => g.pfad)).toEqual([
-      '/homeassistant/www/yapaja/dashboard.yaml',
-      '/homeassistant/www/yapaja/dashboard.txt',
+      '/homeassistant/www/yapaia/dashboard.yaml',
+      '/homeassistant/www/yapaia/dashboard.txt',
     ]);
     expect(a.geschrieben[0].inhalt).toBe(a.geschrieben[1].inhalt);
   });
@@ -225,7 +225,7 @@ describe('schreiben', () => {
   it('haelt nichts an, wenn das Schreiben scheitert', async () => {
     // Ein nicht ablegbares Dashboard darf die Navigation nicht stoppen.
     const a = depsBauen(new Error('read-only file system'));
-    expect(await writeDashboardYaml('/homeassistant/www/yapaja', 'inhalt', a.deps)).toBe(false);
+    expect(await writeDashboardYaml('/homeassistant/www/yapaia', 'inhalt', a.deps)).toBe(false);
     expect(a.warnungen).toHaveLength(1);
   });
 });
@@ -256,7 +256,7 @@ describe('die Pflege der Datei', () => {
       ausloesen: () => geplant?.(),
       istAbbestellt: () => abbestellt,
       deps: {
-        wwwDir: '/homeassistant/www/yapaja',
+        wwwDir: '/homeassistant/www/yapaia',
         verbindung: () =>
           optionen.verbindung === undefined
             ? { apiBase: 'http://supervisor/core/api', token: 't' }
@@ -281,7 +281,7 @@ describe('die Pflege der Datei', () => {
     starteDashboardPflege(a.deps);
     await new Promise((r) => setTimeout(r, 0));
     expect(a.geschrieben).toHaveLength(2);
-    expect(a.geschrieben[0]).toContain('sensor.yapaja_speed');
+    expect(a.geschrieben[0]).toContain('sensor.yapaia_speed');
   });
 
   it('ersetzt sie durch die wirklich vorhandenen IDs', async () => {
@@ -424,7 +424,7 @@ describe('die bedienbaren Kacheln', () => {
     expect(yaml).not.toContain('title: Steuerung');
     expect(yaml).not.toContain('perform_action');
     // Der Rest bleibt vollstaendig -- und gueltig.
-    expect(yaml).toContain('custom:yapaja-map-card');
+    expect(yaml).toContain('custom:yapaia-map-card');
     expect(() => load(yaml)).not.toThrow();
   });
 

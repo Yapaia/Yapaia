@@ -308,7 +308,7 @@ describe('HaTrackerSource', () => {
  * Aus dem Protokoll einer echten Installation:
  *
  *     ha_tracker: konfigurierte Entitaet nicht gefunden -- Quelle bleibt inaktiv
- *     { entityId: "device_tracker.yapaja_vehicle",
+ *     { entityId: "device_tracker.yapaia_vehicle",
  *       verfuegbar: ["device_tracker.ipad_2"] }
  *
  * Yapaias eigener Fahrzeug-Tracker stand in der Auswahlliste, weil er

@@ -5,7 +5,7 @@
  * Gefragt: „Die Idee des Navi in HA war ja, die Navigation oder auch nur Teile
  * davon in eigene Dashboards zu integrieren. Bspw. die Karte mit
  * eingezeichneter Route." Genau diese Seite laedt die Lovelace-Karte
- * (`yapaja_go/lovelace/yapaja-map-card.js`) in ihren Rahmen.
+ * (`yapaia_go/lovelace/yapaia-map-card.js`) in ihren Rahmen.
  *
  * ─── WARUM EINE EIGENE SEITE UND NICHT `App.tsx` MIT SCHALTER ───────────────
  * `App.tsx` bringt Suchleiste, Favoriten, Fahr-Overlay, Update-Hinweis,

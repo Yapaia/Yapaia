@@ -7,7 +7,7 @@
  * `apps/core/src/addons/service-host.ts`).
  *
  * The two runtimes give unambiguous, mutually exclusive signals:
- *  - A service add-on is handed `YAPAJA_TOKEN` (its scoped bearer token) in
+ *  - A service add-on is handed `YAPAIA_TOKEN` (its scoped bearer token) in
  *    `process.env` -- see `service-host.ts`'s "THE PROCESS CONTRACT". This is
  *    a deliberate, Core-issued credential; nothing else sets it.
  *  - A UI add-on runs inside a `sandbox="allow-scripts"` iframe, so it has a
@@ -17,7 +17,7 @@
  *
  * The env check runs FIRST and wins outright if (implausibly) both signals
  * are present at once -- e.g. a Node-based test harness that also polyfills
- * `window` for some unrelated reason. `YAPAJA_TOKEN` is the stronger,
+ * `window` for some unrelated reason. `YAPAIA_TOKEN` is the stronger,
  * deliberate signal; "a `window` object merely exists" is not.
  */
 
@@ -25,12 +25,12 @@ import { AddonTransportError } from './errors.js';
 
 export type TransportKind = 'postMessage' | 'service';
 
-/** Reads `process.env.YAPAJA_TOKEN` without assuming `process` exists (it
+/** Reads `process.env.YAPAIA_TOKEN` without assuming `process` exists (it
  *  does not, in a browser/iframe context) -- guarded via `globalThis` so this
  *  module loads safely in either runtime. */
 function serviceToken(): string | undefined {
   const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
-  return proc?.env?.YAPAJA_TOKEN;
+  return proc?.env?.YAPAIA_TOKEN;
 }
 
 function hasServiceEnv(): boolean {
@@ -53,7 +53,7 @@ export function detectTransport(): TransportKind {
   if (hasServiceEnv()) return 'service';
   if (hasPostMessageEnv()) return 'postMessage';
   throw new AddonTransportError(
-    'Could not auto-detect a transport: no YAPAJA_TOKEN env var (service add-on contract) and no ' +
+    'Could not auto-detect a transport: no YAPAIA_TOKEN env var (service add-on contract) and no ' +
       'window.parent (UI add-on contract). Pass { transport: "postMessage" | "service" } to connectAddon() explicitly.',
     'TRANSPORT_DETECTION_FAILED',
   );

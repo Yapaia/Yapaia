@@ -26,7 +26,7 @@
  *  4. The 16 KB MQTT payload cap (distinct from and tighter than the 64 KB
  *     bus-level cap `serviceRoutes.ts` already enforces).
  *  5. Plausibility: an add-on can never produce an MQTT topic outside
- *     `yapaja/addon/{id}/*` -- including inputs the upstream namespace guard
+ *     `yapaia/addon/{id}/*` -- including inputs the upstream namespace guard
  *     ALLOWS onto the bus (MQTT wildcards) but this bridge must still refuse
  *     to publish, AND the bridge's own broker connection survives such an
  *     attempt (the concrete DoS `addonTopic.ts`'s doc comment describes).
@@ -229,7 +229,7 @@ async function buildHarness(): Promise<Harness> {
   subscriber.on('error', () => {});
   await new Promise<void>((resolve) => subscriber.once('connect', () => resolve()));
   await new Promise<void>((resolve, reject) =>
-    subscriber.subscribe('yapaja/#', { qos: 1 }, (err) => (err ? reject(err) : resolve())),
+    subscriber.subscribe('yapaia/#', { qos: 1 }, (err) => (err ? reject(err) : resolve())),
   );
   const records = recordMessages(subscriber);
 
@@ -279,12 +279,12 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
 
   // --- acceptance 1: recorder-shaped start/stop events ------------------------
   it('acceptance 1: recorder start/stop events appear as MQTT topics', async () => {
-    const id = 'com.yapaja.track-recorder-fixture';
+    const id = 'com.yapaia.track-recorder-fixture';
     const token = installAddon(h, id);
 
     expect(await publishEvent(h, id, token, 'started', { trackId: 'track-1', startedAt: new Date().toISOString() })).toBe(202);
-    await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/started`)));
-    const started = latestOf(h.records, `yapaja/addon/${id}/started`)!;
+    await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/started`)));
+    const started = latestOf(h.records, `yapaia/addon/${id}/started`)!;
     expect(started.payload).toMatchObject({ trackId: 'track-1' });
     expect(started.retain).toBe(false);
 
@@ -295,8 +295,8 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
         pointCount: 42,
       }),
     ).toBe(202);
-    await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/stopped`)));
-    const stopped = latestOf(h.records, `yapaja/addon/${id}/stopped`)!;
+    await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/stopped`)));
+    const stopped = latestOf(h.records, `yapaia/addon/${id}/stopped`)!;
     expect(stopped.payload).toMatchObject({ trackId: 'track-1', distanceMeters: 1234.5 });
   });
 
@@ -316,7 +316,7 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
     expect(statuses).toEqual(new Array(8).fill(202));
 
     await sleep(300); // let the bridge drain whatever it will publish
-    const delivered = countOf(h.records, `yapaja/addon/${id}/tick`);
+    const delivered = countOf(h.records, `yapaia/addon/${id}/tick`);
     expect(delivered).toBe(ADDON_EVENT_RATE_LIMIT_PER_SECOND);
   });
 
@@ -334,8 +334,8 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
     expect(await publishEvent(h, quietId, quietToken, 'tick', { i: 0 })).toBe(202);
 
     await sleep(300);
-    expect(countOf(h.records, `yapaja/addon/${chattyId}/tick`)).toBe(ADDON_EVENT_RATE_LIMIT_PER_SECOND);
-    expect(countOf(h.records, `yapaja/addon/${quietId}/tick`)).toBe(1);
+    expect(countOf(h.records, `yapaia/addon/${chattyId}/tick`)).toBe(ADDON_EVENT_RATE_LIMIT_PER_SECOND);
+    expect(countOf(h.records, `yapaia/addon/${quietId}/tick`)).toBe(1);
   });
 
   // --- payload cap --------------------------------------------------------------
@@ -353,14 +353,14 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
     expect(status).toBe(202); // accepted onto the bus...
 
     await sleep(200);
-    expect(latestOf(h.records, `yapaja/addon/${id}/big`)).toBeUndefined(); // ...but never reaches MQTT
+    expect(latestOf(h.records, `yapaia/addon/${id}/big`)).toBeUndefined(); // ...but never reaches MQTT
   });
 
   it('publishes a payload comfortably under the 16 KB cap normally', async () => {
     const id = 'com.example.small-payload';
     const token = installAddon(h, id);
     expect(await publishEvent(h, id, token, 'small', { blob: 'x'.repeat(1024) })).toBe(202);
-    await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/small`)));
+    await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/small`)));
   });
 
   // --- acceptance 3: toggle takes effect immediately -----------------------------
@@ -370,7 +370,7 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
 
     // Phase 1: default (enabled) -- the event arrives.
     expect(await publishEvent(h, id, token, 'phase1')).toBe(202);
-    await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/phase1`)));
+    await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/phase1`)));
 
     // Flip the toggle off through the REAL REST endpoint (Store detail page's
     // "In Home Assistant verfügbar" control). NOTHING about the server or the
@@ -384,13 +384,13 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
     // reach MQTT.
     expect(await publishEvent(h, id, token, 'phase2')).toBe(202); // still accepted onto the bus
     await sleep(250);
-    expect(latestOf(h.records, `yapaja/addon/${id}/phase2`)).toBeUndefined();
+    expect(latestOf(h.records, `yapaia/addon/${id}/phase2`)).toBeUndefined();
 
     // Re-enable, same running bridge -- immediately works again.
     const enableRes = await h.server.inject({ method: 'POST', url: `/api/v1/addons/${id}/mqtt/enable` });
     expect(enableRes.statusCode).toBe(200);
     expect(await publishEvent(h, id, token, 'phase3')).toBe(202);
-    await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/phase3`)));
+    await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/phase3`)));
 
     // The Core's own MQTT connection to the broker was continuously healthy
     // throughout -- proof nothing was torn down/rebuilt to make the toggle work.
@@ -399,20 +399,20 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
   });
 
   // --- plausibility: topic-namespace containment ----------------------------------
-  describe('plausibility: an add-on can never publish outside yapaja/addon/{id}/*', () => {
+  describe('plausibility: an add-on can never publish outside yapaia/addon/{id}/*', () => {
     it('a topic rejected by the upstream namespace guard (403) never reaches MQTT under any Core topic', async () => {
       const id = 'com.example.hostile-namespace';
       const token = installAddon(h, id);
 
-      // `yapaja/cmd/*`/`yapaja/nav/*` ONLY -- never `yapaja/status`/
-      // `yapaja/position`: those two are legitimately (re-)published by the
+      // `yapaia/cmd/*`/`yapaia/nav/*` ONLY -- never `yapaia/status`/
+      // `yapaia/position`: those two are legitimately (re-)published by the
       // bridge's OWN connection lifecycle independent of any add-on activity
       // (e.g. a reconnect under load republishes `status` fresh -- see
       // `handleConnect()` in `bridge.ts`), so a before/after diff on them
       // would be racy under a busy full-suite run. This test never sends a
       // navigation command and no navigation is running, so `cmd`/`nav`
       // staying at an absolute zero is deterministic regardless of load.
-      const forbiddenPrefixes = ['yapaja/cmd/', 'yapaja/nav/'];
+      const forbiddenPrefixes = ['yapaia/cmd/', 'yapaia/nav/'];
 
       for (const hostileTopic of [
         '../cmd/destination',
@@ -449,7 +449,7 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
 
       await sleep(200);
       // None of them reached MQTT under ANY topic.
-      expect(countOf(h.records, `yapaja/addon/${id}/`)).toBe(0);
+      expect(countOf(h.records, `yapaia/addon/${id}/`)).toBe(0);
       expect(h.records.some((r) => r.topic.includes('+') || r.topic.includes('#'))).toBe(false);
 
       // Crucially: the Core's OWN MqttBridge connection is still alive and
@@ -458,7 +458,7 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
       // `addonTopic.ts`'s doc comment and the raw-aedes reproduction test
       // below). Proven by a LEGITIMATE event right after still getting through.
       expect(await publishEvent(h, id, token, 'still-alive', { ok: true })).toBe(202);
-      await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/still-alive`)));
+      await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/still-alive`)));
       const health = await h.server.inject({ method: 'GET', url: '/api/v1/health' });
       expect((JSON.parse(health.body) as { services: { mqtt: string } }).services.mqtt).toBe('ok');
     });
@@ -474,28 +474,28 @@ describe('add-on events.publish -> MQTT republish (E09-T8, real Core + real brok
       // single connection, so once this (the last) has arrived, every
       // earlier one is guaranteed to have arrived too (avoids a flaky
       // check-too-early race on the earlier topics).
-      await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/status`)));
+      await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/status`)));
 
       // Every one of them landed EXACTLY under this add-on's own namespace,
       // never as the bare Core topic of the same name.
-      expect(latestOf(h.records, 'yapaja/cmd/destination')).toBeUndefined();
-      expect(latestOf(h.records, 'yapaja/nav/state')).toBeUndefined();
-      expect(latestOf(h.records, `yapaja/addon/${id}/nav/state`)).toBeDefined();
-      expect(latestOf(h.records, `yapaja/addon/${id}/$SYS/broker/uptime`)).toBeDefined();
+      expect(latestOf(h.records, 'yapaia/cmd/destination')).toBeUndefined();
+      expect(latestOf(h.records, 'yapaia/nav/state')).toBeUndefined();
+      expect(latestOf(h.records, `yapaia/addon/${id}/nav/state`)).toBeDefined();
+      expect(latestOf(h.records, `yapaia/addon/${id}/$SYS/broker/uptime`)).toBeDefined();
     });
   });
 
   // --- retain semantics -----------------------------------------------------------
-  it('an add-on event is never retained (transient, like yapaja/event/#)', async () => {
+  it('an add-on event is never retained (transient, like yapaia/event/#)', async () => {
     const id = 'com.example.retain-check';
     const token = installAddon(h, id);
     expect(await publishEvent(h, id, token, 'once', { x: 1 })).toBe(202);
-    await wait(() => Boolean(latestOf(h.records, `yapaja/addon/${id}/once`)));
+    await wait(() => Boolean(latestOf(h.records, `yapaia/addon/${id}/once`)));
 
     // A FRESH subscriber connecting afterwards must see NOTHING retained on
     // this add-on's namespace -- the only faithful way to check "retained"
     // (see `collectRetained`'s doc comment).
-    const retained = await collectRetained(h.brokerUrl, `yapaja/addon/${id}/#`);
+    const retained = await collectRetained(h.brokerUrl, `yapaia/addon/${id}/#`);
     expect(retained).toEqual([]);
   });
 });
@@ -516,7 +516,7 @@ describe('why buildAddonMqttTopic must reject +/# (raw aedes reproduction, not t
     // (MQTT-4.7.1-1) this is a protocol violation; aedes enforces it by
     // raising a client error and closing the connection (see its own
     // `test/topics.js`, "publish invalid topic with #").
-    client.publish('yapaja/addon/some-addon/#', 'x', { qos: 0 });
+    client.publish('yapaia/addon/some-addon/#', 'x', { qos: 0 });
 
     await Promise.race([closed, sleep(2000)]);
     expect(client.connected).toBe(false);

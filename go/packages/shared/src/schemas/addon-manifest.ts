@@ -1,5 +1,5 @@
 /**
- * JSON Schema for the add-on manifest `yapaja-addon.json` (E09-T1, docs/05
+ * JSON Schema for the add-on manifest `yapaia-addon.json` (E09-T1, docs/05
  * §2). Synchronized with types.ts `AddonManifest`.
  *
  * This schema only covers STRUCTURAL validation (types, required fields,

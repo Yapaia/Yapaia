@@ -85,7 +85,7 @@ test('[Flow 9] ingress sub-path: assets, tiles AND the WebSocket all load under 
       timeout: 15_000,
     })
     .toBe(true);
-  expect(allUrls.some((u) => u.includes(`${SUBPATH_PREFIX}/sprites/yapaja`))).toBe(true);
+  expect(allUrls.some((u) => u.includes(`${SUBPATH_PREFIX}/sprites/yapaia`))).toBe(true);
 
   // --- API through the proxy ------------------------------------------------
   // The same endpoints the UI relies on answer correctly when addressed via

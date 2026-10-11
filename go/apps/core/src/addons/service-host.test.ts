@@ -66,7 +66,7 @@ let hosts: AddonServiceHost[];
 function installOnDisk(entryFixture: string | null, m: AddonManifest = manifest()): void {
   const dir = join(addonsRootDir, m.id);
   mkdirSync(join(dir, 'service'), { recursive: true });
-  writeFileSync(join(dir, 'yapaja-addon.json'), JSON.stringify(m));
+  writeFileSync(join(dir, 'yapaia-addon.json'), JSON.stringify(m));
   if (entryFixture) copyFileSync(join(FIXTURE_DIR, entryFixture), join(dir, 'service', 'main.js'));
   repository.insert({
     id: m.id,
@@ -186,12 +186,12 @@ describe('AddonServiceHost -- spawn contract (E09-T3)', () => {
     expect(args[args.length - 1]).toBe(join(addonDir, 'service', 'main.js'));
     expect(options.cwd).toBe(addonDir);
 
-    expect(options.env.YAPAJA_API_URL).toBe('http://127.0.0.1:65535');
-    expect(options.env.YAPAJA_DATA_DIR).toBe(storageDir);
-    expect(options.env.YAPAJA_ADDON_ID).toBe(ADDON_ID);
-    expect(options.env.YAPAJA_TOKEN).toBeTruthy();
+    expect(options.env.YAPAIA_API_URL).toBe('http://127.0.0.1:65535');
+    expect(options.env.YAPAIA_DATA_DIR).toBe(storageDir);
+    expect(options.env.YAPAIA_ADDON_ID).toBe(ADDON_ID);
+    expect(options.env.YAPAIA_TOKEN).toBeTruthy();
     // The token in the child's env is the LIVE one.
-    expect(tokens.authenticate(options.env.YAPAJA_TOKEN)?.addonId).toBe(ADDON_ID);
+    expect(tokens.authenticate(options.env.YAPAIA_TOKEN)?.addonId).toBe(ADDON_ID);
   });
 
   it('NEVER leaks the Core\'s own secrets into the child environment', () => {
@@ -208,10 +208,10 @@ describe('AddonServiceHost -- spawn contract (E09-T3)', () => {
       expect(Object.keys(env).sort()).toEqual([
         'NODE_ENV',
         'PATH',
-        'YAPAJA_ADDON_ID',
-        'YAPAJA_API_URL',
-        'YAPAJA_DATA_DIR',
-        'YAPAJA_TOKEN',
+        'YAPAIA_ADDON_ID',
+        'YAPAIA_API_URL',
+        'YAPAIA_DATA_DIR',
+        'YAPAIA_TOKEN',
       ]);
       expect(JSON.stringify(env)).not.toContain('core-secret');
       expect(JSON.stringify(env)).not.toContain('ha-secret');
@@ -269,7 +269,7 @@ describe('AddonServiceHost -- spawn contract (E09-T3)', () => {
     const host = makeHost({ spawn: fake.spawn });
     repository.setEnabled(ADDON_ID, true);
     host.onEnabled(repository.getById(ADDON_ID)!);
-    const token = fake.calls[0].options.env.YAPAJA_TOKEN;
+    const token = fake.calls[0].options.env.YAPAIA_TOKEN;
     expect(tokens.authenticate(token)).not.toBeNull();
 
     host.onDisabled(ADDON_ID);
@@ -286,7 +286,7 @@ describe('AddonServiceHost -- spawn contract (E09-T3)', () => {
     const fake = fakeSpawner();
     makeHost({ spawn: fake.spawn }).startAll();
     expect(fake.calls).toHaveLength(1);
-    expect(fake.calls[0].options.env.YAPAJA_ADDON_ID).toBe(ADDON_ID);
+    expect(fake.calls[0].options.env.YAPAIA_ADDON_ID).toBe(ADDON_ID);
   });
 
   it('restarts a crashed process while the add-on is still enabled', async () => {
@@ -298,8 +298,8 @@ describe('AddonServiceHost -- spawn contract (E09-T3)', () => {
     fake.children[0].exit(1, null);
     expect(fake.calls).toHaveLength(2);
     // A fresh token per spawn -- the crashed process's token is already dead.
-    expect(fake.calls[1].options.env.YAPAJA_TOKEN).not.toBe(fake.calls[0].options.env.YAPAJA_TOKEN);
-    expect(tokens.authenticate(fake.calls[0].options.env.YAPAJA_TOKEN)).toBeNull();
+    expect(fake.calls[1].options.env.YAPAIA_TOKEN).not.toBe(fake.calls[0].options.env.YAPAIA_TOKEN);
+    expect(tokens.authenticate(fake.calls[0].options.env.YAPAIA_TOKEN)).toBeNull();
   });
 
   it('does NOT restart after a deliberate stop', () => {

@@ -62,9 +62,9 @@ describe('POST /api/v1/map/gesamtbau', () => {
 
   /** Baut die Anwendung mit den genannten INSTALLIERTEN Karten auf. */
   async function setUp(installiert: string[], freierRam = 8 * 1024 ** 3): Promise<void> {
-    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-gesamt-tiles-'));
-    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaja-gesamt-catalog-'));
-    const graphDir = mkdtempSync(join(tmpdir(), 'yapaja-gesamt-graph-'));
+    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-gesamt-tiles-'));
+    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaia-gesamt-catalog-'));
+    const graphDir = mkdtempSync(join(tmpdir(), 'yapaia-gesamt-graph-'));
     tempDirs.push(tilesDir, catalogDir, graphDir);
 
     for (const region of installiert) {
@@ -108,7 +108,7 @@ describe('POST /api/v1/map/gesamtbau', () => {
   it('beginnt mit dem Routinggraphen', async () => {
     await setUp(['liechtenstein']);
     await app.inject({ method: 'POST', url: '/api/v1/map/gesamtbau' });
-    expect(kommandos).toEqual(['/usr/bin/yapaja-build-graph']);
+    expect(kommandos).toEqual(['/usr/bin/yapaia-build-graph']);
   });
 
   it('ohne installierte Karte: 409 statt eines leeren Laufs', async () => {
@@ -183,9 +183,9 @@ describe('POST /api/v1/map/gesamtbau — die Sperre gilt in beide Richtungen', (
   });
 
   async function setUp(freierRam = 8 * 1024 ** 3): Promise<void> {
-    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaja-gesamtlock-tiles-'));
-    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaja-gesamtlock-catalog-'));
-    const graphDir = mkdtempSync(join(tmpdir(), 'yapaja-gesamtlock-graph-'));
+    const tilesDir = mkdtempSync(join(tmpdir(), 'yapaia-gesamtlock-tiles-'));
+    const catalogDir = mkdtempSync(join(tmpdir(), 'yapaia-gesamtlock-catalog-'));
+    const graphDir = mkdtempSync(join(tmpdir(), 'yapaia-gesamtlock-graph-'));
     tempDirs.push(tilesDir, catalogDir, graphDir);
     writeFileSync(join(tilesDir, 'liechtenstein.pmtiles'), buildPMTilesFixtureBuffer({}));
     const catalogPath = join(catalogDir, 'catalog.json');

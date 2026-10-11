@@ -432,7 +432,7 @@ export interface ApiError {
   };
 }
 
-// Add-on manifest (`yapaja-addon.json`, E09-T1, docs/05 §2 "Manifest"). `id`
+// Add-on manifest (`yapaia-addon.json`, E09-T1, docs/05 §2 "Manifest"). `id`
 // becomes a DIRECTORY NAME under `data/addons/` at install time -- validated
 // strictly (reverse-DNS-ish, no `/`, `\`, `..`) by `addonManifestSchema`/
 // `validateAddonManifest`, not just this structural interface. `core_api` is

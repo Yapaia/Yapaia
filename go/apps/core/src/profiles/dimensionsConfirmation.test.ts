@@ -32,7 +32,7 @@ let dir: string;
 let service: ProfileService;
 
 beforeEach(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'yapaja-dims-'));
+  dir = mkdtempSync(join(tmpdir(), 'yapaia-dims-'));
   process.env.DB_PATH = join(dir, 'test.db');
   closeDb();
   service = new ProfileService();

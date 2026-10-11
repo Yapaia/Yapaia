@@ -14,28 +14,28 @@ Aktionen), **HA-Add-on-Packaging** (Installation & UI-Zugriff via Ingress).
 ## 1. MQTT (primärer Kanal)
 
 - Broker: der in HA übliche **Mosquitto**. Yapaia-Core verbindet sich als Client
-  (mqtt.js), Reconnect mit Exponential-Backoff, **LWT** auf `yapaja/status = offline`.
+  (mqtt.js), Reconnect mit Exponential-Backoff, **LWT** auf `yapaia/status = offline`.
 - Topics/Payloads: siehe `docs/03-api-spec.md` §4. Ein gemeinsames Schema mit WS —
   keine Sonderformate für HA.
 - **Auto-Discovery:** Beim Start (und bei `homeassistant/status = online`, d. h.
   HA-Neustart) publiziert Yapaia Discovery-Configs (retained) unter
-  `homeassistant/<component>/yapaja_<objekt>/config`:
+  `homeassistant/<component>/yapaia_<objekt>/config`:
 
 | HA-Entität | Typ | Quelle |
 |---|---|---|
-| `sensor.yapaja_speed` | sensor (km/h, device_class speed) | nav/speed |
-| `sensor.yapaja_speed_limit` | sensor (km/h) | nav/speed |
-| `binary_sensor.yapaja_speeding` | binary_sensor | nav/speed |
-| `sensor.yapaja_eta` | sensor (timestamp) | nav/eta |
-| `sensor.yapaja_distance_remaining` | sensor (km) | nav/eta |
-| `sensor.yapaja_instruction` | sensor (Text) + Attribut `icon` (Richtungspfeil) | **nav/maneuver** (Zustand, 1 Hz) |
-| `sensor.yapaja_instruction_distance` | sensor (m) | **nav/maneuver** (Zustand, 1 Hz) |
-| `sensor.yapaja_altitude` | sensor (m, device_class distance) | nav/altitude |
-| `sensor.yapaja_nav_state` | sensor (idle/navigating/…) | nav/state |
-| `device_tracker.yapaja_vehicle` | device_tracker (json_attributes lat/lon) | position |
-| `sensor.yapaja_destination` | sensor (Name) + Attribute lat/lon | nav/destination |
-| `button.yapaja_stop` / `pause` / `resume` | button → cmd/navigation | – |
-| `select.yapaja_profile` | select (Profilnamen) → cmd/profile | profiles |
+| `sensor.yapaia_speed` | sensor (km/h, device_class speed) | nav/speed |
+| `sensor.yapaia_speed_limit` | sensor (km/h) | nav/speed |
+| `binary_sensor.yapaia_speeding` | binary_sensor | nav/speed |
+| `sensor.yapaia_eta` | sensor (timestamp) | nav/eta |
+| `sensor.yapaia_distance_remaining` | sensor (km) | nav/eta |
+| `sensor.yapaia_instruction` | sensor (Text) + Attribut `icon` (Richtungspfeil) | **nav/maneuver** (Zustand, 1 Hz) |
+| `sensor.yapaia_instruction_distance` | sensor (m) | **nav/maneuver** (Zustand, 1 Hz) |
+| `sensor.yapaia_altitude` | sensor (m, device_class distance) | nav/altitude |
+| `sensor.yapaia_nav_state` | sensor (idle/navigating/…) | nav/state |
+| `device_tracker.yapaia_vehicle` | device_tracker (json_attributes lat/lon) | position |
+| `sensor.yapaia_destination` | sensor (Name) + Attribute lat/lon | nav/destination |
+| `button.yapaia_stop` / `pause` / `resume` | button → cmd/navigation | – |
+| `select.yapaia_profile` | select (Profilnamen) → cmd/profile | profiles |
 
 
   **Warum die beiden Anweisungs-Sensoren an `nav/maneuver` hängen und nicht an
@@ -51,7 +51,7 @@ Aktionen), **HA-Add-on-Packaging** (Installation & UI-Zugriff via Ingress).
   HA-internen Kanal (`ha/statesBridge.ts`), der denselben Fehler hatte.
 
   Alle Entitäten hängen an einem HA-**Device** „Yapaia Go" (identifiers:
-  `yapaja_go`, sw_version, configuration_url → App-URL).
+  `yapaia_go`, sw_version, configuration_url → App-URL).
 
   **Die Entity-IDs oben gelten seit 0.6.9 wörtlich** — jede Discovery-Config
   schickt ein `object_id` mit (`mqtt/discovery.ts`). Davor waren sie eine
@@ -64,8 +64,8 @@ Aktionen), **HA-Add-on-Packaging** (Installation & UI-Zugriff via Ingress).
 - Damit sind in HA ohne YAML sofort Dashboards, Automationen („Wenn ETA < 30 min →
   Boiler an"), TTS-Ansagen über HA-Speaker etc. möglich.
 - **Eigenes Dashboard (0.6.9).** Das Add-on legt beim Start zwei Dateien unter
-  `<ha-config>/www/yapaja/` ab — also unter `/local/yapaja/`:
-  `yapaja-map-card.js` (die Karte MIT Route und eigener Position; sie rahmt
+  `<ha-config>/www/yapaia/` ab — also unter `/local/yapaia/`:
+  `yapaia-map-card.js` (die Karte MIT Route und eigener Position; sie rahmt
   die Anzeigeseite `embed.html` des Add-ons, damit es nicht zwei Karten zu
   pflegen gibt) und `dashboard.yaml`/`.txt` (ein fertiges Dashboard für den
   Rohkonfigurationseditor, mit den zur Laufzeit gefundenen Entity-IDs). Die
@@ -84,7 +84,7 @@ Aktionen), **HA-Add-on-Packaging** (Installation & UI-Zugriff via Ingress).
   Schreiber auf einer Entität ergäben ein Flackern. Fällt der Broker aus,
   übernimmt er; das ist zugleich ein Ausfallschutz.
 - **Nur lesbare Entitäten.** Ein so geschriebener Zustand nimmt keine Befehle
-  entgegen: `button.yapaja_stop/pause/resume` und `select.yapaja_profile` gibt
+  entgegen: `button.yapaia_stop/pause/resume` und `select.yapaia_profile` gibt
   es ausschließlich über MQTT. **Bedienen geht trotzdem** — über einen zweiten
   Satz Entitäten, siehe §1c. In 0.7.0 stand hier noch, es gehe gar nicht; das
   war zu früh aufgegeben.
@@ -130,10 +130,6 @@ anderen: es legt in Home Assistant **Helfer** an und hört auf sie.
   wären nur Verwirrung. Das erzeugte Dashboard nimmt dann die MQTT-Entitäten
   und schreibt in den Dateikopf, dass die Helfer da sind und **ruhen** — sonst
   suchte jemand den Fehler bei sich, wenn ein Helfer nicht reagiert.
-- **`yapaia_`, nicht `yapaja_`:** was neu entsteht, bekommt die richtige
-  Schreibweise (der alte Name stammt aus der Zeit vor 0.6.7 und lässt sich für
-  bestehende Entitäten nicht mehr ändern). Verwechseln kann man sie nicht,
-  `button.*` und `input_button.*` sind verschiedene Bereiche.
 
 ## 1d. Position aus der Companion-App (0.7.1)
 
@@ -166,27 +162,27 @@ auch die Zeichenkette `"null"` abfängt).
 **Entscheidung (aktualisiert in `feat/gui-install-path`):** **dieses Monorepo
 ist selbst das Add-on-Repository.** Nutzer tragen unter *Einstellungen →
 Add-ons → Add-on Store → ⋮ → Repositories* die URL
-`https://github.com/Apfelsafft/Yapaja-Go-Design` ein und bekommen „Yapaia Go"
+`https://github.com/Yapaia/yapaia` ein und bekommen „Yapaia Go"
 als installierbares Add-on angezeigt.
 
 **Warum die Struktur so und nicht anders ist:** Der Supervisor erkennt ein
 Git-Repository nur dann als Add-on-Repository, wenn im **Wurzelverzeichnis**
 eine `repository.yaml` liegt; die installierbaren Add-ons sucht er danach als
 Verzeichnisse **eine Ebene darunter**, die je eine `config.yaml` enthalten.
-Die ursprüngliche Ablage `ha-addon/yapaja_go/` lag eine Ebene zu tief und war
+Die ursprüngliche Ablage `ha-addon/yapaia_go/` lag eine Ebene zu tief und war
 für den Supervisor damit unsichtbar — der Store-Weg funktionierte schlicht
 nicht (`docs/installation.md` §A trug dazu eine ausdrückliche Warnung).
 
 Struktur (Repo-Wurzel):
 ```
-Yapaja-Go-Design/
+yapaia/go/
 ├── repository.yaml      # name, url, maintainer  ← macht das Repo zum Add-on-Repo
-└── yapaja_go/
+└── yapaia_go/
     ├── config.yaml      # name, slug, arch: [amd64, aarch64], ingress: true,
     │                    # ports: {} (ingress-only) bzw. optional 8080 für Direktzugriff,
-    │                    # map: [share:rw]  → Kartendaten unter /share/yapaja (überlebt Updates!),
+    │                    # map: [share:rw]  → Kartendaten unter /share/yapaia (überlebt Updates!),
     │                    # services: [mqtt:want], usb: true (GPS-Maus), udev: true
-    ├── Dockerfile       # FROM yapaja/core-Basis; s6-overlay startet:
+    ├── Dockerfile       # FROM yapaia/core-Basis; s6-overlay startet:
     │                    # core, valhalla, photon, gpsd (kein Compose in HA-Add-ons)
     ├── rootfs/etc/s6-overlay/...   # Service-Definitionen, Abhängigkeits-Reihenfolge
     └── DOCS.md / README.md / PACKAGING.md / icon.png
@@ -194,9 +190,9 @@ Yapaja-Go-Design/
 
 Alles Übrige im Monorepo (`apps/`, `packages/`, `services/`, `docs/` …)
 ignoriert der Supervisor — er sieht nur Verzeichnisse mit `config.yaml`. Eine
-spätere Auslagerung in ein eigenständiges `yapaja-go-ha-addon`-Repo bleibt
+spätere Auslagerung in ein eigenständiges `yapaia-go-ha-addon`-Repo bleibt
 als Spiegel-Schritt möglich, ist für den GUI-Weg aber nicht mehr nötig
-(`yapaja_go/PACKAGING.md`).
+(`yapaia_go/PACKAGING.md`).
 
 Kernpunkte:
 - **Ingress:** `ingress: true` ⇒ UI erscheint in der HA-Seitenleiste, HA übernimmt
@@ -206,7 +202,7 @@ Kernpunkte:
 - **MQTT-Credentials automatisch:** `services: [mqtt:want]` ⇒ bashio liefert
   Host/User/Passwort, Core liest sie beim Start.
 - **USB-GPS:** `usb: true` + udev; gpsd läuft im Add-on-Container.
-- **Kartendaten nach `/share/yapaja/`** (PMTiles, Valhalla-Graph, Photon-Index),
+- **Kartendaten nach `/share/yapaia/`** (PMTiles, Valhalla-Graph, Photon-Index),
   nicht ins Container-FS – Add-on-Updates dürfen keine Daten-Downloads erzwingen.
 - **Ressourcen-Realität:** HAOS-VM braucht dann RAM für HA **und** Yapaia-Services.
   Empfehlung in DOCS.md: HAOS-VM ≥ 6 GB bei DE-Karten; wer knapp ist, nimmt die
@@ -225,7 +221,7 @@ Diese Variante ist die **Referenz für Entwicklung und CI**.
 
 Jedes Add-on mit dem Scope `events.publish` (docs/05 §2) landet automatisch
 auch in MQTT: ein Bus-Event `addon/{id}/*` wird 1:1 unter
-`yapaja/addon/{id}/*` republiziert -- **kein YAML, keine Auto-Discovery
+`yapaia/addon/{id}/*` republiziert -- **kein YAML, keine Auto-Discovery
 nötig**, einfach das Topic in einer Automation abonnieren. Rate-Limit
 5 msg/s pro Add-on (unabhängig je Add-on -- ein "lautes" Add-on kann keinem
 anderen das Budget wegnehmen), Payload ≤ 16 KB, nicht retained (jedes Event
@@ -235,13 +231,13 @@ wirkt sofort, ohne Core-Neustart.
 
 ### Worked Example: Track-Recorder Start/Stop
 
-Das Referenz-Add-on **Track-Recorder** (`com.yapaja.track-recorder`, docs/05
+Das Referenz-Add-on **Track-Recorder** (`com.yapaia.track-recorder`, docs/05
 §6.2) publiziert beim Start/Ende einer Aufzeichnung:
 
 | MQTT-Topic | Payload |
 |---|---|
-| `yapaja/addon/com.yapaja.track-recorder/started` | `{"trackId": "track-1738500000000", "startedAt": "2026-08-02T09:00:00.000Z"}` |
-| `yapaja/addon/com.yapaja.track-recorder/stopped` | `{"id": "track-1738500000000", "name": "track-1738500000000", "startedAt": "…", "endedAt": "…", "distanceMeters": 12345.6, "pointCount": 812, "segmentCount": 2}` |
+| `yapaia/addon/com.yapaia.track-recorder/started` | `{"trackId": "track-1738500000000", "startedAt": "2026-08-02T09:00:00.000Z"}` |
+| `yapaia/addon/com.yapaia.track-recorder/stopped` | `{"id": "track-1738500000000", "name": "track-1738500000000", "startedAt": "…", "endedAt": "…", "distanceMeters": 12345.6, "pointCount": 812, "segmentCount": 2}` |
 
 Eine HA-Automation, die bei Aufnahme-Ende eine Notification mit der
 gefahrenen Distanz sendet (`configuration.yaml` / UI-Automation-YAML):
@@ -251,7 +247,7 @@ automation:
   - alias: "Yapaia Go: Aufzeichnung beendet -> Benachrichtigung"
     trigger:
       - platform: mqtt
-        topic: "yapaja/addon/com.yapaja.track-recorder/stopped"
+        topic: "yapaia/addon/com.yapaia.track-recorder/stopped"
     action:
       - service: notify.mobile_app_dein_handy
         data:
@@ -269,21 +265,21 @@ automation:
   - alias: "Yapaia Go: Recorder-Status-Helper setzen"
     trigger:
       - platform: mqtt
-        topic: "yapaja/addon/com.yapaja.track-recorder/started"
+        topic: "yapaia/addon/com.yapaia.track-recorder/started"
         id: "start"
       - platform: mqtt
-        topic: "yapaja/addon/com.yapaja.track-recorder/stopped"
+        topic: "yapaia/addon/com.yapaia.track-recorder/stopped"
         id: "stop"
     action:
       - service: >
           {{ 'input_boolean.turn_on' if trigger.id == 'start' else 'input_boolean.turn_off' }}
         target:
-          entity_id: input_boolean.yapaja_recording
+          entity_id: input_boolean.yapaia_recording
 ```
 
 Jedes Add-on mit `events.publish` funktioniert nach demselben Muster --
 Topic-Name und Payload-Schema legt das jeweilige Add-on selbst fest (siehe
-dessen README/Doku); der Namensraum `yapaja/addon/{id}/*` und die
+dessen README/Doku); der Namensraum `yapaia/addon/{id}/*` und die
 Rate-/Größenlimits oben gelten für alle gleich.
 
 ## 7. Wargame-Bezüge (Details docs/08)

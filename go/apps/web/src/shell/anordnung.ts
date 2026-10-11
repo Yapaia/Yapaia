@@ -32,7 +32,7 @@ export interface Platz {
 export const MASSSTAB_MIN = 0.6;
 export const MASSSTAB_MAX = 2;
 
-const SCHLUESSEL = 'yapaja.anordnung';
+const SCHLUESSEL = 'yapaia.anordnung';
 
 type Werte = Record<Modus, Record<string, Platz>>;
 

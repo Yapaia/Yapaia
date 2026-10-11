@@ -363,7 +363,7 @@ describe('ProfileService', () => {
     });
   });
 
-  describe('onProfileListChanged hook (E08-T2, select.yapaja_profile discovery options)', () => {
+  describe('onProfileListChanged hook (E08-T2, select.yapaia_profile discovery options)', () => {
     it('fires on create()', async () => {
       let listChangedCount = 0;
       const serviceWithHook = new ProfileService({ onProfileListChanged: () => listChangedCount++ });

@@ -23,7 +23,7 @@
  *    both the GPX text and an updated track index, all under `storage.own`.
  *  - E09-T8: ALSO publish lightweight `started`/`stopped` notification
  *    events via `events.publish` (-> `addon/{id}/started|stopped` on the
- *    bus, -> `yapaja/addon/{id}/started|stopped` over MQTT/HA). This is a
+ *    bus, -> `yapaia/addon/{id}/started|stopped` over MQTT/HA). This is a
  *    SEPARATE, narrower purpose from the `storage.own` channel above: see
  *    the README's "`events.publish` (E09-T8): external status notifications,
  *    not the UI<->service channel" section for why both coexist without

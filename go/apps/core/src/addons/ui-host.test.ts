@@ -35,7 +35,7 @@ beforeAll(() => {
   writeFileSync(join(uiDir, 'index.html'), '<!doctype html><title>demo</title><body>hi</body>');
   writeFileSync(join(uiDir, 'app.js'), 'console.log("addon")');
   // A sensitive file OUTSIDE the ui/ subtree that must never be served.
-  writeFileSync(join(rootDir, ADDON_ID, 'yapaja-addon.json'), '{"secret":true}');
+  writeFileSync(join(rootDir, ADDON_ID, 'yapaia-addon.json'), '{"secret":true}');
 });
 
 afterAll(() => {
@@ -98,7 +98,7 @@ describe('addonUiHostPlugin', () => {
     enabled = true;
     const app = await buildApp();
     // Encoded ../../ traversal aimed at the manifest one level up from ui/.
-    const res = await app.inject({ method: 'GET', url: `/addons/${ADDON_ID}/ui/..%2f..%2fyapaja-addon.json` });
+    const res = await app.inject({ method: 'GET', url: `/addons/${ADDON_ID}/ui/..%2f..%2fyapaia-addon.json` });
     expect(res.statusCode).toBe(404);
     expect(res.body).not.toContain('secret');
     await app.close();

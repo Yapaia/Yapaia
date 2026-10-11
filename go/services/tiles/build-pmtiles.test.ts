@@ -480,7 +480,7 @@ describe('build-pmtiles.sh — planetiler-Aufruf', () => {
     // ... und es darf NICHT im Arbeitsverzeichnis liegen, das nach dem Lauf
     // geloescht wird -- sonst waeren es mehrere hundert MB pro Region.
     expect(sourcesMount).toContain('planetiler-sources');
-    expect(sourcesMount).not.toContain('yapaja-pmtiles-');
+    expect(sourcesMount).not.toContain('yapaia-pmtiles-');
   });
 
   it('loest %SOURCES% im JAR-Modus zum echten Pfad auf, ohne ihn zu zerlegen', () => {

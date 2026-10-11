@@ -147,7 +147,7 @@ export function sameEnvironment(a: EnvironmentSignature, b: EnvironmentSignature
 }
 
 export interface PerfReport {
-  readonly schema: 'yapaja.perf.v1';
+  readonly schema: 'yapaia.perf.v1';
   readonly generatedAt: string;
   readonly gitSha: string | null;
   readonly environment: EnvironmentSignature;

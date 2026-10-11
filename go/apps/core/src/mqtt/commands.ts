@@ -3,7 +3,7 @@
  * backend module. Same justification as position/service.ts. */
 
 /**
- * `yapaja/cmd/*` payload parsing (E08-T1, docs/03 §4). Pure functions only --
+ * `yapaia/cmd/*` payload parsing (E08-T1, docs/03 §4). Pure functions only --
  * no service access, no MQTT client -- so every validation branch (including
  * the failure paths that must NEVER crash the bridge) is independently
  * unit-testable. `bridge.ts` maps the parsed, typed results onto the actual
@@ -31,7 +31,7 @@ export function extractRequestId(payload: unknown): string | undefined {
   return undefined;
 }
 
-// --- yapaja/cmd/destination --------------------------------------------------
+// --- yapaia/cmd/destination --------------------------------------------------
 
 export interface ParsedDestinationCommand {
   latlng?: LatLng;
@@ -61,7 +61,7 @@ export function parseDestinationCommand(raw: Buffer): ParseResult<ParsedDestinat
   return { ok: true, value };
 }
 
-// --- yapaja/cmd/navigation ---------------------------------------------------
+// --- yapaia/cmd/navigation ---------------------------------------------------
 
 const NAV_ACTIONS = ['start', 'pause', 'resume', 'stop'] as const;
 export type NavigationCommandAction = (typeof NAV_ACTIONS)[number];
@@ -107,7 +107,7 @@ export function parseNavigationCommand(raw: Buffer): ParseResult<ParsedNavigatio
   return { ok: false, error: `Unknown navigation action "${candidate}"` };
 }
 
-// --- yapaja/cmd/profile -------------------------------------------------------
+// --- yapaia/cmd/profile -------------------------------------------------------
 
 export interface ParsedProfileCommand {
   id?: string;
@@ -130,7 +130,7 @@ export function parseProfileCommand(raw: Buffer): ParseResult<ParsedProfileComma
   return { ok: true, value: { id, name, requestId: extractRequestId(obj) } };
 }
 
-// --- yapaja/cmd/favorite ------------------------------------------------------
+// --- yapaia/cmd/favorite ------------------------------------------------------
 
 export interface ParsedFavoriteCommand {
   name: string;

@@ -80,7 +80,7 @@ export interface ProfileServiceOptions {
   /**
    * E08-T2: fired whenever `create`/`update`/`delete` changes the SET of
    * profiles or a profile's `name` -- i.e. whenever
-   * `select.yapaja_profile`'s HA discovery `options` (the live profile-name
+   * `select.yapaia_profile`'s HA discovery `options` (the live profile-name
    * list) would need re-publishing. Deliberately NOT fired from `activate()`
    * (that's `onProfileChanged` above): activating a profile never changes
    * the list of names, only which one is current.

@@ -27,7 +27,7 @@ import { buildTarball, buildValidAddonTarball, buildZipBombTarball } from './__f
  *  Standing in for the settings-table-backed `addon.storage.{id}` KV
  *  namespace so these tests never touch the process-global `getDb()`
  *  singleton (the default `AddonStorageService()` would otherwise open a
- *  real `data/db/yapaja.db` relative to the process cwd -- not this test's
+ *  real `data/db/yapaia.db` relative to the process cwd -- not this test's
  *  isolated in-memory `db`). */
 function makeFakeStorageSettings(): AddonStorageSettings & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = {};
@@ -88,7 +88,7 @@ describe('two-step scope-confirm install flow', () => {
     expect(record.id).toBe(manifest.id);
     expect(record.version).toBe(manifest.version);
     expect(record.enabled).toBe(false); // install != active (E09-T1 plausibility)
-    expect(existsSync(join(addonsRootDir, manifest.id, 'yapaja-addon.json'))).toBe(true);
+    expect(existsSync(join(addonsRootDir, manifest.id, 'yapaia-addon.json'))).toBe(true);
     expect(existsSync(join(addonsRootDir, manifest.id, 'service/main.js'))).toBe(true);
     expect(service.listAddons()).toHaveLength(1);
   });
@@ -179,7 +179,7 @@ describe('core_api semver compatibility (Wargame W-11)', () => {
 describe('malicious tarballs are rejected at step 1 (before anything is written)', () => {
   it('rejects a path-traversal tarball', async () => {
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+      { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
       { name: '../../tmp/evil', content: 'pwned' },
     ]);
     await expect(service.beginInstallFromUpload(bytes)).rejects.toMatchObject({ code: 'TARBALL_REJECTED' });
@@ -188,7 +188,7 @@ describe('malicious tarballs are rejected at step 1 (before anything is written)
 
   it('rejects an absolute-path tarball', async () => {
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+      { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
       { name: '/etc/evil', content: 'pwned' },
     ]);
     await expect(service.beginInstallFromUpload(bytes)).rejects.toMatchObject({ code: 'TARBALL_REJECTED' });
@@ -196,7 +196,7 @@ describe('malicious tarballs are rejected at step 1 (before anything is written)
 
   it('rejects a tarball with a symlink entry', async () => {
     const bytes = await buildTarball([
-      { name: 'yapaja-addon.json', content: JSON.stringify({ id: 'x' }) },
+      { name: 'yapaia-addon.json', content: JSON.stringify({ id: 'x' }) },
       { name: 'escape', type: 'symlink', linkname: '/etc/passwd' },
     ]);
     await expect(service.beginInstallFromUpload(bytes)).rejects.toMatchObject({ code: 'TARBALL_REJECTED' });
@@ -266,7 +266,7 @@ describe('update with rollback (docs/05 §5)', () => {
 
     // Old version untouched on disk...
     expect(readFileSync(join(addonsRootDir, id, 'service/main.js'), 'utf-8')).toBe('v1');
-    const manifestOnDisk = JSON.parse(readFileSync(join(addonsRootDir, id, 'yapaja-addon.json'), 'utf-8'));
+    const manifestOnDisk = JSON.parse(readFileSync(join(addonsRootDir, id, 'yapaia-addon.json'), 'utf-8'));
     expect(manifestOnDisk.version).toBe('1.0.0');
     // ...and untouched in the DB.
     const after = service.listAddons()[0];

@@ -65,7 +65,7 @@ pnpm build          # production build of both apps
 ## Repository layout
 
 ```
-Yapaja-Go-Design/
+yapaia/go/
 ├── apps/
 │   ├── core/           @yapaia/core — Fastify 5 API, SQLite, the brain
 │   └── web/            @yapaia/web  — React 18 + Vite frontend
@@ -74,7 +74,7 @@ Yapaja-Go-Design/
 │   ├── ui/             @yapaia/ui        — shared React components
 │   └── addon-sdk/      @yapaia/addon-sdk — public SDK for third-party add-ons
 ├── services/           Containerised backends: valhalla, photon, tiles, gpsd
-├── yapaja_go/          The Home Assistant add-on (manifest, Dockerfile, s6)
+├── yapaia_go/          The Home Assistant add-on (manifest, Dockerfile, s6)
 ├── addons-examples/    Reference add-ons — deliberately NOT workspace members
 ├── e2e/                security/, perf/, golden-routes/ suites
 ├── scripts/            CI gate scripts (audit, licences, wargame, openapi …)
@@ -84,7 +84,7 @@ Yapaja-Go-Design/
 
 `repository.yaml` at the root is what makes this repo installable as a Home
 Assistant add-on repository; the Supervisor looks for add-on directories
-exactly one level below it, which is why `yapaja_go/` sits where it does.
+exactly one level below it, which is why `yapaia_go/` sits where it does.
 
 ---
 
@@ -262,9 +262,9 @@ This is wargame case W-15, and `apps/web/e2e/subpath.spec.ts` guards it.
 The core is ESM. `import { x } from './thing.js'` — even though the file is
 `thing.ts`. Omitting it fails at runtime, not at compile time.
 
-### Entity IDs are `yapaja_`, helpers are `yapaia_`
+### Entity IDs are `yapaia_`, helpers are `yapaia_`
 
-The product is *Yapaia*; the older entities say `yapaja` because Home Assistant
+The product is *Yapaia*; the older entities say `yapaia` because Home Assistant
 never renames an ID once assigned, and the name predates the correction in
 0.6.7. Anything **new** gets the correct spelling. They cannot collide:
 `button.*` and `input_button.*` are different domains.
@@ -365,8 +365,8 @@ catches most of it, and `pnpm e2e` catches nearly all the rest.
 ## Releasing
 
 1. Work on a branch; never push straight to `main`.
-2. Bump `version:` in `yapaja_go/config.yaml`. **The add-on config test fails
-   if `yapaja_go/CHANGELOG.md` has no matching `## <version>` heading** — this
+2. Bump `version:` in `yapaia_go/config.yaml`. **The add-on config test fails
+   if `yapaia_go/CHANGELOG.md` has no matching `## <version>` heading** — this
    is on purpose. Home Assistant shows that changelog to operators before they
    click "Update", so shipping without one means shipping a change nobody was
    told about.

@@ -1,4 +1,4 @@
-// Prueft die Zeichenroutine aus yapaja-nav-display.yaml, indem sie
+// Prueft die Zeichenroutine aus yapaia-nav-display.yaml, indem sie
 // UEBERSETZT UND AUSGEFUEHRT wird -- gegen einen Nachbau der ESPHome-API mit
 // denselben Signaturen. Faengt genau das, was eine Sichtpruefung nicht faengt:
 // Tippfehler, falsche Argumentzahlen, Referenz-statt-Zeiger, und Zeichnungen,
@@ -196,20 +196,20 @@ static Color &c_hintergrund = k_hintergrund, &c_text = k_text,
              &c_gedaempft = k_gedaempft, &c_pfeil = k_pfeil,
              &c_warnung = k_warnung, &c_gut = k_gut, &c_schild = k_schild;
 
-static sensor::Sensor *yapaja_tempo = &s_tempo, *yapaja_tempolimit = &s_limit,
-                      *yapaja_tempolimit_fahrzeug = &s_limit_fz,
-                      *yapaja_manoever_entfernung = &s_mdist,
-                      *yapaja_reststrecke = &s_rest;
+static sensor::Sensor *yapaia_tempo = &s_tempo, *yapaia_tempolimit = &s_limit,
+                      *yapaia_tempolimit_fahrzeug = &s_limit_fz,
+                      *yapaia_manoever_entfernung = &s_mdist,
+                      *yapaia_reststrecke = &s_rest;
 static sensor::Sensor *neigung_lr = &s_lr, *neigung_vh = &s_vh;
 static switch_::Switch *waage_erzwingen = &s_erzwingen, *waage_fahrzeug = &s_fahrzeug,
                        *eta_als_restzeit = &s_restzeit;
 static RealTimeClock *ha_zeit = &s_uhr;
-static binary_sensor::BinarySensor *yapaja_zu_schnell = &s_schnell;
-static text_sensor::TextSensor *yapaja_anweisung = &s_anweisung,
-                               *yapaja_manoever_art = &s_art,
-                               *yapaja_fahrzustand = &s_zustand,
-                               *yapaja_ankunft = &s_ankunft,
-                               *yapaja_kreisel = &s_kreisel;
+static binary_sensor::BinarySensor *yapaia_zu_schnell = &s_schnell;
+static text_sensor::TextSensor *yapaia_anweisung = &s_anweisung,
+                               *yapaia_manoever_art = &s_art,
+                               *yapaia_fahrzustand = &s_zustand,
+                               *yapaia_ankunft = &s_ankunft,
+                               *yapaia_kreisel = &s_kreisel;
 
 static void zeichne(Display &it) {
 #include "lambda_body.inc"  // wird von run.mjs erzeugt
@@ -632,7 +632,7 @@ int main() {
   //
   // Damit ist die ganze Fallunterscheidung weg: es gibt keine zwei Zahlen
   // mehr, die sich vergleichen liessen. Die Aussage geht trotzdem nicht
-  // verloren -- `binary_sensor.yapaja_speeding` warnt seit 0.14.0 an der
+  // verloren -- `binary_sensor.yapaia_speeding` warnt seit 0.14.0 an der
   // NIEDRIGEREN der beiden Grenzen, und der Ring traegt beides.
   //
   // Die Faelle stehen deshalb nicht als uebersprungene Tests da. Sie pruefen
@@ -789,8 +789,8 @@ int main() {
 
   // ─── OHNE ROUTE ZEIGT DAS GERAET DAS TEMPO ──────────────────────────────
   // Gemeldet ueber die Entwicklerwerkzeuge: bei `nav_state: idle` standen
-  // `sensor.yapaja_speed` und `sensor.yapaja_altitude` auf "unknown",
-  // waehrend `device_tracker.yapaja_vehicle` im selben Augenblick eine
+  // `sensor.yapaia_speed` und `sensor.yapaia_altitude` auf "unknown",
+  // waehrend `device_tracker.yapaia_vehicle` im selben Augenblick eine
   // Position auf zehn Nachkommastellen fuehrte. Seit 0.13.1 holt der Kern
   // beides aus dem GPS, sobald ein Fix da ist.
   //
@@ -831,7 +831,7 @@ int main() {
 
   // ─── DER GEMELDETE FALL ─────────────────────────────────────────────────
   // Mit Foto: das Geraet zeigte „Kein Wert aus Home Assistant", obwohl die
-  // Neigungswerte anlagen. `sensor.yapaja_speed` hatte keinen Wert, und die
+  // Neigungswerte anlagen. `sensor.yapaia_speed` hatte keinen Wert, und die
   // erste Fassung verlangte ein BEKANNTES Tempo -- also fiel alles durch bis
   // zur Fahrzustandsmeldung.
   //

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: apps/core/Dockerfile
-    container_name: yapaja-core
+    container_name: yapaia-core
     ports:
       - "8080:8080"
     volumes:
@@ -22,7 +22,7 @@ services:
     # env-Var-Flags statt manueller valhalla_build_config/_tiles-Schritte.
     # Details + Begruendung: services/valhalla/README.md.
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
-    container_name: yapaja-valhalla
+    container_name: yapaia-valhalla
     volumes:
       # /custom_files zeigt direkt auf den LIVE-Tiles-Pfad, den
       # services/valhalla/build-tiles.sh per atomischem Swap befuellt
@@ -55,7 +55,7 @@ services:
 
   photon:
     image: rtuszik/photon-docker:latest
-    container_name: yapaja-photon
+    container_name: yapaia-photon
     volumes:
       # /photon/photon_data ist der Live-Datenpfad, den
       # services/photon/download-index.sh per atomischem Swap befuellt

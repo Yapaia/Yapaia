@@ -18,7 +18,7 @@ describe('Anmeldung beim Supervisor', () => {
       logger: still,
       fetch: async (url, init) => {
         aufrufe.push({ url, body: init?.body });
-        return { ok: true, status: 200, json: async () => ({ data: { hostname: 'a0d7b954-yapaja-go' } }) };
+        return { ok: true, status: 200, json: async () => ({ data: { hostname: 'a0d7b954-yapaia-go' } }) };
       },
     });
     expect(ok).toBe(true);
@@ -26,7 +26,7 @@ describe('Anmeldung beim Supervisor', () => {
     expect(aufrufe[1].url).toBe('http://supervisor/discovery');
     expect(JSON.parse(aufrufe[1].body!)).toEqual({
       service: 'yapaia',
-      config: { modul: 'go', instanz: 'a1', name: 'Yapaia Go', host: 'a0d7b954-yapaja-go', port: 8099, token: 'geheim', protokoll: 1, version: '0.44.0' },
+      config: { modul: 'go', instanz: 'a1', name: 'Yapaia Go', host: 'a0d7b954-yapaia-go', port: 8099, token: 'geheim', protokoll: 1, version: '0.44.0' },
     });
   });
 

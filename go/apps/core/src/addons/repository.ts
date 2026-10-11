@@ -37,7 +37,7 @@ export interface AddonRecord {
   created_at: string;
   updated_at: string;
   /** E09-T8: whether this add-on's `events.publish` output is ALSO
-   *  republished to MQTT (`yapaja/addon/{id}/*`). Independent of `enabled`
+   *  republished to MQTT (`yapaia/addon/{id}/*`). Independent of `enabled`
    *  -- a disabled add-on has no running effects regardless (E09-T1's
    *  plausibility rule) and publishes nothing either way. */
   mqtt_enabled: boolean;
