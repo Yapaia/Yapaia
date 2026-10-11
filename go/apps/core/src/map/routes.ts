@@ -32,6 +32,7 @@ import { readLiteIndexMeta } from '../search/lite/reader.js';
 import { resolveLiteSearchDir } from '../search/lite/paths.js';
 import { alsGeoJson, leseSonderziele } from './sonderziele/ausIndex.js';
 import { regionsPlugin } from './regions/routes.js';
+import { SettingsService } from '../settings/service.js';
 import { Buffer } from 'node:buffer';
 import { loadCatalog } from './regions/catalog.js';
 import { SATELLIT_MAXZOOM } from './styles/yapaia-satellit.js';
@@ -135,7 +136,8 @@ export const mapPlugin: FastifyPluginAsync = async (fastify) => {
   // Region manager (E01-T5): catalog listing, resumable download jobs,
   // delete, and the generic job-status endpoint. Fully additive -- see
   // ./regions/routes.ts. GET /api/v1/map/regions (below) predates it (E01-T1).
-  await fastify.register(regionsPlugin);
+  // Die Einstellungen: fuer den Kartenserver (⚙ → Karten verwalten).
+  await fastify.register(regionsPlugin, { einstellungen: new SettingsService() });
 
   // GET /tiles/:region.pmtiles -- HTTP range-request tile archive delivery.
   // The route param captures the full "<region>.pmtiles" segment; we parse

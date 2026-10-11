@@ -669,6 +669,50 @@
         }
       }
     },
+    "/api/v1/kartenserver": {
+      "get": {
+        "summary": "Hinterlegter Kartenserver (Adresse, ob ein Token gesetzt ist)",
+        "tags": [
+          "Karten"
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Kartenserver hinterlegen, prüfen oder entfernen",
+        "tags": [
+          "Karten"
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/map/regions/catalog": {
       "get": {
         "summary": "Herunterladbare Kartenregionen (Katalog)",

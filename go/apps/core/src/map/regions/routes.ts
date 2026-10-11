@@ -56,6 +56,16 @@ import { readLiteIndexMeta } from '../../search/lite/reader.js';
 import { resolveLiteSearchDir } from '../../search/lite/paths.js';
 import { LITE_INDEX_FORMAT } from '../../search/lite/buildIndex.js';
 import { bauzeitenPfad } from './bauzeitSpeicher.js';
+import type { SettingsService } from '../../settings/service.js';
+import {
+  EINSTELLUNG as KARTENSERVER,
+  holeKatalog,
+  istKartenserverEintrag,
+  runPaketJob,
+  verbindungAus,
+  type KartenserverEintrag,
+  type KartenserverVerbindung,
+} from './kartenserver.js';
 
 export interface RegionsPluginOptions {
   /** Injectable for tests (simulates a near-full disk); defaults to the
@@ -63,6 +73,15 @@ export interface RegionsPluginOptions {
   statfsImpl?: StatfsFn;
   /** Injectable for tests: Prozess-Start und freier RAM des Kachelbaus. */
   buildDeps?: BuildJobDeps;
+  /**
+   * Der Einstellungsspeicher (Einstellung `kartenserver`). Ohne ihn gibt es
+   * keinen Kartenserver -- so beruehren Tests, die ihn nicht brauchen, keine
+   * Datenbank.
+   */
+  einstellungen?: Pick<SettingsService, 'get' | 'patch'>;
+  /** Fuer Tests: statt des echten `fetch`. */
+  // eslint-disable-next-line no-undef -- `fetch` ist Standard-Global in Node 22.
+  fetchImpl?: typeof fetch;
 }
 
 interface CatalogReplyEntry extends CatalogEntry {
@@ -71,6 +90,8 @@ interface CatalogReplyEntry extends CatalogEntry {
 
 interface CatalogReply {
   data: CatalogReplyEntry[];
+  /** Ob ein Kartenserver eingerichtet ist, und warum er gerade fehlt. */
+  kartenserver?: { eingerichtet: boolean; fehler?: string; pakete?: number };
 }
 
 interface PostRegionsBody {
@@ -117,14 +138,69 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
   const tilesDir = resolveTilesDir();
   const jobs = new JobRegistry();
   const statfsImpl = opts.statfsImpl;
+  const einstellungen = opts.einstellungen ?? null;
+  const kartenserver = (): KartenserverVerbindung | null =>
+    einstellungen ? verbindungAus(einstellungen.get(KARTENSERVER)) : null;
+
+  /**
+   * Der eingebaute Katalog plus die Pakete des Kartenservers. Ein Paket mit
+   * derselben Kennung wie ein eingebauter Eintrag ersetzt ihn -- es bringt
+   * die fertige Datei mit. Ist der Server nicht erreichbar, bleibt der
+   * eingebaute Katalog nutzbar; der Grund steht in `kartenserverStand`.
+   */
+  const gesamtKatalog = async (): Promise<{ katalog: CatalogEntry[]; stand: NonNullable<CatalogReply['kartenserver']> }> => {
+    const eingebaut = await loadCatalog();
+    const v = kartenserver();
+    if (!v) return { katalog: eingebaut, stand: { eingerichtet: false } };
+    try {
+      const pakete = await holeKatalog(v, opts.fetchImpl);
+      const ids = new Set(pakete.map((p) => p.id));
+      return { katalog: [...pakete, ...eingebaut.filter((e) => !ids.has(e.id))], stand: { eingerichtet: true, pakete: pakete.length } };
+    } catch (err) {
+      fastify.log.warn({ fehler: (err as Error).message }, 'Kartenserver: Katalog nicht abrufbar');
+      return { katalog: eingebaut, stand: { eingerichtet: true, fehler: (err as Error).message } };
+    }
+  };
+
+  // GET /api/v1/kartenserver -- Adresse und ob ein Token hinterlegt ist (das
+  // Token selbst geht nie zurueck an die Oberflaeche).
+  fastify.get('/api/v1/kartenserver', async (_request, reply) => {
+    const v = kartenserver();
+    return reply.code(200).send({ data: { url: v?.url ?? '', token_gesetzt: Boolean(v?.token) } });
+  });
+
+  // PUT /api/v1/kartenserver -- einrichten (leere Adresse = entfernen). Ein
+  // leeres Token behaelt das bisherige.
+  fastify.put<{ Body: { url?: unknown; token?: unknown } }>('/api/v1/kartenserver', async (request, reply) => {
+    if (!einstellungen) return reply.code(503).send(createErrorResponse('NICHT_VERFUEGBAR', 'Einstellungen nicht verfügbar'));
+    const url = typeof request.body?.url === 'string' ? request.body.url.trim() : '';
+    if (!url) {
+      einstellungen.patch({ [KARTENSERVER]: null });
+      return reply.code(200).send({ data: { url: '', token_gesetzt: false } });
+    }
+    const bisher = kartenserver();
+    const token = typeof request.body?.token === 'string' && request.body.token.trim() ? request.body.token.trim() : (bisher?.token ?? '');
+    const v = verbindungAus({ url, token });
+    if (!v) {
+      return reply.code(400).send(createErrorResponse('UNGUELTIG', 'Bitte die Adresse mit http:// oder https:// angeben'));
+    }
+    try {
+      const pakete = await holeKatalog(v, opts.fetchImpl);
+      einstellungen.patch({ [KARTENSERVER]: v });
+      return reply.code(200).send({ data: { url: v.url, token_gesetzt: Boolean(v.token), pakete: pakete.length } });
+    } catch (err) {
+      return reply.code(400).send(createErrorResponse('KARTENSERVER', (err as Error).message));
+    }
+  });
 
   // GET /api/v1/map/regions/catalog -- downloadable regions + installed flag.
   fastify.get<{ Reply: CatalogReply | ApiError }>(
     '/api/v1/map/regions/catalog',
     async (_request, reply) => {
       let catalog: CatalogEntry[];
+      let stand: CatalogReply['kartenserver'];
       try {
-        catalog = await loadCatalog();
+        ({ katalog: catalog, stand } = await gesamtKatalog());
       } catch (err) {
         fastify.log.error({ error: (err as Error).message }, 'Failed to load regions catalog');
         return reply
@@ -134,9 +210,33 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
       const installedRegions = await listRegions(tilesDir, fastify.log);
       const installedIds = new Set(installedRegions.map((r) => r.region));
       const data = catalog.map((entry) => ({ ...entry, installed: installedIds.has(entry.id) }));
-      return reply.code(200).send({ data });
+      return reply.code(200).send({ data, kartenserver: stand });
     },
   );
+
+  const starteKartenserverPaket = async (
+    entry: KartenserverEintrag,
+  ): Promise<{ status: number; body: PostRegionsReply | ApiError }> => {
+    const laufend = jobs.findUnfinished('kartenserver');
+    if (laufend) {
+      return { status: 409, body: createErrorResponse('JOB_RUNNING', 'Es wird schon ein Paket vom Kartenserver geladen', { job_id: laufend.id }) };
+    }
+    const bytes = (entry.url ? entry.sizeBytes : 0) + (entry.suche?.sizeBytes ?? 0) + (entry.routing?.sizeBytes ?? 0) * 2;
+    const diskCheck = await checkDiskSpace(tilesDir, bytes, statfsImpl);
+    if (!diskCheck.ok) {
+      return {
+        status: 409,
+        body: createErrorResponse('INSUFFICIENT_SPACE', 'Not enough free disk space to download this region', {
+          requiredBytes: diskCheck.requiredBytes,
+          freeBytes: diskCheck.freeBytes,
+        }),
+      };
+    }
+    const v = kartenserver();
+    const jobId = jobs.create('kartenserver');
+    void runPaketJob(jobId, jobs, entry, { tilesDir, liteDir: resolveLiteSearchDir(), graphDir: resolveGraphDir() }, v?.token ?? '');
+    return { status: 202, body: { job_id: jobId } };
+  };
 
   // POST /api/v1/map/regions -- starts a resumable download job (W-17).
   fastify.post<{ Body: PostRegionsBody; Reply: PostRegionsReply | ApiError }>(
@@ -151,7 +251,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
 
       let catalog: CatalogEntry[];
       try {
-        catalog = await loadCatalog();
+        catalog = (await gesamtKatalog()).katalog;
       } catch (err) {
         fastify.log.error({ error: (err as Error).message }, 'Failed to load regions catalog');
         return reply
@@ -164,6 +264,13 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply
           .code(404)
           .send(createErrorResponse('NOT_FOUND', `Unknown catalog region '${regionId}'`));
+      }
+
+      // Ein Paket vom Kartenserver: Karte, Suche und Routing in einem Auftrag.
+      // Ein schon installiertes wird dabei ERNEUERT -- dafuer ist es da.
+      if (istKartenserverEintrag(entry)) {
+        const { status, body } = await starteKartenserverPaket(entry);
+        return reply.code(status).send(body);
       }
 
       const finalPath = finalFilePath(tilesDir, regionId);

@@ -41,9 +41,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useUiStore } from '../../ui/store.js';
 import DriveLockGate from '../../drive/DriveLockGate.js';
 import BuildStatusSection from './BuildStatusSection.js';
+import KartenserverSection from './KartenserverSection.js';
 import {
   deleteRegion,
-  fetchCatalog,
+  fetchCatalogMitStand,
   fetchInstalledRegions,
   fetchJob,
   fetchLaufenderBau,
@@ -54,6 +55,7 @@ import {
   type CatalogRegion,
   type InstalledRegion,
   type JobSnapshot,
+  type KartenserverStand,
 } from './client';
 import {
   kartenliste,
@@ -277,6 +279,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
   const [isOpen, setIsOpen] = useState(eingebettet);
   const [installed, setInstalled] = useState<InstalledRegion[]>([]);
   const [catalog, setCatalog] = useState<CatalogRegion[]>([]);
+  const [kartenserver, setKartenserver] = useState<KartenserverStand | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [jobs, setJobs] = useState<Record<string, DownloadState>>({});
   const [errorByRegion, setErrorByRegion] = useState<Record<string, string>>({});
@@ -297,13 +300,14 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
   }, [jobs]);
 
   const refresh = useCallback(async () => {
-    const [installedRegions, catalogRegions, laufend] = await Promise.all([
+    const [installedRegions, { regionen: catalogRegions, kartenserver: stand }, laufend] = await Promise.all([
       fetchInstalledRegions(),
-      fetchCatalog(),
+      fetchCatalogMitStand(),
       fetchLaufenderBau(),
     ]);
     setInstalled(installedRegions);
     setCatalog(catalogRegions);
+    setKartenserver(stand);
 
     // ─── SICH WIEDER AN EINEN LAUFENDEN BAU HÄNGEN ────────────────────────
     // Gemeldet: „Wenn man von Yapaia woandershin wechselt und dann wieder
@@ -379,7 +383,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
     setErrorByRegion((prev) => ({ ...prev, [eintrag.id]: '' }));
     try {
       const jobId =
-        eintrag.quelle === 'download'
+        eintrag.quelle === 'download' || eintrag.quelle === 'kartenserver'
           ? await startDownload(eintrag.id)
           : await startBuild(eintrag.id);
       setJobs((prev) => ({ ...prev, [eintrag.id]: { jobId, job: null } }));
@@ -599,6 +603,12 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                           funktionieren KANN, ist schlimmer als keiner — er
                           schickt den Betreiber auf die Fehlersuche in seiner
                           eigenen Installation. */}
+                      {eintrag.quelle === 'kartenserver' && (
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid={`karte-kartenserver-${eintrag.id}`}>
+                          {eintrag.hinweis ?? 'Vom Kartenserver: Karte, Suche und Routing in einem Paket.'}
+                        </p>
+                      )}
+
                       {eintrag.zustand === 'ohne_quelle' && (
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid={`karte-ohne-quelle-${eintrag.id}`}>
                           {eintrag.hinweis ?? 'Für diese Karte ist keine Quelle hinterlegt.'}
@@ -623,6 +633,8 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                 })}
               </ul>
             </section>
+
+            <KartenserverSection stand={kartenserver} gespeichert={() => void refresh()} />
           </DriveLockGate>
         </div>
       )}
