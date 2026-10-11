@@ -20,7 +20,7 @@ version: "0.42.0"
 #
 # Lieber der Supervisor sagt „zu alt" als eine Seite, auf der die Haelfte fehlt.
 homeassistant: "2025.10.0"
-url: "https://github.com/Apfelsafft/Yapaja-Go-Design"
+url: "https://github.com/Yapaia/yapaia"
 
 # amd64 covers typical Mini-PC/NUC installs; aarch64 covers Raspberry Pi
 # 4/5-class HAOS hardware. Other archs are intentionally NOT listed: Valhalla/

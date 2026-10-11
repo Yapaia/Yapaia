@@ -1,2 +1,43 @@
 # Yapaia
-Common Yapaia Repo
+
+**Yapaia** ist eine Suite von Home-Assistant-Modulen fürs Wohnmobil – jedes
+Modul erfüllt eine Aufgabe, funktioniert für sich allein und wird besser, je
+mehr Yapaia-Module zusammenarbeiten.
+
+| Modul | Was es ist | Ordner |
+|---|---|---|
+| **Yapaia Go** | Offline-Navigation fürs Wohnmobil (Add-on) | [`go/`](go/) |
+| **Yapaia Beat** | UKW- und DAB+-Radio mit RTL-SDR-Stick (Add-on) | [`beat/`](beat/) |
+| **Yapaia Satellite** | Sprachsatellit auf dem ESP32 Audio Kit (ESPHome) | [`satellite/`](satellite/) |
+
+## Installation
+
+Alle Add-ons kommen aus **einem** Add-on-Store:
+Home Assistant → Einstellungen → Add-ons → Add-on-Store → ⋮ → Repositories →
+`https://github.com/Yapaia/yapaia`. Danach jedes Modul einzeln installieren –
+nur die, die man braucht.
+
+> Solange dieses Repository privat ist, kommen die Add-ons noch aus den
+> bisherigen Einzel-Repositories.
+
+## Grundsätze
+
+1. **Jedes Modul ist eigenständig.** Go läuft ohne Beat, Beat ohne Go, Beat
+   ohne Music Assistant. Ist ein Partner-Modul da, wird es genutzt; fehlt es,
+   fällt nur diese Zusatzfunktion weg.
+2. **Module sprechen über dokumentierte Schnittstellen**, nie über Interna
+   eines anderen Moduls.
+3. **Eine zentrale Home-Assistant-Integration „Yapaia“** (in Arbeit): jedes
+   installierte Modul meldet sich dort an und stellt seine Sensoren,
+   Schalter, Aktionen und Auslöser bereit – alles an einer Stelle.
+
+## Entwicklung
+
+- Jedes Modul hat seinen eigenen Prüflauf. Ein Pull Request startet **nur die
+  Prüfungen der geänderten Module** (`.github/workflows/ci.yml`); der Check
+  **„Gate“** fasst sie zusammen und entscheidet über das Mergen.
+- Versionen und Änderungslisten führt jedes Modul selbst
+  (`go/yapaja_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`).
+  Release-Tags tragen das Modul im Namen, z. B. `go-v0.43.0`.
+- Die Geschichte der früheren Einzel-Repositories ist vollständig erhalten
+  (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`).

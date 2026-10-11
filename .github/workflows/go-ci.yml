@@ -1,4 +1,4 @@
-name: CI
+name: Go
 
 # ACTIONS-MINUTEN (2026-08-08): bewusst NUR `pull_request`, nicht zusaetzlich
 # `push: [main]`. Ein Squash-Merge erzeugt denselben Baum, den der PR-Lauf
@@ -13,13 +13,13 @@ name: CI
 # bei der Merge-Frequenz dieses Projekts ein vertretbarer Tausch. Wer haeufiger
 # parallel merged, sollte `push: [main]` wieder aufnehmen.
 on:
-  pull_request:
-    branches: [main]
+  workflow_call: {}
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: go
 
 jobs:
   quality:
@@ -33,6 +33,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -40,6 +41,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -85,6 +87,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -92,6 +95,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -132,6 +136,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -139,6 +144,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -158,7 +164,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-traces
-          path: apps/web/test-results/
+          path: go/apps/web/test-results/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -182,6 +188,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -189,6 +196,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -220,7 +228,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: security-suite-traces
-          path: e2e/security/.tmp/test-results/
+          path: go/e2e/security/.tmp/test-results/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -260,6 +268,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -267,6 +276,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -297,8 +307,8 @@ jobs:
         with:
           name: perf-budgets
           path: |
-            e2e/perf/.tmp/perf-results.json
-            e2e/perf/.tmp/perf-trend.md
+            go/e2e/perf/.tmp/perf-results.json
+            go/e2e/perf/.tmp/perf-trend.md
           retention-days: 30
           if-no-files-found: warn
 
@@ -307,7 +317,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perf-traces
-          path: e2e/perf/.tmp/test-results/
+          path: go/e2e/perf/.tmp/test-results/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -337,6 +347,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -344,6 +355,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -379,6 +391,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -386,6 +399,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -413,8 +427,8 @@ jobs:
         with:
           scan-args: |-
             --format=json
-            --output=osv-report.json
-            --lockfile=pnpm-lock.yaml
+            --output=go/osv-report.json
+            --lockfile=go/pnpm-lock.yaml
 
       # Das eigentliche Gate. Fasst beide Scanner zusammen, trennt prod/dev
       # (OSV kennt die Unterscheidung fuer pnpm-Workspaces nicht -- das Skript
@@ -449,6 +463,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -456,6 +471,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -505,6 +521,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -512,6 +529,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -589,10 +607,10 @@ jobs:
       # Graph-Build nicht zu unterscheiden (zweimal 30 Minuten bis
       # Job-Abbruch).
       - name: Liechtenstein-PBF holen
-        uses: ./.github/actions/fetch-pbf
+        uses: ./.github/actions/go-fetch-pbf
         with:
           url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
-          path: .cache/pbf/liechtenstein-latest.osm.pbf
+          path: go/.cache/pbf/liechtenstein-latest.osm.pbf
           # Liechtenstein mit etwas Rand -- nur fuer den Ausweg ueber
           # planet.osm.ch, falls Geofabrik nicht liefert.
           bbox: 9.45,47.03,9.65,47.28
@@ -775,6 +793,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -782,6 +801,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -799,10 +819,10 @@ jobs:
       # Graph-Build nicht zu unterscheiden (zweimal 30 Minuten bis
       # Job-Abbruch).
       - name: Liechtenstein-PBF holen
-        uses: ./.github/actions/fetch-pbf
+        uses: ./.github/actions/go-fetch-pbf
         with:
           url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
-          path: .cache/pbf/liechtenstein-latest.osm.pbf
+          path: go/.cache/pbf/liechtenstein-latest.osm.pbf
           # Liechtenstein mit etwas Rand -- nur fuer den Ausweg ueber
           # planet.osm.ch, falls Geofabrik nicht liefert.
           bbox: 9.45,47.03,9.65,47.28
@@ -904,6 +924,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -911,6 +932,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -938,10 +960,10 @@ jobs:
       # tatsaechlich eine .osm.pbf ankam. Der Name `li.osm.pbf` bleibt, weil
       # der Regionsname aus ihm abgeleitet wird ("li").
       - name: Liechtenstein-PBF holen
-        uses: ./.github/actions/fetch-pbf
+        uses: ./.github/actions/go-fetch-pbf
         with:
           url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
-          path: .cache/pbf/liechtenstein-latest.osm.pbf
+          path: go/.cache/pbf/liechtenstein-latest.osm.pbf
           # Liechtenstein mit etwas Rand -- nur fuer den Ausweg ueber
           # planet.osm.ch, falls Geofabrik nicht liefert.
           bbox: 9.45,47.03,9.65,47.28

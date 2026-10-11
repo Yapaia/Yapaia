@@ -1,4 +1,4 @@
-name: Nightly
+name: Go Nightly
 
 on:
   # ACTIONS-MINUTEN (2026-08-08): WOECHENTLICH statt naechtlich.
@@ -27,7 +27,7 @@ on:
         default: '0'
   # E10-T5: macht diese komplette Job-Sammlung ("Nightly-Suite") als
   # reusable Workflow fuer .github/workflows/release.yml aufrufbar
-  # (`uses: ./.github/workflows/nightly.yml`) -- docs/07-testing-qa.md §6
+  # (`uses: ./.github/workflows/go-nightly.yml`) -- docs/07-testing-qa.md §6
   # definiert die Release-Pipeline woertlich als "Nightly-Suite + Add-on-
   # Kompatibilitaetstest + Changelog + signierte Images", nicht als eigene,
   # zweite Kopie derselben ~15 Jobs. `perf-soak-24h` bleibt dabei ausgesetzt
@@ -37,6 +37,10 @@ on:
   # Tag-Push-Ablauf, der in Minuten fertig sein soll, sondern bleibt sein
   # eigener woechentlicher Rhythmus.
   workflow_call: {}
+
+defaults:
+  run:
+    working-directory: go
 
 jobs:
   quality:
@@ -50,6 +54,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -57,6 +62,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -97,7 +103,7 @@ jobs:
       - name: Lint yapaja_go/ against the Supervisor add-on schema
         uses: frenck/action-addon-linter@v2
         with:
-          path: "./yapaja_go"
+          path: "./go/yapaja_go"
 
   # E08-T4 / STAND 0.3.8: `yapaja_go/Dockerfile` wird jetzt gebaut -- in
   # `.github/workflows/addon-image.yml`, pfadgefiltert auf `yapaja_go/**`,
@@ -153,6 +159,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -160,6 +167,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -189,8 +197,8 @@ jobs:
         with:
           name: perf-soak
           path: |
-            e2e/perf/.tmp/soak-results.json
-            e2e/perf/.tmp/soak-report.md
+            go/e2e/perf/.tmp/soak-results.json
+            go/e2e/perf/.tmp/soak-report.md
           retention-days: 30
           if-no-files-found: warn
 
@@ -243,6 +251,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -250,6 +259,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -265,8 +275,8 @@ jobs:
         with:
           scan-args: |-
             --format=json
-            --output=osv-report.json
-            --lockfile=pnpm-lock.yaml
+            --output=go/osv-report.json
+            --lockfile=go/pnpm-lock.yaml
 
       - name: "Audit-Gate (blockierend: prod; sichtbar: dev)"
         run: |
@@ -297,6 +307,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -304,6 +315,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -325,7 +337,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: security-suite-traces-nightly
-          path: e2e/security/.tmp/test-results/
+          path: go/e2e/security/.tmp/test-results/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -342,6 +354,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -349,6 +362,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -436,6 +450,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -443,6 +458,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -499,7 +515,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: golden-routes-de-provenance
-          path: e2e/golden-routes/.tmp/*.json
+          path: go/e2e/golden-routes/.tmp/*.json
           retention-days: 30
           if-no-files-found: warn
 
@@ -612,6 +628,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -619,6 +636,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -719,6 +737,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -726,6 +745,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -747,7 +767,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: runbook-smoke
-          path: e2e/golden-routes/.tmp/runbook-smoke/
+          path: go/e2e/golden-routes/.tmp/runbook-smoke/
           retention-days: 14
           if-no-files-found: warn
 
@@ -767,12 +787,14 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Playwright Chromium
@@ -790,8 +812,8 @@ jobs:
         with:
           name: perf-budgets
           path: |
-            e2e/perf/.tmp/perf-results.json
-            e2e/perf/.tmp/perf-trend.md
+            go/e2e/perf/.tmp/perf-results.json
+            go/e2e/perf/.tmp/perf-trend.md
           retention-days: 30
           if-no-files-found: warn
 
@@ -808,12 +830,14 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Playwright Chromium
@@ -842,6 +866,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          package_json_file: go/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -897,6 +923,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: go/package.json
           version: 10.33.0
 
       - name: Setup Node.js
@@ -904,6 +931,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: go/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

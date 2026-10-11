@@ -284,11 +284,17 @@ describe('yapaja_go/config.yaml is valid YAML with the required HA add-on keys',
  * `yapaja_go/PACKAGING.md`).
  */
 describe('repository layout makes the add-on discoverable via the HA GUI', () => {
-  const REPO_ROOT = join(ADDON_DIR, '..');
+  // Seit dem Umzug ins Yapaia-Repo: go/yapaja_go/ unter der gemeinsamen
+  // Store-Wurzel. Der Supervisor sucht Add-ons in allen Unterordnern
+  // (supervisor/store/data.py, `path.glob("**/config.*")`), die Store-
+  // Beschreibung `repository.yaml` muss aber an der Wurzel liegen.
+  const GO_ROOT = join(ADDON_DIR, '..');
+  const REPO_ROOT = join(GO_ROOT, '..');
 
-  it('the add-on directory sits exactly one level below the repository root', () => {
+  it('the add-on directory sits in go/, next to the Go workspace', () => {
     expect(basename(ADDON_DIR)).toBe('yapaja_go');
-    expect(existsSync(join(REPO_ROOT, 'pnpm-workspace.yaml'))).toBe(true);
+    expect(basename(GO_ROOT)).toBe('go');
+    expect(existsSync(join(GO_ROOT, 'pnpm-workspace.yaml'))).toBe(true);
   });
 
   it('a repository.yaml exists in the repository root', () => {
@@ -299,7 +305,7 @@ describe('repository layout makes the add-on discoverable via the HA GUI', () =>
     const parsed = load(readFileSync(join(REPO_ROOT, 'repository.yaml'), 'utf-8'));
     expect(typeof parsed).toBe('object');
     const repo = parsed as { name?: string; url?: string; maintainer?: string };
-    expect(repo.name).toBe('Yapaia Go');
+    expect(repo.name).toBe('Yapaia');
     expect(repo.url).toMatch(/^https:\/\/github\.com\/.+/);
     expect(typeof repo.maintainer).toBe('string');
     expect((repo.maintainer ?? '').length).toBeGreaterThan(0);
@@ -341,7 +347,9 @@ describe('repository layout makes the add-on discoverable via the HA GUI', () =>
  */
 describe('die Installation kann tatsaechlich durchlaufen', () => {
   const DOCKERFILE_PATH = join(ADDON_DIR, 'Dockerfile');
-  const WORKFLOW_DIR = join(ADDON_DIR, '..', '.github', 'workflows');
+  // Seit dem Umzug ins Yapaia-Repo liegen die Workflows an der Repo-Wurzel,
+  // zwei Ebenen über dem Add-on (go/yapaja_go/).
+  const WORKFLOW_DIR = join(ADDON_DIR, '..', '..', '.github', 'workflows');
 
   /** Alle `COPY`/`ADD`-Zeilen mit ihren Quellpfaden, ohne `--from=`-Stufen
    *  (die beziehen sich auf eine vorherige Build-Stufe, nicht auf den

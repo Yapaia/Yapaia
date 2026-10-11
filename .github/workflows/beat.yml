@@ -1,12 +1,18 @@
-name: CI
+name: Beat
 
 on:
-  push:
-  pull_request:
+  workflow_call: {}
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: beat
 
 jobs:
   tests:
+    name: Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
@@ -16,15 +22,19 @@ jobs:
       - run: pytest -q tests
 
   lint-addon:
+    name: Add-on-Linter
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: frenck/action-addon-linter@v2
         with:
-          path: "./yapaia_beat"
+          path: "./beat/yapaia_beat"
 
   build:
+    name: Add-on-Image bauen
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: tests
     steps:
       - uses: actions/checkout@v5

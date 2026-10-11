@@ -1,4 +1,4 @@
-name: Add-on-Image
+name: Go Add-on-Image
 
 # ─── WARUM ES DIESEN WORKFLOW GIBT ──────────────────────────────────────────
 # `yapaja_go/Dockerfile` wurde bisher in KEINEM Job gebaut. Der Job „Docker
@@ -25,16 +25,13 @@ name: Add-on-Image
 # bleibt manuell (`workflow_dispatch` im nightly, siehe PACKAGING.md).
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'yapaja_go/**'
-      - '.github/workflows/addon-image.yml'
+  workflow_call: {}
   workflow_dispatch:
 
-concurrency:
-  group: addon-image-${{ github.ref }}
-  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: go
 
 jobs:
   build:
@@ -68,8 +65,8 @@ jobs:
       - name: Add-on-Image bauen (amd64)
         uses: docker/build-push-action@v6
         with:
-          context: ./yapaja_go
-          file: ./yapaja_go/Dockerfile
+          context: ./go/yapaja_go
+          file: ./go/yapaja_go/Dockerfile
           push: false
           load: true
           tags: yapaja-go:ci
