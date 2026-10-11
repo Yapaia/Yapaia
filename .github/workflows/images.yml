@@ -1,0 +1,136 @@
+name: Add-on-Images
+
+# ─── FERTIGE IMAGES STATT BAUEN AUF DEM MINI-PC ──────────────────────────────
+# Steht in einer config.yaml `image:`, ZIEHT der Supervisor das fertige Image
+# (`<image>:<version>`) und baut nicht selbst. Dieser Workflow baut es nach
+# jedem Merge auf main -- aber nur, wenn es die Version noch nicht gibt: eine
+# Änderung ohne Versions-Bump erzeugt kein neues Image (der Supervisor würde
+# es ohnehin nicht anbieten).
+#
+# Je Add-on und Architektur ein eigener Job, alle parallel. aarch64 läuft
+# über QEMU (langsamer); sobald das Repo öffentlich ist, kann es auf die
+# kostenlosen ARM-Runner (`ubuntu-24.04-arm`) umziehen.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'go/**'
+      - 'beat/**'
+      - '.github/workflows/images.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Auch bauen, wenn es das Image dieser Version schon gibt'
+        type: boolean
+        default: false
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  plan:
+    name: Was fehlt?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      any: ${{ steps.plan.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: plan
+        env:
+          FORCE: ${{ github.event.inputs.force || 'false' }}
+        run: |
+          python3 - <<'PY' > /tmp/matrix.json
+          import json, os, subprocess, yaml
+          ADDONS = [
+              # name, Add-on-Ordner, Dockerfile, Image ohne {arch}, Build-Kontext-Zusatz
+              ("go",   "go/yapaja_go",     "go/yapaja_go/Dockerfile",     "ghcr.io/yapaia/yapaia-go-",   "gosrc=./go"),
+              ("beat", "beat/yapaia_beat", "beat/yapaia_beat/Dockerfile", "ghcr.io/yapaia/yapaia-beat-", ""),
+          ]
+          RUNNER = {"amd64": "ubuntu-latest", "aarch64": "ubuntu-latest"}
+          PLATFORM = {"amd64": "linux/amd64", "aarch64": "linux/arm64"}
+          force = os.environ.get("FORCE") == "true"
+          out = []
+          for name, folder, dockerfile, image, contexts in ADDONS:
+              cfg = yaml.safe_load(open(f"{folder}/config.yaml"))
+              build = yaml.safe_load(open(f"{folder}/build.yaml"))
+              version = str(cfg["version"])
+              for arch in cfg["arch"]:
+                  ref = f"{image}{arch}:{version}"
+                  exists = subprocess.run(
+                      ["docker", "buildx", "imagetools", "inspect", ref],
+                      capture_output=True).returncode == 0
+                  print(f"{ref}: {'vorhanden' if exists else 'fehlt'}", file=__import__('sys').stderr)
+                  if exists and not force:
+                      continue
+                  args = dict((build.get("args") or {}))
+                  args.update(BUILD_FROM=build["build_from"][arch], BUILD_ARCH=arch, BUILD_VERSION=version)
+                  out.append({
+                      "name": name, "arch": arch, "folder": folder, "dockerfile": dockerfile, "version": version,
+                      "image": f"{image}{arch}", "platform": PLATFORM[arch], "runner": RUNNER[arch],
+                      "contexts": contexts,
+                      "args": "\n".join(f"{k}={v}" for k, v in args.items()),
+                      "title": cfg["name"], "description": cfg["description"].strip(), "url": cfg.get("url", ""),
+                  })
+          print(json.dumps({"include": out}))
+          PY
+          echo "matrix=$(cat /tmp/matrix.json)" >> "$GITHUB_OUTPUT"
+          if [ "$(jq '.include | length' /tmp/matrix.json)" -gt 0 ]; then echo "any=true" >> "$GITHUB_OUTPUT"; else echo "any=false" >> "$GITHUB_OUTPUT"; fi
+          jq -r '.include[] | "baue \(.image):\(.version)"' /tmp/matrix.json
+
+  build:
+    name: ${{ matrix.name }} ${{ matrix.version }} (${{ matrix.arch }})
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: QEMU (nur für fremde Architektur)
+        if: matrix.arch != 'amd64'
+        uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Die Labels liest der Supervisor (Version, Architektur, Add-on-Typ).
+      - name: Bauen und veröffentlichen
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.folder }}
+          file: ./${{ matrix.dockerfile }}
+          build-contexts: ${{ matrix.contexts }}
+          platforms: ${{ matrix.platform }}
+          push: true
+          provenance: false
+          build-args: ${{ matrix.args }}
+          tags: |
+            ${{ matrix.image }}:${{ matrix.version }}
+            ${{ matrix.image }}:latest
+          labels: |
+            io.hass.version=${{ matrix.version }}
+            io.hass.type=addon
+            io.hass.arch=${{ matrix.arch }}
+            io.hass.name=${{ matrix.title }}
+            io.hass.description=${{ matrix.description }}
+            io.hass.url=${{ matrix.url }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ matrix.version }}
+          cache-from: type=gha,scope=${{ matrix.name }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}-${{ matrix.arch }}

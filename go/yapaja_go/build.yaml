@@ -30,7 +30,7 @@ build_from:
 labels:
   org.opencontainers.image.title: "Yapaia Go"
   org.opencontainers.image.description: "Offline motorhome navigation, packaged as a Home Assistant add-on"
-  org.opencontainers.image.source: "https://github.com/Apfelsafft/Yapaja-Go-Design"
+  org.opencontainers.image.source: "https://github.com/Yapaia/yapaia"
   org.opencontainers.image.licenses: "MIT"
 args:
   # Threaded through to the Dockerfile's `ARG S6_OVERLAY_VERSION` so a

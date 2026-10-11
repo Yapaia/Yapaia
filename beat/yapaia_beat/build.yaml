@@ -4,5 +4,5 @@ build_from:
 labels:
   org.opencontainers.image.title: "Home Assistant Add-on: Yapaia Beat"
   org.opencontainers.image.description: "FM & DAB+ radio with an RTL-SDR stick"
-  org.opencontainers.image.source: "https://github.com/apfelsafft/radio"
+  org.opencontainers.image.source: "https://github.com/Yapaia/yapaia"
   org.opencontainers.image.licenses: "MIT"

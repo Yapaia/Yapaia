@@ -5,6 +5,9 @@ description: >-
   FM- und DAB+-Radio mit einem oder zwei RTL-SDR Sticks: Sendersuchlauf, Favoriten,
   Senderlogos, RDS/DLS-Infos und automatische Senderverfolgung.
 url: https://github.com/Yapaia/yapaia
+# Fertiges Image aus .github/workflows/images.yml -- der Supervisor zieht
+# `<image>:<version>` statt auf dem Gerät zu bauen.
+image: "ghcr.io/yapaia/yapaia-beat-{arch}"
 arch:
   - aarch64
   - amd64
