@@ -92,6 +92,11 @@ ARG BUILD_FROM=ghcr.io/gis-ops/docker-valhalla/valhalla:latest
 # `gosrc` (unten) per `--build-context gosrc=./go` durch den ausgecheckten
 # Stand und baut so genau den Quelltext des Pull Requests -- auch solange das
 # Repo privat und ein Download ohne Anmeldung nicht moeglich ist.
+# Leere Vorgabe fuer die gemeinsame Integration „Yapaia" -- der Bau ersetzt
+# sie per `--build-context yapaia-integration=integration/custom_components`
+# (.github/workflows/images.yml).
+FROM scratch AS yapaia-integration
+
 FROM node:22-slim AS gosrc-download
 # Vom Supervisor bzw. `build.yaml` gesetzt; siehe Kopfkommentar.
 ARG YAPAIA_REPO=Apfelsafft/Yapaja-Go-Design
@@ -409,6 +414,12 @@ RUN rm -rf /custom_files && ln -s /share/yapaja/valhalla/tiles /custom_files
 # ---- Our rootfs overlay: s6-rc.d service tree + init script (see ----
 # ---- rootfs/etc/s6-overlay/s6-rc.d/ and rootfs/etc/yapaja/) ----
 COPY rootfs/ /
+
+# ---- Die gemeinsame Integration „Yapaia" ----
+# Der Core legt sie nach `<ha-config>/custom_components/yapaia`, wenn sie dort
+# fehlt oder aelter ist (apps/core/src/yapaia/anmeldung.ts). Ohne den
+# Bau-Kontext bleibt der Ordner leer, und der Core ueberspringt das.
+COPY --from=yapaia-integration / /opt/yapaia/integration/
 
 # ---- Lovelace-Karte fuer eigene HA-Dashboards ----
 # Sie wird beim Start nach `<ha-config>/www/yapaja/` kopiert

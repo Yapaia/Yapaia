@@ -10,6 +10,35 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.44.0
+
+**Yapaia Go als Gerät in der Integration „Yapaia“.**
+
+- Go meldet sich bei der gemeinsamen Integration „Yapaia“ an (wie Yapaia Beat).
+  Das Add-on bringt sie mit und legt sie ab, wenn sie fehlt oder älter ist;
+  danach **einmal Home Assistant neu starten** (eine Benachrichtigung sagt es)
+  und „Yapaia Go gefunden“ bestätigen – ohne Adresse, ohne Token.
+- Es entsteht ein echtes Gerät „Yapaia Go“ mit umbenennbaren, bedienbaren
+  Entitäten, die einen Neustart von Home Assistant überstehen: nächste
+  Anweisung (das Symbol zeigt die Abbiegung), Ankunft, Restweg, Ziel, Tempo,
+  Tempolimit (Schild und Fahrzeug), zu schnell, Höhe, Standort auf der Karte,
+  Fahrzeugprofil, ein Textfeld „Ziel eingeben“ und Knöpfe Pause/Weiter/Beenden.
+- Neue Aktionen: `yapaia.go_ziel_setzen` (Adresse, Ort oder Koordinaten),
+  Pausieren/Fortsetzen/Beenden, Profil wählen und `yapaia.go_befehl` für einen
+  Satz wie „Fahre mich nach Magdeburg“.
+- Neue Auslöser für Automationen: „Ziel erreicht“, „Zu schnell“, „GPS
+  verloren“, „Neuberechnung fehlgeschlagen“.
+- Solange die Integration verbunden ist, schreibt Go keine Zustände mehr über
+  `POST /api/states` und die Bedien-Helfer ruhen – nichts erscheint doppelt.
+  Das erzeugte Dashboard nimmt die neuen Entitäten von selbst. MQTT bleibt
+  wählbar.
+- Ansagen ins Radio prüft Go jetzt über die Fähigkeit, die Yapaia Beat meldet
+  („ansage.einmischen“), statt nach dem Namen zu raten.
+- Die Entity-IDs heißen neu `…yapaia_go_…`. Eigene Automationen, die die alten
+  `…yapaja_…`-Entitäten nutzen, bitte einmal umstellen.
+
+---
+
 ## 0.43.0
 
 **Ansagen ins Radio über die neue Yapaia-Integration.**

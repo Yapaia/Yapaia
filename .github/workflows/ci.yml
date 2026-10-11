@@ -52,6 +52,7 @@ jobs:
             go_addon:
               - *shared
               - 'go/yapaja_go/**'
+              - 'integration/custom_components/yapaia/**'
               - '.github/workflows/go-addon-image.yml'
             beat:
               - *shared
