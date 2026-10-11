@@ -9,6 +9,7 @@ mehr Yapaia-Module zusammenarbeiten.
 | **Yapaia Go** | Offline-Navigation fürs Wohnmobil (Add-on) | [`go/`](go/) |
 | **Yapaia Beat** | UKW- und DAB+-Radio mit RTL-SDR-Stick (Add-on) | [`beat/`](beat/) |
 | **Yapaia Satellite** | Sprachsatellit auf dem ESP32 Audio Kit (ESPHome) | [`satellite/`](satellite/) |
+| **Yapaia Router** | Mobilfunk des GL.iNet-Routers (GL-X3000): Status, SIM-Umschaltung (HA-Integration) | [`router/`](router/) |
 
 ## Installation
 
@@ -40,4 +41,4 @@ nur die, die man braucht.
   (`go/yapaja_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`).
   Release-Tags tragen das Modul im Namen, z. B. `go-v0.43.0`.
 - Die Geschichte der früheren Einzel-Repositories ist vollständig erhalten
-  (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`).
+  (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`, `git log -- router/`).
