@@ -1,4 +1,4 @@
-"""JSON-RPC client and response parsing for GL.iNet firmware 4.x routers.
+"""JSON-RPC-Client für GL.iNet-Router mit Firmware 4.x (Yapaia Router).
 
 The router exposes ``POST /rpc``. Login is a challenge/response:
 
@@ -253,6 +253,30 @@ class GLiNetClient:
 # ---- pure helpers (unit tested) ---------------------------------------------
 
 
+# ---- SIM-Umschaltung: bekannte Wege -----------------------------------------
+#
+# GL.iNet dokumentiert den Aufruf nicht. Die Router-Oberfläche kann es, also
+# gibt es ihn -- nur nicht unter einem bekannten Namen. Deshalb werden diese
+# Wege der Reihe nach probiert, und als gelernt gilt nur, was der Router
+# danach WIRKLICH meldet (`current_sim`). `None` als Vorlage heißt: die
+# aktuelle Slot-Konfiguration mit ersetzter SIM-Nummer zurückschicken.
+SWITCH_CANDIDATES: tuple[tuple[str, Any], ...] = (
+    ("modem.set_slot_config", None),
+    ("modem.set_slot_config", {"bus": "{bus}", "slot": "{sim}"}),
+    ("modem.set_sim_slot", {"bus": "{bus}", "slot": "{sim}"}),
+    ("modem.switch_sim", {"bus": "{bus}", "sim": "{sim}"}),
+    ("modem.set_current_sim", {"bus": "{bus}", "current_sim": "{sim}"}),
+    ("modem.set_sim", {"bus": "{bus}", "sim": "{sim}"}),
+)
+
+
+def is_unknown_method(err: Exception) -> bool:
+    """Ob der Router den Aufruf gar nicht kennt (dann sofort den nächsten Weg)."""
+    if not isinstance(err, GLiNetRpcError):
+        return False
+    return err.code == -32601 or "not found" in err.message.lower() or "no such" in err.message.lower()
+
+
 def find_slot_key(config: dict[str, Any]) -> str | None:
     return next((key for key in SLOT_KEYS if key in config), None)
 
@@ -286,6 +310,61 @@ def render_template(template: Any, target: int, bus: str | None) -> Any:
     if isinstance(template, str):
         return template.replace("{sim}", str(target)).replace("{bus}", bus or "")
     return template
+
+
+# Schlüssel, unter denen die Firmware den Ländercode des Netzes liefern kann.
+# Nicht dokumentiert -- deshalb tolerant gesucht, in Status und Zellinfo.
+MCC_KEYS = ("mcc",)
+PLMN_KEYS = ("plmn", "plmn_id", "operator_code", "operator_numeric", "oper_num", "numeric")
+ROAMING_KEYS = ("roaming", "is_roaming", "roam")
+
+
+def _first_key(obj: Any, keys: tuple[str, ...], depth: int = 0) -> Any:
+    """Erster Wert zu einem der Schlüssel, in beliebiger Tiefe (Dicts und Listen)."""
+    if depth > 6:
+        return None
+    if isinstance(obj, dict):
+        for key in keys:
+            if key in obj and obj[key] not in (None, ""):
+                return obj[key]
+        children = obj.values()
+    elif isinstance(obj, list):
+        children = obj
+    else:
+        return None
+    for child in children:
+        found = _first_key(child, keys, depth + 1)
+        if found is not None:
+            return found
+    return None
+
+
+def find_mcc(obj: Any) -> str | None:
+    """Der Ländercode des eingebuchten Netzes: `mcc`, sonst die ersten drei Ziffern der PLMN."""
+    mcc = _first_key(obj, MCC_KEYS)
+    if mcc is not None:
+        digits = str(mcc).strip()
+        if digits.isdigit() and len(digits) <= 3 and int(digits) >= 200:
+            return digits.zfill(3)
+    plmn = _first_key(obj, PLMN_KEYS)
+    if plmn is not None:
+        digits = "".join(ch for ch in str(plmn) if ch.isdigit())
+        if len(digits) in (5, 6) and int(digits[:3]) >= 200:
+            return digits[:3]
+    return None
+
+
+def _to_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in ("1", "true", "yes", "on"):
+        return True
+    if text in ("0", "false", "no", "off"):
+        return False
+    return None
 
 
 def _to_int(value: Any) -> int | None:
@@ -358,6 +437,12 @@ class CellularState:
     connected: bool | None = None
     traffic_total: int | None = None
     bands: str | None = None
+    # Ländercode (MCC) des Netzes, in dem das Modem gerade eingebucht ist --
+    # er sagt, in welchem Land man ist, unabhängig von der SIM.
+    mcc: str | None = None
+    # MCC aus der IMSI der SIM: das Heimatland der Karte
+    sim_mcc: str | None = None
+    roaming: bool | None = None
     slot_config: Any = None
     raw: dict[str, Any] = field(default_factory=dict)
 
@@ -383,6 +468,12 @@ def parse_state(
 
     net_status = network.get("status")
     traffic = _to_int(network.get("traffic_total"))
+    mcc = find_mcc(status) or find_mcc(cells_info)
+    imsi = str(simcard.get("imsi") or status.get("imsi") or "")
+    sim_mcc = imsi[:3] if len(imsi) >= 5 and imsi[:3].isdigit() else None
+    roaming = _to_bool(_first_key(status, ROAMING_KEYS))
+    if roaming is None and mcc and sim_mcc:
+        roaming = mcc != sim_mcc
 
     return CellularState(
         bus=status.get("bus") or info.get("bus"),
@@ -397,6 +488,9 @@ def parse_state(
         connected=None if net_status is None else _to_int(net_status) == 0,
         traffic_total=traffic,
         bands=format_bands(cells_info),
+        mcc=mcc,
+        sim_mcc=sim_mcc,
+        roaming=roaming,
         slot_config=slot_config,
         raw={
             "modem_info": modem_info,

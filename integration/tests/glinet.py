@@ -1,4 +1,4 @@
-"""Shared fixtures: a fake GL.iNet router speaking the 4.x JSON-RPC dialect."""
+"""Ein nachgebauter GL.iNet-Router (JSON-RPC wie Firmware 4.x) für die Router-Tests."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from custom_components.glinet_cellular.crypt import crypt_password
+from custom_components.yapaia.router.crypt import crypt_password
 
 BUS = "0001:01:00.0"
 PASSWORD = "secret"
@@ -25,6 +25,10 @@ class FakeRouter:
         self.slot_config: Any = {"bus": BUS, "slot": 1, "auto_switch": False}
         self.calls: list[tuple[str, str, Any]] = []
         self.switch_takes_effect = True
+        # Welcher Aufruf die SIM wirklich umschaltet (Firmware-abhängig, s. api.SWITCH_CANDIDATES)
+        self.switch_method = "modem.set_slot_config"
+        # Ländercode des eingebuchten Netzes, je SIM einstellbar
+        self.mcc = {1: "262", 2: "262"}
 
     def handle(self, method: str, params: Any) -> Any:
         if method == "challenge":
@@ -76,7 +80,11 @@ class FakeRouter:
                                 "rssi": -66,
                             },
                         },
-                        "network": {"status": 0, "traffic_total": "1073741824"},
+                        "network": {
+                            "status": 0,
+                            "traffic_total": "1073741824",
+                            "mcc": self.mcc[self.current_sim],
+                        },
                     }
                 ],
             }
@@ -88,8 +96,12 @@ class FakeRouter:
             return copy.deepcopy(self.slot_config)
         if key == "modem.set_slot_config":
             self.slot_config = copy.deepcopy(args)
-            if self.switch_takes_effect:
+            if self.switch_takes_effect and key == self.switch_method:
                 self.current_sim = int(args["slot"])
+            return {}
+        if key == self.switch_method:
+            if self.switch_takes_effect:
+                self.current_sim = int(next(v for k, v in args.items() if k != "bus"))
             return {}
         if key in ("modem.disconnect", "modem.set_connect", "system.reboot"):
             return {}
@@ -110,7 +122,7 @@ def router() -> FakeRouter:
 @pytest.fixture
 def patch_router(router: FakeRouter):
     """Route GLiNetClient._request into the fake router."""
-    from custom_components.glinet_cellular.api import GLiNetRpcError
+    from custom_components.yapaia.router.api import GLiNetRpcError
 
     async def _request(self, method: str, params: Any) -> Any:
         try:
@@ -118,5 +130,5 @@ def patch_router(router: FakeRouter):
         except RpcError as err:
             raise GLiNetRpcError(err.code, err.message) from err
 
-    with patch("custom_components.glinet_cellular.api.GLiNetClient._request", _request):
+    with patch("custom_components.yapaia.router.api.GLiNetClient._request", _request):
         yield router

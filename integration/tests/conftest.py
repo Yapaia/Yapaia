@@ -10,6 +10,8 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 
+from .glinet import patch_router, router  # noqa: F401 -- Fixtures für die Router-Tests
+
 TOKEN = "geheim"
 
 

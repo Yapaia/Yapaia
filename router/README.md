@@ -1,156 +1,124 @@
-# GL.iNet Cellular für Home Assistant
+# Yapaia Router
 
-Eigene Home-Assistant-Integration für GL.iNet-Router mit Firmware 4.x, gebaut für den
-**GL-X3000 (Spitz AX)** im Wohnmobil. Sie zeigt den Mobilfunkstatus an und kann
-**zwischen SIM 1 und SIM 2 umschalten**, ohne dass man die Router-Oberfläche öffnen muss.
-Alles läuft lokal über die JSON-RPC-Schnittstelle des Routers (`http://192.168.8.1/rpc`),
-ein Cloud-Konto ist nicht nötig.
+Mobilfunk des **GL.iNet-Routers** (Firmware 4.x, gebaut für den **GL-X3000 Spitz AX**)
+in Home Assistant – als Gerät **„Yapaia Router“** in der Integration „Yapaia“.
+Das Wichtigste: **SIM 1 / SIM 2 umschalten**, von Hand oder **automatisch nach
+Land** beim Grenzübertritt. Alles läuft lokal über die Schnittstelle des Routers
+(`http://192.168.8.1/rpc`), ohne Cloud-Konto.
 
-> **Status: noch nicht am echten Router getestet.** Anmeldung und Statusabfrage folgen
-> Projekten, die bereits am X3000 laufen. Den Befehl zum SIM-Umschalten hat GL.iNet nicht
-> dokumentiert, deshalb ist er eine fundierte Annahme. Unten steht, wie man ihn prüft und
-> bei Bedarf **ohne Codeänderung** anpasst.
+Der Code liegt in der gemeinsamen Integration:
+[`integration/custom_components/yapaia/router/`](../integration/custom_components/yapaia/router/).
 
-## Entitäten
+> **Status:** noch nicht am echten Router getestet. Anmeldung und Statusabfrage
+> folgen Projekten, die am X3000 laufen. Den Befehl zum SIM-Umschalten hat
+> GL.iNet nicht dokumentiert – deshalb lernt die Integration ihn selbst ein
+> (unten).
 
-| Entität | Beschreibung |
-|---|---|
-| `select.…_sim_karte` | **SIM 1 / SIM 2 umschalten** und die aktive SIM anzeigen |
-| `sensor.…_aktive_sim` | Aktive SIM (1 oder 2) |
-| `sensor.…_provider` | Netzbetreiber, z. B. Telekom.de |
-| `sensor.…_netztyp` | LTE, NR5G-NSA, … |
-| `sensor.…_frequenzbander` | Genutzte Bänder, z. B. `B3 + n78` |
-| `sensor.…_signalbalken` | 0–5 Balken (aus RSRP berechnet) |
-| `sensor.…_rsrp` / `_rsrq` / `_sinr` / `_rssi` | Signalwerte (RSSI standardmäßig deaktiviert) |
-| `sensor.…_mobilfunk_datenverbrauch` | Datenzähler des Routers |
-| `sensor.…_modem_modell` | z. B. RM520N-GL (Diagnose) |
-| `binary_sensor.…_mobilfunkverbindung` | Verbunden ja/nein |
-| `button.…_mobilfunk_neu_verbinden` | Modem trennen und neu verbinden |
-| `button.…_router_neu_starten` | Router-Neustart (standardmäßig deaktiviert) |
+## Einrichten
 
-Die genauen Entitäts-IDs hängen vom Gerätenamen und von der Sprache von Home Assistant ab; bitte in der Oberfläche nachsehen und die Beispiele unten entsprechend anpassen. Ist Home Assistant auf Deutsch
-eingestellt, erscheinen die Namen auf Deutsch.
+Die Integration „Yapaia“ kommt mit Yapaia Go oder Yapaia Beat (Add-on starten,
+Home Assistant einmal neu starten). Dann:
 
-Dazu kommt die Aktion **`glinet_cellular.rpc_call`**, mit der man beliebige Router-Befehle
-ausprobieren kann (siehe unten).
+*Einstellungen → Geräte & Dienste → Integration hinzufügen → **Yapaia** →
+„GL.iNet-Router“*
 
-## Installation
-
-> **Umzug:** Der Router ist jetzt ein Modul von [Yapaia](../README.md) und liegt im
-> Monorepo `Yapaia/yapaia` unter `router/`. Als Nächstes wird er Teil der zentralen
-> Integration „Yapaia“ (Gerät „Yapaia Router“). Bis dahin gibt es keine HACS-Installation
-> mehr – eine HACS-Quelle `Apfelsafft/Yapaia-Router` bitte entfernen.
-
-### Manuell
-Den Ordner `router/custom_components/glinet_cellular` nach `/config/custom_components/`
-kopieren (z. B. mit dem Add-on „File editor“ oder „Studio Code Server“) und Home Assistant
-neu starten.
-
-### Einrichten
-*Einstellungen → Geräte & Dienste → Integration hinzufügen → „GL.iNet Cellular“*
-
-- Host: `192.168.8.1` (oder die IP deines Routers)
+- Adresse: `192.168.8.1` (oder die IP des Routers)
 - Benutzername: `root`
 - Passwort: das Admin-Passwort der Router-Oberfläche
 
-## Test-Checkliste am Wohnmobil
+Wer vorher die eigenständige Integration **„GL.iNet Cellular“** benutzt hat:
+diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
+`Apfelsafft/Yapaia-Router` entfernen). Die Entitäten heißen jetzt
+`…yapaia_router_…` (siehe unten).
 
-1. **Einrichten** wie oben. Klappt das, funktioniert die Anmeldung.
-2. **Status prüfen:** Stimmen aktive SIM, Provider und Signalwerte mit der Router-Oberfläche überein?
-3. **SIM umschalten:** Im Auswahlfeld „SIM-Karte“ die andere SIM wählen. Das Feld zeigt
-   die gewünschte SIM sofort an. Innerhalb von etwa 2 Minuten sollte der Router sie
-   bestätigen, und Provider und Signal ändern sich.
-   - **Klappt es nicht,** erscheint in Home Assistant eine Benachrichtigung
-     „SIM-Umschaltung nicht bestätigt“, die die Slot-Konfiguration des Routers enthält.
-     Weiter mit dem nächsten Abschnitt.
-4. **Diagnose:** *Geräte & Dienste → GL.iNet Cellular → ⋮ → Diagnose herunterladen*.
-   Die Datei enthält die rohen Router-Antworten. IMEI, ICCID, MAC und Passwort sind
-   darin geschwärzt. Mit dieser Datei lässt sich jede Unstimmigkeit schnell beheben.
+## Entitäten
 
-## Wenn das SIM-Umschalten nicht klappt
+| Entität | Was sie zeigt / tut |
+|---|---|
+| `select.yapaia_router_sim` | **SIM 1 / SIM 2 umschalten**, zeigt die aktive SIM |
+| `switch.yapaia_router_automatik` | **SIM nach Land** an/aus |
+| `sensor.yapaia_router_land` | Land des eingebuchten Netzes (Attribute `land_code`, `mcc`) |
+| `binary_sensor.yapaia_router_roaming` | Roaming ja/nein |
+| `sensor.yapaia_router_aktive_sim`, `…_anbieter`, `…_netztyp`, `…_baender` | aktive SIM, Netzbetreiber, LTE/5G, Frequenzbänder |
+| `sensor.yapaia_router_signalbalken`, `…_rsrp`, `…_rsrq`, `…_sinr`, `…_rssi` | Signal (RSSI zunächst deaktiviert) |
+| `sensor.yapaia_router_datenverbrauch` | Datenzähler des Routers |
+| `binary_sensor.yapaia_router_verbunden` | Mobilfunkverbindung |
+| `sensor.yapaia_router_umschaltung` | Stand der SIM-Umschaltung (Diagnose) |
+| `button.yapaia_router_neu_verbinden`, `…_neustart` | neu verbinden, Router-Neustart (deaktiviert) |
 
-**So arbeitet die Integration standardmäßig:** Sie liest die aktuelle Slot-Konfiguration
-mit `modem.get_slot_config` aus, ersetzt darin die SIM-Nummer (Feld `slot`, `sim`,
-`current_sim` …) und schickt das Ergebnis an `modem.set_slot_config` zurück.
-Der genaue Aufruf steht im Home-Assistant-Log, gekennzeichnet mit „SIM switch:“.
+**Aktionen:** `yapaia.router_sim_waehlen` (`sim: 1|2`), `…_neu_verbinden`,
+`…_router_neustart`, `…_automatik_an` / `…_automatik_aus` und
+`yapaia.router_rpc` (Router-Aufruf roh, für Fachleute; Antwort als Ergebnis).
 
-**Den richtigen Aufruf finden:**
-1. Die Router-Oberfläche am Laptop öffnen, **F12** drücken und den Tab **Netzwerk** wählen.
-2. In der Oberfläche unter *Internet → Cellular → SIM Card Slot Settings* die SIM umschalten.
-3. Die Anfrage an `rpc` anklicken und unter **Payload** nachsehen. Sie hat ungefähr diese Form:
-   ```json
-   {"jsonrpc":"2.0","id":1,"method":"call",
-    "params":["<sid>","modem","set_slot_config",{"bus":"0001:01:00.0","slot":2}]}
-   ```
+**Auslöser** (im Automationen-Editor beim Gerät „Yapaia Router“):
+*Land gewechselt*, *SIM gewechselt*, *SIM-Wechsel fehlgeschlagen*.
 
-**Ohne Codeänderung übernehmen:**
-*Geräte & Dienste → GL.iNet Cellular → Konfigurieren*
-- **RPC-Aufruf zum SIM-Umschalten:** `modem.set_slot_config`, also `service.method` aus der Payload
-- **Parameter (JSON):** das letzte Objekt aus der Payload, mit Platzhaltern:
-  ```json
-  {"bus": "{bus}", "slot": "{sim}"}
-  ```
-  `"{sim}"` wird durch die Zahl 1 oder 2 ersetzt, `"{bus}"` durch die Modem-Adresse.
+## SIM nach Land (Grenzübertritt)
 
-**Befehle direkt ausprobieren:**
-*Entwicklerwerkzeuge → Aktionen → „RPC-Aufruf (roh)“*, zum Beispiel:
-```yaml
-action: glinet_cellular.rpc_call
-data:
-  service: modem
-  method: get_slot_config
-  params:
-    bus: "0001:01:00.0"
-```
-Mit „Aktion ausführen“ erscheint die Antwort des Routers direkt darunter.
+Das Modem bucht sich immer in ein Netz des Landes ein, in dem es steht – auch
+im Roaming. Dessen **Ländercode (MCC)** sagt also, wo man ist, ganz ohne GPS.
 
-## Beispiele
+*Geräte & Dienste → Yapaia → Yapaia Router → Konfigurieren:*
 
-### Dashboard-Karte
+- **SIM nach Land** einschalten (oder der Schalter am Gerät)
+- **Länder für SIM 1**, z. B. `DE`
+- **Länder für SIM 2**, z. B. `AT, CH, IT`
+- **Alle anderen Länder:** nicht wechseln / SIM 1 / SIM 2
+- **Wartezeit nach Landwechsel** (Standard 3 min): in Grenznähe bucht sich das
+  Modem manchmal kurz ins Nachbarland ein. Gewechselt wird erst, wenn das neue
+  Land so lange stabil ist; nach einem automatischen Versuch frühestens nach
+  15 Minuten wieder.
+
+Ohne Automatik lässt sich dasselbe mit dem Auslöser *Land gewechselt* und der
+Aktion *SIM wählen* selbst bauen.
+
+**Wichtig:** In der Router-Oberfläche die eigene **Auto-Switch**-Funktion des
+Routers ausschalten – zwei, die umschalten, arbeiten gegeneinander.
+
+## Wie die Umschaltung eingelernt wird
+
+GL.iNet dokumentiert den Umschaltbefehl nicht. Beim **ersten Umschalten**
+probiert die Integration die bekannten Befehle der Reihe nach. Nach jedem
+angenommenen Befehl wartet sie bis zu 90 s, ob der Router die neue SIM
+**wirklich meldet**. Der erste, der wirkt, wird gemerkt und künftig sofort
+benutzt (`sensor.yapaia_router_umschaltung`, Attribut `umschaltweg`). Das erste
+Umschalten kann deshalb einige Minuten dauern; die Auswahl zeigt währenddessen
+schon die gewünschte SIM.
+
+**Wirkt keiner,** erscheint eine Benachrichtigung mit allen Versuchen. Dann bitte
+*Geräte & Dienste → Yapaia → Yapaia Router → ⋮ → Diagnose herunterladen* und die
+Datei weitergeben: Sie enthält die rohen Router-Antworten (IMEI, IMSI, ICCID, MAC
+und Passwort geschwärzt). Damit lässt sich der richtige Aufruf finden und unter
+*Konfigurieren → Umschaltbefehl / Umschalt-Parameter* eintragen, ganz ohne
+Codeänderung. Platzhalter in den Parametern: `"{sim}"` und `"{bus}"`.
+
+## Beispiel: Dashboard-Karte
+
 ```yaml
 type: entities
 title: Mobilfunk
 entities:
-  - entity: select.x3000_sim_karte
-  - entity: binary_sensor.x3000_mobilfunkverbindung
-  - entity: sensor.x3000_provider
-  - entity: sensor.x3000_netztyp
-  - entity: sensor.x3000_signalbalken
-  - entity: sensor.x3000_rsrp
-  - entity: sensor.x3000_frequenzbander
-  - entity: sensor.x3000_mobilfunk_datenverbrauch
-  - entity: button.x3000_mobilfunk_neu_verbinden
+  - entity: select.yapaia_router_sim
+  - entity: switch.yapaia_router_automatik
+  - entity: sensor.yapaia_router_land
+  - entity: binary_sensor.yapaia_router_roaming
+  - entity: sensor.yapaia_router_anbieter
+  - entity: sensor.yapaia_router_netztyp
+  - entity: sensor.yapaia_router_signalbalken
+  - entity: sensor.yapaia_router_datenverbrauch
+  - entity: button.yapaia_router_neu_verbinden
 ```
 
-### Automation: bei schlechtem Netz auf die andere SIM wechseln
-```yaml
-alias: Mobilfunk – SIM wechseln bei schlechtem Signal
-triggers:
-  - trigger: numeric_state
-    entity_id: sensor.x3000_rsrp
-    below: -115
-    for: "00:05:00"
-  - trigger: state
-    entity_id: binary_sensor.x3000_mobilfunkverbindung
-    to: "off"
-    for: "00:03:00"
-actions:
-  - action: select.select_next
-    target:
-      entity_id: select.x3000_sim_karte
-    data:
-      cycle: true
-mode: single
-max_exceeded: silent
-```
-Damit die Automation nicht ständig hin- und herspringt, eventuell noch eine Bedingung
-ergänzen, z. B. „letzter Wechsel länger als 30 Minuten her“.
+## Technisches
 
-## Technische Notizen
+- Anmeldung: `challenge` → `crypt(passwort, salt)` → `login` → `sid`; läuft die
+  Sitzung ab, meldet sich die Integration neu an. Die Passwort-Verschlüsselung
+  (md5/sha256/sha512-crypt) ist in reinem Python umgesetzt.
+- Abgefragt werden `modem.get_info`, `modem.get_status`, `modem.get_cells_info`
+  und `modem.get_slot_config`, alle 30 s (einstellbar).
+- Der Ländercode wird tolerant gesucht (`mcc`, sonst die ersten drei Ziffern der
+  PLMN, in Status und Zellinfo); Roaming aus dem Feld des Routers oder aus dem
+  Vergleich mit der IMSI der SIM.
+- Tests: `integration/tests/test_router*.py` mit einem nachgebauten Router.
 
-- Anmeldung: `challenge` → `crypt(passwort, salt)` → `login` → `sid`. Läuft die Sitzung ab, meldet sich die Integration automatisch neu an.
-- Abgefragt werden `modem.get_info`, `modem.get_status`, `modem.get_cells_info` und `modem.get_slot_config`, alle 30 Sekunden (in den Optionen einstellbar).
-- Die Passwort-Verschlüsselung (md5/sha256/sha512-crypt) ist in reinem Python umgesetzt und braucht keine zusätzlichen Pakete.
-- Tests: im Ordner `router/`: `pip install -r requirements-test.txt && pytest` (enthält einen simulierten Router).
-
-Lizenz: MIT
+Lizenz: MIT (siehe `LICENSE`).

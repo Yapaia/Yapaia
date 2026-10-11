@@ -9,7 +9,7 @@ mehr Yapaia-Module zusammenarbeiten.
 | **Yapaia Go** | Offline-Navigation fürs Wohnmobil (Add-on) | [`go/`](go/) |
 | **Yapaia Beat** | UKW- und DAB+-Radio mit RTL-SDR-Stick (Add-on) | [`beat/`](beat/) |
 | **Yapaia Satellite** | Sprachsatellit auf dem ESP32 Audio Kit (ESPHome) | [`satellite/`](satellite/) |
-| **Yapaia Router** | Mobilfunk des GL.iNet-Routers (GL-X3000): Status, SIM-Umschaltung (HA-Integration) | [`router/`](router/) |
+| **Yapaia Router** | Mobilfunk des GL.iNet-Routers (GL-X3000): Status, SIM-Umschaltung nach Land (Teil der Integration „Yapaia“) | [`router/`](router/) |
 
 ## Installation
 

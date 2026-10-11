@@ -11,6 +11,8 @@ Modulnamens.
 | `navigation` | Go | Offline-Navigation; Ziel, Ankunft, Restweg als Entitäten. |
 | `radio` | Beat | UKW/DAB+-Radio als Mediaplayer. |
 | `ansage.einmischen` | Beat | Ansagen werden ins laufende Radio gemischt (Musik leiser, Ansage, Musik zurück). |
+| `mobilfunk` | Router | Mobilfunkstatus: Land (`land_code`), Roaming, Anbieter, Signal als Entitäten `…yapaia_router_<schlüssel>`. |
+| `mobilfunk.sim_wechsel` | Router | SIM 1/2 umschalten per Aktion `yapaia.router_sim_waehlen` (`sim`); Ergebnis über die Ereignisse `sim_gewechselt` / `sim_wechsel_fehlgeschlagen`. |
 | `sprache.eingabe` | Satellite | Mikrofon für den Home-Assistant-Sprachassistenten. |
 | `sprache.ausgabe` | Satellite | Lautsprecher als Mediaplayer (Ansagen per `tts.speak`). |
 

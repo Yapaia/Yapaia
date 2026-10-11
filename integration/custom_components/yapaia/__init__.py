@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import aktionen, partner
 from .client import YapaiaClient, YapaiaFehler
-from .const import ALLE_PLATTFORMEN, CONF_TOKEN, CONF_URL, PLATTFORMEN, PROTOKOLL, SPEZIAL
+from .const import ALLE_PLATTFORMEN, CONF_MODUL, CONF_TOKEN, CONF_URL, PLATTFORMEN, PROTOKOLL, SPEZIAL
 from .modul import YapaiaModul
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,6 +20,8 @@ type YapaiaConfigEntry = ConfigEntry[YapaiaModul]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bool:
+    if entry.data.get(CONF_MODUL) == "router":
+        return await _router_einrichten(hass, entry)
     client = YapaiaClient(async_get_clientsession(hass), entry.data[CONF_URL], entry.data[CONF_TOKEN])
     try:
         beschreibung = await client.beschreibung()
@@ -56,6 +58,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bo
     await hass.config_entries.async_forward_entry_setups(entry, ALLE_PLATTFORMEN)
     aktionen.registrieren(hass, modul)
     modul.starten()
+    partner.einrichten(hass)
+    partner.verteilen_bald(hass)
+    return True
+
+
+async def _router_einrichten(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bool:
+    """Ein GL.iNet-Router: spricht das Protokoll nicht selbst, das Modul tut es für ihn."""
+    from . import router
+
+    modul = await router.einrichten(hass, entry)
+    entry.runtime_data = modul
+    modul.geraet_eintragen()
+    await hass.config_entries.async_forward_entry_setups(entry, ALLE_PLATTFORMEN)
+    aktionen.registrieren(hass, modul)
+    modul.starten()
+
+    async def geaendert(hass: HomeAssistant, entry: YapaiaConfigEntry) -> None:
+        # Einstellungen gelten sofort, ohne Neuladen (auch die Automatik)
+        modul.bald_abfragen()
+
+    entry.async_on_unload(entry.add_update_listener(geaendert))
     partner.einrichten(hass)
     partner.verteilen_bald(hass)
     return True
