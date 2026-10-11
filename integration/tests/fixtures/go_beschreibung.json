@@ -1,0 +1,329 @@
+{
+  "protokoll": 1,
+  "modul": "go",
+  "instanz": "a1",
+  "name": "Yapaia Go",
+  "version": "0.0.0",
+  "hersteller": "Yapaia",
+  "faehigkeiten": [
+    "navigation"
+  ],
+  "entitaeten": [
+    {
+      "schluessel": "anweisung",
+      "plattform": "sensor",
+      "name": {
+        "de": "Nächste Anweisung",
+        "en": "Next instruction"
+      },
+      "symbol": "mdi:navigation",
+      "symbol_aus": "anweisung_symbol",
+      "attribute": [
+        "anweisung_typ",
+        "anweisung_strassen",
+        "anweisung_kreisel"
+      ]
+    },
+    {
+      "schluessel": "anweisung_entfernung",
+      "plattform": "sensor",
+      "name": {
+        "de": "Entfernung zur Anweisung",
+        "en": "Distance to instruction"
+      },
+      "geraeteklasse": "distance",
+      "einheit": "m",
+      "zustandsklasse": "measurement"
+    },
+    {
+      "schluessel": "ankunft",
+      "plattform": "sensor",
+      "name": {
+        "de": "Ankunft",
+        "en": "Arrival"
+      },
+      "geraeteklasse": "timestamp",
+      "symbol": "mdi:clock-outline"
+    },
+    {
+      "schluessel": "restweg",
+      "plattform": "sensor",
+      "name": {
+        "de": "Restweg",
+        "en": "Distance remaining"
+      },
+      "geraeteklasse": "distance",
+      "einheit": "km",
+      "zustandsklasse": "measurement",
+      "symbol": "mdi:map-marker-distance"
+    },
+    {
+      "schluessel": "ziel",
+      "plattform": "sensor",
+      "name": {
+        "de": "Ziel",
+        "en": "Destination"
+      },
+      "symbol": "mdi:flag-checkered",
+      "attribute": [
+        "ziel_breite",
+        "ziel_laenge"
+      ]
+    },
+    {
+      "schluessel": "zustand",
+      "plattform": "sensor",
+      "name": {
+        "de": "Zustand",
+        "en": "State"
+      },
+      "symbol": "mdi:navigation-variant"
+    },
+    {
+      "schluessel": "tempo",
+      "plattform": "sensor",
+      "name": {
+        "de": "Tempo",
+        "en": "Speed"
+      },
+      "geraeteklasse": "speed",
+      "einheit": "km/h",
+      "zustandsklasse": "measurement",
+      "symbol": "mdi:speedometer"
+    },
+    {
+      "schluessel": "tempolimit",
+      "plattform": "sensor",
+      "name": {
+        "de": "Tempolimit",
+        "en": "Speed limit"
+      },
+      "geraeteklasse": "speed",
+      "einheit": "km/h",
+      "zustandsklasse": "measurement",
+      "symbol": "mdi:speedometer-medium"
+    },
+    {
+      "schluessel": "tempolimit_fahrzeug",
+      "plattform": "sensor",
+      "name": {
+        "de": "Tempolimit Fahrzeug",
+        "en": "Vehicle speed limit"
+      },
+      "geraeteklasse": "speed",
+      "einheit": "km/h",
+      "zustandsklasse": "measurement",
+      "symbol": "mdi:truck-alert"
+    },
+    {
+      "schluessel": "zu_schnell",
+      "plattform": "binary_sensor",
+      "name": {
+        "de": "Zu schnell",
+        "en": "Speeding"
+      },
+      "geraeteklasse": "safety",
+      "attribute": [
+        "grenze_kmh",
+        "grenze_quelle"
+      ]
+    },
+    {
+      "schluessel": "hoehe",
+      "plattform": "sensor",
+      "name": {
+        "de": "Höhe",
+        "en": "Altitude"
+      },
+      "geraeteklasse": "distance",
+      "einheit": "m",
+      "zustandsklasse": "measurement",
+      "symbol": "mdi:altimeter"
+    },
+    {
+      "schluessel": "standort",
+      "plattform": "device_tracker",
+      "name": {
+        "de": "Standort",
+        "en": "Location"
+      },
+      "symbol": "mdi:rv-truck"
+    },
+    {
+      "schluessel": "profil",
+      "plattform": "select",
+      "name": {
+        "de": "Fahrzeugprofil",
+        "en": "Vehicle profile"
+      },
+      "symbol": "mdi:rv-truck",
+      "optionen_aus": "profile",
+      "aktion": "profil_waehlen"
+    },
+    {
+      "schluessel": "ziel_eingabe",
+      "plattform": "text",
+      "name": {
+        "de": "Ziel eingeben",
+        "en": "Enter destination"
+      },
+      "symbol": "mdi:map-search",
+      "aktion": "ziel_setzen"
+    },
+    {
+      "schluessel": "pausieren",
+      "plattform": "button",
+      "name": {
+        "de": "Pause",
+        "en": "Pause"
+      },
+      "symbol": "mdi:pause",
+      "aktion": "navigation_pausieren"
+    },
+    {
+      "schluessel": "fortsetzen",
+      "plattform": "button",
+      "name": {
+        "de": "Weiter",
+        "en": "Resume"
+      },
+      "symbol": "mdi:play",
+      "aktion": "navigation_fortsetzen"
+    },
+    {
+      "schluessel": "beenden",
+      "plattform": "button",
+      "name": {
+        "de": "Beenden",
+        "en": "Stop"
+      },
+      "symbol": "mdi:stop",
+      "aktion": "navigation_beenden"
+    }
+  ],
+  "aktionen": [
+    {
+      "name": "ziel_setzen",
+      "titel": {
+        "de": "Ziel setzen",
+        "en": "Set destination"
+      },
+      "beschreibung": {
+        "de": "Sucht das Ziel, berechnet die Route mit dem aktiven Fahrzeugprofil und startet die Navigation.",
+        "en": "Looks up the destination, routes with the active vehicle profile and starts navigating."
+      },
+      "felder": {
+        "ziel": {
+          "typ": "text",
+          "titel": {
+            "de": "Adresse oder Ort",
+            "en": "Address or place"
+          }
+        },
+        "ort": {
+          "typ": "ort",
+          "titel": {
+            "de": "Oder: Koordinaten",
+            "en": "Or: coordinates"
+          }
+        }
+      }
+    },
+    {
+      "name": "navigation_pausieren",
+      "titel": {
+        "de": "Navigation pausieren",
+        "en": "Pause navigation"
+      }
+    },
+    {
+      "name": "navigation_fortsetzen",
+      "titel": {
+        "de": "Navigation fortsetzen",
+        "en": "Resume navigation"
+      }
+    },
+    {
+      "name": "navigation_beenden",
+      "titel": {
+        "de": "Navigation beenden",
+        "en": "Stop navigation"
+      }
+    },
+    {
+      "name": "profil_waehlen",
+      "titel": {
+        "de": "Fahrzeugprofil wählen",
+        "en": "Select vehicle profile"
+      },
+      "felder": {
+        "wert": {
+          "typ": "text",
+          "pflicht": true,
+          "titel": {
+            "de": "Profilname",
+            "en": "Profile name"
+          }
+        }
+      }
+    },
+    {
+      "name": "befehl",
+      "titel": {
+        "de": "Sprachbefehl",
+        "en": "Voice command"
+      },
+      "beschreibung": {
+        "de": "Ein Satz wie „Fahre mich nach Magdeburg\" oder „Wo ist die nächste Tankstelle?\". Die Antwort kommt als Ergebnis zurück.",
+        "en": "A sentence such as \"Take me to Magdeburg\". The reply is returned as the result."
+      },
+      "felder": {
+        "text": {
+          "typ": "text",
+          "pflicht": true,
+          "titel": {
+            "de": "Satz",
+            "en": "Sentence"
+          }
+        }
+      }
+    }
+  ],
+  "ereignisse": [
+    {
+      "name": "ziel_erreicht",
+      "titel": {
+        "de": "Ziel erreicht",
+        "en": "Destination reached"
+      },
+      "daten": [
+        "ziel"
+      ]
+    },
+    {
+      "name": "zu_schnell",
+      "titel": {
+        "de": "Zu schnell",
+        "en": "Speeding"
+      },
+      "daten": [
+        "tempo",
+        "grenze_kmh"
+      ]
+    },
+    {
+      "name": "gps_verloren",
+      "titel": {
+        "de": "GPS verloren",
+        "en": "GPS lost"
+      }
+    },
+    {
+      "name": "neuberechnung_fehlgeschlagen",
+      "titel": {
+        "de": "Neuberechnung fehlgeschlagen",
+        "en": "Reroute failed"
+      }
+    }
+  ]
+}

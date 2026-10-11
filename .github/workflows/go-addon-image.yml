@@ -60,6 +60,7 @@ jobs:
           tags: yapaja-go:ci
           build-contexts: |
             gosrc=./go
+            yapaia-integration=./integration/custom_components
           build-args: |
             BUILD_FROM=ghcr.io/gis-ops/docker-valhalla/valhalla:latest
             BUILD_VERSION=ci-${{ github.sha }}
@@ -134,6 +135,17 @@ jobs:
                 || { echo "Glyphen fehlen im Image: $f"; exit 1; }
             done
             echo "Oberflaeche und Schriftzeichen vorhanden"
+          '
+
+      - name: Die Integration „Yapaia" liegt im Image
+        run: |
+          # Ohne sie erscheint „Yapaia Go" nie in Home Assistant -- und der
+          # Core ueberspringt die Installation still (leerer Bau-Kontext).
+          docker run --rm --entrypoint sh yapaja-go:ci -c '
+            set -e
+            test -s /opt/yapaia/integration/yapaia/manifest.json
+            test -s /opt/yapaia/integration/yapaia/__init__.py
+            echo "Integration vorhanden: $(grep -o "\"version\": *\"[^\"]*\"" /opt/yapaia/integration/yapaia/manifest.json)"
           '
 
       - name: Die Lovelace-Karte liegt im Image

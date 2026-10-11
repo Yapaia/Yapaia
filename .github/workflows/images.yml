@@ -56,7 +56,7 @@ jobs:
           import json, os, subprocess, yaml
           ADDONS = [
               # name, Add-on-Ordner, Dockerfile, Image ohne {arch}, Build-Kontext-Zusatz
-              ("go",   "go/yapaja_go",     "go/yapaja_go/Dockerfile",     "ghcr.io/yapaia/yapaia-go-",   "gosrc=./go"),
+              ("go",   "go/yapaja_go",     "go/yapaja_go/Dockerfile",     "ghcr.io/yapaia/yapaia-go-",   "gosrc=./go\nyapaia-integration=./integration/custom_components"),
               ("beat", "beat/yapaia_beat", "beat/yapaia_beat/Dockerfile", "ghcr.io/yapaia/yapaia-beat-", "yapaia-integration=./integration/custom_components"),
           ]
           RUNNER = {"amd64": "ubuntu-latest", "aarch64": "ubuntu-latest"}

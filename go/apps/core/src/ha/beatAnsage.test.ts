@@ -28,6 +28,19 @@ describe('BeatAnsage', () => {
     });
   });
 
+  it('mit Partnerliste entscheidet die Fähigkeit, nicht der Name', async () => {
+    const ohne = ziel('playing', { partner: () => [{ faehigkeiten: ['radio'] }] });
+    const r = await ohne.z.pruefe();
+    expect(r.ok).toBe(false);
+    expect(r.grund).toMatch(/ansage\.einmischen/);
+    expect(ohne.rufe).not.toHaveBeenCalled();
+
+    const mit = ziel('playing', { partner: () => [{ faehigkeiten: ['radio', 'ansage.einmischen'] }] });
+    expect(await mit.z.sage('Hallo', 'hinweis')).toBe(true);
+    // Ohne Integration (keine Liste) wie bisher
+    expect(await ziel('playing', { partner: () => null }).z.sage('Hallo', 'hinweis')).toBe(true);
+  });
+
   it('Radio aus, kein Beat, abgeschaltet oder Fehler: Go spricht selbst', async () => {
     for (const { z, rufe } of [
       ziel('idle'),

@@ -72,48 +72,59 @@ export interface DashboardEntity {
   objectId: string;
   /** Der `name` aus der Discovery, fuer die Suche ueber den Anzeigenamen. */
   name: string;
+  /**
+   * Der Schluessel im Yapaia-Protokoll (`yapaia/beschreibung.ts`). Mit der
+   * Integration „Yapaia" heisst die Entitaet `<domain>.yapaia_go_<protokoll>`
+   * -- gibt es sie, gewinnt sie vor allen alten Namen.
+   */
+  protokoll: string;
 }
 
 /** Genau die Entitaeten, die die Vorlage unten einsetzt. */
 export const DASHBOARD_ENTITIES: readonly DashboardEntity[] = [
-  { schluessel: 'instruction', domain: 'sensor', objectId: 'yapaja_instruction', name: 'Instruction' },
+  { schluessel: 'instruction', protokoll: 'anweisung', domain: 'sensor', objectId: 'yapaja_instruction', name: 'Instruction' },
   {
     schluessel: 'instruction_distance',
+    protokoll: 'anweisung_entfernung',
     domain: 'sensor',
     objectId: 'yapaja_instruction_distance',
     name: 'Instruction Distance',
   },
-  { schluessel: 'speed', domain: 'sensor', objectId: 'yapaja_speed', name: 'Speed' },
+  { schluessel: 'speed', protokoll: 'tempo', domain: 'sensor', objectId: 'yapaja_speed', name: 'Speed' },
   {
     schluessel: 'speed_limit',
+    protokoll: 'tempolimit',
     domain: 'sensor',
     objectId: 'yapaja_speed_limit',
     name: 'Speed Limit',
   },
   {
     schluessel: 'speeding',
+    protokoll: 'zu_schnell',
     domain: 'binary_sensor',
     objectId: 'yapaja_speeding',
     name: 'Speeding',
   },
-  { schluessel: 'eta', domain: 'sensor', objectId: 'yapaja_eta', name: 'ETA' },
+  { schluessel: 'eta', protokoll: 'ankunft', domain: 'sensor', objectId: 'yapaja_eta', name: 'ETA' },
   {
     schluessel: 'distance_remaining',
+    protokoll: 'restweg',
     domain: 'sensor',
     objectId: 'yapaja_distance_remaining',
     name: 'Distance Remaining',
   },
   {
     schluessel: 'destination',
+    protokoll: 'ziel',
     domain: 'sensor',
     objectId: 'yapaja_destination',
     name: 'Destination',
   },
-  { schluessel: 'nav_state', domain: 'sensor', objectId: 'yapaja_nav_state', name: 'Nav State' },
-  { schluessel: 'profile', domain: 'select', objectId: 'yapaja_profile', name: 'Profile' },
-  { schluessel: 'stop', domain: 'button', objectId: 'yapaja_stop', name: 'Stop' },
-  { schluessel: 'pause', domain: 'button', objectId: 'yapaja_pause', name: 'Pause' },
-  { schluessel: 'resume', domain: 'button', objectId: 'yapaja_resume', name: 'Resume' },
+  { schluessel: 'nav_state', protokoll: 'zustand', domain: 'sensor', objectId: 'yapaja_nav_state', name: 'Nav State' },
+  { schluessel: 'profile', protokoll: 'profil', domain: 'select', objectId: 'yapaja_profile', name: 'Profile' },
+  { schluessel: 'stop', protokoll: 'beenden', domain: 'button', objectId: 'yapaja_stop', name: 'Stop' },
+  { schluessel: 'pause', protokoll: 'pausieren', domain: 'button', objectId: 'yapaja_pause', name: 'Pause' },
+  { schluessel: 'resume', protokoll: 'fortsetzen', domain: 'button', objectId: 'yapaja_resume', name: 'Resume' },
 ] as const;
 
 export type EntityIds = Record<string, string>;
@@ -147,7 +158,14 @@ export function resolveEntityIds(zustaende: readonly HaEntityState[]): Aufgeloes
   const gefunden: string[] = [];
   const vorgabe: string[] = [];
 
+  const vorhanden = new Set(zustaende.map((z) => z.entity_id));
   for (const eintrag of DASHBOARD_ENTITIES) {
+    const neu = `${eintrag.domain}.yapaia_go_${eintrag.protokoll}`;
+    if (vorhanden.has(neu)) {
+      ids[eintrag.schluessel] = neu;
+      gefunden.push(eintrag.schluessel);
+      continue;
+    }
     const vorgesehen = `${eintrag.domain}.${eintrag.objectId}`;
     // Die Endung, an der die Entitaet haengt: aus `yapaja_speed` wird
     // `_speed`, aus `yapaja_distance_remaining` wird `_distance_remaining`.

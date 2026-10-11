@@ -56,6 +56,9 @@
     },
     {
       "name": "Verlauf"
+    },
+    {
+      "name": "Yapaia"
     }
   ],
   "paths": {
@@ -2833,6 +2836,108 @@
         "summary": "POST /api/v1/system/ha/trackers",
         "tags": [
           "Sonstige"
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/yapaia/v1/beschreibung": {
+      "get": {
+        "summary": "Yapaia-Protokoll: Entitäten, Aktionen und Ereignisse von Yapaia Go",
+        "tags": [
+          "Yapaia"
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/yapaia/v1/live": {
+      "get": {
+        "summary": "Yapaia-Protokoll: Live-Verbindung (WebSocket) mit Zuständen und Ereignissen",
+        "tags": [
+          "Yapaia"
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/yapaia/v1/aktion/{name}": {
+      "post": {
+        "summary": "Yapaia-Protokoll: Aktion ausführen (ziel_setzen, navigation_pausieren …)",
+        "tags": [
+          "Yapaia"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/yapaia/v1/partner": {
+      "post": {
+        "summary": "Yapaia-Protokoll: die anderen Yapaia-Module und ihre Fähigkeiten",
+        "tags": [
+          "Yapaia"
         ],
         "responses": {
           "200": {

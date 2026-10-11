@@ -1,11 +1,10 @@
-# Das Yapaia-Protokoll (Entwurf, Version 1)
+# Das Yapaia-Protokoll (Version 1)
 
 Wie sich Yapaia-Module bei der zentralen Home-Assistant-Integration **„Yapaia“**
 anmelden, beschreiben, was sie anbieten, und miteinander sprechen.
 
-> **Status: Entwurf zur Abstimmung.** Nichts davon ist gebaut. Was hier
-> festgelegt wird, ist später schwer zu ändern – deshalb steht es vorher auf
-> dem Papier.
+> **Status: Version 1, umgesetzt** – Integration `integration/custom_components/yapaia`,
+> Yapaia Beat ab 1.14.0, Yapaia Go ab 0.44.0. Änderungen nur nach Abschnitt 10.
 
 ## 1. Ziele
 
@@ -195,12 +194,17 @@ Beat heute):
 | `plattform` | `sensor`, `binary_sensor`, `switch`, `select`, `number`, `button`, `text`, `device_tracker`, `image`, `event` – oder `spezial` (unten). |
 | `name` | Anzeigename je Sprache; die Integration nimmt die HA-Sprache, sonst `en`, sonst den ersten. |
 | `geraeteklasse`, `einheit`, `zustandsklasse`, `symbol` | wie in Home Assistant. |
+| `symbol_aus` | Zustandsschlüssel, dessen Wert das Symbol ersetzt (z. B. der Pfeil der nächsten Abbiegung); ohne Wert gilt `symbol`. |
 | `kategorie` | `config` oder `diagnostic` (Einstellungs- bzw. Diagnose-Entität). |
 | `standard_aktiv` | `false` = in HA zunächst deaktiviert (selten gebrauchte Werte). |
 | `aktion`, `aktion_an`, `aktion_aus` | Welche Aktion ein Bedienen auslöst (Schalter, Auswahl, Zahl, Knopf, Text). |
 | `optionen` / `optionen_aus` | Feste Liste, oder der Zustandsschlüssel, der die Liste liefert. |
 | `min`, `max`, `schritt` | für `number`. |
 | `attribute` | Zustandsschlüssel, die als Attribute mitgegeben werden. |
+
+Bei `device_tracker` ist der Wert ein Objekt
+`{"breite": 52.1, "laenge": 11.6, "genauigkeit": 5}` (Genauigkeit in m) oder
+`null`, solange kein Standort bekannt ist.
 
 `spezial` steht für Entitäten, die sich nicht allgemein beschreiben lassen
 (Beats Mediaplayer mit Senderliste, Logos und Lautsprecher-Weiterleitung). Die

@@ -14,6 +14,18 @@ Modulnamens.
 | `sprache.eingabe` | Satellite | Mikrofon für den Home-Assistant-Sprachassistenten. |
 | `sprache.ausgabe` | Satellite | Lautsprecher als Mediaplayer (Ansagen per `tts.speak`). |
 
+## `navigation`
+
+- **Aufruf:** Home-Assistant-Aktionen `yapaia.go_ziel_setzen` (Felder `ziel`
+  als Text oder `ort` mit `latitude`/`longitude`), `yapaia.go_navigation_pausieren`,
+  `…_fortsetzen`, `…_beenden`, `yapaia.go_profil_waehlen` (`wert`) und
+  `yapaia.go_befehl` (`text`; Antwort im Ergebnis als `antwort`).
+- **Zustände:** `ankunft`, `restweg`, `ziel`, `zustand`, `tempo`,
+  `tempolimit`, `standort` (`{breite, laenge, genauigkeit}`) als Entitäten
+  `…yapaia_go_<schlüssel>`.
+- **Ereignisse:** `ziel_erreicht` (`ziel`), `zu_schnell` (`tempo`,
+  `grenze_kmh`), `gps_verloren`, `neuberechnung_fehlgeschlagen`.
+
 ## `ansage.einmischen`
 
 - **Aufruf:** Home-Assistant-Aktion `yapaia.beat_ansage` – nicht direkt beim
