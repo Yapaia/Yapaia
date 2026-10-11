@@ -17,6 +17,13 @@
  * once the map is ready. `AddonHost` calls `reapplyAll` whenever the map store's
  * map instance changes.
  *
+ * Und waehrend ein Stil noch laedt (erster Start, Stilwechsel auf DERSELBEN
+ * Karte), lehnt MapLibre `addSource`/`addLayer`/`removeLayer` mit „Style is not
+ * done loading" ab. Vor 0.43.0 lief dieser Fehler ueber die Bruecke zurueck in
+ * das Add-on und landete dort als unbehandelte Ablehnung -- gefunden durch
+ * einen E2E-Lauf, in dem der Track-Recorder seine Spur genau in diesem Moment
+ * zeichnete. Jetzt wartet die Ebene auf `style.load` und wird dann gesetzt.
+ *
  * The adapter talks to the map ONLY through `mapController` (E01-T2 rule: no
  * module outside `apps/web/src/map` touches maplibre-gl directly).
  */
@@ -28,6 +35,11 @@ import { mapController } from '../state/mapStore.js';
 /** The GeoJSON-or-URL shape MapLibre's geojson source accepts, without needing
  *  the global `GeoJSON` namespace (not in this project's tsc lib set). */
 type GeoJsonData = GeoJSONSourceSpecification['data'];
+
+/** MapLibre lehnt Aenderungen ab, solange der Stil laedt (`Style#_checkLoaded`). */
+function stilLaedtNoch(err: unknown): boolean {
+  return err instanceof Error && err.message.includes('Style is not done loading');
+}
 
 interface DesiredLayer {
   addonId: string;
@@ -49,6 +61,20 @@ export class AddonMapLayers {
   /** namespaced id -> desired state, so teardown + re-apply are both exact. */
   private readonly desired = new Map<string, DesiredLayer>();
 
+  /** Fuehrt `apply` aus; laedt der Stil noch, einmal nach `style.load`. Ist die
+   *  Ebene bis dahin entfernt worden, passiert nichts. */
+  private anwenden(id: string, apply: () => void): void {
+    try {
+      apply();
+    } catch (err) {
+      if (!stilLaedtNoch(err)) throw err;
+      const map = mapController.getMap();
+      map?.once('style.load', () => {
+        if (this.desired.get(id)?.apply === apply) this.anwenden(id, apply);
+      });
+    }
+  }
+
   addLayer(addonId: string, params: AddLayerParams): void {
     const id = namespaced(addonId, params.id);
     const apply = (): void => {
@@ -66,7 +92,7 @@ export class AddonMapLayers {
       }
     };
     this.desired.set(id, { addonId, apply });
-    apply();
+    this.anwenden(id, apply);
   }
 
   addMarkers(addonId: string, params: AddMarkersParams): void {
@@ -87,22 +113,22 @@ export class AddonMapLayers {
       map.addLayer({ id, type: 'circle', source: id, paint: { 'circle-color': '#dc2626', 'circle-radius': 7, 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff' } });
     };
     this.desired.set(id, { addonId, apply });
-    apply();
+    this.anwenden(id, apply);
   }
 
   removeLayer(addonId: string, layerId: string): void {
     const id = namespaced(addonId, layerId);
     // Ownership check: refuse to touch anything not recorded as THIS add-on's.
     if (this.desired.get(id)?.addonId !== addonId) return;
-    this.removeById(id);
     this.desired.delete(id);
+    this.entfernen(id);
   }
 
   removeAllForAddon(addonId: string): void {
     for (const [id, entry] of [...this.desired.entries()]) {
       if (entry.addonId === addonId) {
-        this.removeById(id);
         this.desired.delete(id);
+        this.entfernen(id);
       }
     }
   }
@@ -110,7 +136,17 @@ export class AddonMapLayers {
   /** Re-applies every recorded add-on layer onto the current map (called when
    *  the map instance appears or is rebuilt by a style switch). */
   reapplyAll(): void {
-    for (const entry of this.desired.values()) entry.apply();
+    for (const [id, entry] of this.desired.entries()) this.anwenden(id, entry.apply);
+  }
+
+  /** Entfernt eine Ebene; laedt der Stil gerade, verschwindet sie ohnehin mit
+   *  dem alten Stil -- und wird nicht neu gesetzt, weil sie nicht mehr gewuenscht ist. */
+  private entfernen(id: string): void {
+    try {
+      this.removeById(id);
+    } catch (err) {
+      if (!stilLaedtNoch(err)) throw err;
+    }
   }
 
   private removeById(id: string): void {

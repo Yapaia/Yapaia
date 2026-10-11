@@ -16,6 +16,7 @@ on:
     paths:
       - 'go/**'
       - 'beat/**'
+      - 'integration/**'
       - '.github/workflows/images.yml'
   workflow_dispatch:
     inputs:
@@ -56,7 +57,7 @@ jobs:
           ADDONS = [
               # name, Add-on-Ordner, Dockerfile, Image ohne {arch}, Build-Kontext-Zusatz
               ("go",   "go/yapaja_go",     "go/yapaja_go/Dockerfile",     "ghcr.io/yapaia/yapaia-go-",   "gosrc=./go"),
-              ("beat", "beat/yapaia_beat", "beat/yapaia_beat/Dockerfile", "ghcr.io/yapaia/yapaia-beat-", ""),
+              ("beat", "beat/yapaia_beat", "beat/yapaia_beat/Dockerfile", "ghcr.io/yapaia/yapaia-beat-", "yapaia-integration=./integration/custom_components"),
           ]
           RUNNER = {"amd64": "ubuntu-latest", "aarch64": "ubuntu-latest"}
           PLATFORM = {"amd64": "linux/amd64", "aarch64": "linux/arm64"}

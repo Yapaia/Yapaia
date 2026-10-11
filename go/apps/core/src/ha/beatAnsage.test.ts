@@ -72,15 +72,15 @@ describe('BeatAnsage', () => {
     const fetch = vi.fn(async (url: string, init: { method: string }) => {
       aufrufe.push(`${init.method} ${url}`);
       return url.endsWith('/services')
-        ? { ok: true, status: 200, json: async () => [{ domain: 'yapaia_beat', services: { announce: {}, play: {} } }] }
-        : url.includes('announce') && aufrufe.length === 2
+        ? { ok: true, status: 200, json: async () => [{ domain: 'yapaia', services: { beat_ansage: {}, beat_abspielen: {} } }] }
+        : url.includes('beat_ansage') && aufrufe.length === 2
           ? { ok: false, status: 500 }
           : { ok: true, status: 200, json: async () => ({ service_response: { ok: false, error: 'Radio aus' } }) };
     });
     expect(await beatAktionVorhanden(V, { fetch })).toBe(true);
     expect(await rufeBeat(V, { message: 'x' }, { fetch })).toEqual({ ok: false, status: 500 });
     expect(await rufeBeat(V, { message: 'x' }, { fetch })).toEqual({ ok: false, status: 200, fehler: 'Radio aus' });
-    expect(aufrufe[1]).toBe('POST http://ha/api/services/yapaia_beat/announce?return_response');
+    expect(aufrufe[1]).toBe('POST http://ha/api/services/yapaia/beat_ansage?return_response');
   });
 
   it('Einstellung: fehlt = an', () => {

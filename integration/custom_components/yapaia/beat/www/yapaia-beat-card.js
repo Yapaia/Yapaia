@@ -10,9 +10,9 @@
  *   show_output: true                                # optional, output picker (Mini-PC / this device / HA speakers)
  */
 
-const CARD_VERSION = "1.13.0";
-const STREAM_PATH = "/api/yapaia_beat/stream";
-const SENDSPIN_URL = "/yapaia_beat/sendspin.js";
+const CARD_VERSION = "0.2.0";
+const STREAM_PATH = "/api/yapaia/beat/stream";
+const SENDSPIN_URL = "/yapaia/beat/sendspin.js";
 
 const ICONS = {
   speaker: "M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-5 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm0 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
@@ -33,7 +33,7 @@ const svg = (d) => `<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`;
 
 /*
  * Plays the radio in this browser: the integration proxies the add-on's MP3
- * stream at /api/yapaia_beat/stream; <audio> can't send auth headers, so we
+ * stream at /api/yapaia/beat/stream; <audio> can't send auth headers, so we
  * use a signed URL.  One player per browser tab, shared by all cards and by
  * the add-on page in the side bar (which runs in an iframe and would lose its
  * sound when you switch to another dashboard); the choice is remembered per
@@ -655,7 +655,7 @@ class YapaiaBeatCard extends HTMLElement {
       // start the browser inside the tap (iOS)
       BrowserPlayer.setWanted(out === "browser" || out === "both");
       const output = out.startsWith("speaker:") ? out.slice(8) : out === "local" || out === "both" ? "local" : "none";
-      this._hass.callService("yapaia_beat", "set_output", { output });
+      this._hass.callService("yapaia", "beat_ausgabe", { output });
       this._el.outMenu.hidden = true;
       this._render();
     };
@@ -671,11 +671,11 @@ class YapaiaBeatCard extends HTMLElement {
     };
     this._el.fav.onclick = () => {
       const a = this._stateObj && this._stateObj.attributes;
-      if (a && a.station_id) this._hass.callService("yapaia_beat", "set_favorite", { station_id: a.station_id, favorite: !a.favorite });
+      if (a && a.station_id) this._hass.callService("yapaia", "beat_favorit", { station_id: a.station_id, favorite: !a.favorite });
     };
     this._el.presets.onclick = (e) => {
       const b = e.target.closest("[data-id]");
-      if (b) this._hass.callService("yapaia_beat", "play", { station_id: b.dataset.id });
+      if (b) this._hass.callService("yapaia", "beat_abspielen", { station_id: b.dataset.id });
     };
     this._el.logo.onerror = () => { this._el.logo.style.visibility = "hidden"; };
     this._el.logo.onload = () => { this._el.logo.style.visibility = "visible"; };

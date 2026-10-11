@@ -1,6 +1,72 @@
-# Die Aktionen dieser Integration entstehen erst zur Laufzeit aus der
-# Selbstbeschreibung der Module (`yapaia.<modul>_<name>`, siehe
-# docs/integration-protokoll.md, Abschnitt 5) und werden dabei mit Titel,
-# Feldern und Ziel-Gerät beschrieben (aktionen.py, `async_set_service_schema`).
-# Feste Aktionen gibt es keine -- daher ist diese Datei leer.
-{}
+# Feste Aktionen: die des Beat-Teils (vorher `yapaia_beat.*`). Die Aktionen
+# der Module selbst (`yapaia.<modul>_<name>`) entstehen zur Laufzeit aus deren
+# Selbstbeschreibung und werden dabei beschrieben (aktionen.py).
+beat_abspielen:
+  fields:
+    station:
+      example: "SWR3"
+      selector:
+        text:
+    station_id:
+      example: "fm-d318"
+      selector:
+        text:
+    frequency:
+      example: 98.3
+      selector:
+        number:
+          min: 87.5
+          max: 108
+          step: 0.05
+          unit_of_measurement: MHz
+          mode: box
+beat_suchlauf:
+  fields:
+    band:
+      default: all
+      selector:
+        select:
+          options:
+            - fm
+            - dab
+            - all
+beat_favorit:
+  fields:
+    station_id:
+      selector:
+        text:
+    favorite:
+      default: true
+      selector:
+        boolean:
+beat_ausgabe:
+  fields:
+    output:
+      required: true
+      example: "media_player.wohnzimmer"
+      selector:
+        text:
+beat_ansage:
+  fields:
+    message:
+      required: true
+      example: "In 300 Metern rechts abbiegen"
+      selector:
+        text:
+    engine:
+      example: "tts.piper"
+      selector:
+        entity:
+          domain: tts
+    language:
+      example: "de-DE"
+      selector:
+        text:
+    priority:
+      default: hinweis
+      selector:
+        select:
+          options:
+            - info
+            - hinweis
+            - navigation

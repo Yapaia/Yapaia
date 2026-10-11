@@ -9,7 +9,7 @@ import signal
 
 from aiohttp import web
 
-from . import ha
+from . import ha, protokoll
 from .audio import AudioOutput
 from .config import DATA_DIR, VERSION, load_options
 from .logos import LogoManager
@@ -39,23 +39,33 @@ async def main() -> None:
     audio.mischer.musik_pegel = max(0, min(100, opts.announce_music_level)) / 100
     radio = Radio(opts, store, logos, audio)
 
-    runner = web.AppRunner(create_app(radio), access_log=None)
+    ident = protokoll.Identitaet()
+    runner = web.AppRunner(create_app(radio, ident), access_log=None)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", PORT).start()
     log.info("Web interface listening on port %d (local audio: %s)", PORT, audio.local)
 
     if opts.install_integration:
         try:
-            if ha.install_integration():
+            was = ha.install_integration()
+            if was == "ersetzt":
                 await ha.notify(
-                    "Yapaia Beat",
-                    "Die Yapaia Beat Integration wurde installiert bzw. aktualisiert. "
+                    "Yapaia",
+                    "Yapaia Beat gehört jetzt zur gemeinsamen Integration **Yapaia**. "
+                    "Bitte **Home Assistant neu starten**. Danach unter *Einstellungen → Geräte & Dienste* "
+                    "den alten Eintrag „Yapaia Beat“ löschen und das neu gefundene Gerät „Yapaia Beat“ "
+                    "hinzufügen. Die Entitäten (z. B. `media_player.yapaia_beat`) behalten ihre Namen.",
+                )
+            elif was:
+                await ha.notify(
+                    "Yapaia",
+                    "Die Yapaia-Integration wurde installiert bzw. aktualisiert. "
                     "Bitte **Home Assistant neu starten**, danach erscheint Yapaia Beat unter "
                     "*Einstellungen → Geräte & Dienste* als entdecktes Gerät.",
                 )
         except OSError as err:
             log.error("Could not install integration: %s", err)
-    await ha.announce(PORT)
+    await ha.announce(PORT, ident.instanz, ident.token, VERSION)
 
     await radio.start()
 

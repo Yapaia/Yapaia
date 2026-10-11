@@ -36,3 +36,10 @@ SATELLIT_MODELL = "satellite"
 SATELLIT_FAEHIGKEITEN = ["sprache.eingabe", "sprache.ausgabe"]
 
 RECONNECT_MAX_S = 60
+
+# `spezial`-Entitäten, für die diese Integration eigenen Code hat
+SPEZIAL = {"beat"}
+
+# Alle Plattformen, die die Integration lädt: die allgemeinen und die, die nur
+# Spezial-Code nutzt (Beats Mediaplayer, Logo/Slideshow).
+ALLE_PLATTFORMEN: list[Platform] = [*PLATTFORMEN.values(), Platform.MEDIA_PLAYER, Platform.IMAGE]

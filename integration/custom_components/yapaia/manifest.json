@@ -2,18 +2,22 @@
   "domain": "yapaia",
   "name": "Yapaia",
   "after_dependencies": [
-    "hassio",
-    "esphome"
+    "esphome",
+    "frontend",
+    "hassio"
   ],
   "codeowners": [
     "@Apfelsafft"
   ],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": [
+    "http",
+    "media_source"
+  ],
   "documentation": "https://github.com/Yapaia/yapaia/blob/main/docs/integration-protokoll.md",
   "integration_type": "hub",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/Yapaia/yapaia/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

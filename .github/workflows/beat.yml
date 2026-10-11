@@ -41,6 +41,7 @@ jobs:
       - name: Build add-on image (amd64)
         run: |
           docker build \
+            --build-context yapaia-integration=../integration/custom_components \
             --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm \
             --build-arg BUILD_VERSION=ci \
             -t yapaia-beat:ci yapaia_beat
@@ -48,3 +49,6 @@ jobs:
         run: |
           docker run --rm --entrypoint "" -e YAPAIA_DATA=/tmp yapaia-beat:ci \
             bash -c 'welle-cli -v; redsea --version; timeout 5 python3 -m yapaia || test $? -eq 124'
+          # die gemeinsame Integration ist im Image
+          docker run --rm --entrypoint "" yapaia-beat:ci \
+            python3 -c 'import json; print("Integration", json.load(open("/opt/yapaia/integration/yapaia/manifest.json"))["version"])'

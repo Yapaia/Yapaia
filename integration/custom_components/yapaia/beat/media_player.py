@@ -14,7 +14,6 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import LOGO_URL, STREAM_URL
 from .coordinator import YapaiaCoordinator
@@ -24,8 +23,8 @@ F = MediaPlayerEntityFeature
 MEDIA_PREFIX = "yapaia://station/"
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([YapaiaMediaPlayer(entry.runtime_data)])
+def entitaeten(hass: HomeAssistant, coordinator: YapaiaCoordinator) -> list:
+    return [YapaiaMediaPlayer(coordinator)]
 
 
 class YapaiaMediaPlayer(YapaiaEntity, MediaPlayerEntity):

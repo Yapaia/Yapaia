@@ -6,16 +6,13 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import YapaiaCoordinator
 from .entity import YapaiaEntity
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities(
-        [YapaiaFollowSwitch(entry.runtime_data), YapaiaMuteSwitch(entry.runtime_data), YapaiaLocalOutputSwitch(entry.runtime_data)]
-    )
+def entitaeten(hass: HomeAssistant, coordinator: YapaiaCoordinator) -> list:
+    return [YapaiaFollowSwitch(coordinator), YapaiaMuteSwitch(coordinator), YapaiaLocalOutputSwitch(coordinator)]
 
 
 class YapaiaFollowSwitch(YapaiaEntity, SwitchEntity):

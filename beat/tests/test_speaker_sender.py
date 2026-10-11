@@ -14,7 +14,7 @@ import sys
 import types
 from pathlib import Path
 
-INTEGRATION = Path(__file__).resolve().parents[1] / "yapaia_beat/rootfs/opt/yapaia/integration/yapaia_beat"
+INTEGRATION = Path(__file__).resolve().parents[2] / "integration/custom_components/yapaia/beat"
 
 
 def _stub_homeassistant() -> None:

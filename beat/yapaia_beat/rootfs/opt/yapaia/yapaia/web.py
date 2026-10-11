@@ -11,6 +11,7 @@ from typing import Any
 
 from aiohttp import WSMsgType, web
 
+from . import protokoll
 from .config import APP_DIR, VERSION
 from .ansage import PRIORITAETEN, dekodiere
 from .icy import IcyWriter, icy_name, jetzt_titel
@@ -378,9 +379,11 @@ async def stream(request: web.Request) -> web.StreamResponse:
     return resp
 
 
-def create_app(radio: Radio) -> web.Application:
+def create_app(radio: Radio, ident: protokoll.Identitaet | None = None) -> web.Application:
     app = web.Application(middlewares=[errors], client_max_size=6 * 1024 * 1024)
     app["radio"] = radio
+    # Yapaia-Protokoll (/yapaia/v1/*), nur mit Token
+    protokoll.einbinden(app, ident or protokoll.Identitaet())
     app.add_routes(routes)
     app.router.add_static("/static", WWW, append_version=False)
     return app

@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.14.0
+
+**Yapaia Beat gehört jetzt zur gemeinsamen Integration „Yapaia“.**
+
+- Beat ist ein Gerät unter der Integration **Yapaia** – derselben, unter der
+  sich auch Yapaia Go und weitere Module anmelden. Die Entitäten behalten ihre
+  Namen (`media_player.yapaia_beat`, `sensor.yapaia_beat_station` …), die
+  Dashboard-Karte (`custom:yapaia-beat-card`) bleibt.
+- **Umstieg einmalig:** Nach dem Update bittet Home Assistant um einen
+  Neustart. Danach unter *Einstellungen → Geräte & Dienste* den alten Eintrag
+  „Yapaia Beat“ **löschen** und das neu gefundene Gerät „Yapaia Beat“
+  hinzufügen. (Erst löschen, dann hinzufügen – sonst bekämen die Entitäten
+  einen Zusatz `_2`.) Die alte Integration entfernt das Add-on selbst.
+- **Aktionen umbenannt** (Automationen und Skripte bitte anpassen):
+
+  | bisher | jetzt |
+  |---|---|
+  | `yapaia_beat.play` | `yapaia.beat_abspielen` |
+  | `yapaia_beat.scan` | `yapaia.beat_suchlauf` |
+  | `yapaia_beat.set_favorite` | `yapaia.beat_favorit` |
+  | `yapaia_beat.set_output` | `yapaia.beat_ausgabe` |
+  | `yapaia_beat.announce` | `yapaia.beat_ansage` |
+
+  Die Felder sind unverändert. Yapaia Go nutzt ab 0.43.0 die neue Ansage-Aktion.
+- Beat meldet sich mit eigenem Zugangsschlüssel an; die neue Schnittstelle für
+  die Integration ist ohne ihn geschlossen.
+
 ## 1.13.0
 
 **Zweiter RTL-SDR-Stick: Suchlauf und Senderverfolgung im Hintergrund.**

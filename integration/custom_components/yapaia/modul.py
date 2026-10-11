@@ -38,6 +38,8 @@ class YapaiaModul:
         self.verbunden = False
         self.geraet_id: str | None = None
         self._hoerer: set[Callable[[], None]] = set()
+        # Spezial-Teile (z. B. der Beat-Koordinator), sofern beschrieben
+        self.beat: Any = None
         self._task: asyncio.Task | None = None
 
     # ------------------------------------------------------------------
@@ -55,6 +57,13 @@ class YapaiaModul:
 
     def entitaeten(self) -> list[dict[str, Any]]:
         return [e for e in self.beschreibung.get("entitaeten", []) if isinstance(e, dict) and e.get("schluessel")]
+
+    def spezial(self) -> set[str]:
+        return {
+            str(e.get("spezial"))
+            for e in self.beschreibung.get("entitaeten", [])
+            if isinstance(e, dict) and e.get("plattform") == "spezial" and e.get("spezial")
+        }
 
     def aktionen(self) -> list[dict[str, Any]]:
         return [a for a in self.beschreibung.get("aktionen", []) if isinstance(a, dict) and a.get("name")]

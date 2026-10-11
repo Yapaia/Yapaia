@@ -73,13 +73,15 @@ und unterbricht die Wiedergabe.
    (alternativ das Skript `install.sh` aus dem Repository verwenden).
 2. **Yapaia Beat** installieren und starten. Das Image wird lokal gebaut –
    auf einem Raspberry Pi dauert das beim ersten Mal 15–30 Minuten.
-3. Beim ersten Start installiert das Add-on die **Yapaia Beat Integration**
-   nach `/config/custom_components/yapaia_beat` und zeigt eine Benachrichtigung.
+3. Beim ersten Start installiert das Add-on die gemeinsame **Yapaia-Integration**
+   nach `/config/custom_components/yapaia` (dieselbe für alle Yapaia-Module) und
+   zeigt eine Benachrichtigung.
    **Home Assistant einmal neu starten.**
 4. *Einstellungen → Geräte & Dienste*: „Yapaia Beat" wurde entdeckt →
-   **Konfigurieren**. (Manuell: Integration hinzufügen → Yapaia Beat, Host =
-   Hostname des Add-ons, z. B. `local-yapaia-beat` bzw. `xxxxxxxx-yapaia-beat`,
-   Port `8099`.)
+   **Konfigurieren**. Es erscheint als Gerät unter der Integration **Yapaia**.
+   (Manuell, ohne Supervisor: Integration hinzufügen → Yapaia, Adresse
+   `http://<Hostname>:8099` und das Token, das Beat beim Start ins Protokoll
+   schreibt.)
 5. In der Seitenleiste **Yapaia Beat** öffnen → **Suchlauf** → *Beides*.
 6. Unter **Sender** die Favoriten mit ☆ markieren.
 
@@ -155,7 +157,7 @@ name: SWR3
 icon: mdi:radio
 tap_action:
   action: perform-action
-  perform_action: yapaia_beat.play
+  perform_action: yapaia.beat_abspielen
   data:
     station: SWR3
 ```
@@ -187,13 +189,13 @@ Namen und Logo-URLs) u. a.
 
 ## Aktionen (Dienste)
 
-- `yapaia_beat.play` – `station` (Name), `station_id` oder `frequency` (MHz)
-- `yapaia_beat.scan` – `band`: `fm`, `dab` oder `all`
-- `yapaia_beat.set_favorite` – `station_id` (leer = aktueller Sender), `favorite`
-- `yapaia_beat.set_output` – `output`: `local` (Mini-PC), `none` (nur
+- `yapaia.beat_abspielen` – `station` (Name), `station_id` oder `frequency` (MHz)
+- `yapaia.beat_suchlauf` – `band`: `fm`, `dab` oder `all`
+- `yapaia.beat_favorit` – `station_id` (leer = aktueller Sender), `favorite`
+- `yapaia.beat_ausgabe` – `output`: `local` (Mini-PC), `none` (nur
   Browser) oder die Entitäts-ID eines Media Players, z. B.
   `media_player.wohnzimmer`
-- `yapaia_beat.announce` – `message` (Text), optional `engine` (TTS-Entität,
+- `yapaia.beat_ansage` – `message` (Text), optional `engine` (TTS-Entität,
   leer = Standard), `language`, `priority` (`navigation`, `hinweis`, `info`):
   spricht den Text **in das laufende Radio** – siehe „Ansagen einmischen"
 - sowie alle `media_player.*`-Aktionen, z. B. `media_player.select_source`
@@ -207,7 +209,7 @@ triggers:
   - trigger: time
     at: "07:30:00"
 actions:
-  - action: yapaia_beat.play
+  - action: yapaia.beat_abspielen
     data:
       station: SWR3
   - action: media_player.volume_set
@@ -237,7 +239,7 @@ So geht's:
   *Ausgabe* antippen → Gerät wählen.
 - **Radio-Karte**: Taste 🔈 → Gerät wählen.
 - **Standard-Karten/Automationen**: `select.yapaia_beat_output` oder die
-  Aktion `yapaia_beat.set_output`.
+  Aktion `yapaia.beat_ausgabe`.
 
 Bei einem Home-Assistant-Lautsprecher startet die Integration den
 Live-Stream auf dem Gerät, sobald das Radio läuft, und stoppt ihn, wenn du
@@ -296,7 +298,7 @@ Aktion fehl – Yapaia Go spricht dann wie gewohnt über `tts.speak`.
 
 ```yaml
 actions:
-  - action: yapaia_beat.announce
+  - action: yapaia.beat_ansage
     data:
       message: Der Frischwassertank ist fast leer.
       priority: hinweis
@@ -319,7 +321,7 @@ Damit er dort erscheint, braucht es zweierlei:
 Ansagen gehen dann direkt an Music Assistant: die Musik wird
 kurz pausiert bzw. bei Snapcast und Sonos leiser gemischt und läuft danach
 weiter – ohne die Verzögerung des Streams. Die Antwort von
-`yapaia_beat.announce` sagt, welcher Weg genommen wurde (`weg`:
+`yapaia.beat_ansage` sagt, welcher Weg genommen wurde (`weg`:
 `lautsprecher` oder `gemischt`).
 
 #### Der Browser als Player von Music Assistant
@@ -454,7 +456,7 @@ Favoriten bleiben erhalten und werden automatisch zugeordnet.
 - **Keine Logos**: Beim Suchlauf/Abspielen muss einmalig Internet vorhanden
   sein. Logos können auch im Sender-Dialog hochgeladen werden.
 - **Integration nicht gefunden**: Home Assistant nach dem ersten Add-on-Start
-  neu starten; prüfen, ob `/config/custom_components/yapaia_beat` existiert.
+  neu starten; prüfen, ob `/config/custom_components/yapaia` existiert.
 - Mehr Details: Option `log_level: debug` setzen und das Add-on-Log ansehen.
 
 ## Verwendete Software

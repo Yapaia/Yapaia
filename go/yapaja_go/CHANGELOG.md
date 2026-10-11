@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.43.0
+
+**Ansagen ins Radio über die neue Yapaia-Integration.**
+
+- Yapaia Beat gehört ab 1.14.0 zur gemeinsamen Integration „Yapaia“; seine
+  Ansage-Aktion heißt dort `yapaia.beat_ansage`. Go nutzt jetzt diesen Namen.
+  Mit einem Beat vor 1.14 fällt die Ansage im Radio weg (Go spricht dann wie
+  ohne Beat über den gewählten Lautsprecher) – beide gemeinsam aktualisieren.
+- Erweiterungen, die während des Kartenladens (Start, Stilwechsel) eine Ebene
+  zeichnen, bekamen einen Fehler zurück („Style is not done loading“). Die
+  Ebene erscheint jetzt, sobald die Karte bereit ist.
+
+---
+
 ## 0.42.0
 
 **Spritpreise in der Tankstellensuche (Tankerkönig).**
