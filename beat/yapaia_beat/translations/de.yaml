@@ -1,0 +1,94 @@
+configuration:
+  audio_output:
+    name: Audioausgabe
+    description: >-
+      "local" spielt über die Audioausgabe von Home Assistant (Lautsprecher am
+      Host) und stellt zusätzlich den MP3-Stream bereit. "stream" nur MP3-Stream.
+  default_volume:
+    name: Start-Lautstärke
+    description: Lautstärke beim ersten Start (0–100). Danach wird die zuletzt gewählte gespeichert.
+  rtl_gain:
+    name: Tuner-Verstärkung
+    description: '"auto" oder ein Wert in dB (z. B. 29.7). Bei Übersteuerung in Sendernähe reduzieren.'
+  ppm_correction:
+    name: Frequenzkorrektur (ppm)
+    description: Quarz-Korrektur des RTL-SDR Sticks.
+  auto_follow:
+    name: Automatische Senderverfolgung
+    description: >-
+      Wird der Empfang schlechter, sucht Yapaia Beat automatisch eine bessere
+      Frequenz (RDS-AF-Liste, PI-Code) bzw. einen anderen DAB-Kanal desselben
+      Senders. Kann auch im Dashboard umgeschaltet werden.
+  follow_threshold:
+    name: Schwelle Senderverfolgung (%)
+    description: Unterhalb dieser Empfangsqualität wird nach einer Alternative gesucht.
+  follow_delay_s:
+    name: Verzögerung Senderverfolgung (s)
+    description: So lange muss der Empfang schlecht sein, bevor gesucht wird.
+  follow_cross_band:
+    name: Wechsel zwischen FM und DAB+ erlauben
+    description: Findet sich keine bessere Frequenz im selben Band, wird derselbe Sender im anderen Band gesucht.
+  follow_full_search:
+    name: Bandsuche bei Senderverfolgung
+    description: Als letzte Möglichkeit das ganze Band nach dem Sender (PI-Code/Service-ID) durchsuchen.
+  logo_lookup_online:
+    name: Senderlogos online suchen
+    description: Logos über radio-browser.info suchen und lokal zwischenspeichern.
+  country_code:
+    name: Ländercode
+    description: Zweistelliger Ländercode für die Logosuche (z. B. DE, AT, CH).
+  fm_step_khz:
+    name: FM-Kanalraster (kHz)
+  fm_scan_threshold_db:
+    name: FM-Suchlauf Empfindlichkeit (dB)
+    description: Mindestabstand eines Senders zum Rauschen. Kleiner = mehr (auch schwache) Sender.
+  fm_deemphasis_us:
+    name: FM De-Emphasis (µs)
+    description: 50 µs in Europa, 75 µs in Nordamerika.
+  dab_prefilter:
+    name: DAB-Schnellsuchlauf
+    description: Vor dem DAB-Suchlauf das Band messen und nur belegte Kanäle prüfen.
+  mp3_bitrate:
+    name: MP3-Stream Bitrate (kbit/s)
+  rtl_device_index:
+    name: RTL-SDR Geräteindex
+    description: Der Stick, auf dem gehört wird. Nur bei mehreren Sticks relevant.
+  second_stick:
+    name: Zweiter Stick
+    description: >-
+      Ist ein zweiter RTL-SDR-Stick eingesteckt: „suche" – er macht Suchlauf und
+      Senderverfolgung im Hintergrund, das Radio spielt dabei auf dem ersten weiter
+      (funktioniert auch, wenn er schwächer empfängt; empfängt er deutlich schlechter,
+      sucht Beat wie mit einem Stick). „gleichwertig" – beide Sticks haben gleich guten
+      Empfang (eigene Antenne oder Antennenweiche): ein neuer Sender läuft zuerst auf dem
+      freien Stick an und übernimmt dann ohne Pause. „aus" – zweiten Stick nicht nutzen.
+  background_scan_minutes:
+    name: Hintergrund-Suchlauf (Minuten)
+    description: >-
+      Mit zweitem Stick sucht Beat während der Wiedergabe alle so viele Minuten
+      UKW und DAB+ neu ab – unterwegs bleibt die Senderliste aktuell. 0 = aus.
+  resume_last_station:
+    name: Letzten Sender fortsetzen
+    description: Nach einem Neustart den zuletzt gespielten Sender wieder abspielen.
+  standby_minutes:
+    name: Standby nach (Minuten)
+    description: >-
+      Hört niemand zu (Mini-PC-Lautsprecher aus und kein Browser/Player mit dem
+      Stream verbunden), wird der Empfang nach dieser Zeit gestoppt – schont den
+      RTL-SDR Stick. Sobald wieder jemand zuhört, geht es automatisch weiter.
+      0 = Standby aus.
+  announce_music_level:
+    name: Musik während Ansagen (%)
+    description: >-
+      Spricht ein anderes Yapaia-Modul (z. B. die Navigation von Yapaia Go),
+      wird die Musik auf diesen Anteil abgesenkt und die Ansage eingemischt.
+      Danach wird sie wieder lauter. 0 = Musik ganz leise.
+  install_integration:
+    name: Integration automatisch installieren
+    description: >-
+      Installiert/aktualisiert die Yapaia Beat Integration (Entitäten und
+      Lovelace-Karte) in /config/custom_components.
+  log_level:
+    name: Log-Level
+network:
+  8099/tcp: Web-Oberfläche & MP3-Stream (optional, für externe Player)
