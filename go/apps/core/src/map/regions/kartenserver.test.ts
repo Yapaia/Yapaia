@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { JobRegistry } from './jobs.js';
-import { eintragAus, erlaubterArchivpfad, graphEinwechseln, holeKatalog, runPaketJob, verbindungAus } from './kartenserver.js';
+import { eintragAus, erlaubterArchivpfad, graphEinwechseln, holeKatalog, paketUrl, runPaketJob, verbindungAus } from './kartenserver.js';
 import { regionsPlugin } from './routes.js';
 
 const TOKEN = 'go-token';
@@ -126,6 +126,44 @@ describe('Katalog vom Kartenserver', () => {
     expect(erlaubterArchivpfad('/etc/passwd')).toBe(false);
     expect(erlaubterArchivpfad('tiles/../../x')).toBe(false);
     expect(erlaubterArchivpfad('anderes/x')).toBe(false);
+  });
+});
+
+describe('Adresse der Paketdateien', () => {
+  it('Dateien laufen über die in Go eingetragene Adresse, nicht über die aus dem Katalog', () => {
+    expect(paketUrl('https://yapaia.example/v1/pakete/a/a.pmtiles', 'https://karten.yapaia.example')).toBe('https://karten.yapaia.example/v1/pakete/a/a.pmtiles');
+    expect(paketUrl('https://spiegel.example/dateien/a.pmtiles', 'https://karten.yapaia.example')).toBe('https://spiegel.example/dateien/a.pmtiles');
+    expect(paketUrl('https://x/v1/pakete/a/a.pmtiles')).toBe('https://x/v1/pakete/a/a.pmtiles');
+  });
+
+  it('falsch eingestellte OEFFENTLICHE_URL auf dem Server: Laden klappt trotzdem', async () => {
+    const d = tmp();
+    const karte = Buffer.from('PMTiles-Karte');
+    // Der Server schreibt eine Adresse in den Katalog, unter der niemand antwortet.
+    const basis = await kartenserver({ 'alpen.pmtiles': karte }, () => [
+      { ...paket('https://falsche-domain.invalid', karte, Buffer.from(''), Buffer.from('')), suche: undefined, routing: undefined },
+    ]);
+    const [eintrag] = await holeKatalog({ url: basis, token: TOKEN });
+    expect(eintrag.url).toBe(`${basis}/v1/pakete/alpen/alpen.pmtiles`);
+    const z = { tilesDir: join(d, 'tiles'), liteDir: join(d, 'lite'), graphDir: join(d, 'valhalla', 'tiles') };
+    const jobs = new JobRegistry();
+    const id = jobs.create('kartenserver');
+    await runPaketJob(id, jobs, eintrag, z, TOKEN);
+    expect((await fertig(jobs, id)).status).toBe('done');
+    expect(readFileSync(join(z.tilesDir, 'alpen.pmtiles'), 'utf-8')).toBe('PMTiles-Karte');
+  });
+
+  it('fehlende Datei: Meldung nennt Datei und Adresse', async () => {
+    const d = tmp();
+    const karte = Buffer.from('k');
+    const basis = await kartenserver({}, (b) => [{ ...paket(b, karte, Buffer.from(''), Buffer.from('')), suche: undefined, routing: undefined }]);
+    const [eintrag] = await holeKatalog({ url: basis, token: TOKEN });
+    const jobs = new JobRegistry();
+    const id = jobs.create('kartenserver');
+    await runPaketJob(id, jobs, eintrag, { tilesDir: join(d, 't'), liteDir: join(d, 'l'), graphDir: join(d, 'v', 'tiles') }, TOKEN);
+    const j = await fertig(jobs, id);
+    expect(j.status).toBe('error');
+    expect(j.error?.message).toMatch(/alpen\.pmtiles nicht gefunden \(http:\/\/127\.0\.0\.1:\d+\/v1\/pakete\/alpen\/alpen\.pmtiles\)/);
   });
 });
 

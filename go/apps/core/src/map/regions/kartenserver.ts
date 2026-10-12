@@ -62,11 +62,33 @@ export function verbindungAus(wert: unknown): KartenserverVerbindung | null {
 
 const ID = /^[a-z0-9][a-z0-9_-]{0,62}$/;
 
-function datei(roh: unknown): PaketDatei | undefined {
+/**
+ * Die Adresse einer Paketdatei -- ueber den Kartenserver, den der Nutzer in
+ * Go eingetragen hat.
+ *
+ * Der Kartenserver schreibt volle URLs in den Katalog und baut sie aus seiner
+ * Einstellung `OEFFENTLICHE_URL`. Steht dort etwas Falsches (gemeldet: die
+ * Webseiten-Domain ohne `karten.`), fand Go den Katalog, aber jede Datei
+ * endete mit 404 -- obwohl die Adresse, ueber die Go den Server ja erreicht,
+ * die ganze Zeit richtig war. Pfade unter `/v1/pakete/` laufen deshalb immer
+ * ueber diese Adresse; nur fremde Pfade (etwa ein Spiegel) bleiben, wie sie
+ * im Katalog stehen.
+ */
+export function paketUrl(url: string, basis?: string): string {
+  if (!basis) return url;
+  try {
+    const u = new URL(url);
+    return u.pathname.startsWith('/v1/pakete/') ? `${basis}${u.pathname}${u.search}` : url;
+  } catch {
+    return url;
+  }
+}
+
+function datei(roh: unknown, basis?: string): PaketDatei | undefined {
   if (!roh || typeof roh !== 'object') return undefined;
   const d = roh as Record<string, unknown>;
   if (typeof d.url !== 'string' || !/^https?:\/\//.test(d.url) || typeof d.sizeBytes !== 'number') return undefined;
-  return { url: d.url, sizeBytes: d.sizeBytes, ...(typeof d.sha256 === 'string' ? { sha256: d.sha256 } : {}) };
+  return { url: paketUrl(d.url, basis), sizeBytes: d.sizeBytes, ...(typeof d.sha256 === 'string' ? { sha256: d.sha256 } : {}) };
 }
 
 function datum(iso: unknown): string {
@@ -75,15 +97,15 @@ function datum(iso: unknown): string {
 }
 
 /** Ein Eintrag aus `GET /v1/katalog` -- oder `null`, wenn er nicht taugt. */
-export function eintragAus(roh: unknown): KartenserverEintrag | null {
+export function eintragAus(roh: unknown, basis?: string): KartenserverEintrag | null {
   if (!roh || typeof roh !== 'object') return null;
   const r = roh as Record<string, unknown>;
   if (typeof r.id !== 'string' || !ID.test(r.id) || typeof r.name !== 'string') return null;
   const b = r.bounds;
   if (!Array.isArray(b) || b.length !== 4 || !b.every((x) => typeof x === 'number' && Number.isFinite(x))) return null;
-  const karte = typeof r.url === 'string' && /^https?:\/\//.test(r.url) ? r.url : undefined;
-  const suche = datei(r.suche);
-  const routing = datei(r.routing);
+  const karte = typeof r.url === 'string' && /^https?:\/\//.test(r.url) ? paketUrl(r.url, basis) : undefined;
+  const suche = datei(r.suche, basis);
+  const routing = datei(r.routing, basis);
   if (!karte && !suche && !routing) return null;
   const teile = [karte && 'Karte', suche && 'Suche', routing && 'Routing'].filter(Boolean).join(', ');
   return {
@@ -121,7 +143,7 @@ export async function holeKatalog(
   if (!r.ok) throw new Error(`Kartenserver antwortet mit HTTP ${r.status}`);
   const daten = (await r.json().catch(() => null)) as unknown;
   if (!Array.isArray(daten)) throw new Error('Unerwartete Antwort vom Kartenserver');
-  return daten.map(eintragAus).filter((e): e is KartenserverEintrag => e !== null);
+  return daten.map((d) => eintragAus(d, v.url)).filter((e): e is KartenserverEintrag => e !== null);
 }
 
 /** Ob ein Archivpfad in den Routing-Ordner gehoert -- nichts anderes wird entpackt. */
@@ -184,6 +206,7 @@ async function ladeGeprueft(
 ): Promise<void> {
   await mkdir(dirname(ziel), { recursive: true });
   const teil = `${ziel}.part`;
+  const name = url.split('/').pop();
   await streamToFile({
     url,
     dest: teil,
@@ -192,12 +215,17 @@ async function ladeGeprueft(
     jobs: ctx.jobs,
     headers: { Authorization: `Bearer ${ctx.token}` },
     fortschritt: { davor: ctx.davor, gesamt: ctx.gesamt },
+  }).catch((err: unknown) => {
+    const status = /HTTP status (\d+)/.exec(err instanceof Error ? err.message : '')?.[1];
+    if (!status) throw err;
+    const was = status === '404' ? 'nicht gefunden' : status === '401' ? 'Token abgelehnt' : `HTTP ${status}`;
+    throw Object.assign(new Error(`Kartenserver: ${name} ${was} (${url})`), { code: 'DOWNLOAD_FAILED' });
   });
   if (sha256) {
     const ist = await hashFile(teil);
     if (ist.toLowerCase() !== sha256.toLowerCase()) {
       await rm(teil, { force: true });
-      throw Object.assign(new Error(`Prüfsumme stimmt nicht (${url.split('/').pop()})`), { code: 'HASH_MISMATCH' });
+      throw Object.assign(new Error(`Prüfsumme stimmt nicht (${name})`), { code: 'HASH_MISMATCH' });
     }
   }
 }
