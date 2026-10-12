@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.46.1
+
+**Kartenpakete laden, auch wenn der Kartenserver seine Adresse falsch kennt.**
+Gemeldet: Go fand das Paket auf dem Kartenserver, das Laden brach aber mit
+„Unexpected HTTP status 404 downloading region tiles“ ab.
+
+- Der Kartenserver schreibt volle Adressen in seinen Katalog. Stimmte dort
+  seine Einstellung `OEFFENTLICHE_URL` nicht (z. B. die Webseiten-Domain ohne
+  `karten.`), landete jeder Download bei der falschen Stelle. Go lädt die
+  Dateien jetzt immer über die Adresse, die du in Go eingetragen hast – die,
+  über die es den Server ohnehin schon erreicht.
+- Klappt ein Download nicht, sagt die Meldung auf Deutsch, welche Datei unter
+  welcher Adresse fehlt.
+
 ## 0.46.0
 
 **Karten vom eigenen Kartenserver.** Ein eigener Yapaia-Kartenserver (Repo
