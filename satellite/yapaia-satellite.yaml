@@ -14,9 +14,12 @@ substitutions:
   # Kopfhörerbuchse hängen je nach Board-Revision an verschiedenen Ausgängen –
   # BOTH trifft beide).
   speaker_output: BOTH
-  # Woher das Mikrofon kommt: LINE1 = Board-Mikrofone, LINE2 = Line-In-Buchse
-  mic_input: LINE1
-  # Verstärkung der Mikrofone für Spracherkennung und Aktivierungswort
+  # Woher das Mikrofon kommt: LINE2 = Board-Mikrofone, LINE1 = Line-In-Buchse
+  mic_input: LINE2
+  # Vorverstärkung der Mikrofone im Codec in dB (0–24, in 3er-Schritten).
+  # Startwert für „Mikrofon-Vorverstärkung" in Home Assistant.
+  mic_pga_db: "24"
+  # Zusätzliche digitale Verstärkung für Spracherkennung und Aktivierungswort
   mic_gain: "4"
   # Status-LED (D4 an GPIO22) leuchtet bei LOW
   led_inverted: "true"
@@ -27,7 +30,7 @@ esphome:
   min_version: 2025.5.0
   project:
     name: yapaia.satellite
-    version: "0.1.0"
+    version: "0.2.0"
   on_boot:
     priority: -100
     then:
@@ -37,6 +40,7 @@ esphome:
       - select.set:
           id: mic_input_select
           option: ${mic_input}
+      - script.execute: codec_mikrofon
       - script.execute: zuhoeren
 
 esp32:
@@ -186,10 +190,17 @@ voice_assistant:
   media_player: media_player_id
   micro_wake_word: mww
   use_wake_word: false
-  noise_suppression_level: 2
+  # Höchste Stufe: die Board-Mikrofone rauschen deutlich (Sprache liegt aus
+  # 50 cm nur rund 18 dB über dem Grundrauschen).
+  noise_suppression_level: 4
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   on_listening:
+    # Ab hier läuft eine echte Anfrage (nicht nur das Warten aufs
+    # Aktivierungswort) – KEY1 bricht sie dann ab, statt eine neue zu starten.
+    - lambda: |-
+        id(anfrage_laeuft) = true;
+        id(taste_startet) = false;
     - light.turn_on:
         id: status_led
         effect: none
@@ -206,16 +217,26 @@ voice_assistant:
         id: status_led
         effect: none
   on_end:
-    - wait_until:
-        not:
-          media_player.is_announcing:
-    - light.turn_off: status_led
-    - mixer_speaker.apply_ducking:
-        id: media_mixer_input
-        decibel_reduction: 0
-        duration: 1.0s
-    - script.execute: zuhoeren
+    # Startet KEY1 gerade eine Anfrage, gehört dieses Ende noch zum
+    # abgebrochenen Warten aufs Aktivierungswort – dann nichts anfassen.
+    - if:
+        condition:
+          lambda: return !id(taste_startet);
+        then:
+          - lambda: id(anfrage_laeuft) = false;
+          - wait_until:
+              not:
+                media_player.is_announcing:
+          - light.turn_off: status_led
+          - mixer_speaker.apply_ducking:
+              id: media_mixer_input
+              decibel_reduction: 0
+              duration: 1.0s
+          - script.execute: zuhoeren
   on_error:
+    - lambda: |-
+        id(anfrage_laeuft) = false;
+        id(taste_startet) = false;
     - light.turn_on:
         id: status_led
         effect: Schnell blinken
@@ -226,7 +247,73 @@ voice_assistant:
   on_client_disconnected:
     - voice_assistant.stop:
 
+globals:
+  # Eine echte Anfrage läuft (Zuhören, Verarbeiten oder Antworten)
+  - id: anfrage_laeuft
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  # KEY1 hat das Warten aufs Aktivierungswort beendet und startet eine Anfrage
+  - id: taste_startet
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
 script:
+  # Stellt die Mikrofonseite des Codecs ein. Der ES8388-Treiber schaltet eine
+  # Pegelautomatik mit Rauschsperre ein, die leise Sprache stummschaltet, und
+  # lässt die Vorverstärkung auf 0 dB – damit kam Sprache nur bei lautem
+  # Reden an. Hier: Automatik und Sperre aus, feste Vorverstärkung.
+  - id: codec_mikrofon
+    then:
+      - lambda: |-
+          uint8_t stufe = (uint8_t) (id(mic_vorverstaerkung).state / 3.0f);
+          if (stufe > 8) stufe = 8;
+          id(es8388_dac).write_byte(0x12, 0x02);  // ADCCONTROL10: Pegelautomatik aus
+          id(es8388_dac).write_byte(0x16, 0xc2);  // ADCCONTROL14: Rauschsperre aus
+          id(es8388_dac).write_byte(0x09, (stufe << 4) | stufe);  // ADCCONTROL1: links/rechts
+  # KEY1: Anfrage starten – auch wenn gerade aufs Aktivierungswort gewartet
+  # wird (dann läuft der Sprachassistent schon, aber ohne Anfrage).
+  - id: sprechen
+    mode: restart
+    then:
+      - if:
+          condition:
+            # `is_running` dazu: reißt die Verbindung mitten in einer Anfrage
+            # ab, kommt kein Ende mehr, und der Merker bliebe sonst stehen.
+            lambda: return id(anfrage_laeuft) && id(va).is_running();
+          then:
+            - voice_assistant.stop:
+          else:
+            - lambda: |-
+                id(anfrage_laeuft) = false;
+                id(taste_startet) = true;
+            - media_player.stop:
+                announcement: true
+            - micro_wake_word.stop:
+            - if:
+                condition:
+                  voice_assistant.is_running:
+                then:
+                  - voice_assistant.stop:
+                  - wait_until:
+                      condition:
+                        not:
+                          voice_assistant.is_running:
+                      timeout: 3s
+            - lambda: id(va).set_use_wake_word(false);
+            - voice_assistant.start:
+            # Kommt die Anfrage nicht zustande, wieder normal zuhören.
+            - wait_until:
+                condition:
+                  lambda: return !id(taste_startet);
+                timeout: 8s
+            - if:
+                condition:
+                  lambda: return id(taste_startet);
+                then:
+                  - lambda: id(taste_startet) = false;
+                  - script.execute: zuhoeren
   # Wartet aufs Aktivierungswort – je nach Einstellung auf dem Gerät oder in
   # Home Assistant, nie bei stummem Mikrofon oder während einer Anfrage.
   - id: zuhoeren
@@ -298,6 +385,22 @@ select:
       - delay: 300ms
       - script.execute: zuhoeren
 
+number:
+  - platform: template
+    id: mic_vorverstaerkung
+    name: Mikrofon-Vorverstärkung
+    icon: mdi:microphone-plus
+    entity_category: config
+    unit_of_measurement: dB
+    min_value: 0
+    max_value: 24
+    step: 3
+    optimistic: true
+    restore_value: true
+    initial_value: ${mic_pga_db}
+    on_value:
+      - script.execute: codec_mikrofon
+
 switch:
   - platform: template
     id: mikrofon_stumm
@@ -360,16 +463,7 @@ binary_sensor:
     filters:
       - delayed_on: 20ms
     on_press:
-      - if:
-          condition:
-            voice_assistant.is_running:
-          then:
-            - voice_assistant.stop:
-          else:
-            - media_player.stop:
-                announcement: true
-            - micro_wake_word.stop:
-            - voice_assistant.start:
+      - script.execute: sprechen
   - platform: gpio
     id: taste_stumm
     name: Taste Mikrofon stumm

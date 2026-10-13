@@ -72,6 +72,8 @@ In Home Assistant erscheinen außerdem:
 - **Mikrofon stumm**, **Status-LED**, **Lautsprecher-Verstärker**
 - Mediaplayer „Yapaia Satellite“ – für Musik, Durchsagen und
   `tts.speak`-Ansagen aus Automationen.
+- **Mikrofon-Vorverstärkung** (0–24 dB) – zum Nachstellen ohne neues
+  Aufspielen, z. B. bei Fahrgeräuschen.
 - **Tonausgang** und **Mikrofon-Eingang** (Diagnose, siehe unten).
 
 ### Welches Aktivierungswort?
@@ -92,8 +94,11 @@ In Home Assistant erscheinen außerdem:
   „Tonausgang“ testweise auf LINE1 oder LINE2 stellen (Standard: BOTH). Die
   Auswahl gilt bis zum Neustart; dauerhaft über `speaker_output` (unten).
 - **Spracherkennung versteht nichts / Aktivierungswort reagiert nicht:**
-  „Mikrofon-Eingang“ testweise auf LINE2 oder DIFFERENCE stellen. Ist es zu
-  leise oder zu laut: `mic_gain` anpassen (Standard 4).
+  „Mikrofon-Eingang“ muss auf LINE2 stehen (dort hängen die Board-Mikrofone;
+  LINE1 ist die Line-In-Buchse). Ist es zu leise: „Mikrofon-Vorverstärkung“
+  höher stellen (Standard und Höchstwert: 24 dB). Übersteuert es bei lauter
+  Sprache aus der Nähe: niedriger stellen. Mehr Verstärkung hebt auch das
+  Rauschen an – gegen Lärm hilft nur ein Mikrofon näher am Sprecher.
 - **LED leuchtet dauernd und geht beim Zuhören aus:** `led_inverted: "false"`.
 - **Protokoll ansehen:** Device Builder → beim Gerät **„Logs“** →
   „Wirelessly“.
@@ -106,8 +111,9 @@ substitutions:
   name: yapaia-satellite
   friendly_name: Yapaia Satellite
   speaker_output: LINE2   # LINE1 | LINE2 | BOTH
-  mic_input: LINE1        # LINE1 | LINE2 | DIFFERENCE
-  mic_gain: "6"
+  mic_input: LINE1        # LINE2 (Board) | LINE1 (Line-In) | DIFFERENCE
+  mic_pga_db: "18"        # Vorverstärkung im Codec, 0–24 dB in 3er-Schritten
+  mic_gain: "4"           # zusätzliche digitale Verstärkung
   led_inverted: "true"
 ```
 
