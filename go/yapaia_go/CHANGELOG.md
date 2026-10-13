@@ -10,6 +10,19 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.46.2
+
+**Die Integration „Yapaia“ lässt sich wieder hinzufügen.**
+Gemeldet: Beim Hinzufügen der Integration erschien unter Home Assistant
+2026.10 nur „Invalid handler specified“.
+
+- Bringt die Integration „Yapaia“ 0.4.1 mit. Sie nutzte eine Funktion, die
+  Home Assistant an eine andere Stelle verschoben hat, und ließ sich deshalb
+  gar nicht mehr laden. Nach dem Update Home Assistant einmal neu starten (die
+  Benachrichtigung sagt es). An Go selbst ändert sich nichts.
+
+---
+
 ## 0.46.1
 
 **Kartenpakete laden, auch wenn der Kartenserver seine Adresse falsch kennt.**

@@ -15,6 +15,15 @@ from .glinet import patch_router, router  # noqa: F401 -- Fixtures für die Rout
 TOKEN = "geheim"
 
 
+def geraet_finden(hass: Any, kennung: str) -> Any:
+    """Das Gerät mit der Kennung `(yapaia, kennung)` -- `async_get_device` ist abgekündigt."""
+    from homeassistant.helpers import device_registry as dr
+
+    from custom_components.yapaia.partner import geraete
+
+    return next((g for g in geraete(dr.async_get(hass)) if ("yapaia", kennung) in g.identifiers), None)
+
+
 def beschreibung(modul: str = "go", instanz: str = "a1", name: str = "Yapaia Go", **extra: Any) -> dict[str, Any]:
     b = {
         "protokoll": 1,

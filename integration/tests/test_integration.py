@@ -17,7 +17,7 @@ from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 
 from custom_components.yapaia.const import DOMAIN, EREIGNIS
 
-from .conftest import TOKEN, beschreibung
+from .conftest import TOKEN, beschreibung, geraet_finden
 
 
 async def einrichten(hass: HomeAssistant, m, titel: str = "Yapaia Go") -> MockConfigEntry:
@@ -81,7 +81,7 @@ async def test_entitaeten_mit_geraet_und_stabilen_ids(hass: HomeAssistant, modul
                                   "ankunft": "2026-10-11T18:42:00+02:00"})
     await einrichten(hass, m)
 
-    geraet = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, "go_a1")})
+    geraet = geraet_finden(hass, "go_a1")
     assert geraet is not None and geraet.name == "Yapaia Go" and geraet.model == "go"
 
     ereg = er.async_get(hass)
@@ -141,7 +141,7 @@ async def test_mehrere_instanzen_brauchen_ein_ziel(hass: HomeAssistant, modul_fa
 
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(DOMAIN, "satellite2_ziel_setzen", {"ziel": "x"}, blocking=True)
-    geraet = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, "satellite2_alkoven")})
+    geraet = geraet_finden(hass, "satellite2_alkoven")
     await hass.services.async_call(DOMAIN, "satellite2_ziel_setzen", {"ziel": "x", "device_id": geraet.id}, blocking=True)
     assert a.aufrufe == [("ziel_setzen", {"ziel": "x"})] and k.aufrufe == []
 
@@ -152,7 +152,7 @@ async def test_ereignis_und_geraete_ausloeser(hass: HomeAssistant, modul_fabrik)
 
     m = await modul_fabrik()
     await einrichten(hass, m)
-    geraet = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, "go_a1")})
+    geraet = geraet_finden(hass, "go_a1")
     ausloeser = await async_get_device_automations(hass, DeviceAutomationType.TRIGGER, [geraet.id])
     assert [t["type"] for t in ausloeser[geraet.id] if t["domain"] == DOMAIN] == ["ziel_erreicht"]
 

@@ -11,7 +11,13 @@ from homeassistant.const import ATTR_DEVICE_ID
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.service import async_extract_referenced_entity_ids, async_set_service_schema
+from homeassistant.helpers.service import async_set_service_schema
+from homeassistant.helpers.target import async_extract_referenced_entity_ids
+
+try:
+    from homeassistant.helpers.target import TargetSelection
+except ImportError:  # Home Assistant vor der Umbenennung
+    from homeassistant.helpers.target import TargetSelectorData as TargetSelection
 
 from .client import YapaiaFehler
 from .const import DOMAIN
@@ -87,7 +93,7 @@ def registrieren(hass: HomeAssistant, modul: YapaiaModul) -> None:
 
 def _ziele(hass: HomeAssistant, call: ServiceCall, modul: str) -> list[YapaiaModul]:
     alle = _module(hass, modul)
-    geraete = set(async_extract_referenced_entity_ids(hass, call).referenced_devices)
+    geraete = set(async_extract_referenced_entity_ids(hass, TargetSelection(call.data)).referenced_devices)
     if geraete:
         ziele = [m for m in alle if m.geraet_id in geraete]
     elif len(alle) == 1:

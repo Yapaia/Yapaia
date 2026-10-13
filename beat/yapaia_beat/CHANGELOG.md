@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.2
+
+- Bringt die Integration „Yapaia“ 0.4.1 mit: Unter Home Assistant 2026.10
+  ließ sie sich nicht mehr hinzufügen („Invalid handler specified“). Nach dem
+  Update Home Assistant einmal neu starten. An Beat selbst ändert sich nichts.
+
 ## 1.14.1
 
 - Bringt die aktuelle Integration „Yapaia“ mit (mit Yapaia Router). An Beat
