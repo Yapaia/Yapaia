@@ -28,6 +28,15 @@ Modulnamens.
 - **Ereignisse:** `ziel_erreicht` (`ziel`), `zu_schnell` (`tempo`,
   `grenze_kmh`), `gps_verloren`, `neuberechnung_fehlgeschlagen`.
 
+## `radio`
+
+- **Aufruf:** Home-Assistant-Aktion `yapaia.beat_befehl` (`text`; Antwort im
+  Ergebnis als `antwort`) – ein gesprochener Satz wie „Spiel SWR3“, „Radio
+  aus“, „Nächster Sender“, „Radio lauter“ oder „Wechsle die Ausgabe auf
+  Wohnzimmer“. Beat legt dafür die Automation „Yapaia Beat Sprachbefehle“ an.
+- Daneben die Entitäten und Aktionen des Beat-Teils der Integration
+  (`media_player.yapaia_beat`, `yapaia.beat_abspielen` …).
+
 ## `ansage.einmischen`
 
 - **Aufruf:** Home-Assistant-Aktion `yapaia.beat_ansage` – nicht direkt beim
