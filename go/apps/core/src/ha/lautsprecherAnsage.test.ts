@@ -14,6 +14,8 @@ import {
   lautsprecherWahl,
   maEingerichtet,
   maLautsprecher,
+  ansageLautsprecher,
+  MERKMAL_ANSAGE,
   type LautsprecherAnsageDeps,
 } from './lautsprecherAnsage.js';
 import type { HaEntityState } from './client.js';
@@ -41,6 +43,41 @@ describe('Music-Assistant-Lautsprecher', () => {
     expect(lautsprecherWahl('', einer, true)).toBeNull(); // Beat übernimmt (Stufe 2/4)
     expect(lautsprecherWahl('', [...einer, ma('media_player.ma_2', 'Zwei')], false)).toBeNull();
     expect(lautsprecherWahl(null, [], false)).toBeNull();
+  });
+});
+
+describe('wählbare Lautsprecher für Ansagen', () => {
+  const satellit: HaEntityState = {
+    entity_id: 'media_player.yapaia_satellite',
+    state: 'idle',
+    attributes: { friendly_name: 'Yapaia Satellite', supported_features: 1200653 },
+  };
+  const beat: HaEntityState = { entity_id: 'media_player.yapaia_beat', state: 'playing', attributes: { friendly_name: 'Yapaia Beat' } };
+
+  it('nennt alle Mediaplayer aus Home Assistant, nicht nur die von Music Assistant', () => {
+    expect(ansageLautsprecher([andere, satellit, ma('media_player.ma_kueche', 'Küche')])).toEqual([
+      { id: 'media_player.ma_kueche', name: 'Küche', art: 'ma', ansage: true },
+      { id: 'media_player.yapaia_satellite', name: 'Yapaia Satellite', art: 'ha', ansage: true },
+      { id: 'media_player.tv', name: 'TV', art: 'ha', ansage: false },
+    ]);
+  });
+
+  it('erkennt am Merkmal, ob der Player Ansagen einblenden kann', () => {
+    expect(1200653 & MERKMAL_ANSAGE).not.toBe(0);
+    expect(ansageLautsprecher([satellit])[0]?.ansage).toBe(true);
+    expect(ansageLautsprecher([andere])[0]?.ansage).toBe(false);
+  });
+
+  it('lässt Yapaia Beat und nicht erreichbare Player weg', () => {
+    expect(ansageLautsprecher([beat, { ...satellit, state: 'unavailable' }])).toEqual([]);
+  });
+
+  it('ein gewählter Player aus Home Assistant gilt wie einer von Music Assistant', () => {
+    expect(lautsprecherWahl('media_player.yapaia_satellite', [satellit, beat], true)).toBe('media_player.yapaia_satellite');
+    expect(ansageZiel('media_player.yapaia_satellite', [satellit, beat], true)).toBe('media_player.yapaia_satellite');
+    expect(ansageWeg('media_player.yapaia_satellite', [satellit, beat], true)).toEqual({ art: 'lautsprecher', ziel: 'Yapaia Satellite' });
+    // automatisch bleibt es bei Music Assistant: ein einzelner anderer Player wird nicht geraten
+    expect(lautsprecherWahl(null, [satellit], false)).toBeNull();
   });
 });
 
