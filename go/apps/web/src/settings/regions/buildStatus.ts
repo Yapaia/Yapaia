@@ -45,6 +45,19 @@ export async function fetchBuildStatus(signal?: AbortSignal): Promise<BuildStatu
 }
 
 /**
+ * Regionen, die im Routinggraphen stecken, deren Karte aber nicht (mehr)
+ * installiert ist.
+ *
+ * Gemeldet: nach „Löschen" stand die Karte als entfernt da, geroutet wurde
+ * dort aber weiter. Das Löschen kann daran nichts ändern -- es gibt EINEN
+ * Graphen für alle Regionen --, also muss die Übersicht es wenigstens sagen.
+ */
+export function routingOhneKarte(status: BuildStatus): string[] {
+  const installiert = new Set(status.tiles.map((t) => t.region));
+  return (status.routing.regions ?? []).filter((r) => !installiert.has(r));
+}
+
+/**
  * „vor 3 Stunden", „gestern", „am 12.08.2026".
  *
  * Nah dran ist die verstrichene Zeit die nützlichere Auskunft („habe ich das

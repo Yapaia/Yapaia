@@ -14,7 +14,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { fetchBuildStatus, formatBuiltAt, type BuildStatus, type ArtifactStatus } from './buildStatus.js';
+import { fetchBuildStatus, formatBuiltAt, routingOhneKarte, type BuildStatus, type ArtifactStatus } from './buildStatus.js';
 
 function formatBytes(bytes: number | undefined): string | null {
   if (bytes === undefined) return null;
@@ -31,6 +31,7 @@ function ArtifactRow({
   testId,
   regions,
   fehlt,
+  ohneKarte,
 }: {
   icon: string;
   title: string;
@@ -40,6 +41,8 @@ function ArtifactRow({
   regions?: string[];
   /** Installierte Karten, die darin FEHLEN (nur beim Routing). */
   fehlt?: string[];
+  /** Regionen darin, deren Karte gelöscht ist (nur beim Routing). */
+  ohneKarte?: string[];
 }): React.ReactElement {
   const when = formatBuiltAt(status.built_at);
   return (
@@ -75,6 +78,11 @@ function ArtifactRow({
             {fehlt && fehlt.length > 0 && (
               <span className="block text-amber-700 dark:text-amber-300 text-xs" data-testid={`${testId}-fehlt`}>
                 Fehlt: {fehlt.join(', ')} — dorthin lässt sich nicht routen. „Fehlendes bauen“ ausführen.
+              </span>
+            )}
+            {ohneKarte && ohneKarte.length > 0 && (
+              <span className="block text-slate-500 dark:text-slate-400 text-xs" data-testid={`${testId}-ohne-karte`}>
+                Enthält noch {ohneKarte.join(', ')} — die Karte dazu ist gelöscht. Verschwindet beim nächsten Routingbau.
               </span>
             )}
           </>
@@ -176,6 +184,7 @@ export default function BuildStatusSection(): React.ReactElement | null {
                 ? status.tiles.map((t) => t.region).filter((r) => !status.routing.regions?.includes(r))
                 : undefined
             }
+            ohneKarte={routingOhneKarte(status)}
           />
 
           <li data-testid="build-status-search">

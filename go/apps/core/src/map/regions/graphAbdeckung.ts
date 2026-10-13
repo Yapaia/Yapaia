@@ -60,6 +60,11 @@ export function pbfLagerPfad(graphDir: string): string {
   return join(dirname(dirname(graphDir)), 'planetiler-sources');
 }
 
+/** Der Extrakt einer Region im Zwischenlager — ob es ihn gibt oder nicht. */
+export function extraktPfad(lagerPfad: string, region: string): string {
+  return join(lagerPfad, `${region}${PBF_SUFFIX}`);
+}
+
 /**
  * Welche Regionen im Zwischenlager einen Extrakt haben.
  *
