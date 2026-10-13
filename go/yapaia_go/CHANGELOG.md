@@ -10,6 +10,26 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.46.3
+
+**„Löschen“ räumt Suche und Straßendaten mit weg.**
+Gemeldet: Nach dem Löschen einer Karte stand sie als entfernt da, die Suche
+fand dort aber weiter Orte, und Routen dorthin wurden weiter berechnet.
+
+- Gelöscht wurde bisher nur die Kartendatei. Jetzt gehen der Suchindex der
+  Region und ihr OpenStreetMap-Extrakt mit. Die Suche vergisst die Region
+  sofort; der Extrakt gibt Platz frei (bei Deutschland rund 5 GB) und wird
+  beim nächsten Routingbau nicht mehr mitgebaut. Wer die Karte später wieder
+  installiert und dafür Routing baut, lädt den Extrakt neu.
+- Das Routing selbst bleibt bis zum nächsten Routingbau, wie es ist: es gibt
+  ein Straßennetz für alle Karten zusammen, eine einzelne lässt sich nicht
+  herausnehmen. Unter „Was ist gebaut?“ steht jetzt, welche gelöschte Karte
+  noch darin steckt.
+- Solange ein Bau läuft, lässt sich keine Karte löschen. Der Bau liest die
+  Extrakte, und einer, der mittendrin verschwindet, ließe ihn scheitern.
+
+---
+
 ## 0.46.2
 
 **Die Integration „Yapaia“ lässt sich wieder hinzufügen.**
