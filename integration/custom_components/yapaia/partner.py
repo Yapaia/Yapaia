@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.debounce import Debouncer
@@ -35,11 +35,16 @@ def liste(hass: HomeAssistant) -> list[dict[str, Any]]:
     return out
 
 
+def geraete(dreg: dr.DeviceRegistry) -> list[dr.DeviceEntry]:
+    """Alle Geräte. Ältere Home Assistant liefern beim Durchlaufen die IDs, neuere die Einträge."""
+    return [dreg.async_get(g) if isinstance(g, str) else g for g in dreg.devices]
+
+
 def satelliten(hass: HomeAssistant) -> list[dict[str, Any]]:
     """ESPHome-Geräte mit der Projektkennung `yapaia.satellite` (Abschnitt 3)."""
     dreg, ereg = dr.async_get(hass), er.async_get(hass)
     out = []
-    for g in dreg.devices.values():
+    for g in geraete(dreg):
         if (g.manufacturer or "").lower() != SATELLIT_HERSTELLER or (g.model or "").lower() != SATELLIT_MODELL:
             continue
         mac = next((v for (t, v) in g.connections if t == dr.CONNECTION_NETWORK_MAC), None)
@@ -86,6 +91,13 @@ def einrichten(hass: HomeAssistant) -> None:
         verteilen_bald(hass)
 
     hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, geaendert)
+
+    @callback
+    def beenden(event: Event) -> None:
+        # sonst läuft die Abklingzeit über das Ende von Home Assistant hinaus
+        hass.data[_KEY].async_shutdown()
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, beenden)
 
 
 @callback

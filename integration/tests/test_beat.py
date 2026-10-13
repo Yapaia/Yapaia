@@ -12,7 +12,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from custom_components.yapaia.const import DOMAIN
 
-from .conftest import TOKEN, beschreibung
+from .conftest import TOKEN, beschreibung, geraet_finden
 
 STATUS = {
     "state": "playing",
@@ -91,7 +91,7 @@ async def beat_einrichten(hass: HomeAssistant, modul_fabrik):
 async def test_beat_entitaeten_mit_den_bisherigen_namen(hass: HomeAssistant, modul_fabrik) -> None:
     m, entry = await beat_einrichten(hass, modul_fabrik)
     try:
-        geraet = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, "beat_b1")})
+        geraet = geraet_finden(hass, "beat_b1")
         assert geraet is not None and geraet.name == "Yapaia Beat"
         # dieselben Entity-IDs wie mit der alten Integration yapaia_beat
         assert hass.states.get("media_player.yapaia_beat").state == "playing"

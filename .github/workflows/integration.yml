@@ -10,14 +10,21 @@ defaults:
 
 jobs:
   tests:
-    name: Tests (Home Assistant)
+    name: Tests (Home Assistant, Python ${{ matrix.python }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Die Python-Version bestimmt, welches Home Assistant pip auflöst: 3.14
+    # bringt das aktuelle, 3.13 das letzte, das noch darauf lief. Nur mit
+    # beiden fällt auf, wenn HA eine Funktion verschiebt oder entfernt.
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.13", "3.14"]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: integration/requirements-test.txt
       - run: pip install -r requirements-test.txt
