@@ -99,6 +99,9 @@ In Home Assistant erscheinen außerdem:
   höher stellen (Standard und Höchstwert: 24 dB). Übersteuert es bei lauter
   Sprache aus der Nähe: niedriger stellen. Mehr Verstärkung hebt auch das
   Rauschen an – gegen Lärm hilft nur ein Mikrofon näher am Sprecher.
+- **Bei lauter Musik reagiert das Aktivierungswort nicht:** das ist die
+  fehlende Echo-Unterdrückung (siehe Technik). KEY1 drücken – die Musik wird
+  dann sofort leiser – oder die Musik leiser stellen.
 - **LED leuchtet dauernd und geht beim Zuhören aus:** `led_inverted: "false"`.
 - **Protokoll ansehen:** Device Builder → beim Gerät **„Logs“** →
   „Wirelessly“.
@@ -127,9 +130,18 @@ substitutions:
 | Tasten | KEY1 GPIO36, KEY3 GPIO19, KEY4 GPIO23, KEY5 GPIO18, KEY6 GPIO5 |
 | LED D4 | GPIO22 |
 
-Mikrofon und Lautsprecher teilen sich einen I²S-Bus (der Codec macht beides);
-beide laufen deshalb mit 16 kHz. Musik wird darauf umgerechnet – für Sprache
-ideal, für Musik ausreichend.
+Mikrofon und Lautsprecher teilen sich die Taktleitungen des Codecs; beide
+laufen deshalb mit 16 kHz. Musik wird darauf umgerechnet – für Sprache ideal,
+für Musik ausreichend. Damit das Board Musik spielen UND zuhören kann, laufen
+zwei I²S-Busse auf denselben Taktleitungen: der Lautsprecher-Bus erzeugt den
+Takt und läuft dauernd, der Mikrofon-Bus liest ihn mit (Einzelheiten im Paket
+beim Abschnitt `i2s_audio`).
+
+Das Board hat **keine Echo-Unterdrückung**: die Mikrofone hören den eigenen
+Lautsprecher mit. Sobald der Assistent zuhört (Aktivierungswort erkannt oder
+KEY1), wird Musik deshalb stark abgesenkt (`zuhoeren_absenkung_db`, Standard
+40 dB). Das Aktivierungswort selbst muss aber gegen die Musik ankommen – bei
+lauter Musik wird es nicht erkannt, dann KEY1 drücken.
 
 - [`yapaia-satellite.yaml`](yapaia-satellite.yaml) – das Paket mit der ganzen
   Gerätelogik

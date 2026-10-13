@@ -21,6 +21,10 @@ substitutions:
   mic_pga_db: "24"
   # Zusätzliche digitale Verstärkung für Spracherkennung und Aktivierungswort
   mic_gain: "4"
+  # Um wie viel dB Musik leiser wird, solange der Assistent zuhört. Das Board
+  # hat keine Echo-Unterdrückung: die Mikrofone hören den eigenen Lautsprecher
+  # mit, bei lauter Musik geht Sprache darin unter.
+  zuhoeren_absenkung_db: "40"
   # Status-LED (D4 an GPIO22) leuchtet bei LOW
   led_inverted: "true"
 
@@ -30,7 +34,7 @@ esphome:
   min_version: 2025.5.0
   project:
     name: yapaia.satellite
-    version: "0.2.0"
+    version: "0.3.0"
   on_boot:
     priority: -100
     then:
@@ -41,6 +45,10 @@ esphome:
           id: mic_input_select
           option: ${mic_input}
       - script.execute: codec_mikrofon
+      - script.execute: takt_teilen
+      # Lautsprecher-Bus starten – er liefert den Takt fürs Mikrofon.
+      - lambda: id(i2s_spk).start();
+      - delay: 500ms
       - script.execute: zuhoeren
 
 esp32:
@@ -78,18 +86,28 @@ audio_dac:
   - platform: es8388
     id: es8388_dac
 
-# Ein I2S-Bus für Mikrofon UND Lautsprecher (der Codec macht beides). Deshalb
-# laufen beide mit 16 kHz; Musik und Ansagen werden darauf umgerechnet.
+# Der Codec hat EINEN Satz Taktleitungen für Mikrofon und Lautsprecher. ESPHome
+# lässt auf einem I2S-Bus aber immer nur eines von beiden laufen – solange das
+# Board aufs Aktivierungswort hörte, blieb der Lautsprecher deshalb stumm
+# („Parent bus is busy“). Darum zwei Busse auf denselben Taktleitungen: der
+# Lautsprecher-Bus erzeugt den Takt und läuft dauernd (`timeout: never`, er
+# spielt dann Stille), der Mikrofon-Bus liest ihn nur mit (`secondary`).
+# ESPHome erlaubt einen Pin nicht in zwei Bussen; der Mikrofon-Bus bekommt
+# deshalb hier keine Taktpins – das Skript `takt_teilen` legt GPIO27/GPIO25
+# beim Start zusätzlich auf seine Takteingänge.
+# Beide laufen mit 16 kHz; Musik und Ansagen werden darauf umgerechnet.
 i2s_audio:
   - id: i2s_bus
     i2s_lrclk_pin: GPIO25
     i2s_bclk_pin: GPIO27
     i2s_mclk_pin: GPIO0
+  - id: i2s_mic_bus
 
 microphone:
   - platform: i2s_audio
     id: board_mic
-    i2s_audio_id: i2s_bus
+    i2s_audio_id: i2s_mic_bus
+    i2s_mode: secondary
     i2s_din_pin: GPIO35
     adc_type: external
     pdm: false
@@ -107,6 +125,8 @@ speaker:
     bits_per_sample: 16bit
     channel: stereo
     buffer_duration: 100ms
+    # Nie anhalten: ohne laufenden Lautsprecher-Bus hat das Mikrofon keinen Takt.
+    timeout: never
     audio_dac: es8388_dac
   # Ansagen und Musik mischen: eine Ansage (Antwort, Durchsage) wird über die
   # laufende Musik gelegt statt sie abzubrechen.
@@ -206,7 +226,13 @@ voice_assistant:
         effect: none
     - mixer_speaker.apply_ducking:
         id: media_mixer_input
-        decibel_reduction: 20
+        decibel_reduction: ${zuhoeren_absenkung_db}
+        duration: 0.0s
+  on_wake_word_detected:
+    # Sofort leiser, nicht erst wenn die Spracherkennung anläuft.
+    - mixer_speaker.apply_ducking:
+        id: media_mixer_input
+        decibel_reduction: ${zuhoeren_absenkung_db}
         duration: 0.0s
   on_stt_vad_end:
     - light.turn_on:
@@ -272,6 +298,21 @@ script:
           id(es8388_dac).write_byte(0x12, 0x02);  // ADCCONTROL10: Pegelautomatik aus
           id(es8388_dac).write_byte(0x16, 0xc2);  // ADCCONTROL14: Rauschsperre aus
           id(es8388_dac).write_byte(0x09, (stufe << 4) | stufe);  // ADCCONTROL1: links/rechts
+  # Legt die Taktleitungen des Lautsprecher-Busses (BCLK GPIO27, LRCK GPIO25)
+  # zusätzlich auf die Takteingänge des Mikrofon-Busses. Die Nummern sind die
+  # Eingangssignale des ESP32 (soc/gpio_sig_map.h): I2S0 27/28, I2S1 164/165.
+  - id: takt_teilen
+    then:
+      - lambda: |-
+          // Ohne Angabe bleibt der LRCK-Pin des Busses in ESPHome uninitialisiert
+          // (= GPIO0, der MCLK-Pin): jeder Mikrofonstart legte den Takteingang
+          // dann dorthin. Ausdrücklich „unbenutzt“ setzen.
+          id(i2s_mic_bus).set_lrclk_pin(-1);
+          const bool port1 = id(i2s_mic_bus).get_port() == 1;
+          gpio_input_enable(GPIO_NUM_27);
+          esp_rom_gpio_connect_in_signal(GPIO_NUM_27, port1 ? 164 : 27, false);
+          gpio_input_enable(GPIO_NUM_25);
+          esp_rom_gpio_connect_in_signal(GPIO_NUM_25, port1 ? 165 : 28, false);
   # KEY1: Anfrage starten – auch wenn gerade aufs Aktivierungswort gewartet
   # wird (dann läuft der Sprachassistent schon, aber ohne Anfrage).
   - id: sprechen
@@ -294,6 +335,11 @@ script:
             - lambda: |-
                 id(anfrage_laeuft) = false;
                 id(taste_startet) = true;
+            # Musik sofort leiser – die Frage kommt gleich nach dem Tastendruck.
+            - mixer_speaker.apply_ducking:
+                id: media_mixer_input
+                decibel_reduction: ${zuhoeren_absenkung_db}
+                duration: 0.0s
             - media_player.stop:
                 announcement: true
             - micro_wake_word.stop:
@@ -329,6 +375,12 @@ script:
                   not:
                     voice_assistant.is_running:
                 timeout: 30s
+            # Falls die Anfrage nie zustande kam, hat auch niemand die Musik
+            # wieder lauter gestellt.
+            - mixer_speaker.apply_ducking:
+                id: media_mixer_input
+                decibel_reduction: 0
+                duration: 1.0s
             - script.execute: zuhoeren
   # Wartet aufs Aktivierungswort – je nach Einstellung auf dem Gerät oder in
   # Home Assistant, nie bei stummem Mikrofon oder während einer Anfrage.
