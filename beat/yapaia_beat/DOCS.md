@@ -198,6 +198,8 @@ Namen und Logo-URLs) u. a.
 - `yapaia.beat_ansage` – `message` (Text), optional `engine` (TTS-Entität,
   leer = Standard), `language`, `priority` (`navigation`, `hinweis`, `info`):
   spricht den Text **in das laufende Radio** – siehe „Ansagen einmischen"
+- `yapaia.beat_befehl` – `text`: ein gesprochener Satz („Spiel SWR3“); die
+  Antwort kommt als `antwort` zurück – siehe „Sprachbefehle"
 - sowie alle `media_player.*`-Aktionen, z. B. `media_player.select_source`
   mit dem Namen eines Favoriten oder `media_player.play_media` mit
   `media_content_id: "98.3"`
@@ -218,6 +220,28 @@ actions:
     data:
       volume_level: 0.3
 ```
+
+## Sprachbefehle
+
+Mit einem Sprachassistenten in Home Assistant (Sprachsatellit wie der Yapaia
+Satellite, oder der Assist-Knopf der App) lässt sich das Radio ansagen. Beat
+legt dafür beim Start die Automation **„Yapaia Beat Sprachbefehle“** an; sie
+reicht den Satz an Beat weiter, und Assist spricht die Antwort.
+
+| Sagen | Wirkung |
+|---|---|
+| „Spiel SWR3“, „Schalte auf DASDING“, „Sender Radio Bob“ | Sender nach Namen (Favoriten zuerst); „SWR drei“ geht auch |
+| „Radio an“, „Spiel Musik“ | macht da weiter, wo es zuletzt lief |
+| „Radio aus“, „Stoppe die Musik“ | Radio aus |
+| „Nächster Sender“, „Sender zurück“ | durch die Favoriten |
+| „Radio lauter“, „Musik leiser“, „Radio Lautstärke 40“ | Lautstärke des Radios |
+| „Was läuft gerade?“ | Sender und Titel |
+| „Wechsle die Ausgabe auf Wohnzimmer“, „… auf Mini-PC“ | Ausgabe: ein Mediaplayer aus Home Assistant oder der Mini-PC |
+
+Verstanden wird ohne KI, anhand der Senderliste: der Sender muss im Suchlauf
+gefunden sein. Ein bloßes „Lauter“ oder „Stopp“ gehört dem Sprachassistenten
+selbst – fürs Radio „Radio“ oder „Musik“ dazusagen. Abschalten über die
+Option `voice_commands`.
 
 ## Ausgabe wählen: Mini-PC, dieses Gerät oder andere Lautsprecher
 
@@ -426,6 +450,7 @@ Favoriten bleiben erhalten und werden automatisch zugeordnet.
 | `background_scan_minutes` | Mit zweitem Stick: Suchlauf im Hintergrund alle n Minuten (0 = aus) |
 | `resume_last_station` | Nach Neustart weiterspielen |
 | `install_integration` | Integration automatisch installieren/aktualisieren |
+| `voice_commands` | Automation „Yapaia Beat Sprachbefehle“ in Home Assistant anlegen (Standard: an) |
 
 ## Fehlersuche
 

@@ -88,6 +88,14 @@ configuration:
     description: >-
       Installiert/aktualisiert die Yapaia Beat Integration (Entitäten und
       Lovelace-Karte) in /config/custom_components.
+  voice_commands:
+    name: Sprachbefehle
+    description: >-
+      Legt in Home Assistant die Automation „Yapaia Beat Sprachbefehle“ an.
+      Damit versteht der Sprachassistent (Sprachsatellit oder Assist in der
+      App) Sätze wie „Spiel SWR3“, „Radio aus“, „Nächster Sender“, „Radio
+      lauter“ oder „Wechsle die Ausgabe auf Wohnzimmer“. Aus = die Automation
+      wird beim nächsten Start entfernt.
   log_level:
     name: Log-Level
 network:

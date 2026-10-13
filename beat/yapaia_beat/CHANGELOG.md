@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.15.0
+
+**Das Radio hört aufs Wort.** Gemeldet: Über den Sprachsatelliten wurde „Spiel
+SWR3“ zwar verstanden, es passierte aber nichts.
+
+- Beat legt in Home Assistant die Automation **„Yapaia Beat Sprachbefehle“**
+  an. Der Sprachassistent (Sprachsatellit oder Assist in der App) versteht
+  damit zum Beispiel:
+  - „Spiel SWR3“, „Schalte auf DASDING“, „Radio an“
+  - „Radio aus“, „Stoppe die Musik“
+  - „Nächster Sender“, „Sender zurück“
+  - „Radio lauter“, „Musik leiser“
+  - „Was läuft gerade?“
+  - „Wechsle die Ausgabe auf Wohnzimmer“ (ein Mediaplayer aus Home Assistant)
+    oder „… auf Mini-PC“
+- Die Antwort wird gesprochen („SWR3 läuft.“). Verstanden wird ohne KI,
+  anhand der Senderliste – der Sender muss also im Suchlauf gefunden sein.
+- Abschalten: Add-on-Option **Sprachbefehle**. Voraussetzung ist die
+  Integration „Yapaia“ mit eingerichtetem Yapaia Beat.
+
 ## 1.14.2
 
 - Bringt die Integration „Yapaia“ 0.4.1 mit: Unter Home Assistant 2026.10

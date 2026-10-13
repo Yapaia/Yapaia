@@ -79,6 +79,14 @@ configuration:
   install_integration:
     name: Install integration automatically
     description: Installs/updates the Yapaia Beat integration (entities and Lovelace card) in /config/custom_components.
+  voice_commands:
+    name: Voice commands
+    description: >-
+      Creates the automation "Yapaia Beat Sprachbefehle" in Home Assistant, so
+      Assist (a voice satellite or the app) understands German sentences such
+      as "Spiel SWR3", "Radio aus", "Nächster Sender", "Radio lauter" or
+      "Wechsle die Ausgabe auf Wohnzimmer". Off = the automation is removed at
+      the next start.
   log_level:
     name: Log level
 network:

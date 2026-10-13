@@ -48,6 +48,7 @@ class Options:
     resume_last_station: bool = True
     standby_minutes: int = 10
     install_integration: bool = True
+    voice_commands: bool = True  # Automation „Yapaia Beat Sprachbefehle“ in Home Assistant
     announce_music_level: int = 20  # % of the music volume while an announcement plays
 
     @property

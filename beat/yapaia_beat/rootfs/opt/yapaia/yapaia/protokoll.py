@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import logging
 import secrets
@@ -20,6 +21,7 @@ from typing import Any
 
 from aiohttp import WSMsgType, web
 
+from . import befehl
 from .config import DATA_DIR, VERSION
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,6 +43,8 @@ class Identitaet:
         daten: dict[str, Any] = {}
         with contextlib.suppress(OSError, ValueError):
             daten = json.loads(self.pfad.read_text())
+        # Gab es die Kennung schon, lief Beat hier bereits (wichtig für `beschreibung_neu`).
+        self.frisch = not daten.get("instanz")
         self.instanz = str(daten.get("instanz") or uuid.uuid4().hex[:12])
         self.token = str(daten.get("token") or secrets.token_urlsafe(32))
         if daten.get("instanz") != self.instanz or daten.get("token") != self.token:
@@ -60,9 +64,46 @@ def beschreibung(ident: Identitaet) -> dict[str, Any]:
         "hersteller": "Yapaia",
         "faehigkeiten": FAEHIGKEITEN,
         "entitaeten": [{"schluessel": "radio", "plattform": "spezial", "spezial": "beat"}],
-        "aktionen": [],
+        "aktionen": [
+            {
+                "name": "befehl",
+                "titel": {"de": "Sprachbefehl", "en": "Voice command"},
+                "beschreibung": {
+                    "de": "Ein Satz wie „Spiel SWR3“, „Radio aus“ oder „Wechsle die Ausgabe auf Wohnzimmer“. "
+                    "Die Antwort kommt als Ergebnis zurück.",
+                    "en": 'A sentence such as "Spiel SWR3". The reply is returned as the result.',
+                },
+                "felder": {"text": {"typ": "text", "pflicht": True, "titel": {"de": "Satz", "en": "Sentence"}}},
+            }
+        ],
         "ereignisse": [],
     }
+
+
+def _fingerabdruck(ident: Identitaet) -> str:
+    return hashlib.sha256(json.dumps(beschreibung(ident), sort_keys=True).encode()).hexdigest()
+
+
+def beschreibung_neu(ident: Identitaet) -> bool:
+    """Hat sich die Beschreibung seit dem letzten Lauf geändert (Update mit
+    neuer Aktion oder Entität)?
+
+    Die Integration liest die Beschreibung nur beim Einrichten. Nach einem
+    Update kennt sie eine neue Aktion deshalb erst nach einem Neustart von
+    Home Assistant – außer Beat sagt es ihr (`beschreibung_geaendert`, siehe
+    `_live`). Beim allerersten Start gibt es nichts zu melden: die Integration
+    wird erst danach eingerichtet und liest dann ohnehin frisch. Fehlt nur der
+    Fingerabdruck (Update von einer Version, die ihn noch nicht schrieb), gilt
+    die Beschreibung als geändert."""
+    pfad = ident.pfad.with_name("yapaia-beschreibung.sha256")
+    neu = _fingerabdruck(ident)
+    alt = None
+    with contextlib.suppress(OSError):
+        alt = pfad.read_text().strip()
+    if alt != neu:
+        with contextlib.suppress(OSError):
+            pfad.write_text(neu)
+    return alt != neu and not (alt is None and ident.frisch)
 
 
 def zustand(status: dict[str, Any]) -> dict[str, Any]:
@@ -92,6 +133,10 @@ async def _live(request: web.Request) -> web.WebSocketResponse:
     queue = radio.subscribe()
     letzter = zustand(radio.status())
     await ws.send_str(json.dumps({"typ": "zustand", "werte": letzter}, ensure_ascii=False))
+    if request.app["yapaia_beschreibung_neu"]:
+        # einmal: die Integration lädt daraufhin neu und verbindet sich wieder
+        request.app["yapaia_beschreibung_neu"] = False
+        await ws.send_str(json.dumps({"typ": "beschreibung_geaendert"}))
 
     async def senden() -> None:
         nonlocal letzter
@@ -114,7 +159,23 @@ async def _live(request: web.Request) -> web.WebSocketResponse:
 
 
 async def _aktion(request: web.Request) -> web.Response:
-    return web.json_response({"ok": False, "fehler": f"Unbekannte Aktion {request.match_info['name']}"}, status=404)
+    name = request.match_info["name"]
+    if name != "befehl":
+        return web.json_response({"ok": False, "fehler": f"Unbekannte Aktion {name}"}, status=404)
+    try:
+        daten = await request.json()
+    except ValueError:
+        daten = None
+    text = str(daten.get("text") or "").strip() if isinstance(daten, dict) else ""
+    if not text:
+        return web.json_response({"ok": False, "fehler": "text fehlt"}, status=400)
+    try:
+        antwort = await befehl.ausfuehren(request.app["radio"], text)
+    except Exception as err:  # noqa: BLE001 -- die Antwort wird gesprochen, auch wenn das Radio gerade nicht kann
+        _LOGGER.warning("Sprachbefehl „%s“ gescheitert: %s", text, err)
+        antwort = f"Das hat nicht geklappt: {err}"
+    _LOGGER.info("Sprachbefehl „%s“ → %s", text, antwort)
+    return web.json_response({"ok": True, "ergebnis": {"antwort": antwort}})
 
 
 async def _partner(request: web.Request) -> web.Response:
@@ -133,6 +194,7 @@ async def _partner(request: web.Request) -> web.Response:
 def einbinden(app: web.Application, ident: Identitaet) -> None:
     app["yapaia_identitaet"] = ident
     app["yapaia_partner"] = []
+    app["yapaia_beschreibung_neu"] = beschreibung_neu(ident)
     app.middlewares.insert(0, nur_mit_token)
     app.router.add_get(f"{API}/beschreibung", _beschreibung)
     app.router.add_get(f"{API}/live", _live)
