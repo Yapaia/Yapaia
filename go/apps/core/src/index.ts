@@ -32,7 +32,7 @@ import {
   maModus,
   ttsAudioPfad,
   maEingerichtet,
-  maLautsprecher,
+  ansageLautsprecher,
   type Stimme,
 } from './ha/lautsprecherAnsage.js';
 import { mapPlugin } from './map/routes.js';
@@ -1086,8 +1086,9 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
         // Yapaia Beat in dieser Anlage überhaupt gibt.
         ansagenBeat: beatAnsagenAn(settingsService.get('ansagen_beat')),
         radio: liste.some((z) => z.entity_id === BEAT_ENTITAET),
-        // Music Assistant: wählbare Lautsprecher für Ansagen und die Wahl.
-        lautsprecher: maLautsprecher(liste),
+        // Wählbare Lautsprecher für Ansagen (Music Assistant und alle anderen
+        // Mediaplayer aus Home Assistant) und die Wahl.
+        lautsprecher: ansageLautsprecher(liste),
         lautsprecherWahl: typeof settingsService.get('ansage_lautsprecher') === 'string' ? settingsService.get('ansage_lautsprecher') : '',
         // Gewünscht: sehen, ob Ansagen über Music Assistant gehen -- und
         // wenn nicht, warum.

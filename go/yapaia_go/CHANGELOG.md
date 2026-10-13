@@ -10,6 +10,26 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.47.0
+
+**Ansagen auf einen Lautsprecher deiner Wahl.**
+Gewünscht: das Ausgabegerät für Ansagen selbst auswählen können, zum Beispiel
+den Sprachsatelliten.
+
+- Unter **⚙ → Sprache & Home Assistant → Ansagen über** stehen jetzt alle
+  Lautsprecher aus Home Assistant zur Wahl, nicht mehr nur die von Music
+  Assistant. Navigationsansagen und Antworten auf Sprachbefehle gehen dann
+  dorthin.
+- Ein Lautsprecher, der Ansagen einblenden kann (etwa der Yapaia Satellite),
+  spielt dabei weiter, was gerade läuft. Bei den übrigen steht „unterbricht
+  die Wiedergabe“ dabei: dort beendet die Ansage, was lief.
+- „Automatisch“ verhält sich wie bisher: Yapaia Beat mischt ins Radio, ein
+  einzelner Player von Music Assistant wird von selbst genommen, sonst spricht
+  Yapaia selbst. Yapaia Beat steht nicht in der Liste – dafür gibt es weiter
+  den Schalter „Ansagen ins Radio einmischen“.
+
+---
+
 ## 0.46.3
 
 **„Löschen“ räumt Suche und Straßendaten mit weg.**

@@ -21,7 +21,7 @@ interface Stand {
   /** Gibt es Yapaia Beat in Home Assistant? */
   radio?: boolean;
   /** Die Player von Music Assistant. */
-  lautsprecher?: Array<{ id: string; name: string }>;
+  lautsprecher?: Array<{ id: string; name: string; art?: 'ma' | 'ha'; ansage?: boolean }>;
   /** Gewählter Lautsprecher für Ansagen, '' = automatisch. */
   lautsprecherWahl?: string;
   /** Gong vor Ansagen über Music Assistant. */
@@ -38,7 +38,7 @@ interface Stand {
 export function wegText(w: NonNullable<Stand['ansageWeg']>): string {
   switch (w.art) {
     case 'lautsprecher':
-      return `Über Music Assistant an „${w.ziel ?? '?'}“ – ohne Verzögerung.`;
+      return `An den Lautsprecher „${w.ziel ?? '?'}“ – ohne Verzögerung.`;
     case 'beat-ma-browser':
       return `Yapaia Beat spielt über Music Assistant auf „${w.ziel ?? '?'}“. Ist das dieser Browser, mischt er die Ansage sofort selbst ein; sonst mischt Beat sie ins Radio.`;
     case 'beat-ma':
@@ -52,9 +52,16 @@ export function wegText(w: NonNullable<Stand['ansageWeg']>): string {
   }
 }
 
+/** Wie ein Lautsprecher in der Auswahl heißt -- mit dem, was eine Ansage dort bewirkt. */
+export function lautsprecherName(l: NonNullable<Stand['lautsprecher']>[number]): string {
+  if ((l.art ?? 'ma') === 'ma') return `${l.name} (Music Assistant)`;
+  return l.ansage === false ? `${l.name} (unterbricht die Wiedergabe)` : l.name;
+}
+
 /** Warum es (k)einen Player von Music Assistant gibt. */
 export function maText(s: Stand): string {
-  const n = s.lautsprecher?.length ?? 0;
+  // Ohne `art` (Kern vor 0.47.0) waren es immer Player von Music Assistant.
+  const n = (s.lautsprecher ?? []).filter((l) => (l.art ?? 'ma') === 'ma').length;
   if (n > 0) return `Music Assistant: ${n === 1 ? 'ein Player' : `${n} Player`} gefunden.`;
   if (s.musicAssistant) {
     return 'Music Assistant ist eingerichtet, gibt aber keinen Player an Home Assistant weiter. In Music Assistant: Einstellungen → Wiedergabegeräte → Player wählen → „Dieses Wiedergabegerät für Home Assistant freigeben“ einschalten und speichern.';
@@ -319,15 +326,16 @@ export default function SprachEinstellungen(): React.ReactElement {
             <option value="">Automatisch</option>
             {(stand?.lautsprecher ?? []).map((l) => (
               <option key={l.id} value={l.id}>
-                {l.name} (Music Assistant)
+                {lautsprecherName(l)}
               </option>
             ))}
           </select>
           <span className="block text-xs text-slate-500 dark:text-slate-400">
-            Läuft das Radio von Yapaia Beat, mischt Beat die Ansage ein – auch wenn es über Music Assistant spielt; die
-            Musik läuft dabei leiser weiter. Sonst geht sie an den gewählten Player (Automatisch: an Music Assistant,
-            wenn es genau einen Player gibt); Music Assistant hält dafür kurz an, was dort läuft. Sonst spricht
-            Yapaia selbst.
+            Zur Wahl stehen alle Lautsprecher aus Home Assistant, zum Beispiel ein Sprachsatellit. Läuft das Radio von
+            Yapaia Beat über Music Assistant, mischt Beat die Ansage ein; die Musik läuft dabei leiser weiter. Sonst
+            geht sie an den gewählten Lautsprecher (Automatisch: an Music Assistant, wenn es genau einen Player gibt).
+            Music Assistant hält dafür kurz an, was dort läuft; ein Lautsprecher mit dem Zusatz „unterbricht“ beendet
+            es. Ohne Wahl spricht Yapaia selbst.
           </span>
         </label>
         <label className="block space-y-1">
