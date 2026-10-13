@@ -10,6 +10,24 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.47.1
+
+**Die Karten-Kachel lässt sich von einem Dashboard aus bedienen.**
+Gemeldet bei einem eigenen Dashboard mit Kompass-Knopf neben der Kachel: beim
+Wechsel der Ansicht „zoomt die Karte erst kurz auf ganz Deutschland raus und
+dann wieder rein“.
+
+- Die Kachel „Karte mit Route“ (`custom:yapaia-map-card`) hat weiter keine
+  eigenen Knöpfe, lässt sich aber jetzt von außen umschalten: Ansicht (Norden
+  oben, in Fahrtrichtung, 3D) und „auf meine Position zentrieren“. Ein
+  Dashboard musste die Kachel dafür bisher neu laden – daher der Sprung auf
+  die Gesamtkarte.
+- Für eigene Karten: im Fenster der Kachel steht `__yapaiaEinbettung` mit
+  `stand()`, `ansicht(modus)` und `zentrieren()`. An Go selbst und an der
+  Kachel ändert sich sonst nichts.
+
+---
+
 ## 0.47.0
 
 **Ansagen auf einen Lautsprecher deiner Wahl.**
