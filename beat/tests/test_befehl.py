@@ -91,6 +91,18 @@ def test_schreibweisen_der_spracherkennung():
     assert r.rufe == [("play", "fm-bob")]
 
 
+def test_verhoerer_der_spracherkennung():
+    # am Board so angekommen: „Spiel DASDING“ → „Spielt das Ding.“
+    for satz, sid in (("Spielt das Ding.", "fm-dasding"), ("Spiele Radiobob", "fm-bob"), ("Spiel das Dink", "fm-dasding"), ("Spiel Radio Bop", "fm-bob")):
+        r = FakeRadio()
+        sag(r, satz)
+        assert r.rufe == [("play", sid)], satz
+    # aber nicht irgendeinen Sender für etwas ganz anderes
+    r = FakeRadio()
+    assert sag(r, "Spiel Pizza Adio").startswith("Den Sender")
+    assert r.rufe == []
+
+
 def test_band_wird_beachtet():
     r = FakeRadio()
     sag(r, "Spiel SWR3 auf UKW")
@@ -167,7 +179,7 @@ def test_ausgabe_ohne_das_wort_ausgabe():
 def test_automation_ruft_die_aktion_und_spricht_die_antwort():
     k = befehl.automation_konfig()
     assert k["triggers"][0]["trigger"] == "conversation"
-    assert "(spiel|spiele|spiel mal|spiele mal) {befehl}" in k["triggers"][0]["command"]
+    assert "(spiel|spiele|spielt|spiel mal|spiele mal) {befehl}" in k["triggers"][0]["command"]
     # ein nacktes „lauter“ oder „stopp“ gehört dem Sprachassistenten selbst
     assert not {"lauter", "leiser", "stopp", "stop"} & set(k["triggers"][0]["command"])
     assert k["actions"][0]["action"] == "yapaia.beat_befehl"

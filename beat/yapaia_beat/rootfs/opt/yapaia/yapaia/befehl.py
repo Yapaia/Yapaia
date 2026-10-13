@@ -10,6 +10,7 @@ hier die Schreibweisen, die Spracherkennungen tatsächlich liefern („SWR drei�
 
 from __future__ import annotations
 
+import difflib
 import re
 from typing import Any
 
@@ -22,7 +23,8 @@ AUTOMATION_ID = "yapaia_beat_sprachbefehle"
 # oder „stopp“: das gehört dem Sprachassistenten selbst (seine Lautstärke,
 # seine Antwort abbrechen).
 SAETZE: tuple[str, ...] = (
-    "(spiel|spiele|spiel mal|spiele mal) {befehl}",
+    # „spielt“: so schreibt die Spracherkennung „Spiel DASDING“ gern („Spielt das Ding“)
+    "(spiel|spiele|spielt|spiel mal|spiele mal) {befehl}",
     "(schalte|schalt) [um] auf {befehl}",
     "(wechsle|wechsel) [um] (auf|zu|zum|zur) {befehl}",
     "(wechsle|wechsel) [die] [audio]ausgabe (auf|zu|zum|zur) {befehl}",
@@ -123,7 +125,16 @@ def _sender_finden(radio: Any, woerter: list[str]) -> dict[str, Any] | None:
     # „SWR3 Baden-Württemberg“ für „swr3“ – und umgekehrt ein Sendername, der
     # ganz im Gesagten steckt („spiel bitte den sender swr3 rock“).
     teil = [s for s, n in namen if any(gesucht in x or (len(x) >= 3 and x in gesucht) for x in n)]
-    return min(teil, key=rang) if teil else None
+    if teil:
+        return min(teil, key=rang)
+    # Knapp daneben gehört („das dink“, „radio bop“): der ähnlichste Name, wenn er nah genug ist
+    alle_namen = {x: s for s, n in sorted(namen, key=lambda sn: rang(sn[0]), reverse=True) for x in n}
+    # auch mit den Füllwörtern: in „das Dink“ gehört das „das“ zum Namen
+    for kandidat in (gesucht, normalize_name("".join(woerter))):
+        nah = difflib.get_close_matches(kandidat, list(alle_namen), n=1, cutoff=0.8)
+        if nah:
+            return alle_namen[nah[0]]
+    return None
 
 
 def _ausgabe_finden(radio: Any, woerter: list[str]) -> tuple[str, str] | None:
@@ -164,7 +175,7 @@ async def ausfuehren(radio: Any, text: str) -> str:
     def hat(*w: str) -> bool:
         return any(x in woerter for x in w)
 
-    verben = ("spiel", "spiele", "schalte", "schalt", "wechsle", "wechsel", "mach", "mache", "stell", "stelle")
+    verben = ("spiel", "spiele", "spielt", "schalte", "schalt", "wechsle", "wechsel", "mach", "mache", "stell", "stelle")
     ohne_verb = [w for w in woerter if w not in verben and w not in ("an", "ein", "einschalten")]
 
     if hat("ausgabe", "audioausgabe", "lautsprecher", "ausgang") or re.search(r"\b(radio|musik) (auf|über) (den|dem|die|das)\b", satz):
@@ -192,7 +203,7 @@ async def ausfuehren(radio: Any, text: str) -> str:
             return f"Die Lautstärke steht auf {radio.audio.volume} Prozent."
         return f"Lautstärke {radio.audio.volume} Prozent."
 
-    if hat("welcher", "läuft") and not hat("spiel", "spiele"):
+    if hat("welcher", "läuft") and not hat("spiel", "spiele", "spielt"):
         return _laeuft(radio)
 
     if hat("nächster", "nächsten", "weiter", "vor") and hat("sender"):
@@ -204,7 +215,7 @@ async def ausfuehren(radio: Any, text: str) -> str:
 
     # Nach „Spiel …“ zuerst den Sender suchen: in einem Sendernamen darf auch
     # „aus“ oder „stop“ vorkommen.
-    sender = _sender_finden(radio, ohne_verb) if hat("spiel", "spiele") else None
+    sender = _sender_finden(radio, ohne_verb) if hat("spiel", "spiele", "spielt") else None
     if sender is None and hat("stoppe", "stopp", "stop", "stoppen", "aus", "ausschalten", "beende", "beenden", "pausiere", "pause"):
         await radio.stop()
         return "Radio aus."
