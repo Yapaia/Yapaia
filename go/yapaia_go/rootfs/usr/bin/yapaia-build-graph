@@ -217,6 +217,7 @@ fi
 # Der Preis, ehrlich: der Bau dauert so lange wie die Summe aller Laender, und
 # ein neues Land bedeutet einen kompletten Neubau.
 GRAPH_REGIONS=()
+GRAPH_EXTRAKTE=()
 UEBERSPRUNGEN=()
 for pbf in "$PBF_CACHE"/*.osm.pbf; do
   [ -s "$pbf" ] || continue
@@ -228,9 +229,40 @@ for pbf in "$PBF_CACHE"/*.osm.pbf; do
     UEBERSPRUNGEN+=("$(derive_region_id "$name")")
     continue
   fi
-  ln -sf "$pbf" "$STAGING_DIR/$name"
+  GRAPH_EXTRAKTE+=("$pbf")
   GRAPH_REGIONS+=("$(derive_region_id "$name")")
 done
+
+# ─── MEHRERE EXTRAKTE: ERST ZU EINER DATEI ZUSAMMENFUEHREN ──────────────────
+# Gemeldet: der Nachtbau ueber Deutschland, Liechtenstein und die Schweiz brach
+# nach 1 h 20 min ab --
+#   [ERROR] Failed tile 2/782675/0: vector::_M_range_check: __n (which is 39)
+#           >= this->size() (which is 0)
+#   terminate called after throwing an instance of 'std::exception'
+# -- beim Bau der ERSTEN Kachel, danach liefen auch die Suchindizes nicht mehr.
+#
+# Nachgestellt (ein Streifen Sueddeutschland + Schweiz + Liechtenstein):
+#   - als DREI Dateien an `valhalla_build_tiles`: derselbe Absturz;
+#   - dieselben Daten mit `osmium merge` zu EINER Datei: laeuft durch.
+# Laenderextrakte ueberlappen an der Grenze -- Wege und Knoten stehen dann in
+# zwei Dateien, und Valhalla (3.5.1) kommt beim Zuordnen aus dem Tritt. Mit
+# Schweiz + Liechtenstein allein fiel das nie auf; das ist auch alles, was die
+# CI baut.
+#
+# `osmium merge` fuehrt sortiert zusammen und laesst doppelte Objekte weg. Es
+# kostet Minuten und voruebergehend den Platz aller Extrakte zusammen (liegt im
+# Staging und verschwindet mit ihm). Ein einzelner Extrakt wird wie bisher nur
+# verlinkt.
+if [ "${#GRAPH_EXTRAKTE[@]}" -gt 1 ]; then
+  echo "Fuehre ${#GRAPH_EXTRAKTE[@]} Extrakte zu einer Datei zusammen (osmium merge) ..."
+  if ! osmium merge --overwrite "${GRAPH_EXTRAKTE[@]}" -o "$STAGING_DIR/gesamt.osm.pbf"; then
+    echo "FEHLER: die Extrakte liessen sich nicht zusammenfuehren (osmium merge)." >&2
+    echo "Der bisherige Graph bleibt unveraendert." >&2
+    exit 1
+  fi
+elif [ "${#GRAPH_EXTRAKTE[@]}" -eq 1 ]; then
+  ln -sf "${GRAPH_EXTRAKTE[0]}" "$STAGING_DIR/$(basename "${GRAPH_EXTRAKTE[0]}")"
+fi
 
 if [ "${#GRAPH_REGIONS[@]}" -eq 0 ]; then
   echo "FEHLER: kein OSM-Extrakt zum Bauen gefunden (weder uebergeben noch in $PBF_CACHE)." >&2

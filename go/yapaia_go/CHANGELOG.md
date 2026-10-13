@@ -10,6 +10,24 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.47.1
+
+**Routing über mehrere Länder bricht nicht mehr ab.**
+Gemeldet: „Fehlendes bauen“ über Deutschland, Liechtenstein und die Schweiz
+lief gut eine Stunde und hörte dann einfach auf – kein Routing, keine Suche.
+
+- Der Routingbau stürzte ab, sobald mehrere Länder zusammen gebaut wurden,
+  die aneinander grenzen (im Protokoll: `Failed tile …:
+  vector::_M_range_check`). Die Länderdateien überlappen an der Grenze, und
+  das Bauwerkzeug kam mit doppelten Straßen nicht zurecht.
+- Jetzt werden die Länder vor dem Bau zu einer Datei zusammengeführt. Das
+  kostet ein paar Minuten und vorübergehend Platz in der Größe aller Länder
+  zusammen. Ein einzelnes Land baut wie bisher.
+- Der bisherige Graph blieb bei dem Abbruch unverändert; verloren ging nur die
+  Bauzeit.
+
+---
+
 ## 0.47.0
 
 **Ansagen auf einen Lautsprecher deiner Wahl.**
