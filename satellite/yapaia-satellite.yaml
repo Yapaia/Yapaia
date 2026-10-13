@@ -34,7 +34,7 @@ esphome:
   min_version: 2025.5.0
   project:
     name: yapaia.satellite
-    version: "0.2.0"
+    version: "0.3.0"
   on_boot:
     priority: -100
     then:
