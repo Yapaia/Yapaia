@@ -284,6 +284,12 @@ script:
             lambda: return id(anfrage_laeuft) && id(va).is_running();
           then:
             - voice_assistant.stop:
+            - wait_until:
+                condition:
+                  not:
+                    voice_assistant.is_running:
+                timeout: 5s
+            - script.execute: zuhoeren
           else:
             - lambda: |-
                 id(anfrage_laeuft) = false;
@@ -308,12 +314,22 @@ script:
                 condition:
                   lambda: return !id(taste_startet);
                 timeout: 8s
-            - if:
+            - lambda: id(taste_startet) = false;
+            # Eine Anfrage per Taste läuft einmal und endet dann – anders als
+            # das Warten aufs Aktivierungswort, das sich selbst neu startet.
+            # Ihr `on_end` kommt, während die Antwort noch gesprochen wird;
+            # `zuhoeren` findet den Assistenten dann noch beschäftigt und
+            # startet nichts. Deshalb hier warten, bis er wirklich fertig ist.
+            - wait_until:
                 condition:
-                  lambda: return id(taste_startet);
-                then:
-                  - lambda: id(taste_startet) = false;
-                  - script.execute: zuhoeren
+                  lambda: return !id(anfrage_laeuft);
+                timeout: 90s
+            - wait_until:
+                condition:
+                  not:
+                    voice_assistant.is_running:
+                timeout: 30s
+            - script.execute: zuhoeren
   # Wartet aufs Aktivierungswort – je nach Einstellung auf dem Gerät oder in
   # Home Assistant, nie bei stummem Mikrofon oder während einer Anfrage.
   - id: zuhoeren
