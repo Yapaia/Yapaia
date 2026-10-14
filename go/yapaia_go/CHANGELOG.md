@@ -25,6 +25,11 @@ lief gut eine Stunde und hörte dann einfach auf – kein Routing, keine Suche.
   zusammen. Ein einzelnes Land baut wie bisher.
 - Der bisherige Graph blieb bei dem Abbruch unverändert; verloren ging nur die
   Bauzeit.
+- Nach einem Routingbau lädt der Routingdienst den neuen Graphen sofort.
+  Bisher routete er bis zum nächsten Neustart des Add-ons mit dem alten
+  („unconnected regions“).
+- Die zusammengeführte Länderdatei bleibt nach dem Bau nicht mehr liegen
+  (bei Deutschland 5,4 GB).
 
 ---
 

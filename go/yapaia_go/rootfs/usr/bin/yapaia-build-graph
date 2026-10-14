@@ -357,6 +357,11 @@ if command -v jq >/dev/null 2>&1; then
   fi
 fi
 
+# Extrakte nicht mit einwechseln: der Graph traegt sie nicht. Beim
+# Zusammenfuehren lag sonst die gesamt.osm.pbf (Deutschland+: 5,4 GB) danach
+# im Live-Verzeichnis und wurde nie wieder geloescht.
+rm -f "$STAGING_DIR"/*.osm.pbf
+
 # --- Atomar einwechseln (W-17) ---------------------------------------------
 # Erst das Alte beiseite, dann das Neue an seinen Platz, dann das Alte weg.
 # Schlaegt der mittlere Schritt fehl, wird zurueckgeschoben.
@@ -408,5 +413,19 @@ printf '{"region":"%s","regions":%s,"built_at":"%s"}\n' \
 rm -f "$LIVE_DIR/$REGION_ID.osm.pbf"
 
 echo "== Routinggraph fertig eingewechselt =="
-echo "Der Valhalla-Dienst prueft alle 30 Sekunden auf $LIVE_DIR/valhalla.json"
-echo "und startet dann von allein -- ein Neustart des Add-ons ist nicht noetig."
+
+# Ein LAUFENDER valhalla_service liest den neuen Graphen nicht von selbst ein:
+# er hat Kacheln und Config beim Start geladen. Gemeldet: nach dem Gesamtbau
+# routete der Dienst weiter mit dem alten Graphen ("unconnected regions"),
+# bis das Add-on neu startete. Nur wenn noch gar kein Graph da war, wartet der
+# Dienst (alle 30 Sekunden) auf valhalla.json und startet dann von allein.
+if [ -d /run/service/valhalla ] && command -v s6-svc >/dev/null 2>&1; then
+  if s6-svc -r /run/service/valhalla; then
+    echo "Der Valhalla-Dienst startet neu und laedt den neuen Graphen."
+  else
+    echo "Hinweis: der Valhalla-Dienst liess sich nicht neu starten." >&2
+    echo "Bis zum naechsten Start des Add-ons routet er mit dem alten Graphen." >&2
+  fi
+else
+  echo "Der Valhalla-Dienst laedt den neuen Graphen bei seinem naechsten Start."
+fi

@@ -816,6 +816,19 @@ describe('die Installation kann tatsaechlich durchlaufen', () => {
   });
 
   /**
+   * Gemeldet nach dem ersten erfolgreichen Gesamtbau: der laufende Dienst
+   * routete weiter mit dem alten Graphen, und die zusammengefuehrte
+   * gesamt.osm.pbf (5,4 GB) blieb im Live-Verzeichnis liegen.
+   */
+  it('der Wrapper raeumt die Extrakte weg und startet Valhalla neu', () => {
+    const skript = readFileSync(join(ROOTFS_DIR, 'usr/bin/yapaia-build-graph'), 'utf8');
+    const aufraeumen = skript.indexOf('rm -f "$STAGING_DIR"/*.osm.pbf');
+    expect(aufraeumen, 'Extrakte werden nicht aus dem Staging entfernt').toBeGreaterThan(0);
+    expect(aufraeumen).toBeLessThan(skript.indexOf('# --- Atomar einwechseln'));
+    expect(skript).toMatch(/s6-svc -r \/run\/service\/valhalla/);
+  });
+
+  /**
    * Der Suchindex-Bauer -- dieselbe Absicherung wie fuer den Routinggraphen.
    *
    * Bis 0.3.3 sagten Installationspruefung, Dockerfile und Doku
