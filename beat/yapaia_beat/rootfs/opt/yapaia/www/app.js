@@ -126,6 +126,7 @@ function render(s) {
     const mode = s.second_stick === "gleichwertig" ? "Suche und Umschalten ohne Pause" : "Suche im Hintergrund";
     stick.textContent = `Zweiter Stick: ${mode} – ${busy}.` + (s.second_stick_hint ? ` ⚠ ${s.second_stick_hint}` : "");
   }
+  renderCompare(s);
   $("#stream-info").innerHTML = `Lokale Wiedergabe über Home Assistant Audio: <b>${s.local_audio ? "aktiv" : "aus"}</b> · MP3-Stream: <code>/stream.mp3</code> (${s.stream_clients} Hörer)`;
 
   const favKey = JSON.stringify(s.favorites.map((f) => [f.id, f.name, f.logo_url])) + (s.active_favorite || "");
@@ -368,6 +369,28 @@ $("#volume").addEventListener("change", (e) => {
 });
 $("#follow").addEventListener("change", (e) => api("api/settings", { auto_follow: e.target.checked }));
 $$("[data-scan]").forEach((b) => (b.onclick = () => api("api/scan", { band: b.dataset.scan })));
+$("#compare-btn").onclick = () => api("api/sticks/compare", {});
+
+// Which stick (antenna) receives the current station better
+function renderCompare(s) {
+  $("#stick-compare").hidden = !(s.sticks > 1);
+  if (!(s.sticks > 1)) return;
+  const running = s.second_stick_busy === "compare";
+  const btn = $("#compare-btn");
+  btn.disabled = running || !s.playing || !!s.second_stick_busy;
+  btn.textContent = running ? "Vergleiche …" : "Antennen vergleichen";
+  const c = s.stick_compare, res = $("#compare-res");
+  res.classList.remove("err");
+  if (running) { res.textContent = "misst den laufenden Sender auf dem freien Stick (bis 8 s) …"; return; }
+  if (!c) { res.textContent = s.playing ? "" : "Zum Vergleichen einen Sender abspielen"; return; }
+  if (c.error) { res.textContent = "⚠ " + c.error; res.classList.add("err"); return; }
+  const name = (st) => (s.stick_names || {})[st.index] || `Stick ${st.index}`;
+  const [a, b] = [...c.sticks].sort((x, y) => y.quality - x.quality);
+  const parts = c.sticks.map((st) => `${esc(name(st))}${st.playing ? " (spielt)" : ""}: <b>${st.quality} %</b>`);
+  const verdict = a.quality - b.quality < 5 ? "etwa gleich gut" : `besser: <b>${esc(name(a))}</b>`;
+  const at = new Date(c.time * 1000).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  res.innerHTML = `${esc(c.station)} (${esc(c.where)}, ${at}) · ${parts.join(" · ")} → ${verdict}`;
+}
 $("#scan-cancel").onclick = () => api("api/scan/cancel", {});
 $$(".tabs button").forEach((b) => b.addEventListener("click", () => {
   $$(".tabs button").forEach((x) => x.classList.toggle("active", x === b));

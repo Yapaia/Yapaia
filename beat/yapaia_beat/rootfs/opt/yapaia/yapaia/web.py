@@ -346,6 +346,12 @@ async def scan_cancel(request: web.Request) -> web.Response:
     return _ok()
 
 
+@routes.post("/api/sticks/compare")
+async def sticks_compare(request: web.Request) -> web.Response:
+    _radio(request).start_compare()
+    return _ok()
+
+
 # ---------------------------------------------------------------------- stream
 @routes.get("/stream.mp3")
 async def stream(request: web.Request) -> web.StreamResponse:

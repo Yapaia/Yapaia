@@ -40,6 +40,9 @@ const LEER = new Set(['unknown', 'unavailable', 'none', '', undefined, null]);
 // Jedes Objekt lässt sich verschieben und vergrößern, getrennt für Ruhe und
 // Navigation -- unabhängig von Yapaia Go selbst. Gespeichert je Gerät (wie in
 // Go): ein Tablet im Fahrzeug und ein Telefon in der Hand brauchen Verschiedenes.
+// Verschoben wird in `--u` (wächst mit der Breite wie alles andere), nicht in
+// Pixeln: sonst rutscht alles, sobald die Seitenleiste von Home Assistant auf-
+// oder zuklappt.
 const ANORDNUNG = 'yapaia.cockpitSport.anordnung';
 const OBJEKTE = [
   ['oben', '.oben', 'Leiste oben'],
@@ -55,20 +58,23 @@ const OBJEKTE = [
 const FAHRT = new Set(['navigating', 'off_route', 'paused']);
 const MASSSTAB_MIN = 0.5;
 const MASSSTAB_MAX = 2;
+const runde = (v) => Math.round(v * 100) / 100;
 
-function anordnungLesen() {
-  const leer = { ruhe: {}, fahrt: {} };
+/** `u` = aktuelle Größe von `--u` in px, um alte Werte (Pixel) umzurechnen. */
+function anordnungLesen(u) {
+  const leer = { einheit: 'u', ruhe: {}, fahrt: {} };
   try {
     const w = JSON.parse(localStorage.getItem(ANORDNUNG) || 'null');
     if (!w || typeof w !== 'object') return leer;
+    const f = w.einheit === 'u' ? 1 : 1 / (u > 0 ? u : 14);
     const pruefe = (m) => {
       const raus = {};
       for (const [id, p] of Object.entries((w && w[m]) || {})) {
-        if (p && [p.dx, p.dy, p.s].every(Number.isFinite)) raus[id] = { dx: p.dx, dy: p.dy, s: p.s };
+        if (p && [p.dx, p.dy, p.s].every(Number.isFinite)) raus[id] = { dx: runde(p.dx * f), dy: runde(p.dy * f), s: p.s };
       }
       return raus;
     };
-    return { ruhe: pruefe('ruhe'), fahrt: pruefe('fahrt') };
+    return { einheit: 'u', ruhe: pruefe('ruhe'), fahrt: pruefe('fahrt') };
   } catch (err) {
     return leer;
   }
@@ -85,6 +91,7 @@ const STIL = `
     --kupfer: #c9895b; --dunkel: rgba(22, 24, 30, 0.92);
     --u: clamp(9px, 1.25cqw, 17px);
   }
+  .mass { position: absolute; width: calc(var(--u) * 100); height: 0; visibility: hidden; pointer-events: none; }
   .karte { position: absolute; inset: calc(var(--u) * 4.4) 0 calc(var(--u) * 5.6) 0; }
   yapaia-map-card { display: block; height: 100%;
     --ha-card-border-radius: 0; --ha-card-border-width: 0; --ha-card-box-shadow: none; }
@@ -232,6 +239,7 @@ const STIL = `
 
 const HTML = `
   <div class="tv">
+    <i class="mass"></i>
     <div class="karte"></div>
     <div class="oben">
       <button class="knopf rund" data-nav="/yapaia-cockpit/cockpit" title="Cockpit"><ha-icon icon="mdi:view-dashboard"></ha-icon></button>
@@ -447,15 +455,27 @@ class YapaiaCockpitSportCard extends HTMLElement {
     return z && FAHRT.has(z.state) ? 'fahrt' : 'ruhe';
   }
 
+  /** `--u` in px (gemessen, es hängt an der Breite der Karte). */
+  _u() {
+    const m = this.shadowRoot.querySelector('.mass');
+    return (m && m.offsetWidth / 100) || 0;
+  }
+
   _anordnen() {
-    if (!this._werte) this._werte = anordnungLesen();
+    if (!this._werte) {
+      const u = this._u();
+      if (!u) return; // noch nicht sichtbar: alte Pixelwerte erst mit echter Breite umrechnen
+      const alt = (() => { try { return localStorage.getItem(ANORDNUNG); } catch (err) { return null; } })();
+      this._werte = anordnungLesen(u);
+      if (alt && !alt.includes('"einheit":"u"')) this._speichern(); // einmal umgerechnet
+    }
     const werte = this._werte[this._modus()] || {};
     for (const [id, sel] of OBJEKTE) {
       const el = this.shadowRoot.querySelector(sel);
       if (!el) continue;
       const p = werte[id];
       const an = p && (p.dx || p.dy || p.s !== 1);
-      el.style.translate = an ? `${p.dx}px ${p.dy}px` : '';
+      el.style.translate = an ? `calc(var(--u) * ${p.dx}) calc(var(--u) * ${p.dy})` : '';
       el.style.scale = an ? String(p.s) : '';
     }
   }
@@ -521,7 +541,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       e.stopPropagation();
       e.currentTarget.setPointerCapture(e.pointerId);
       const p = (this._werte[this._bearbeiten] || {})[id] || { dx: 0, dy: 0, s: 1 };
-      start = { x: e.clientX, y: e.clientY, p: { ...p }, art };
+      start = { x: e.clientX, y: e.clientY, p: { ...p }, art, u: this._u() || 14 };
     };
     const bewegen = (e) => {
       if (!start) return;
@@ -530,9 +550,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
       const ddx = e.clientX - start.x;
       const ddy = e.clientY - start.y;
       const p = start.p;
+      const u = start.u;
       const neu =
         start.art === 'ziehen'
-          ? { ...p, dx: Math.round(p.dx + ddx), dy: Math.round(p.dy + ddy) }
+          ? { ...p, dx: runde(p.dx + ddx / u), dy: runde(p.dy + ddy / u) }
           : { ...p, s: Math.round(Math.min(MASSSTAB_MAX, Math.max(MASSSTAB_MIN, p.s + (ddx + ddy) / 400)) * 100) / 100 };
       this._werte[this._bearbeiten] = { ...this._werte[this._bearbeiten], [id]: neu };
       this._anordnen();
