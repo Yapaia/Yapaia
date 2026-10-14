@@ -50,6 +50,9 @@ class Options:
     install_integration: bool = True
     voice_commands: bool = True  # Automation „Yapaia Beat Sprachbefehle“ in Home Assistant
     announce_music_level: int = 20  # % of the music volume while an announcement plays
+    # Not an add-on option: set per stick by the radio when welle-cli's AGC
+    # fails on it (Beat 1.17.0) -- this fixed gain step is used instead.
+    dab_fixed_gain_index: int = -1
 
     @property
     def gain_value(self) -> float | None:

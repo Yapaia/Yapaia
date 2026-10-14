@@ -16,6 +16,7 @@ from .config import Options
 from .dab import DabTuner, dab_candidates, norm_sid, optimiere_dab, probe_dab, scan_dab, split_dls
 from .fm import FM_START, FM_STOP, FmTuner, fm_candidates, probe_fm, rtl_power_sweep, scan_fm
 from .logos import LogoManager
+from .procs import R820T_GAINS_DB
 from .store import Store, display_name, fm_station_id, normalize_name
 from .usb import find_sticks, reset_sticks, stick_names
 
@@ -30,6 +31,15 @@ FIRST_BG_SCAN_DELAY = 120  # s after start before the first background scan
 # The second stick measuring the CURRENT station this much worse than the
 # first one: it has no (or a poor) antenna -- search the classic way.
 SPARE_WORSE_BY = 15
+# welle-cli's AGC turns some sticks (seen: Nooelec NESDR SMArt v5) down to a
+# few dB and never finds the ensemble, although they receive well with a
+# fixed gain.  Such a stick gets this fixed step (37 dB) from then on.
+AGC_FAIL_DB = 10.0
+DAB_FIXED_STEP = 20
+# Stick choice "Auto": once a station has settled, it is measured on the
+# other stick too; clearly better there = playback moves over.
+AUTO_SETTLE = {"fm": 5.0, "dab": 12.0}
+AUTO_BETTER_BY = 10
 
 Tuner = FmTuner | DabTuner
 
@@ -85,6 +95,12 @@ class Radio:
         # last antenna comparison: the current station measured on both sticks
         self.stick_compare: dict[str, Any] | None = None
         self._compare_task: asyncio.Task | None = None
+        # which stick plays: "auto" (the one receiving better) or an index
+        choice = store.settings.get("stick_choice", "auto")
+        self.stick_choice: str | int = choice if choice == "auto" or isinstance(choice, int) else "auto"
+        self._auto_checked: Tuner | None = None
+        # sticks (by name) on which welle-cli's AGC does not work
+        self._agc_failed: set[str] = set(store.settings.get("dab_agc_failed") or [])
         self._scan_auto = False
         self._stick_check_at = 0.0
         self._bg_scan_at = time.monotonic() + FIRST_BG_SCAN_DELAY
@@ -147,14 +163,15 @@ class Radio:
         gain = self.dab_gain(channel)
         await self._bring_up(lambda o, cb: DabTuner(o, channel, sid, on_pcm=cb, gain_index=gain))
 
-    async def _bring_up(self, make: Any) -> None:
+    async def _bring_up(self, make: Any, onto: int | None = None) -> None:
         """Start a receiver built by ``make(options, on_pcm)``.
 
         Only the receiver in ``self.tuner`` is heard.  With two equal sticks
-        the new one starts on the free stick while the old one keeps
-        playing, and takes over once it delivers sound -- no gap, no
-        cool-down.  Otherwise (one stick, or the second one without a proper
-        antenna) the old receiver stops first, as before."""
+        (or ``onto``: move to that stick) the new one starts on the free
+        stick while the old one keeps playing, and takes over once it
+        delivers sound -- no gap, no cool-down.  Otherwise (one stick, or
+        the second one without a proper antenna) the old receiver stops
+        first, as before.  A stick chosen by hand is always used."""
         box: list[Tuner] = []
         heard = asyncio.Event()
 
@@ -163,7 +180,16 @@ class Radio:
             if box and self.tuner is box[0]:
                 await self.audio.write(data)
 
-        spare = self._spare_stick() if self.equal_sticks and self.tuner and self.tuner.running else None
+        playing = self.tuner.opts.rtl_device_index if self.tuner and self.tuner.running else None
+        if onto is not None:
+            self._last_stick = onto  # moved on purpose: also if the gap-free way does not work
+        else:
+            wanted = self._wanted_stick()
+            if wanted is not None:
+                self._last_stick = wanted
+            elif self.equal_sticks and playing is not None:
+                onto = self._spare_stick()
+        spare = onto if onto is not None and playing is not None and onto != playing else None
         if spare is not None:
             tuner = make(self._opts(spare), on_pcm)
             box.append(tuner)
@@ -206,7 +232,7 @@ class Radio:
         else:
             self.sticks = [main]
         if self.sticks != before:
-            self.stick_names = stick_names() if len(self.sticks) > 1 else {}
+            self.stick_names = stick_names()
             self.stick_compare = None
             if len(self.sticks) > 1:
                 _LOGGER.info("Second RTL-SDR stick found (index %d, mode %s)", self.sticks[1], self.opts.second_stick)
@@ -224,7 +250,118 @@ class Radio:
         return self.two_sticks and self.opts.second_stick == "gleichwertig"
 
     def _opts(self, stick: int) -> Options:
-        return dataclasses.replace(self.opts, rtl_device_index=stick)
+        fixed = DAB_FIXED_STEP if self._stick_key(stick) in self._agc_failed else -1
+        return dataclasses.replace(self.opts, rtl_device_index=stick, dab_fixed_gain_index=fixed)
+
+    def _stick_key(self, stick: int) -> str:
+        return self.stick_names.get(stick) or f"Stick {stick}"
+
+    def _wanted_stick(self) -> int | None:
+        """The stick chosen by hand, if it is plugged in."""
+        c = self.stick_choice
+        return c if isinstance(c, int) and c in self.sticks else None
+
+    # ------------------------------------------------------------------ stick choice
+    async def set_stick(self, choice: Any) -> None:
+        """Play on this stick, or "auto": on the one receiving better."""
+        if choice != "auto":
+            try:
+                choice = int(choice)
+            except (TypeError, ValueError):
+                raise ValueError("Stick muss auto oder eine Nummer sein") from None
+            if choice not in self.sticks:
+                raise ValueError(f"Stick {choice} ist nicht angeschlossen")
+        self.stick_choice = choice
+        self.store.settings["stick_choice"] = choice
+        self.store.save()
+        self._auto_checked = None  # "auto": compare again right away
+        self.changed()
+        tuner = self.tuner
+        if choice != "auto" and tuner and tuner.running and self.state == "playing" and tuner.opts.rtl_device_index != choice:
+            await self._move_to(choice)
+
+    async def _free_spare(self) -> None:
+        """Let the other stick finish (or stop) what it does in the background."""
+        if self._helper == "scan":
+            self.cancel_scan()
+        for _ in range(100):
+            if not self._helper:
+                return
+            await asyncio.sleep(0.1)
+
+    async def _move_to(self, stick: int) -> None:
+        """Move the current station to another stick: it starts there while
+        the old one keeps playing."""
+        tuner, st = self.tuner, self.station
+        if not (tuner and st):
+            return
+        if isinstance(tuner, FmTuner):
+            freq = tuner.freq
+
+            def make(o: Options, cb: Any) -> Tuner:
+                return FmTuner(o, freq, on_pcm=cb)
+        else:
+            channel, sid, gain = tuner.channel, tuner.sid or st.get("sid"), self.dab_gain(tuner.channel)
+
+            def make(o: Options, cb: Any) -> Tuner:
+                return DabTuner(o, channel, sid, on_pcm=cb, gain_index=gain)
+
+        await self._free_spare()
+        async with self._lock:
+            if self.tuner is not tuner or self.station is not st:
+                return  # changed meanwhile
+            _LOGGER.info("Moving %s to stick %d (%s)", display_name(st), stick, self._stick_key(stick))
+            await self._bring_up(make, onto=stick)
+            self._bad_since = None
+        self.changed()
+
+    def _maybe_auto_stick(self) -> None:
+        """"Auto": measure a settled station on the other stick as well."""
+        tuner, st = self.tuner, self.station
+        if self.stick_choice != "auto" or not self.two_sticks or self._auto_checked is tuner:
+            return
+        if not (tuner and tuner.running and st and self.state == "playing"):
+            return
+        if time.monotonic() - tuner.started < AUTO_SETTLE.get(tuner.band, 10.0):
+            return
+        spare = self._spare_stick()
+        if spare is None:
+            return
+        self._auto_checked = tuner
+        self._helper = "compare"
+        self._compare_task = asyncio.create_task(self._run_compare(tuner, st, spare, auto=True))
+
+    # ------------------------------------------------------------------ DAB AGC
+    def _agc_failed_on(self, stick: int, gain_db: float | None, ensemble: str | None) -> bool:
+        """welle-cli's AGC stuck at a few dB without the ensemble: remember
+        the stick, it gets a fixed gain from now on.  True = newly found."""
+        if ensemble or gain_db is None or gain_db >= AGC_FAIL_DB or self.opts.gain_value is not None:
+            return False
+        key = self._stick_key(stick)
+        if key in self._agc_failed:
+            return False
+        self._agc_failed.add(key)
+        self.store.settings["dab_agc_failed"] = sorted(self._agc_failed)
+        self.store.save()
+        _LOGGER.warning(
+            "DAB: AGC of %s stays at %.1f dB without reception – using a fixed gain of %.0f dB",
+            key, gain_db, R820T_GAINS_DB[DAB_FIXED_STEP],
+        )  # fmt: skip
+        return True
+
+    def _check_dab_agc(self) -> bool:
+        tuner, st = self.tuner, self.station
+        if not (isinstance(tuner, DabTuner) and tuner.running and st and self.state == "playing" and tuner.uses_agc):
+            return False
+        if time.monotonic() - tuner.started < AUTO_SETTLE["dab"]:
+            return False
+        stick = tuner.opts.rtl_device_index
+        if not self._agc_failed_on(stick, tuner.hardware_gain, tuner.ensemble_label):
+            return False
+        self._last_stick = stick
+        self._bad_since = None
+        self._follow_task = asyncio.create_task(self._agc_restart(st))
+        return True
 
     def _listen_stick(self) -> int:
         tuner = self.tuner
@@ -731,7 +868,8 @@ class Radio:
         if now >= self._stick_check_at and self._helper is None and not self.scan["running"]:
             self._stick_check_at = now + STICK_CHECK_INTERVAL
             self.detect_sticks()
-        if not self._lock.locked():
+        if not self._lock.locked() and not self._check_dab_agc():
+            self._maybe_auto_stick()
             await self._check_follow()
             await self._check_standby()
             self._maybe_background_scan()
@@ -907,12 +1045,19 @@ class Radio:
             _LOGGER.warning("Second stick receives clearly worse (%.0f%% vs %.0f%%) – antenna?", ref, cur_q)
         return worse
 
-    @staticmethod
-    async def _measure_spare(opts: Options, tuner: Tuner, st: dict[str, Any]) -> float:
+    async def _measure_spare(self, opts: Options, tuner: Tuner, st: dict[str, Any]) -> float:
         """Reception quality (0-100) of the tuner's station on another stick."""
         if isinstance(tuner, FmTuner):
             return (await probe_fm(opts, tuner.freq, max_time=3.5, min_time=1.5))["quality"]
-        return (await probe_dab(opts, tuner.channel, max_time=8, want_sid=st.get("sid")))["quality"]
+        sid = getattr(tuner, "sid", None) or st.get("sid")
+        if opts.dab_fixed_gain_index >= 0:  # on a fixed gain the stick needs longer to sync
+            probe = dict(max_time=20, want_sid=sid, patience=14, settle=4)
+        else:
+            probe = dict(max_time=12, want_sid=sid, patience=6, settle=3)
+        res = await probe_dab(opts, tuner.channel, **probe)
+        if res.get("agc") and self._agc_failed_on(opts.rtl_device_index, res.get("gain_db"), res.get("ensemble")):
+            res = await probe_dab(self._opts(opts.rtl_device_index), tuner.channel, max_time=20, want_sid=sid, patience=14, settle=4)
+        return res["quality"]
 
     def _note_compare(self, tuner: Tuner, st: dict[str, Any], cur_q: float, spare: int, ref: float) -> None:
         if isinstance(tuner, FmTuner):
@@ -942,18 +1087,25 @@ class Radio:
         self.changed()
         self._compare_task = asyncio.create_task(self._run_compare(tuner, st, spare))
 
-    async def _run_compare(self, tuner: Tuner, st: dict[str, Any], spare: int) -> None:
+    async def _run_compare(self, tuner: Tuner, st: dict[str, Any], spare: int, auto: bool = False) -> None:
+        better = False
         try:
             ref = await self._measure_spare(self._opts(spare), tuner, st)
             if self.tuner is tuner and tuner.running:  # still the same station
-                self._note_compare(tuner, st, tuner.quality, spare, ref)
-                _LOGGER.info("Antenna comparison: stick %d %.0f%%, stick %d %.0f%%", tuner.opts.rtl_device_index, tuner.quality, spare, ref)
+                cur = tuner.quality
+                self._note_compare(tuner, st, cur, spare, ref)
+                _LOGGER.info("Antenna comparison: stick %d %.0f%%, stick %d %.0f%%", tuner.opts.rtl_device_index, cur, spare, ref)
+                better = auto and ref >= cur + AUTO_BETTER_BY
         except Exception as err:  # noqa: BLE001
             _LOGGER.info("Antenna comparison failed: %s", err)
             self.stick_compare = {"error": f"Vergleich fehlgeschlagen ({err})", "time": time.time()}
         finally:
             self._helper = None
             self.changed()
+        if better and self.stick_choice == "auto" and self.tuner is tuner:
+            _LOGGER.info("Auto: stick %d receives clearly better – playback moves there", spare)
+            await self._move_to(spare)
+            self._auto_checked = self.tuner  # measured just now: no ping-pong
 
     async def _follow_background(self, tuner: Tuner, st: dict[str, Any], spare: int) -> None:
         """Station following on the second stick: the first one keeps playing
@@ -1182,6 +1334,9 @@ class Radio:
             "second_stick_hint": self.spare_hint,
             "stick_names": {str(k): v for k, v in self.stick_names.items()},
             "stick_compare": self.stick_compare,
+            "stick_choice": self.stick_choice,
+            "stick_playing": tuner.opts.rtl_device_index if tuner and tuner.running else None,
+            "dab_agc_failed": sorted(self._agc_failed),
             "active_favorite": self.active_favorite(),
             "favorites": [self.station_info(self.store.stations[f]) for f in self.store.favorites if f in self.store.stations],
             "station_count": len(self.store.stations),

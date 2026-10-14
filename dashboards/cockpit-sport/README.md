@@ -20,11 +20,12 @@ Enter nimmt den ersten Vorschlag.
 
 ## Einrichten
 
-1. `cockpit-sport-card.js` nach `/config/www/yapaia-cockpit/` kopieren.
-2. *Einstellungen → Dashboards → ⋮ → Ressourcen*:
-   `/local/yapaia-cockpit/cockpit-sport-card.js?v=1`, Typ *JavaScript-Modul*.
-   Nach jeder Änderung an der Datei `?v=` hochzählen, sonst lädt der Browser
-   die alte.
+1. Auf dem Mini-PC `python3 dashboards/deploy.py` ausführen: kopiert die
+   Karte nach `/config/www/yapaia-cockpit/` und trägt die Ressource ein (mit
+   `?v=<Prüfsumme>`, nach jeder Änderung einfach nochmal ausführen).
+2. Von Hand geht es auch: Datei kopieren, unter *Einstellungen → Dashboards →
+   ⋮ → Ressourcen* `/local/yapaia-cockpit/cockpit-sport-card.js?v=1`, Typ
+   *JavaScript-Modul*, und nach jeder Änderung `?v=` hochzählen.
 3. Neues Dashboard anlegen, im Raw-Konfigurationseditor den Inhalt von
    [`dashboard.yaml`](dashboard.yaml) einsetzen.
 

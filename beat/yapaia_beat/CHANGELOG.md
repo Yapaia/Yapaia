@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.17.0
+
+**DAB+ geht wieder, und du wählst den Stick.** Gemeldet: kein DAB+-Sender
+ließ sich mehr richtig empfangen.
+
+- Ursache: Die Verstärkungs-Automatik von welle-cli regelte den neuen Stick
+  (Nooelec NESDR SMArt v5) auf 3,7 dB herunter. Er fand so kein Ensemble,
+  obwohl er mit fester Verstärkung bestens empfängt (37 dB: SNR 13, wie der
+  andere Stick). Seit dem Einstecken hat er Index 0, deshalb lief jeder
+  DAB-Sender auf ihm.
+- Beat erkennt das jetzt selbst: bleibt die Automatik auf einem Stick unter
+  10 dB, ohne Ensemble, bekommt dieser Stick für DAB+ eine feste
+  Verstärkung (37 dB). Das gilt dann dauerhaft für ihn, auch beim Suchlauf,
+  beim Antennenvergleich und bei der Senderverfolgung. Das Log meldet es
+  einmal als Warnung.
+- Neuer Schalter **„Stick“** unter dem Sender: **Auto**, **Stick 1** oder
+  **Stick 2**. Von Hand gewählt, zieht der Sender ohne Pause auf diesen
+  Stick um, und alle weiteren Sender spielen dort. **Auto**: Hat sich ein
+  Sender eingespielt, misst Beat ihn auch auf dem anderen Stick. Empfängt
+  der andere mindestens 10 Punkte besser, wechselt die Wiedergabe ohne Pause
+  dorthin. Die Wahl wird gespeichert.
+- Der Antennenvergleich misst DAB+ länger (bis 20 s). Ein Stick mit fester
+  Verstärkung braucht etwa 10 s, bis er sich synchronisiert hat.
+
 ## 1.16.0
 
 **Welche Antenne ist besser?** Gewünscht: eine kleine Anzeige, welcher Stick

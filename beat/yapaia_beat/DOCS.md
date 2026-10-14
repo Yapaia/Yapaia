@@ -61,6 +61,20 @@ einfach einstecken. Dann gilt (Option `second_stick`):
   Splitter für FM und DAB).
 - **`aus`**: der zweite Stick wird nicht benutzt.
 
+**Stick wählen:** Unter dem Sender steht bei zwei Sticks der Schalter
+„Stick“: **Auto** (Standard) misst jeden Sender, sobald er sich eingespielt
+hat, auch auf dem anderen Stick und wechselt ohne Pause dorthin, wenn der
+mindestens 10 Punkte besser empfängt. **Stick 1** und **Stick 2** spielen
+fest auf diesem Stick (die Namen stehen im Tooltip und dahinter). Der jeweils
+andere Stick sucht im Hintergrund.
+
+**DAB+ und die Verstärkungs-Automatik:** Manche Sticks (gesehen beim Nooelec
+NESDR SMArt v5) regelt die Automatik von welle-cli auf wenige dB herunter,
+dann findet DAB+ nichts. Beat erkennt das (unter 10 dB und kein Ensemble)
+und nimmt für diesen Stick ab dann eine feste Verstärkung von 37 dB. Der
+Hinweis neben dem Schalter zeigt, welche Sticks das betrifft. Eine feste
+Verstärkung in der Option `rtl_gain` hat immer Vorrang.
+
 **Antennen vergleichen:** Unter dem Suchlauf steht bei zwei Sticks der Knopf
 „Antennen vergleichen“. Er misst den laufenden Sender einige Sekunden auch auf
 dem freien Stick, ohne die Wiedergabe zu unterbrechen, und zeigt beide Werte mit

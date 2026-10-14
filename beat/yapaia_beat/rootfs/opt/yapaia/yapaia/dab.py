@@ -197,7 +197,19 @@ class DabTuner:
             return ["-g", str(welle_gain_index(self.opts.gain_value))]
         if self.gain_index is not None and self.gain_index >= 0:  # measured per channel
             return ["-g", str(self.gain_index)]
+        if self.opts.dab_fixed_gain_index >= 0:  # this stick's AGC does not work
+            return ["-g", str(self.opts.dab_fixed_gain_index)]
         return []  # welle-cli's software AGC
+
+    @property
+    def uses_agc(self) -> bool:
+        return not self._gain_args()
+
+    @property
+    def hardware_gain(self) -> float | None:
+        """Gain the stick is set to right now (dB), as welle-cli reports it."""
+        value = ((self.mux.get("receiver") or {}).get("hardware") or {}).get("gain")
+        return float(value) if isinstance(value, (int, float)) else None
 
     @property
     def fic_errors(self) -> int | None:
@@ -363,24 +375,35 @@ class DabTuner:
 
 
 # ----------------------------------------------------------------------
-async def probe_dab(opts: Options, channel: str, max_time: float = 12.0, want_sid: str | None = None) -> dict[str, Any]:
-    """Tune to a DAB channel and list its audio services."""
+async def probe_dab(
+    opts: Options, channel: str, max_time: float = 12.0, want_sid: str | None = None,
+    patience: float = 5.0, settle: float = 0.0,
+) -> dict[str, Any]:
+    """Tune to a DAB channel and list its audio services.
+
+    ``patience``: seconds without an ensemble before giving up (a stick on a
+    fixed gain needs ~10 s to sync); ``settle``: keep measuring this long
+    after ``want_sid`` was found, so the quality is not the first rough value."""  # fmt: skip
     tuner = DabTuner(opts, channel)
     await tuner.start()
     start = time.monotonic()
     stable_since = None
     last_count = -1
+    found_at = None
     try:
         while time.monotonic() - start < max_time:
             await asyncio.sleep(0.5)
             if not tuner.running and tuner.error:
                 raise RuntimeError(tuner.error)
             elapsed = time.monotonic() - start
-            if elapsed > 5 and not tuner.ensemble_label and (tuner.snr or 0) < 4:
+            if elapsed > patience and not tuner.ensemble_label and (tuner.snr or 0) < 4:
                 break  # no ensemble on this channel
             audio = [s for s in tuner.services if s.get("url_mp3") and _label(s.get("label"))]
             if want_sid and any(norm_sid(s.get("sid")) == norm_sid(want_sid) for s in audio):
-                break
+                found_at = found_at or time.monotonic()
+                if time.monotonic() - found_at >= settle:
+                    break
+                continue
             if len(audio) != last_count:
                 last_count, stable_since = len(audio), time.monotonic()
             elif audio and tuner.ensemble_label and time.monotonic() - stable_since > 2.5:
@@ -403,7 +426,10 @@ async def probe_dab(opts: Options, channel: str, max_time: float = 12.0, want_si
         for s in tuner.services
         if s.get("url_mp3") and _label(s.get("label"))
     ]
-    return {"channel": channel, "ensemble": tuner.ensemble_label, "quality": tuner.quality, "services": services}
+    return {
+        "channel": channel, "ensemble": tuner.ensemble_label, "quality": tuner.quality, "services": services,
+        "agc": tuner.uses_agc, "gain_db": tuner.hardware_gain,
+    }  # fmt: skip
 
 
 async def dab_candidates(opts: Options) -> list[str]:
