@@ -33,6 +33,7 @@ import RoutingInitializer from '../routing/RoutingInitializer.js';
 import ThemeController from '../theme/ThemeController.js';
 import ScreenAwakeController from '../shell/ScreenAwakeController.js';
 import NavFeed from './NavFeed.js';
+import { einbettungSteuerung } from './steuerung.js';
 import '../index.css';
 
 function EmbeddedMap(): React.ReactElement {
@@ -52,6 +53,10 @@ function EmbeddedMap(): React.ReactElement {
     </div>
   );
 }
+
+// Ansicht wechseln und zentrieren von außen (embed/steuerung.ts) -- für
+// Dashboards, die ihren eigenen Kompass-Knopf neben die Kachel setzen.
+window.__yapaiaEinbettung = einbettungSteuerung();
 
 const root = document.getElementById('root');
 if (!root) {

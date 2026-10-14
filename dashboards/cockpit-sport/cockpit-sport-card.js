@@ -403,7 +403,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
    * dort, schaltet er die Ansicht weiter -- Norden oben → in Fahrtrichtung →
    * in Fahrtrichtung, geneigt (3D).
    *
-   * Ab Yapaia Go 0.47.1 geht beides über `__yapaiaEinbettung` der Kachel,
+   * Ab Yapaia Go 0.48.1 geht beides über `__yapaiaEinbettung` der Kachel,
    * ohne Neuladen. Ältere Fassungen kennen nur den im Browser gemerkten Modus
    * (`yapaia.viewMode`), den sie beim Laden lesen: dort wird die Kachel für
    * den Ansichtswechsel neu geladen.
