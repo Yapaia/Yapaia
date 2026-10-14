@@ -1,0 +1,9 @@
+# Dashboard „Cockpit Sport“ – Rohkonfiguration
+# (Dashboard → ⋮ → Bearbeiten → ⋮ → Raw-Konfigurationseditor)
+views:
+  - title: Cockpit Sport
+    path: sport
+    icon: mdi:car-sports
+    type: panel
+    cards:
+      - type: custom:yapaia-cockpit-sport-card
