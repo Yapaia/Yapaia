@@ -255,12 +255,21 @@ class GLiNetClient:
 
 # ---- SIM-Umschaltung: bekannte Wege -----------------------------------------
 #
+# Am GL-X3000 (Firmware 4.x) nachgesehen, was die Router-Oberfläche beim
+# „Anwenden“ im Dialog „SIM-Kartensteckplatz-Einstellungen“ schickt:
+# `modem.set_slot_config {bus, enable_switch: false, current_sim: "2"}` --
+# die SIM als Text, der automatische Wechsel aus. Die ganze Slot-Konfiguration
+# zurückzuschicken lehnt der Router ab („Invalid params“), `slot` nimmt er an
+# und tut nichts.
+SWITCH_UI = {"bus": "{bus}", "enable_switch": False, "current_sim": "{sim_text}"}
+#
 # GL.iNet dokumentiert den Aufruf nicht. Die Router-Oberfläche kann es, also
 # gibt es ihn -- nur nicht unter einem bekannten Namen. Deshalb werden diese
 # Wege der Reihe nach probiert, und als gelernt gilt nur, was der Router
 # danach WIRKLICH meldet (`current_sim`). `None` als Vorlage heißt: die
 # aktuelle Slot-Konfiguration mit ersetzter SIM-Nummer zurückschicken.
 SWITCH_CANDIDATES: tuple[tuple[str, Any], ...] = (
+    ("modem.set_slot_config", SWITCH_UI),
     ("modem.set_slot_config", None),
     ("modem.set_slot_config", {"bus": "{bus}", "slot": "{sim}"}),
     ("modem.set_sim_slot", {"bus": "{bus}", "slot": "{sim}"}),
@@ -300,7 +309,7 @@ def build_switch_params(
 
 
 def render_template(template: Any, target: int, bus: str | None) -> Any:
-    """Replace ``"{sim}"`` (as number) and ``"{bus}"`` placeholders."""
+    """Replace ``"{sim}"`` (as number), ``"{sim_text}"`` and ``"{bus}"`` placeholders."""
     if isinstance(template, dict):
         return {k: render_template(v, target, bus) for k, v in template.items()}
     if isinstance(template, list):
@@ -308,7 +317,11 @@ def render_template(template: Any, target: int, bus: str | None) -> Any:
     if template == "{sim}":
         return target
     if isinstance(template, str):
-        return template.replace("{sim}", str(target)).replace("{bus}", bus or "")
+        return (
+            template.replace("{sim_text}", str(target))
+            .replace("{sim}", str(target))
+            .replace("{bus}", bus or "")
+        )
     return template
 
 

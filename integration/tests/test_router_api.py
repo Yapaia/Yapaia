@@ -8,7 +8,9 @@ from aiohttp import web
 
 from custom_components.yapaia.router.api import (
     GLiNetAuthError,
+    SWITCH_UI,
     GLiNetClient,
+    GLiNetRpcError,
     build_switch_params,
     build_url,
     format_bands,
@@ -69,6 +71,8 @@ def test_render_template() -> None:
         "label": "SIM2",
         "n": [1, 2],
     }
+    # die Oberfläche des X3000 schickt die SIM als Text
+    assert render_template(SWITCH_UI, 2, BUS) == {"bus": BUS, "enable_switch": False, "current_sim": "2"}
 
 
 def test_signal_bars() -> None:
@@ -173,10 +177,14 @@ async def test_switch_sim_auto_and_template(socket_enabled) -> None:
     try:
         async with aiohttp.ClientSession() as session:
             client = GLiNetClient(session, url, "root", "secret")
-            called, params, _ = await client.switch_sim(2, BUS)
+            # wie die Router-Oberfläche: SIM als Text, Automatik aus
+            called, params, _ = await client.switch_sim(2, BUS, params_template=SWITCH_UI)
             assert called == "modem.set_slot_config"
-            assert params == {"bus": BUS, "slot": 2, "auto_switch": False}
+            assert params == {"bus": BUS, "enable_switch": False, "current_sim": "2"}
             assert router.current_sim == 2
+            # die ganze Slot-Konfiguration zurück lehnt der X3000 ab
+            with pytest.raises(GLiNetRpcError):
+                await client.switch_sim(1, BUS)
 
             await client.switch_sim(
                 1, BUS, params_template={"bus": "{bus}", "slot": "{sim}"}

@@ -22,7 +22,12 @@ class FakeRouter:
         self.password = PASSWORD
         self.sid = "sid-1"
         self.current_sim = 1
-        self.slot_config: Any = {"bus": BUS, "slot": 1, "auto_switch": False}
+        # so liefert es der GL-X3000 (Firmware 4.x)
+        self.slot_config: Any = {
+            "failover_interval": "300", "hour": "03", "main_sim": "", "min": "00",
+            "enable_timing": False, "apn": "", "enable_switch": False,
+            "sim1": {"carrier": "o2 - de+"}, "sim2": {"carrier": "DR"}, "current_sim": "1",
+        }  # fmt: skip
         self.calls: list[tuple[str, str, Any]] = []
         self.switch_takes_effect = True
         # Welcher Aufruf die SIM wirklich umschaltet (Firmware-abhängig, s. api.SWITCH_CANDIDATES)
@@ -95,10 +100,17 @@ class FakeRouter:
         if key == "modem.get_slot_config":
             return copy.deepcopy(self.slot_config)
         if key == "modem.set_slot_config":
-            self.slot_config = copy.deepcopy(args)
-            if self.switch_takes_effect and key == self.switch_method:
-                self.current_sim = int(args["slot"])
-            return {}
+            # wie der X3000: unbekannte Felder (etwa sim1/sim2) = Fehler,
+            # `slot` wird angenommen und bewirkt nichts
+            erlaubt = {"bus", "enable_switch", "current_sim", "main_sim", "failover_interval",
+                       "enable_timing", "hour", "min", "slot"}  # fmt: skip
+            if set(args) - erlaubt:
+                raise RpcError(-32602, "Invalid params")
+            if (self.switch_takes_effect and key == self.switch_method
+                    and "current_sim" in args and not args.get("enable_switch")):  # fmt: skip
+                self.current_sim = int(args["current_sim"])
+                self.slot_config["current_sim"] = str(args["current_sim"])
+            return []
         if key == self.switch_method:
             if self.switch_takes_effect:
                 self.current_sim = int(next(v for k, v in args.items() if k != "bus"))
