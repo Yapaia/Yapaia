@@ -43,6 +43,10 @@ Der Knopf mit den vier Pfeilen in der oberen Leiste startet das Anpassen:
   selbst.
 - **Zurücksetzen** stellt den gewählten Bildschirm wieder auf den Standard.
 
-Gespeichert wird je Gerät (im Browser), wie in Yapaia Go.
+Gespeichert wird je Gerät (im Browser), wie in Yapaia Go. Die Verschiebungen
+wachsen mit der Breite mit: Auf- und Zuklappen der Seitenleiste von Home
+Assistant lässt alles an seinem Platz. Ältere Anordnungen (in Pixeln) werden
+beim ersten Öffnen einmal umgerechnet. Lagen sie nach dem Umklappen schief,
+einmal nachrücken.
 
 Mit `demo: true` an der Karte zeigt sie Beispielwerte einer Navigation.

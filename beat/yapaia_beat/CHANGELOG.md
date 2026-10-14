@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.16.0
+
+**Welche Antenne ist besser?** Gewünscht: eine kleine Anzeige, welcher Stick
+den besseren Empfang hat.
+
+- Neuer Knopf **„Antennen vergleichen“** unter dem Suchlauf (nur mit zwei
+  Sticks): misst den laufenden Sender kurz auch auf dem freien Stick, die
+  Wiedergabe läuft weiter. Angezeigt werden beide Werte mit dem Namen des
+  Sticks (Hersteller und Modell) und welcher besser empfängt.
+- Die Gegenprobe vor einer Verfolgungs-Suche erscheint ebenfalls dort.
+- Ein Suchlauf, der während des Vergleichs gestartet wird, wartet die paar
+  Sekunden ab und läuft dann wie gewohnt auf dem zweiten Stick.
+
 ## 1.15.0
 
 **Das Radio hört aufs Wort.** Gemeldet: Über den Sprachsatelliten wurde „Spiel

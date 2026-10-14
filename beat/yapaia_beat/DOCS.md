@@ -61,6 +61,15 @@ einfach einstecken. Dann gilt (Option `second_stick`):
   Splitter für FM und DAB).
 - **`aus`**: der zweite Stick wird nicht benutzt.
 
+**Antennen vergleichen:** Unter dem Suchlauf steht bei zwei Sticks der Knopf
+„Antennen vergleichen“. Er misst den laufenden Sender einige Sekunden auch auf
+dem freien Stick, ohne die Wiedergabe zu unterbrechen, und zeigt beide Werte mit
+Namen des Sticks (z. B. „Nooelec NESDR SMArt v5: 72 % · Realtek RTL2838UHIDIR:
+81 % → besser: Realtek …“). Liegen beide weniger als 5 Punkte auseinander, heißt
+es „etwa gleich gut“. Zum Vergleich zweier Antennen: am selben Ort mehrere Sender
+(UKW und DAB+) messen, Antennen tauschen und nochmal messen. Die Gegenprobe der
+Senderverfolgung landet ebenfalls in dieser Anzeige.
+
 „DAB-Empfang optimieren" läuft weiterhin auf dem Stick, auf dem gehört wird,
 und unterbricht die Wiedergabe.
 

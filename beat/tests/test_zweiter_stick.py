@@ -82,6 +82,7 @@ def make_radio(mode="suche", sticks=2, **kw):
 @pytest.fixture(autouse=True)
 def _restore(monkeypatch):
     monkeypatch.setattr(radio_mod, "find_sticks", radio_mod.find_sticks)
+    monkeypatch.setattr(radio_mod, "stick_names", lambda: {0: "Nooelec NESDR SMArt v5", 1: "Realtek RTL2838UHIDIR"})
     monkeypatch.setattr(radio_mod, "FmTuner", FakeFm)
     monkeypatch.setattr(radio_mod, "SWITCH_WAIT", {"fm": 1.0, "dab": 1.0})
 
@@ -289,5 +290,66 @@ def test_stopp_waehrend_hintergrund_suchlauf_stoppt_das_radio():
         await r.stop()
         assert r.tuner is None and r.state == "idle"
         assert not r._scan_cancel.is_set()
+
+    asyncio.run(run())
+
+
+# ---------------------------------------------------------------- antennenvergleich
+def test_antennen_vergleichen_misst_den_sender_auf_dem_freien_stick(monkeypatch):
+    """1.16.0: „Können wir im ‚Suche' noch eine kleine Anzeige hinzufügen
+    welcher Stick den besseren Empfang hat? Ich habe verschiedene Antennen.“"""
+
+    async def run():
+        r = make_radio(mode="suche")
+        _spielend(r, quality=60.0)
+        gemessen = []
+
+        async def probe_fm(opts, f, **kw):
+            gemessen.append((opts.rtl_device_index, f))
+            return {"freq": f, "quality": 81.4, "pi": None, "name": None, "pty": None, "af": []}
+
+        monkeypatch.setattr(radio_mod, "probe_fm", probe_fm)
+        r.start_compare()
+        assert r.status()["second_stick_busy"] == "compare"
+        with pytest.raises(RuntimeError):
+            r.start_compare()  # der freie Stick ist schon beschäftigt
+        await r._compare_task
+        assert gemessen == [(1, 98.0)]
+        assert r.tuner.running  # der erste Stick spielt weiter
+        c = r.status()["stick_compare"]
+        assert c["station"] == "SWR3" and c["where"] == "98,0 MHz"
+        assert c["sticks"] == [{"index": 0, "quality": 60, "playing": True}, {"index": 1, "quality": 81, "playing": False}]
+        assert r.status()["stick_names"]["1"] == "Realtek RTL2838UHIDIR"
+        assert r.status()["second_stick_busy"] is None
+
+    asyncio.run(run())
+
+
+def test_antennen_vergleichen_nur_beim_hoeren_mit_zwei_sticks():
+    r = make_radio(sticks=1)
+    _spielend(r)
+    with pytest.raises(RuntimeError, match="Nur ein Stick"):
+        r.start_compare()
+    r = make_radio()
+    with pytest.raises(RuntimeError, match="Sender abspielen"):
+        r.start_compare()
+
+
+def test_gegenprobe_der_verfolgung_landet_auch_im_vergleich(monkeypatch):
+    async def run():
+        r = make_radio(mode="suche")
+        _spielend(r, quality=30.0)
+
+        async def probe_fm(opts, f, **kw):
+            return {"freq": f, "quality": 2.0, "pi": None, "name": None, "pty": None, "af": []}
+
+        async def follow(tuner, station):
+            pass
+
+        monkeypatch.setattr(radio_mod, "probe_fm", probe_fm)
+        r._follow = follow
+        await r._check_follow()
+        await r._follow_task
+        assert [s["quality"] for s in r.stick_compare["sticks"]] == [30, 2]
 
     asyncio.run(run())

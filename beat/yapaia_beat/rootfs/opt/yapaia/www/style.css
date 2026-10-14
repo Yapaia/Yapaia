@@ -187,7 +187,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 16px
 .out-menu button small { color: var(--muted); font-size: 11px; }
 .out-menu button.active::after { content: "✓"; }
 .out-menu .none { color: var(--muted); font-size: 12px; padding: 6px 10px 8px; }
-#out-hint.err, #ma-hint.err { color: #ff8a80; }
+#out-hint.err, #ma-hint.err, #compare-res.err { color: #ff8a80; }
 .ma-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; }
 .ma-row .switch { margin-left: 0; }
 .small { font-size: 12px; }
@@ -216,3 +216,5 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 16px
   .tabs { grid-column: 2; margin: 0 0 10px; }
   .tab { grid-column: 2; padding: 12px; }
 }
+#stick-compare { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0; }
+#stick-compare[hidden] { display: none; }

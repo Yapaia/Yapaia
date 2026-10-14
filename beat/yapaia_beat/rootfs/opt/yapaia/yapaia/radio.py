@@ -17,7 +17,7 @@ from .dab import DabTuner, dab_candidates, norm_sid, optimiere_dab, probe_dab, s
 from .fm import FM_START, FM_STOP, FmTuner, fm_candidates, probe_fm, rtl_power_sweep, scan_fm
 from .logos import LogoManager
 from .store import Store, display_name, fm_station_id, normalize_name
-from .usb import find_sticks, reset_sticks
+from .usb import find_sticks, reset_sticks, stick_names
 
 _LOGGER = logging.getLogger(__name__)
 RECOVER_INTERVAL = 15  # seconds between attempts to get a lost stick back
@@ -80,7 +80,11 @@ class Radio:
         # RTL-SDR sticks (librtlsdr indices); the first one is the configured
         self.sticks: list[int] = [opts.rtl_device_index]
         self._last_stick = opts.rtl_device_index  # the one listened on
-        self._helper: str | None = None  # what the second stick does: scan | follow | switch
+        self._helper: str | None = None  # what the second stick does: scan | follow | switch | compare
+        self.stick_names: dict[int, str] = {}
+        # last antenna comparison: the current station measured on both sticks
+        self.stick_compare: dict[str, Any] | None = None
+        self._compare_task: asyncio.Task | None = None
         self._scan_auto = False
         self._stick_check_at = 0.0
         self._bg_scan_at = time.monotonic() + FIRST_BG_SCAN_DELAY
@@ -202,6 +206,8 @@ class Radio:
         else:
             self.sticks = [main]
         if self.sticks != before:
+            self.stick_names = stick_names() if len(self.sticks) > 1 else {}
+            self.stick_compare = None
             if len(self.sticks) > 1:
                 _LOGGER.info("Second RTL-SDR stick found (index %d, mode %s)", self.sticks[1], self.opts.second_stick)
             else:
@@ -483,7 +489,7 @@ class Radio:
         self._scan_cancel.clear()
         # on the second stick (decided for good in _run_scan; a search there
         # gets cancelled for it): station changes stay possible right away
-        background = band != "dab-optimize" and self.two_sticks and self._helper in (None, "follow", "scan")
+        background = band != "dab-optimize" and self.two_sticks and self._helper in (None, "follow", "scan", "compare")
         self.scan = {
             "running": True, "band": band, "progress": 0, "message": "Starte Suchlauf …",
             "found": 0, "error": None, "background": background, "auto": auto,
@@ -504,9 +510,10 @@ class Radio:
         self._scan_cancel.set()
 
     async def _run_scan(self, band: str, auto: bool = False) -> None:
-        if self._helper == "scan":  # the replaced automatic scan is still winding down
+        # the replaced automatic scan is still winding down / a comparison ends soon
+        if self._helper in ("scan", "compare"):
             for _ in range(100):
-                if self._helper != "scan":
+                if self._helper not in ("scan", "compare"):
                     break
                 await asyncio.sleep(0.1)
         await self._cancel_follow()
@@ -884,14 +891,12 @@ class Radio:
         Clearly worse than on the first one = no (proper) antenna there, and
         a search with it would find nothing."""
         try:
-            if isinstance(tuner, FmTuner):
-                ref = (await probe_fm(opts, tuner.freq, max_time=3.5, min_time=1.5))["quality"]
-            else:
-                ref = (await probe_dab(opts, tuner.channel, max_time=8, want_sid=st.get("sid")))["quality"]
+            ref = await self._measure_spare(opts, tuner, st)
         except Exception as err:  # noqa: BLE001
             _LOGGER.info("Second stick: reference measurement failed (%s)", err)
             self.spare_hint = f"Zweiter Stick: Gegenprobe fehlgeschlagen ({err})"
             return True
+        self._note_compare(tuner, st, cur_q, opts.rtl_device_index, ref)
         worse = ref < cur_q - SPARE_WORSE_BY
         self.spare_hint = (
             f"Zweiter Stick empfängt deutlich schlechter ({ref:.0f} % statt {cur_q:.0f} %) – Antenne prüfen"
@@ -901,6 +906,54 @@ class Radio:
         if worse:
             _LOGGER.warning("Second stick receives clearly worse (%.0f%% vs %.0f%%) – antenna?", ref, cur_q)
         return worse
+
+    @staticmethod
+    async def _measure_spare(opts: Options, tuner: Tuner, st: dict[str, Any]) -> float:
+        """Reception quality (0-100) of the tuner's station on another stick."""
+        if isinstance(tuner, FmTuner):
+            return (await probe_fm(opts, tuner.freq, max_time=3.5, min_time=1.5))["quality"]
+        return (await probe_dab(opts, tuner.channel, max_time=8, want_sid=st.get("sid")))["quality"]
+
+    def _note_compare(self, tuner: Tuner, st: dict[str, Any], cur_q: float, spare: int, ref: float) -> None:
+        if isinstance(tuner, FmTuner):
+            where = f"{tuner.freq:.1f} MHz".replace(".", ",")
+        else:
+            where = f"DAB+ Kanal {tuner.channel}"
+        self.stick_compare = {
+            "station": display_name(st), "where": where, "time": time.time(),
+            "sticks": [
+                {"index": tuner.opts.rtl_device_index, "quality": round(cur_q), "playing": True},
+                {"index": spare, "quality": round(ref), "playing": False},
+            ],
+        }  # fmt: skip
+
+    def start_compare(self) -> None:
+        """Measure the current station on the free stick too, to see which
+        stick (antenna) receives better."""
+        tuner, st = self.tuner, self.station
+        if not self.two_sticks:
+            raise RuntimeError("Nur ein Stick angeschlossen")
+        if not (tuner and tuner.running and st):
+            raise RuntimeError("Zum Vergleichen zuerst einen Sender abspielen")
+        spare = self._spare_stick()
+        if spare is None:
+            raise RuntimeError("Zweiter Stick ist gerade beschäftigt – gleich nochmal versuchen")
+        self._helper = "compare"
+        self.changed()
+        self._compare_task = asyncio.create_task(self._run_compare(tuner, st, spare))
+
+    async def _run_compare(self, tuner: Tuner, st: dict[str, Any], spare: int) -> None:
+        try:
+            ref = await self._measure_spare(self._opts(spare), tuner, st)
+            if self.tuner is tuner and tuner.running:  # still the same station
+                self._note_compare(tuner, st, tuner.quality, spare, ref)
+                _LOGGER.info("Antenna comparison: stick %d %.0f%%, stick %d %.0f%%", tuner.opts.rtl_device_index, tuner.quality, spare, ref)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.info("Antenna comparison failed: %s", err)
+            self.stick_compare = {"error": f"Vergleich fehlgeschlagen ({err})", "time": time.time()}
+        finally:
+            self._helper = None
+            self.changed()
 
     async def _follow_background(self, tuner: Tuner, st: dict[str, Any], spare: int) -> None:
         """Station following on the second stick: the first one keeps playing
@@ -1127,6 +1180,8 @@ class Radio:
             "second_stick": self.opts.second_stick if self.two_sticks else None,
             "second_stick_busy": self._helper,
             "second_stick_hint": self.spare_hint,
+            "stick_names": {str(k): v for k, v in self.stick_names.items()},
+            "stick_compare": self.stick_compare,
             "active_favorite": self.active_favorite(),
             "favorites": [self.station_info(self.store.stations[f]) for f in self.store.favorites if f in self.store.stations],
             "station_count": len(self.store.stations),
