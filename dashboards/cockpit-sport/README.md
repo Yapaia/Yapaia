@@ -29,6 +29,33 @@ Enter nimmt den ersten Vorschlag.
 3. Neues Dashboard anlegen, im Raw-Konfigurationseditor den Inhalt von
    [`dashboard.yaml`](dashboard.yaml) einsetzen.
 
+## Oben rechts: Internet
+
+Zeigt, worüber der Router (Yapaia Router) gerade ins Internet geht, live
+(alle 15 s):
+
+- **WLAN:** die WLAN-Bögen, je mehr, desto besser der Empfang.
+- **Mobilfunk:** Balken von links (klein) nach rechts (groß), dazu Netztyp
+  (2G, E, 3G, H+, LTE, 5G) und aktive SIM, z. B. „5G SIM2“. **Rot** im
+  Roaming.
+
+Antippen öffnet darunter die Details: beim WLAN Netz, Signal, Kanal, IP und
+Verbindungsdauer, beim Mobilfunk Anbieter, Netz und Bänder, aktive SIM, Land
+(rot im Roaming) und Signalwerte, dazu die Knöpfe **SIM 1 / SIM 2** zum
+Umschalten. Das Mikrofon daneben schaltet das Mikrofon des Satelliten stumm.
+
+## Unten: Sprache und Sonderziele
+
+- **Mikrofon:** öffnet den Sprachassistenten von Home Assistant und hört
+  sofort zu (wie „Assist“ in der App). Im Browser braucht das Mikrofon eine
+  sichere Verbindung (https oder die App).
+- **Sonderziele** (Stecknadel): Tankstelle, Parkplatz, Stellplatz,
+  Campingplatz, Supermarkt, Entsorgung, Frischwasser, Gasflaschen, Toilette.
+  Eine Kategorie zeigt die nächsten, während der Fahrt voraus auf der Route.
+  Ein Eintrag zeigt den Ort markiert auf der Karte, die anderen daneben
+  (ab Yapaia Go 0.50.0). Nochmal antippen fügt ihn als **Zwischenziel** ein,
+  ohne Navigation wird er das Ziel.
+
 ## Kopfzeile ausblenden
 
 Der Knopf mit dem Vollbild-Symbol in der oberen Leiste blendet die Kopfzeile

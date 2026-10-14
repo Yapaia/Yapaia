@@ -109,6 +109,16 @@ async def test_umschalten_lernt_den_weg(hass: HomeAssistant, patch_router: FakeR
     assert [f"{s}.{m}" for s, m, _ in versuche] == ["modem.set_sim_slot"]
 
 
+async def test_internet_ueber_wlan_oder_mobilfunk(hass: HomeAssistant, patch_router: FakeRouter) -> None:
+    """Für die Anzeige im Dashboard: worüber der Router gerade ins Internet geht."""
+    await einrichten(hass)
+    s = hass.states.get("sensor.yapaia_router_internet")
+    assert s.state == "WLAN"
+    assert s.attributes["quelle"] == "wlan" and s.attributes["wlan_ssid"] == "NoDramaLama"
+    assert s.attributes["wlan_balken"] == 4
+    assert float(zustand(hass, "sensor.yapaia_router_wlan_signal")) == -55
+
+
 async def test_umschalten_wie_die_router_oberflaeche(hass: HomeAssistant, patch_router: FakeRouter) -> None:
     """Gemeldet: Werte stimmen, die Umschaltung geht nicht. Der X3000 will
     `current_sim` als Text und `enable_switch: false` -- gleich der erste Weg."""
@@ -225,6 +235,7 @@ async def test_diagnose_schwaerzt(hass: HomeAssistant, patch_router: FakeRouter)
     d = await async_get_config_entry_diagnostics(hass, entry)
     text = str(d)
     assert "secret" not in text and "94:83:C4" not in text and "9483c4aabbcc" not in text
+    assert "NoDramaLama" not in text  # das WLAN, an dem der Router hängt
     assert d["router"]["mcc"] == "262"
     assert d["router"]["roh"]["modem_status"]["modems"][0]["current_sim"] == "1"
 

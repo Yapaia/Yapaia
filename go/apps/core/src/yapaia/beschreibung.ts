@@ -166,6 +166,18 @@ export const AKTIONEN = [
       name: { typ: 'text', titel: { de: 'Name des Ziels (zu den Koordinaten)', en: 'Destination name (for coordinates)' } },
     },
   },
+  {
+    name: 'zwischenziel_einfuegen',
+    titel: { de: 'Zwischenziel einfügen', en: 'Add stop' },
+    beschreibung: {
+      de: 'Fügt den Ort als nächsten Halt in die laufende Navigation ein. Ohne laufende Navigation wird er das Ziel.',
+      en: 'Adds the place as the next stop of the running navigation. Without one it becomes the destination.',
+    },
+    felder: {
+      ort: { typ: 'ort', pflicht: true, titel: { de: 'Ort', en: 'Place' } },
+      name: { typ: 'text', titel: { de: 'Name', en: 'Name' } },
+    },
+  },
   { name: 'navigation_pausieren', titel: { de: 'Navigation pausieren', en: 'Pause navigation' } },
   { name: 'navigation_fortsetzen', titel: { de: 'Navigation fortsetzen', en: 'Resume navigation' } },
   { name: 'navigation_beenden', titel: { de: 'Navigation beenden', en: 'Stop navigation' } },

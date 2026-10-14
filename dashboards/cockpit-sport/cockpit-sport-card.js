@@ -24,14 +24,27 @@ const E = {
   zuSchnell: 'binary_sensor.yapaia_go_zu_schnell',
   hoehe: 'sensor.yapaia_go_hoehe',
   profil: 'select.yapaia_go_profil',
-  pause: 'button.yapaia_go_pausieren',
-  weiter: 'button.yapaia_go_fortsetzen',
   beenden: 'button.yapaia_go_beenden',
   zustand: 'sensor.yapaia_go_zustand',
   radio: 'media_player.yapaia_beat',
   titel: 'sensor.yapaia_beat_now_playing',
   radiotext: 'sensor.yapaia_beat_radiotext',
   stumm: 'switch.yapaia_satellite_mikrofon_stumm',
+  // Yapaia Router (GL.iNet): Internet über WLAN oder Mobilfunk
+  internet: 'sensor.yapaia_router_internet',
+  wlanSignal: 'sensor.yapaia_router_wlan_signal',
+  balken: 'sensor.yapaia_router_signalbalken',
+  netztyp: 'sensor.yapaia_router_netztyp',
+  aktiveSim: 'sensor.yapaia_router_aktive_sim',
+  roaming: 'binary_sensor.yapaia_router_roaming',
+  anbieter: 'sensor.yapaia_router_anbieter',
+  baender: 'sensor.yapaia_router_baender',
+  rsrp: 'sensor.yapaia_router_rsrp',
+  rsrq: 'sensor.yapaia_router_rsrq',
+  sinr: 'sensor.yapaia_router_sinr',
+  land: 'sensor.yapaia_router_land',
+  sim: 'select.yapaia_router_sim',
+  umschaltung: 'sensor.yapaia_router_umschaltung',
   satellit: 'assist_satellite.yapaia_satellite_assist_satellit',
 };
 const LEER = new Set(['unknown', 'unavailable', 'none', '', undefined, null]);
@@ -90,6 +103,46 @@ function anordnungLesen(u) {
   }
 }
 
+// ─── NETZ-ANZEIGE ────────────────────────────────────────────────────────────
+// Oben rechts wie am Telefon: WLAN-Bögen, wenn der Router über WLAN ins
+// Internet geht, sonst Balken (links klein, rechts groß) mit Netztyp und
+// aktiver SIM -- rot im Roaming. Live, weil der Router alle 15 s meldet.
+const GRAU = 'rgba(255, 255, 255, 0.25)';
+
+function balkenSvg(an, von = 5) {
+  let teile = '';
+  for (let i = 0; i < von; i += 1) {
+    const h = 4 + i * 3;
+    teile += `<rect x="${i * 5}" y="${16 - h}" width="3.4" height="${h}" rx="0.8" fill="${i < an ? 'currentColor' : GRAU}"/>`;
+  }
+  return `<svg viewBox="0 0 ${von * 5 - 1.6} 16" aria-hidden="true">${teile}</svg>`;
+}
+
+function wlanSvg(an) {
+  // an: 0-4 (Punkt + drei Bögen)
+  const bogen = (r, i) => {
+    const d = r * Math.SQRT1_2;
+    return `<path d="M ${12 - d} ${16.5 - d} A ${r} ${r} 0 0 1 ${12 + d} ${16.5 - d}" fill="none" stroke-width="2.4"
+      stroke-linecap="round" stroke="${an > i ? 'currentColor' : GRAU}"/>`;
+  };
+  return `<svg viewBox="0 0 24 18" aria-hidden="true"><circle cx="12" cy="15.8" r="1.8" fill="${an > 0 ? 'currentColor' : GRAU}"/>
+    ${bogen(6, 1)}${bogen(10.5, 2)}${bogen(15, 3)}</svg>`;
+}
+
+/** „NR5G-NSA“ → „5G“, „LTE“ → „LTE“, „HSPA+“ → „H+“, „EDGE“ → „E“ … */
+function netzKurz(typ) {
+  const t = String(typ || '').toUpperCase();
+  if (!t) return '';
+  if (t.includes('NR') || t.includes('5G')) return '5G';
+  if (t.includes('LTE')) return 'LTE';
+  if (t.includes('HSPA') || t.includes('HSDPA') || t.includes('HSUPA')) return 'H+';
+  if (t.includes('WCDMA') || t.includes('UMTS') || t.includes('3G') || t.includes('SCDMA')) return '3G';
+  if (t.includes('EDGE')) return 'E';
+  if (t.includes('GPRS')) return 'G';
+  if (t.includes('GSM') || t.includes('2G')) return '2G';
+  return t;
+}
+
 const STIL = `
   :host { display: block; height: 100%; }
   [hidden] { display: none !important; }
@@ -121,6 +174,39 @@ const STIL = `
   .status { display: flex; align-items: center; gap: calc(var(--u) * 0.8); font-size: calc(var(--u) * 1.6);
     --mdc-icon-size: calc(var(--u) * 1.5); }
   .uhr { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+  #s-mikro { cursor: pointer; }
+  .netz { display: flex; align-items: center; gap: calc(var(--u) * 0.45); background: none; border: 0; color: inherit;
+    cursor: pointer; padding: 0; font: inherit; font-size: calc(var(--u) * 1.15); font-weight: 600; letter-spacing: 0.03em; }
+  .netz svg { height: calc(var(--u) * 1.5); width: auto; display: block; }
+  .netz.roaming { color: #ff6b5e; }
+  .netz.weg { opacity: 0.55; }
+  .klapp { position: absolute; z-index: 6; background: var(--dunkel); border-radius: calc(var(--u) * 0.7);
+    box-shadow: 0 calc(var(--u) * 0.8) calc(var(--u) * 2.4) rgba(0, 0, 0, 0.55); padding: calc(var(--u) * 1);
+    border-top: 2px solid var(--kupfer); font-size: calc(var(--u) * 1.3); }
+  .klapp .kopf { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--u) * 0.6);
+    font-weight: 600; font-size: calc(var(--u) * 1.5); margin-bottom: calc(var(--u) * 0.6); }
+  .klapp .kopf .zu { background: none; border: 0; color: #fff; cursor: pointer; padding: 0; --mdc-icon-size: calc(var(--u) * 1.8); }
+  .netz-info { top: calc(var(--u) * 4.6); right: calc(var(--u) * 1.4); width: clamp(260px, 30cqw, 420px); }
+  .netz-info .kopf .netz { pointer-events: none; font-size: calc(var(--u) * 1.3); }
+  .netz-info dl { display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 0.35) calc(var(--u) * 1); margin: 0; }
+  .netz-info dt { opacity: 0.65; }
+  .netz-info dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+  .netz-info .rot { color: #ff6b5e; }
+  .netz-info .sims { display: flex; gap: calc(var(--u) * 0.6); margin-top: calc(var(--u) * 0.9); }
+  .netz-info .sims button { flex: 1; background: #1b2130; color: #fff; border: 1px solid #343b4b; border-radius: calc(var(--u) * 0.5);
+    padding: calc(var(--u) * 0.6); font-size: calc(var(--u) * 1.3); cursor: pointer; }
+  .netz-info .sims button.an { background: var(--kupfer); border-color: var(--kupfer); color: #14161b; font-weight: 600; }
+  .netz-info .sims button:disabled { opacity: 0.6; cursor: default; }
+  .netz-info .stand { margin-top: calc(var(--u) * 0.5); font-size: calc(var(--u) * 1.1); opacity: 0.75; }
+  .orte { left: 50%; transform: translateX(-50%); bottom: calc(var(--u) * 6.4); width: clamp(300px, 46cqw, 640px); }
+  .kategorien { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 0.5); }
+  .kategorien button { background: #1b2130; color: #fff; border: 1px solid #343b4b; border-radius: calc(var(--u) * 0.5);
+    padding: calc(var(--u) * 0.5) calc(var(--u) * 0.8); font-size: calc(var(--u) * 1.25); cursor: pointer; }
+  .kategorien button.an { background: var(--kupfer); border-color: var(--kupfer); color: #14161b; }
+  .orte .treffer { max-height: 34cqh; }
+  .orte .treffer button.an { background: rgba(124, 58, 237, 0.35); }
+  .orte .los { flex: none; background: #7c3aed; color: #fff; border-radius: calc(var(--u) * 0.4);
+    padding: calc(var(--u) * 0.3) calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.1); font-weight: 600; }
 
   .kachel { position: absolute; left: calc(var(--u) * 1.6); z-index: 2; width: clamp(230px, 31cqw, 460px);
     filter: drop-shadow(0 calc(var(--u) * 0.6) calc(var(--u) * 0.9) rgba(0, 0, 0, 0.45)); }
@@ -197,7 +283,7 @@ const STIL = `
   .wagen { color: var(--kupfer); --mdc-icon-size: calc(var(--u) * 2.4); }
   .wagen.hoert { color: #5ad1ff; }
   .laut { font-size: calc(var(--u) * 1.15); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 0.4s;
-    min-width: 3.2em; text-align: center; color: var(--kupfer); }
+    min-width: 3.2em; text-align: center; white-space: nowrap; color: var(--kupfer); }
   .laut.sichtbar { opacity: 1; }
   .kompass ha-icon { transition: transform 0.4s; }
   .kompass .knopf.kurs { background: var(--kupfer); color: #14161b; }
@@ -261,9 +347,9 @@ const HTML = `
       <button class="knopf rund" id="kopfzeile" title="Kopfzeile von Home Assistant ausblenden"><ha-icon icon="mdi:fullscreen"></ha-icon></button>
       <div class="mitte"><div class="griff"></div></div>
       <div class="status">
-        <ha-icon id="s-mikro" icon="mdi:microphone"></ha-icon>
+        <ha-icon id="s-mikro" icon="mdi:microphone" title="Mikrofon des Satelliten stumm / an"></ha-icon>
         <ha-icon id="s-nav" icon="mdi:navigation-variant-outline"></ha-icon>
-        <ha-icon icon="mdi:wifi"></ha-icon>
+        <button class="netz" id="netz" hidden title="Internet: Details"></button>
         <span class="uhr" id="uhr"></span>
       </div>
     </div>
@@ -311,6 +397,14 @@ const HTML = `
       <div class="treffer" id="treffer"></div>
       <div class="hinweis" id="such-hinweis"></div>
     </div>
+    <div class="klapp netz-info" id="netz-info" hidden></div>
+    <div class="klapp orte" id="orte" hidden>
+      <div class="kopf"><span id="orte-titel">Sonderziele in der Nähe</span>
+        <button class="zu" id="orte-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <div class="kategorien" id="orte-kat"></div>
+      <div class="treffer" id="orte-liste"></div>
+      <div class="hinweis" id="orte-hinweis"></div>
+    </div>
     <div class="eta" id="eta" hidden>
       <ha-icon icon="mdi:flag-checkered"></ha-icon>
       <div class="raster"><b id="e-dauer"></b><b id="e-km"></b><span id="e-uhr"></span><span id="e-zustand"></span></div>
@@ -321,8 +415,8 @@ const HTML = `
       <span class="auto" id="l-profil"></span>
       <span class="wert" id="l-tempo"></span>
       <div class="symbole">
-        <button id="l-mikro" title="Mikrofon stumm"><ha-icon icon="mdi:microphone-outline"></ha-icon></button>
-        <button id="l-pause" title="Navigation pausieren / fortsetzen"><ha-icon icon="mdi:pause-circle-outline"></ha-icon></button>
+        <button id="l-mikro" title="Spracheingabe"><ha-icon icon="mdi:microphone-outline"></ha-icon></button>
+        <button id="l-orte" title="Sonderziele in der Nähe: Tankstelle, Stellplatz, Parkplatz …"><ha-icon icon="mdi:map-marker-radius-outline"></ha-icon></button>
         <span class="marke">YAPAIA</span>
         <button id="l-leiser" title="Leiser"><ha-icon icon="mdi:volume-minus"></ha-icon></button>
         <span class="laut" id="l-laut"></span>
@@ -472,11 +566,14 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._rufe('media_player', spielt ? 'media_stop' : 'media_play', { entity_id: E.radio });
     });
     this.$('e-ende').addEventListener('click', () => this._rufe('button', 'press', { entity_id: E.beenden }));
-    this.$('l-pause').addEventListener('click', () => {
-      const pausiert = this._z(E.zustand) === 'paused';
-      this._rufe('button', 'press', { entity_id: pausiert ? E.weiter : E.pause });
+    this.$('l-orte').addEventListener('click', () => (this.$('orte').hidden ? this._orteOeffnen() : this._orteSchliessen()));
+    this.$('orte-zu').addEventListener('click', () => this._orteSchliessen());
+    this.$('l-mikro').addEventListener('click', () => this._sprechen());
+    this.$('s-mikro').addEventListener('click', () => this._rufe('switch', 'toggle', { entity_id: E.stumm }));
+    this.$('netz').addEventListener('click', () => {
+      this.$('netz-info').hidden = !this.$('netz-info').hidden;
+      this._netzInfo();
     });
-    this.$('l-mikro').addEventListener('click', () => this._rufe('switch', 'toggle', { entity_id: E.stumm }));
     this.$('m-stumm').addEventListener('click', () => this._stumm());
     this.$('anpassen').addEventListener('click', () => this._anpassen(this._bearbeiten ? null : this._modus()));
     this.$('kopfzeile').addEventListener('click', () => {
@@ -1061,15 +1158,262 @@ class YapaiaCockpitSportCard extends HTMLElement {
       hoeheEl.innerHTML = `${hoeheText}<small>m ü. NN</small>`;
     }
     const stumm = this._z(E.stumm) === 'on';
-    this.$('l-mikro').classList.toggle('an', stumm);
-    this.$('l-mikro').firstElementChild.setAttribute('icon', stumm ? 'mdi:microphone-off' : 'mdi:microphone-outline');
     this.$('s-mikro').setAttribute('icon', stumm ? 'mdi:microphone-off' : 'mdi:microphone');
-    const pausiert = this._z(E.zustand) === 'paused';
-    this.$('l-pause').firstElementChild.setAttribute('icon', pausiert ? 'mdi:play-circle-outline' : 'mdi:pause-circle-outline');
+    this._netz();
     const sat = this._z(E.satellit);
     this.$('l-wagen').classList.toggle('hoert', sat === 'listening' || sat === 'processing' || sat === 'responding');
 
     this._eta();
+  }
+
+  // ─── Spracheingabe ─────────────────────────────────────────────────────────
+  /** Der Sprachassistent von Home Assistant, sofort zuhörend (wie „Assist“ in der App). */
+  _sprechen() {
+    this.dispatchEvent(
+      new CustomEvent('hass-action', {
+        bubbles: true,
+        composed: true,
+        detail: { config: { tap_action: { action: 'assist', pipeline_id: 'last_used', start_listening: true } }, action: 'tap' },
+      }),
+    );
+  }
+
+  // ─── Netz-Anzeige ──────────────────────────────────────────────────────────
+  _netzStand() {
+    const h = this._hass;
+    const internet = h && h.states[E.internet];
+    if (!internet) return null;
+    const a = internet.attributes || {};
+    return {
+      quelle: a.quelle || null,
+      wlan: { ssid: a.wlan_ssid, balken: Number(a.wlan_balken) || 0, kanal: a.wlan_kanal, ip: a.wlan_ip,
+        gateway: a.wlan_gateway, verbunden: a.wlan_verbunden, bssid: a.wlan_bssid, signal: this._z(E.wlanSignal) },
+      balken: Number(this._z(E.balken)) || 0,
+      typ: netzKurz(this._z(E.netztyp)),
+      sim: this._z(E.aktiveSim),
+      roaming: this._z(E.roaming) === 'on',
+    };
+  }
+
+  _netzSymbol(n) {
+    if (n.quelle === 'wlan') return { html: wlanSvg(n.wlan.balken), roaming: false, titel: `WLAN ${n.wlan.ssid || ''}` };
+    if (n.quelle === 'mobil') {
+      const text = [n.typ, n.sim ? `SIM${n.sim}` : ''].filter(Boolean).join(' ');
+      return { html: `${balkenSvg(n.balken)}<span>${text}</span>`, roaming: n.roaming, titel: `Mobilfunk ${text}` };
+    }
+    if (n.quelle === 'kabel') return { html: '<ha-icon icon="mdi:ethernet"></ha-icon>', roaming: false, titel: 'Kabel' };
+    if (n.quelle === 'tethering') return { html: '<ha-icon icon="mdi:cellphone-link"></ha-icon>', roaming: false, titel: 'Tethering' };
+    return { html: '<ha-icon icon="mdi:web-off"></ha-icon>', roaming: false, titel: 'Kein Internet', weg: true };
+  }
+
+  _netz() {
+    const knopf = this.$('netz');
+    const n = this._netzStand();
+    knopf.hidden = !n;
+    if (!n) {
+      this.$('netz-info').hidden = true;
+      return;
+    }
+    const sym = this._netzSymbol(n);
+    if (knopf.dataset.w !== sym.html) {
+      knopf.dataset.w = sym.html;
+      knopf.innerHTML = sym.html;
+    }
+    knopf.classList.toggle('roaming', sym.roaming);
+    knopf.classList.toggle('weg', !!sym.weg);
+    knopf.title = `${sym.titel} – Details`;
+    if (!this.$('netz-info').hidden) this._netzInfo();
+  }
+
+  /** Das Fenster unter der Anzeige: WLAN- oder Mobilfunkwerte, live. */
+  _netzInfo() {
+    const box = this.$('netz-info');
+    const n = this._netzStand();
+    if (box.hidden || !n) return;
+    const esc = (v) => String(v ?? '–').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const zeile = (k, v, cls = '') => (v === null || v === undefined || v === '' ? '' : `<dt>${k}</dt><dd class="${cls}">${esc(v)}</dd>`);
+    const sym = this._netzSymbol(n);
+    let html = `<div class="kopf"><span class="netz ${sym.roaming ? 'roaming' : ''}">${sym.html}</span>
+      <span style="flex:1">${n.quelle === 'wlan' ? 'WLAN' : n.quelle === 'mobil' ? 'Mobilfunk' : esc(sym.titel)}</span>
+      <button class="zu" data-zu title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div><dl>`;
+    if (n.quelle === 'wlan') {
+      const w = n.wlan;
+      html += zeile('Netz', w.ssid) + zeile('Signal', w.signal !== null ? `${Math.round(Number(w.signal))} dBm` : null)
+        + zeile('Kanal', w.kanal) + zeile('Verbunden seit', w.verbunden) + zeile('IP', w.ip) + zeile('Gateway', w.gateway)
+        + zeile('BSSID', w.bssid);
+    } else {
+      const land = this._z(E.land);
+      html += zeile('Anbieter', this._z(E.anbieter)) + zeile('Netz', [this._z(E.netztyp), this._z(E.baender)].filter(Boolean).join(' · '))
+        + zeile('Aktive SIM', n.sim ? `SIM ${n.sim}` : null)
+        + zeile('Land', land ? `${land}${n.roaming ? ' · Roaming' : ''}` : null, n.roaming ? 'rot' : '')
+        + zeile('RSRP', this._z(E.rsrp) !== null ? `${this._z(E.rsrp)} dBm` : null)
+        + zeile('RSRQ', this._z(E.rsrq) !== null ? `${this._z(E.rsrq)} dB` : null)
+        + zeile('SINR', this._z(E.sinr) !== null ? `${this._z(E.sinr)} dB` : null);
+    }
+    html += '</dl>';
+    if (n.quelle === 'mobil' && this._hass.states[E.sim]) {
+      const gewaehlt = this._z(E.sim);
+      const stand = this._z(E.umschaltung) || '';
+      const laeuft = /^umschalten|läuft|wechsel/i.test(stand);
+      html += `<div class="sims">${['SIM 1', 'SIM 2'].map((o) => `<button data-sim="${o}" class="${gewaehlt === o ? 'an' : ''}"
+        ${gewaehlt === o || laeuft ? 'disabled' : ''}>${o}</button>`).join('')}</div>`;
+      if (stand) html += `<div class="stand">Umschaltung: ${esc(stand)}</div>`;
+    }
+    if (box.dataset.w === html) return;
+    box.dataset.w = html;
+    box.innerHTML = html;
+    box.querySelector('[data-zu]').addEventListener('click', () => (box.hidden = true));
+    box.querySelectorAll('[data-sim]').forEach((b) =>
+      b.addEventListener('click', () => {
+        b.disabled = true;
+        this._rufe('select', 'select_option', { entity_id: E.sim, option: b.dataset.sim });
+      }),
+    );
+  }
+
+  // ─── Sonderziele in der Nähe ───────────────────────────────────────────────
+  // Wie „Unterwegs finden“ in Yapaia Go: Kategorie → die nächsten (voraus auf
+  // der Route, sonst im Umkreis) → ein Klick zeigt den Ort auf der Karte, die
+  // anderen daneben → der zweite Klick fügt ihn als Zwischenziel ein (ohne
+  // Navigation: wird er das Ziel).
+  _orteHinweis(text, fehler = false) {
+    const el = this.$('orte-hinweis');
+    el.textContent = text;
+    el.classList.toggle('fehler', fehler);
+  }
+
+  _orteKarte(treffer, aktiv) {
+    const w = this._kartenFenster();
+    const api = w && w.__yapaiaEinbettung;
+    if (!api || !(api.version >= 3)) return false;
+    api.orte(treffer.map((t) => ({ lat: t.lat, lon: t.lon, name: t.name })), aktiv, (i) => this._orteWahl(i));
+    this._orteAufKarte = treffer.length > 0;
+    return true;
+  }
+
+  async _orteOeffnen() {
+    this.$('suche').hidden = true;
+    this.$('orte').hidden = false;
+    this._orte = null;
+    this.$('orte-liste').textContent = '';
+    const basis = this._goBasis();
+    if (!basis) return this._orteHinweis('Die Karte von Yapaia Go ist noch nicht geladen.', true);
+    if (!this._kategorien) {
+      try {
+        const r = await fetch(`${basis}api/v1/unterwegs/kategorien`, { credentials: 'same-origin' });
+        this._kategorien = ((await r.json()).data || []).filter((k) => k && k.id);
+      } catch (err) {
+        return this._orteHinweis('Yapaia Go antwortet nicht.', true);
+      }
+    }
+    const kat = this.$('orte-kat');
+    kat.textContent = '';
+    for (const k of this._kategorien) {
+      const b = document.createElement('button');
+      b.dataset.id = k.id;
+      b.textContent = `${k.symbol || ''} ${k.name}`.trim();
+      b.addEventListener('click', () => this._orteKategorie(k));
+      kat.appendChild(b);
+    }
+    this._orteHinweis('Kategorie wählen.');
+  }
+
+  _orteSchliessen() {
+    this.$('orte').hidden = true;
+    this._orte = null;
+    if (this._orteAufKarte) this._orteKarte([], null);
+  }
+
+  async _orteKategorie(k) {
+    this.$('orte-kat').querySelectorAll('button').forEach((b) => b.classList.toggle('an', b.dataset.id === k.id));
+    this.$('orte-liste').textContent = '';
+    this._orteHinweis(`Suche ${k.name} …`);
+    const basis = this._goBasis();
+    const nr = (this._orteNr = (this._orteNr || 0) + 1);
+    try {
+      const r = await fetch(`${basis}api/v1/unterwegs?kategorie=${encodeURIComponent(k.id)}&anzahl=8`, { credentials: 'same-origin' });
+      const daten = (await r.json()).data || {};
+      if (nr !== this._orteNr || this.$('orte').hidden) return;
+      const treffer = (daten.treffer || []).filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lon));
+      this._orte = { kategorie: k, treffer, aktiv: null, bezug: daten.bezug };
+      this._orteListe();
+      if (!treffer.length) {
+        this._orteHinweis(`Keine ${k.name} ${daten.bezug === 'route' ? 'voraus auf der Route' : 'in der Nähe'} gefunden.`);
+        this._orteKarte([], null);
+        return;
+      }
+      this._orteKarte(treffer, null);
+      this._orteHinweis(`${daten.bezug === 'route' ? 'Voraus auf der Route' : 'Im Umkreis'} · antippen zeigt den Ort auf der Karte.`);
+    } catch (err) {
+      this._orteHinweis('Die Suche hat nicht geklappt.', true);
+    }
+  }
+
+  _orteListe() {
+    const o = this._orte;
+    const liste = this.$('orte-liste');
+    liste.textContent = '';
+    if (!o) return;
+    const km = YapaiaCockpitSportCard._km;
+    const faehrt = FAHRT.has(this._z(E.zustand) || '');
+    o.treffer.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.className = o.aktiv === i ? 'an' : '';
+      const text = document.createElement('span');
+      text.className = 'text';
+      const name = document.createElement('span');
+      name.textContent = t.name;
+      const zeile2 = document.createElement('span');
+      zeile2.className = 'zeile2';
+      zeile2.textContent = t.voraus_m !== null && t.voraus_m !== undefined
+        ? `in ${km(t.voraus_m)} · ${km(t.abseits_m)} abseits` : km(t.abseits_m);
+      text.append(name, zeile2);
+      b.appendChild(text);
+      if (o.aktiv === i) {
+        const los = document.createElement('span');
+        los.className = 'los';
+        los.textContent = faehrt ? '＋ Zwischenziel' : 'Hinfahren';
+        b.appendChild(los);
+      }
+      b.addEventListener('click', () => this._orteWahl(i));
+      liste.appendChild(b);
+    });
+  }
+
+  _orteWahl(i) {
+    const o = this._orte;
+    if (!o || !o.treffer[i]) return;
+    if (o.aktiv === i) {
+      this._orteEinfuegen(o.treffer[i]);
+      return;
+    }
+    o.aktiv = i;
+    this._orteListe();
+    const gezeigt = this._orteKarte(o.treffer, i);
+    const faehrt = FAHRT.has(this._z(E.zustand) || '');
+    this._orteHinweis(`${gezeigt ? 'Auf der Karte markiert. ' : ''}Nochmal antippen: ${faehrt ? 'als Zwischenziel einfügen' : 'hinfahren'}.`);
+  }
+
+  async _orteEinfuegen(t) {
+    this._orteHinweis(`${t.name} wird eingefügt …`);
+    try {
+      const r = await this._hass.callService('yapaia', 'go_zwischenziel_einfuegen',
+        { ort: { latitude: t.lat, longitude: t.lon }, name: t.name }, undefined, false, true);
+      const antwort = r && r.response ? Object.values(r.response)[0] : null;
+      this._orteSchliessen();
+      this._hinweisKurz(antwort && antwort.als === 'ziel' ? `Ziel: ${t.name}` : `Zwischenziel: ${t.name}`);
+    } catch (err) {
+      this._orteHinweis((err && err.message) || 'Einfügen hat nicht geklappt (Yapaia Go ab 0.50.0 nötig).', true);
+    }
+  }
+
+  /** Kurze Bestätigung unten in der Mitte (nutzt die Lautstärke-Anzeige). */
+  _hinweisKurz(text) {
+    const el = this.$('l-laut');
+    el.textContent = text;
+    el.classList.add('sichtbar');
+    clearTimeout(this._lautTakt);
+    this._lautTakt = setTimeout(() => el.classList.remove('sichtbar'), 4000);
   }
 
   _eta() {

@@ -1264,6 +1264,18 @@ export class NavigationService implements DeadReckoningRouteSource {
    * die ganze Fehlerbehandlung -- 15-s-Wiederholung, Schleifenschutz,
    * Gleichzeitigkeitssperre.
    */
+  /**
+   * Ein Zwischenziel als NÄCHSTEN Halt einschieben, vor die noch offenen
+   * (schon passierte fallen dabei weg, wie bei jeder Neuberechnung).
+   * Gewünscht fürs Dashboard: „Tankstelle in der Nähe → als Zwischenziel“.
+   */
+  zwischenzielVorn(punkt: LatLng): void {
+    const offene = this.active
+      ? remainingWaypoints(this.rerouteContext?.waypoints ?? [], this.active.geom, this.lastProgressM)
+      : [...(this.rerouteContext?.waypoints ?? [])];
+    this.updateWaypoints([punkt, ...offene]);
+  }
+
   updateWaypoints(waypoints: LatLng[]): void {
     // Der Wunsch wird IMMER gemerkt, auch wenn gerade nicht neu gerechnet
     // werden kann (keine Position, andere Neuberechnung laeuft). Sonst waere

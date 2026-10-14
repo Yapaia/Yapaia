@@ -43,6 +43,8 @@ diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
 | `sensor.yapaia_router_aktive_sim`, `…_anbieter`, `…_netztyp`, `…_baender` | aktive SIM, Netzbetreiber, LTE/5G, Frequenzbänder |
 | `sensor.yapaia_router_signalbalken`, `…_rsrp`, `…_rsrq`, `…_sinr`, `…_rssi` | Signal (RSSI zunächst deaktiviert) |
 | `sensor.yapaia_router_datenverbrauch` | Datenzähler des Routers |
+| `sensor.yapaia_router_internet` | **Internet über** WLAN / Mobilfunk / Kabel / Tethering, mit den WLAN-Daten als Attribute |
+| `sensor.yapaia_router_wlan_signal` | Signal des WLANs, mit dem der Router verbunden ist (dBm) |
 | `binary_sensor.yapaia_router_verbunden` | Mobilfunkverbindung |
 | `sensor.yapaia_router_umschaltung` | Stand der SIM-Umschaltung (Diagnose) |
 | `button.yapaia_router_neu_verbinden`, `…_neustart` | neu verbinden, Router-Neustart (deaktiviert) |
