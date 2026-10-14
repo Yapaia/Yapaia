@@ -9,10 +9,11 @@ Land** beim Grenzübertritt. Alles läuft lokal über die Schnittstelle des Rout
 Der Code liegt in der gemeinsamen Integration:
 [`integration/custom_components/yapaia/router/`](../integration/custom_components/yapaia/router/).
 
-> **Status:** noch nicht am echten Router getestet. Anmeldung und Statusabfrage
-> folgen Projekten, die am X3000 laufen. Den Befehl zum SIM-Umschalten hat
-> GL.iNet nicht dokumentiert – deshalb lernt die Integration ihn selbst ein
-> (unten).
+> **Status:** am GL-X3000 (Firmware 4.x) im Einsatz: Anmeldung, Statuswerte und
+> der Umschaltbefehl (`modem.set_slot_config` mit `current_sim` als Text, wie
+> ihn die Router-Oberfläche schickt) sind dort geprüft. GL.iNet hat den
+> Befehl nicht dokumentiert. Für andere Modelle probiert die Integration
+> weitere bekannte Wege und lernt den, der wirkt (unten).
 
 ## Einrichten
 

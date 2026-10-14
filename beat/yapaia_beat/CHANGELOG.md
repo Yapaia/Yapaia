@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.17.1
+
+- Bringt die Integration „Yapaia“ 0.4.2 mit: Yapaia Router schaltet die SIM
+  jetzt wirklich um (siehe Router 0.2.1).
+
 ## 1.17.0
 
 **DAB+ geht wieder, und du wählst den Stick.** Gemeldet: kein DAB+-Sender
