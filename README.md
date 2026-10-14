@@ -11,6 +11,8 @@ mehr Yapaia-Module zusammenarbeiten.
 | **Yapaia Satellite** | Sprachsatellit auf dem ESP32 Audio Kit (ESPHome) | [`satellite/`](satellite/) |
 | **Yapaia Router** | Mobilfunk des GL.iNet-Routers (GL-X3000): Status, SIM-Umschaltung nach Land (Teil der Integration „Yapaia“) | [`router/`](router/) |
 
+Fertige Dashboards für Home Assistant liegen in [`dashboards/`](dashboards/).
+
 ## Installation
 
 Alle Add-ons kommen aus **einem** Add-on-Store:
