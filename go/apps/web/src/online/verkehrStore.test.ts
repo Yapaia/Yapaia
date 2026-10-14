@@ -129,15 +129,22 @@ describe('verkehrStore — wenn der Abruf scheitert', () => {
     expect(useVerkehrStore.getState().meldungen[0].id).toBe('b');
   });
 
-  it('behält die Meldung des Kerns bei 409', async () => {
-    // Sie sagt bereits, wo der Schalter sitzt.
+  it('behält die Meldung des Kerns bei einem Fehler', async () => {
+    antwortet({ error: { code: 'VERKEHR_FEHLER', message: 'Die Autobahn GmbH antwortet nicht.' } }, false, 502);
+    await useVerkehrStore.getState().abrufen(['A61']);
+    expect(useVerkehrStore.getState().fehler).toContain('Autobahn GmbH');
+  });
+
+  it('ausgeschaltete Online-Dienste sind kein Fehler und kein Hinweis', async () => {
+    // Gemeldet: der Hinweis stand dauerhaft über der Karte.
     antwortet(
       { error: { code: 'ONLINE_DISABLED', message: 'Die Online-Dienste sind ausgeschaltet. …enabled' } },
       false,
       409,
     );
     await useVerkehrStore.getState().abrufen(['A61']);
-    expect(useVerkehrStore.getState().fehler).toContain('enabled');
+    expect(useVerkehrStore.getState().fehler).toBeNull();
+    expect(useVerkehrStore.getState().meldungen).toEqual([]);
   });
 });
 

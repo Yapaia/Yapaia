@@ -102,6 +102,15 @@ export const useAnordnungStore = create<AnordnungState>((set, get) => ({
   },
 }));
 
+/** Schlüssel im localStorage -- für Fenster, die Änderungen aus einem
+ *  anderen Fenster derselben Herkunft mitbekommen wollen (`storage`-Ereignis). */
+export const ANORDNUNG_SCHLUESSEL = SCHLUESSEL;
+
+/** Liest die Anordnung neu, z. B. nachdem ein anderes Fenster sie geändert hat. */
+export function anordnungNeuLesen(): void {
+  useAnordnungStore.setState({ werte: lies() });
+}
+
 export const STANDARD: Platz = { dx: 0, dy: 0, s: 1 };
 export { LEER as LEERE_ANORDNUNG };
 

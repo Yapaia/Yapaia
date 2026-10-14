@@ -62,8 +62,16 @@ export async function holeVerkehr(strassen: readonly string[]): Promise<VerkehrE
     });
     const rumpf = (await antwort.json()) as {
       data?: VerkehrAntwort;
-      error?: { message?: string };
+      error?: { code?: string; message?: string };
     };
+    // ─── AUSGESCHALTET IST KEIN FEHLER ────────────────────────────────────
+    // Gemeldet: „Die Online-Dienste sind ausgeschaltet …" stand dauerhaft
+    // über der Karte. Wer sie ausgeschaltet hat, weiß das; eine Warnung bei
+    // jeder Fahrt ist Tapete. Ohne Online-Dienste gibt es eben keine
+    // Verkehrslage -- wie auf einer Strecke ohne Autobahn.
+    if (antwort.status === 409 && rumpf?.error?.code === 'ONLINE_DISABLED') {
+      return { meldungen: [], strassen: [], ohne_ort: 0, urteil: 'Online-Dienste ausgeschaltet.' };
+    }
     if (!antwort.ok) {
       // Die Meldung des Kerns sagt bereits, wo der Schalter sitzt. Sie durch
       // etwas Eigenes zu ersetzen hiesse, sie zu verlieren.
