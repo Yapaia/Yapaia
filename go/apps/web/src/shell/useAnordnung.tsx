@@ -35,7 +35,8 @@ export interface Anordnung {
 
 export function useAnordnung(id: string, modusFest?: Modus): Anordnung {
   const fahrt = useFahrtAnsicht();
-  const modus: Modus = modusFest ?? (fahrt ? 'fahrt' : 'ruhe');
+  const vorschau = useAnordnungStore((s) => s.vorschau);
+  const modus: Modus = modusFest ?? vorschau ?? (fahrt ? 'fahrt' : 'ruhe');
   const platz = useAnordnungStore((s) => s.werte[modus][id]) ?? STANDARD;
   const bearbeiten = useAnordnungStore((s) => s.bearbeiten === modus);
   const setze = useAnordnungStore((s) => s.setze);

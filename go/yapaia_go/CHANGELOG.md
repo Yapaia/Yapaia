@@ -10,6 +10,23 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.49.0
+
+**Die eingebettete Karte hat ihre eigene Anordnung.**
+Gewünscht: Anker und Fenster im Dashboard „getrennt vom Go screen
+verschieben und resizen“.
+
+- Die Kachel „Karte mit Route“ merkt sich die Position der eigenen Position
+  und den Platz der Verkehrsliste jetzt getrennt von Yapaia Go, für Ruhe und
+  Navigation. Was man in Go unter „Bildschirm anpassen“ verschiebt, bleibt
+  in Go.
+- Ein Dashboard kann das Einrichten selbst anstoßen: `__yapaiaEinbettung`
+  (Version 2) hat dafür `bearbeiten('ruhe' | 'fahrt' | null)` und
+  `zuruecksetzen(modus)`. Beim Einrichten zeigt die Kachel den gewählten
+  Bildschirm auch ohne Fahrt, mit dem Fadenkreuz für die Position.
+- Wer unter 0.48.3 schon einen Anker für die Kachel hatte: der galt dort
+  gemeinsam mit Go und ist in der Kachel jetzt wieder auf dem Standard.
+
 ## 0.48.3
 
 **Der Ankerpunkt kommt jetzt wirklich in der eingebetteten Karte an.**

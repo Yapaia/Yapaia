@@ -8,10 +8,10 @@
  * gibt es in der Einbettung nicht (er schaltet auch Ansicht und Mitfahren, das
  * macht hier das Dashboard).
  *
- * Deshalb nur die Ränder: der Anker für Fahrt oder Ruhe, wie in „Bildschirm
- * anpassen“ von Yapaia Go eingestellt. Ändert man ihn dort, während das
- * Dashboard offen ist, rückt die Position hier gleich mit (`storage`-Ereignis,
- * gleiche Herkunft unter Home Assistant).
+ * Deshalb nur die Ränder: der Anker für Fahrt oder Ruhe. Seit 0.49.0 hat die
+ * Einbettung dafür ihre eigene Anordnung (`shell/anordnung.ts`), eingestellt
+ * vom Dashboard aus (`__yapaiaEinbettung.bearbeiten`). Ist sie in einem
+ * zweiten Fenster geändert worden, liest das `storage`-Ereignis sie neu.
  */
 
 import { useEffect, useState } from 'react';
@@ -19,6 +19,7 @@ import { isDriveActive } from '../drive/driveActive.js';
 import { useNavStore } from '../drive/navStore.js';
 import { ankerFuer, ankerRaender } from '../map/kartenAnker.js';
 import { mapController, useMapStore } from '../state/mapStore.js';
+import { usePositionStore } from '../position/positionStore.js';
 import { useHandednessStore } from '../shell/handednessStore.js';
 import { ANORDNUNG_SCHLUESSEL, anordnungNeuLesen, useAnordnungStore } from '../shell/anordnung.js';
 
@@ -27,6 +28,7 @@ export default function EinbettungsAnker(): null {
   const einbau = useHandednessStore((s) => s.handedness);
   const map = useMapStore((s) => s.map);
   const werte = useAnordnungStore((s) => s.werte);
+  const vorschau = useAnordnungStore((s) => s.vorschau);
   const [groesse, setGroesse] = useState(0);
 
   useEffect(() => {
@@ -44,12 +46,17 @@ export default function EinbettungsAnker(): null {
 
   useEffect(() => {
     if (!map) return;
-    const modus = faehrt ? 'fahrt' : 'ruhe';
+    const modus = vorschau ?? (faehrt ? 'fahrt' : 'ruhe');
     const anker = ankerFuer(werte[modus], modus, einbau);
     mapController.setDrivePadding(
       ankerRaender(mapController.getWidthPx(), mapController.getHeightPx(), anker)
     );
-  }, [map, faehrt, einbau, werte, groesse]);
+    // Beim Einrichten soll man SEHEN, wo die Position landet (wie in Go).
+    const position = usePositionStore.getState().position;
+    if (vorschau && position) {
+      mapController.setCamera({ center: [position.lon, position.lat] }, { animate: true, duration: 200 });
+    }
+  }, [map, faehrt, vorschau, einbau, werte, groesse]);
 
   return null;
 }
