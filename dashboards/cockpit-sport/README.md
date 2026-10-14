@@ -53,8 +53,15 @@ Umschalten. Das Mikrofon daneben schaltet das Mikrofon des Satelliten stumm.
   Campingplatz, Supermarkt, Entsorgung, Frischwasser, Gasflaschen, Toilette.
   Eine Kategorie zeigt die nächsten, während der Fahrt voraus auf der Route.
   Ein Eintrag zeigt den Ort markiert auf der Karte, die anderen daneben
-  (ab Yapaia Go 0.50.0). Nochmal antippen fügt ihn als **Zwischenziel** ein,
-  ohne Navigation wird er das Ziel.
+  (ab Yapaia Go 0.50.0). Das Fenster wird dann zu einer schmalen Leiste, damit
+  die Karte frei bleibt: ◀ ▶ blättert, die Liste holt alle zurück, und
+  **+ Zwischenziel** fügt den Ort ein. Ohne Navigation heißt der Knopf
+  „Hinfahren“, dann wird der Ort das Ziel.
+- Bei **Tankstellen** steht der Spritpreis dabei (Tankerkönig über Yapaia Go,
+  Sorte aus dem aktiven Fahrzeugprofil, Diesel bzw. E5/E10), wie in Go:
+  grün = aktuell, gelb = älter als 15 Minuten, grau = älter als eine Stunde,
+  durchgestrichen = geschlossen. Ohne Tankerkönig-Verbindung gibt es keinen
+  Preis.
 
 ## Kopfzeile ausblenden
 

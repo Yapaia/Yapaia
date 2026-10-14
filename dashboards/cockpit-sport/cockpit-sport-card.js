@@ -143,6 +143,28 @@ function netzKurz(typ) {
   return t;
 }
 
+// ─── SPRITPREISE ─────────────────────────────────────────────────────────────
+// Wie in Yapaia Go (`apps/web/src/tanken/preise.ts`): Tankerkönig über Go,
+// je Gegend eine Abfrage, die nächste Station in höchstens 250 m, Sorte aus
+// dem aktiven Fahrzeugprofil, Farbe nach Alter der Abfrage.
+const PREIS_MAX_M = 250;
+
+function preisText(euro) {
+  const t = Math.round(euro * 1000);
+  const rest = String(t % 1000).padStart(3, '0');
+  return `${Math.floor(t / 1000)},${rest.slice(0, 2)}${'⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(rest[2])]}`;
+}
+
+function preisFrische(abgerufen, offen) {
+  if (!offen) return 'zu';
+  const alter = Date.now() - Date.parse(abgerufen);
+  if (!Number.isFinite(alter) || alter > 3600000) return 'alt';
+  return alter > 900000 ? 'aelter' : 'frisch';
+}
+
+const FRISCHE_TEXT = { frisch: 'Preis aktuell', aelter: 'Preis älter als 15 Minuten', alt: 'Preis älter als eine Stunde',
+  zu: 'Tankstelle geschlossen' };
+
 const STIL = `
   :host { display: block; height: 100%; }
   [hidden] { display: none !important; }
@@ -205,6 +227,23 @@ const STIL = `
   .kategorien button.an { background: var(--kupfer); border-color: var(--kupfer); color: #14161b; }
   .orte .treffer { max-height: 34cqh; }
   .orte .treffer button.an { background: rgba(124, 58, 237, 0.35); }
+  .orte.vorschau .kategorien, .orte.vorschau #orte-liste, .orte.vorschau .kopf { display: none; }
+  .orte-vorschau { display: none; align-items: center; gap: calc(var(--u) * 0.6); }
+  .orte.vorschau .orte-vorschau { display: flex; }
+  .orte-vorschau .text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .orte-vorschau .text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .orte-vorschau .zeile2 { display: flex; align-items: center; gap: calc(var(--u) * 0.5); font-size: calc(var(--u) * 1.05); }
+  .orte-vorschau #ov-weit { opacity: 0.65; }
+  .orte-vorschau button { background: #1b2130; color: #fff; border: 1px solid #343b4b; border-radius: calc(var(--u) * 0.5);
+    padding: calc(var(--u) * 0.5) calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.2); cursor: pointer; --mdc-icon-size: calc(var(--u) * 1.6); }
+  .orte-vorschau button.los { background: #7c3aed; border-color: #7c3aed; font-weight: 600; }
+  .tv.orte-offen .eta { visibility: hidden; }
+  .preis { flex: none; border-radius: 999px; padding: calc(var(--u) * 0.15) calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.1);
+    font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .preis.frisch { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; }
+  .preis.aelter { background: rgba(245, 158, 11, 0.25); color: #fcd34d; }
+  .preis.alt { background: rgba(148, 163, 184, 0.25); color: #cbd5e1; }
+  .preis.zu { background: rgba(148, 163, 184, 0.2); color: #94a3b8; text-decoration: line-through; }
   .orte .los { flex: none; background: #7c3aed; color: #fff; border-radius: calc(var(--u) * 0.4);
     padding: calc(var(--u) * 0.3) calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.1); font-weight: 600; }
 
@@ -403,6 +442,15 @@ const HTML = `
         <button class="zu" id="orte-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
       <div class="kategorien" id="orte-kat"></div>
       <div class="treffer" id="orte-liste"></div>
+      <div class="orte-vorschau">
+        <button id="ov-zurueck" title="Voriger"><ha-icon icon="mdi:chevron-left"></ha-icon></button>
+        <div class="text"><span id="ov-name"></span>
+          <div class="zeile2"><span id="ov-weit"></span><span class="preis" id="ov-preis" hidden></span></div></div>
+        <button id="ov-weiter" title="Nächster"><ha-icon icon="mdi:chevron-right"></ha-icon></button>
+        <button id="ov-liste" title="Zurück zur Liste"><ha-icon icon="mdi:format-list-bulleted"></ha-icon></button>
+        <button class="los" id="ov-los"></button>
+        <button id="ov-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button>
+      </div>
       <div class="hinweis" id="orte-hinweis"></div>
     </div>
     <div class="eta" id="eta" hidden>
@@ -568,6 +616,15 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this.$('e-ende').addEventListener('click', () => this._rufe('button', 'press', { entity_id: E.beenden }));
     this.$('l-orte').addEventListener('click', () => (this.$('orte').hidden ? this._orteOeffnen() : this._orteSchliessen()));
     this.$('orte-zu').addEventListener('click', () => this._orteSchliessen());
+    this.$('ov-zu').addEventListener('click', () => this._orteSchliessen());
+    this.$('ov-liste').addEventListener('click', () => this._orteVorschau(false));
+    this.$('ov-los').addEventListener('click', () => this._orte && this._orteEinfuegen(this._orte.treffer[this._orte.aktiv]));
+    const blaettern = (schritt) => {
+      const o = this._orte;
+      if (o && o.treffer.length) this._orteWahl((o.aktiv + schritt + o.treffer.length) % o.treffer.length);
+    };
+    this.$('ov-zurueck').addEventListener('click', () => blaettern(-1));
+    this.$('ov-weiter').addEventListener('click', () => blaettern(1));
     this.$('l-mikro').addEventListener('click', () => this._sprechen());
     this.$('s-mikro').addEventListener('click', () => this._rufe('switch', 'toggle', { entity_id: E.stumm }));
     this.$('netz').addEventListener('click', () => {
@@ -1294,6 +1351,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
   async _orteOeffnen() {
     this.$('suche').hidden = true;
     this.$('orte').hidden = false;
+    this.shadowRoot.querySelector('.tv').classList.add('orte-offen');
     this._orte = null;
     this.$('orte-liste').textContent = '';
     const basis = this._goBasis();
@@ -1318,8 +1376,77 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this._orteHinweis('Kategorie wählen.');
   }
 
+  /** Schmale Leiste mit dem gewählten Ort, damit die Karte frei bleibt (wie die Vorschau in Go). */
+  _orteVorschau(an) {
+    const o = this._orte;
+    this.$('orte').classList.toggle('vorschau', !!an && !!o && o.aktiv !== null);
+    if (!an || !o || o.aktiv === null) return;
+    const t = o.treffer[o.aktiv];
+    const km = YapaiaCockpitSportCard._km;
+    this.$('ov-name').textContent = `${o.aktiv + 1}/${o.treffer.length} · ${t.name}`;
+    // kurz: in der Leiste ist neben dem Preis wenig Platz (Abstand zur Route steht in der Liste)
+    this.$('ov-weit').textContent = t.voraus_m !== null && t.voraus_m !== undefined ? `in ${km(t.voraus_m)}` : km(t.abseits_m);
+    this.$('ov-los').textContent = FAHRT.has(this._z(E.zustand) || '') ? '+ Zwischenziel' : 'Hinfahren';
+    this._preisMarke(this.$('ov-preis'), t.preis);
+  }
+
+  /** Preis-Pille füllen (oder verstecken). */
+  _preisMarke(el, preis) {
+    el.hidden = !preis;
+    if (!preis) return;
+    el.className = `preis ${preis.frische}`;
+    el.textContent = `${preis.text} €`;
+    el.title = `${FRISCHE_TEXT[preis.frische]} (Tankerkönig)`;
+  }
+
+  /** Spritpreise zu den Tankstellen der Liste; ohne Tankerkönig einfach keine. */
+  async _spritpreise(basis, orte) {
+    try {
+      if (this._sorte === undefined) {
+        const r = await fetch(`${basis}api/v1/profiles`, { credentials: 'same-origin' });
+        const d = await r.json();
+        const liste = Array.isArray(d) ? d : d.data || [];
+        const aktiv = liste.find((p) => p.is_active || p.active) || null;
+        this._sorte = aktiv ? aktiv.fuel_type || null : null;
+      }
+      const sorte = this._sorte;
+      const abfragen = new Map();
+      const gegend = (t) => `${Math.round(t.lat * 20) / 20},${Math.round(t.lon * 20) / 20}`;
+      for (const t of orte.treffer.slice(0, 12)) {
+        const g = gegend(t);
+        if (!abfragen.has(g)) {
+          abfragen.set(g, fetch(`${basis}api/v1/tanken/preise?lat=${t.lat}&lon=${t.lon}&rad=6`, { credentials: 'same-origin' })
+            .then((r) => (r.ok ? r.json() : null)).then((d) => (d && d.data) || null).catch(() => null));
+        }
+      }
+      for (const t of orte.treffer.slice(0, 12)) {
+        const daten = await abfragen.get(gegend(t));
+        if (!daten || !Array.isArray(daten.stationen)) continue;
+        let beste = null;
+        let besteM = PREIS_MAX_M;
+        for (const st of daten.stationen) {
+          const m = YapaiaCockpitSportCard._abstand(t, st);
+          if (m <= besteM) [beste, besteM] = [st, m];
+        }
+        if (!beste) continue;
+        const angaben = sorte === 'diesel' ? [['Diesel', beste.diesel]]
+          : sorte === 'benzin' ? [['E5', beste.e5], ['E10', beste.e10]]
+          : [];
+        const text = angaben.filter(([, e]) => Number.isFinite(e)).map(([n, e]) => `${n} ${preisText(e)}`).join(' · ');
+        if (text) t.preis = { text, frische: preisFrische(daten.abgerufen, beste.offen) };
+      }
+      if (this._orte !== orte) return; // inzwischen andere Kategorie
+      this._orteListe();
+      if (orte.aktiv !== null) this._orteVorschau(this.$('orte').classList.contains('vorschau'));
+    } catch (err) {
+      /* ohne Tankerkönig keine Preise */
+    }
+  }
+
   _orteSchliessen() {
     this.$('orte').hidden = true;
+    this.shadowRoot.querySelector('.tv').classList.remove('orte-offen');
+    this.$('orte').classList.remove('vorschau');
     this._orte = null;
     if (this._orteAufKarte) this._orteKarte([], null);
   }
@@ -1336,6 +1463,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       if (nr !== this._orteNr || this.$('orte').hidden) return;
       const treffer = (daten.treffer || []).filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lon));
       this._orte = { kategorie: k, treffer, aktiv: null, bezug: daten.bezug };
+      this._orteVorschau(false);
       this._orteListe();
       if (!treffer.length) {
         this._orteHinweis(`Keine ${k.name} ${daten.bezug === 'route' ? 'voraus auf der Route' : 'in der Nähe'} gefunden.`);
@@ -1344,6 +1472,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       }
       this._orteKarte(treffer, null);
       this._orteHinweis(`${daten.bezug === 'route' ? 'Voraus auf der Route' : 'Im Umkreis'} · antippen zeigt den Ort auf der Karte.`);
+      if (k.id === 'fuel') this._spritpreise(basis, this._orte);
     } catch (err) {
       this._orteHinweis('Die Suche hat nicht geklappt.', true);
     }
@@ -1369,10 +1498,15 @@ class YapaiaCockpitSportCard extends HTMLElement {
         ? `in ${km(t.voraus_m)} · ${km(t.abseits_m)} abseits` : km(t.abseits_m);
       text.append(name, zeile2);
       b.appendChild(text);
+      if (t.preis) {
+        const pr = document.createElement('span');
+        this._preisMarke(pr, t.preis);
+        b.appendChild(pr);
+      }
       if (o.aktiv === i) {
         const los = document.createElement('span');
         los.className = 'los';
-        los.textContent = faehrt ? '＋ Zwischenziel' : 'Hinfahren';
+        los.textContent = faehrt ? '+ Zwischenziel' : 'Hinfahren';
         b.appendChild(los);
       }
       b.addEventListener('click', () => this._orteWahl(i));
@@ -1391,7 +1525,9 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this._orteListe();
     const gezeigt = this._orteKarte(o.treffer, i);
     const faehrt = FAHRT.has(this._z(E.zustand) || '');
-    this._orteHinweis(`${gezeigt ? 'Auf der Karte markiert. ' : ''}Nochmal antippen: ${faehrt ? 'als Zwischenziel einfügen' : 'hinfahren'}.`);
+    // Mit Karte: die schmale Leiste, damit der markierte Ort sichtbar ist
+    this._orteVorschau(gezeigt);
+    this._orteHinweis(gezeigt ? '' : `Nochmal antippen: ${faehrt ? 'als Zwischenziel einfügen' : 'hinfahren'}.`);
   }
 
   async _orteEinfuegen(t) {
