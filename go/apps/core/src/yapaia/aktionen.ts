@@ -13,6 +13,8 @@ export interface AktionenDeps {
   zielSetzen: (ziel: { query?: string; latlng?: LatLng; name?: string }) => Promise<{ name: string | null }>;
   /** Laeuft gerade eine Fahrt (dann wird sie fuer ein neues Ziel beendet)? */
   faehrt: () => boolean;
+  /** Als nächsten Halt in die laufende Fahrt einschieben. */
+  zwischenzielVorn: (punkt: LatLng) => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -71,6 +73,23 @@ export function goAktionen(d: AktionenDeps): Record<string, Aktion> {
         if (d.faehrt()) d.stop();
         const ergebnis = await d.zielSetzen(latlng ? { latlng, ...(name ? { name } : {}) } : { query });
         return { ziel: ergebnis.name ?? query };
+      } catch (err) {
+        throw uebersetze(err);
+      }
+    },
+    zwischenziel_einfuegen: async (daten) => {
+      const latlng = ortAus(daten.ort);
+      const name = typeof daten.name === 'string' ? daten.name.trim() : '';
+      if (!latlng) throw new AktionsFehler('Bitte den Ort als Koordinaten angeben.');
+      try {
+        // Ohne laufende Fahrt gibt es nichts, wo es dazwischen käme: dann
+        // ist es eben das Ziel.
+        if (!d.faehrt()) {
+          const ergebnis = await d.zielSetzen({ latlng, ...(name ? { name } : {}) });
+          return { ziel: ergebnis.name ?? name, als: 'ziel' };
+        }
+        d.zwischenzielVorn(latlng);
+        return { ziel: name || null, als: 'zwischenziel' };
       } catch (err) {
         throw uebersetze(err);
       }

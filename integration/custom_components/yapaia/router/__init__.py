@@ -40,15 +40,17 @@ from .api import (
     GLiNetAuthError,
     GLiNetClient,
     GLiNetError,
+    aktive_quelle,
     is_unknown_method,
     parse_state,
+    parse_wlan,
 )
 from .laender import codes, land
 
 _LOGGER = logging.getLogger(__name__)
 
 MODUL = "router"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 FAEHIGKEITEN = ["mobilfunk", "mobilfunk.sim_wechsel"]
 
 # Optionen (Einstellungen der Integration für diesen Router)
@@ -63,7 +65,10 @@ OPT_PARAMETER = "umschalt_parameter"
 # In den Daten des Eintrags: der Weg, der sich bewährt hat
 DATA_WEG = "umschaltweg"
 
-STANDARD_INTERVALL = 30
+# 15 s: die Anzeige im Dashboard soll den Empfang „live“ zeigen
+STANDARD_INTERVALL = 15
+# Rangfolge der Internetquellen ändert sich selten
+KMWAN_CONFIG_S = 600
 STANDARD_WARTEN = 3
 # Wie lange nach einem angenommenen Befehl auf die Bestätigung gewartet wird
 BESTAETIGUNG_S = 90
@@ -72,6 +77,7 @@ BESTAETIGUNG_TAKT_S = 5
 AUTOMATIK_PAUSE_S = 15 * 60
 
 SIM_OPTIONEN = ["SIM 1", "SIM 2"]
+QUELLEN_NAME = {"wlan": "WLAN", "mobil": "Mobilfunk", "kabel": "Kabel", "tethering": "Tethering"}
 
 _T = dict  # Kurzform für Texte {"de": …, "en": …}
 
@@ -115,6 +121,10 @@ def beschreibung(instanz: str, name: str, version: str) -> dict[str, Any]:
             sensor("umschaltung", "SIM-Umschaltung", "SIM switching", symbol="mdi:swap-horizontal",
                    kategorie="diagnostic", attribute=["umschaltweg"]),
             sensor("modem", "Modem", "Modem", symbol="mdi:router-network", kategorie="diagnostic"),
+            sensor("internet", "Internet über", "Internet via", symbol="mdi:web",
+                   attribute=["quelle", "wlan_ssid", "wlan_balken", "wlan_kanal", "wlan_bssid", "wlan_ip",
+                              "wlan_gateway", "wlan_verbunden"]),
+            sensor("wlan_signal", "WLAN-Signal", "Wi-Fi signal", **dbm),
             {"schluessel": "neu_verbinden", "plattform": "button",
              "name": _T(de="Mobilfunk neu verbinden", en="Reconnect cellular"), "symbol": "mdi:restart",
              "aktion": "neu_verbinden"},
@@ -192,6 +202,8 @@ class RouterModul(YapaiaModul):
         self.system_info: dict[str, Any] = {}
         self.zustand: CellularState | None = None
         self._modem_info: Any = None
+        self._kmwan_config: Any = None
+        self._kmwan_config_bis = 0.0
         self._wecker = asyncio.Event()
         self._wechsel: asyncio.Task | None = None
         self._wechsel_ziel: int | None = None
@@ -246,7 +258,14 @@ class RouterModul(YapaiaModul):
         bus = parse_state(self._modem_info, status, None, None).bus
         cells = await r.call_optional("modem", "get_cells_info", {"bus": bus}) if bus else None
         slot = await r.get_slot_config(bus)
-        return parse_state(self._modem_info, status, cells, slot)
+        z = parse_state(self._modem_info, status, cells, slot)
+        # Internetquelle und WLAN-Repeater: ältere Firmware kennt das nicht
+        if time.monotonic() >= self._kmwan_config_bis:
+            self._kmwan_config = await r.call_optional("kmwan", "get_config")
+            self._kmwan_config_bis = time.monotonic() + KMWAN_CONFIG_S
+        z.quelle = aktive_quelle(await r.call_optional("kmwan", "get_status"), self._kmwan_config)
+        z.wlan = parse_wlan(await r.call_optional("repeater", "get_status"))
+        return z
 
     async def abfragen(self) -> None:
         self.zustand = z = await self._status_lesen()
@@ -280,6 +299,10 @@ class RouterModul(YapaiaModul):
             "datenverbrauch": z.traffic_total,
             "verbunden": z.connected,
             "modem": z.modem_model,
+            "internet": QUELLEN_NAME.get(z.quelle or ""),
+            "quelle": z.quelle,
+            "wlan_signal": z.wlan.get("signal"),
+            **{f"wlan_{k}": z.wlan.get(k) for k in ("ssid", "balken", "kanal", "bssid", "ip", "gateway", "verbunden")},
             "umschaltung": self._status,
             "umschaltweg": f"{weg['methode']} {json.dumps(weg.get('parameter'))}" if weg else "noch nicht eingelernt",
         })

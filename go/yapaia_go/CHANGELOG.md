@@ -10,6 +10,22 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.50.0
+
+**Sonderziele aus dem Dashboard als Zwischenziel.**
+Gewünscht fürs Cockpit: Tankstelle, Stell- oder Parkplatz in der Nähe
+antippen, auf der Karte ansehen, dann einfügen, wie „Unterwegs finden“ in Go.
+
+- Neue Aktion **`yapaia.go_zwischenziel_einfuegen`** (Ort, Name): fügt den Ort
+  während der Fahrt als nächsten Halt vor die übrigen Zwischenziele ein, ohne
+  die Fahrt neu zu starten. Ohne laufende Navigation wird er das Ziel.
+- Die eingebettete Karte (`__yapaiaEinbettung`, jetzt Version 3) kann Orte
+  zeigen: `orte(liste, aktiv, beiKlick)` markiert alle, hebt den gewählten
+  hervor und fliegt hin. Ein Klick auf eine Markierung meldet sich beim
+  Dashboard.
+- Bringt die Integration „Yapaia“ 0.4.3 mit (Yapaia Router 0.3.0: Internet
+  über WLAN oder Mobilfunk, WLAN-Signal).
+
 ## 0.49.0
 
 **Die eingebettete Karte hat ihre eigene Anordnung.**

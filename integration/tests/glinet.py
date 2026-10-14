@@ -34,6 +34,13 @@ class FakeRouter:
         self.switch_method = "modem.set_slot_config"
         # Ländercode des eingebuchten Netzes, je SIM einstellbar
         self.mcc = {1: "262", 2: "262"}
+        # Internetquellen: online (0) / offline (1), wie kmwan.get_status
+        self.online = {"wan": 1, "wwan": 0, "tethering": 1, "modem_0001": 0, "secondwan": 1}
+        self.repeater: Any = {
+            "bssid": "94:83:C4:2F:26:FD", "running": True, "ipv4": {"gateway": "192.168.178.1",
+            "ip": "192.168.178.46/24"}, "connected": "22d,9h,47m,48s", "ssid": "NoDramaLama", "state": 2,
+            "channel": 6, "state_s": "connected", "signal": -55,
+        }  # fmt: skip
 
     def handle(self, method: str, params: Any) -> Any:
         if method == "challenge":
@@ -115,6 +122,13 @@ class FakeRouter:
             if self.switch_takes_effect:
                 self.current_sim = int(next(v for k, v in args.items() if k != "bus"))
             return {}
+        if key == "kmwan.get_status":
+            return {"interfaces": [{"interface": n, "status_v4": s} for n, s in self.online.items()]}
+        if key == "kmwan.get_config":
+            metrik = {"wan": 10, "wwan": 20, "tethering": 30, "modem_0001": 40, "secondwan": 15}
+            return {"mode": 0, "interfaces": [{"interface": n, "metric": m} for n, m in metrik.items()]}
+        if key == "repeater.get_status":
+            return copy.deepcopy(self.repeater)
         if key in ("modem.disconnect", "modem.set_connect", "system.reboot"):
             return {}
         raise RpcError(-32601, "Method not found")

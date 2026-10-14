@@ -13,7 +13,7 @@ describe('Steuerung der eingebetteten Karte', () => {
 
   it('meldet Ansicht und ob die Karte der Position folgt', () => {
     const s = einbettungSteuerung();
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(3);
     expect(s.stand()).toEqual({ ansicht: '2d-north', zentriert: true });
     useFollowMeStore.getState().halten();
     expect(s.stand().zentriert).toBe(false);
@@ -46,5 +46,11 @@ describe('Steuerung der eingebetteten Karte', () => {
     expect(useAnordnungStore.getState().bearbeiten).toBeNull();
     expect(useAnordnungStore.getState().vorschau).toBeNull();
     expect(s.zuruecksetzen('quer')).toBe(false);
+  });
+
+  it('orte: ohne Karte nichts, sonst Markierungen und die Karte hält', () => {
+    // Für „Sonderziele in der Nähe“ im Dashboard (Version 3).
+    const s = einbettungSteuerung();
+    expect(s.orte([{ lat: 49.27, lon: 8.34, name: 'Shell' }], 0)).toBe(false); // noch keine Karte
   });
 });

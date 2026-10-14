@@ -169,6 +169,20 @@ describe('Zwischenziele waehrend der Fahrt', () => {
     expect(events['route/updated']).toEqual([{ reason: 'waypoints', route_id: 'mit-station' }]);
   });
 
+  it('zwischenzielVorn: der neue Halt kommt vor die offenen Zwischenziele', async () => {
+    // Gewuenscht fuers Dashboard: Tankstelle in der Naehe -> als naechster Halt.
+    const newRoute = makeRoute(straightNorthPoints(47.005, BASE_LON, 10), 'mit-tanke');
+    const createRoutes = rerouteMock(newRoute);
+    const nav = makeNav({ createRoutes });
+    nav.start({ route: originalRoute, reroute: { profile_id: 'pA', waypoints: [WP_VORN] } });
+    await feed(nav, pos(BASE_LAT + 0.001, BASE_LON));
+
+    const tanke = { lat: BASE_LAT + 0.002, lon: BASE_LON };
+    nav.zwischenzielVorn(tanke);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(createRoutes.mock.calls[0][0].waypoints).toEqual([tanke, WP_VORN]);
+  });
+
   it('die Fahrt laeuft weiter -- sie wird nicht beendet und neu begonnen', async () => {
     // `start()` waere aus `navigating` gar nicht erlaubt (409) und wuerde
     // Kalibrierung und Ansagestand wegwerfen. Ein sichtbarer Aussetzer mitten
