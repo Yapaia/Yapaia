@@ -10,6 +10,26 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.48.2
+
+**Kein Dauerhinweis mehr bei ausgeschalteten Online-Diensten.**
+Gemeldet: „Die Online-Dienste sind ausgeschaltet. Einschalten in der
+Add-on-Konfiguration …“ stand während der ganzen Fahrt über der Karte.
+
+- Wer die Online-Dienste ausgeschaltet hat, weiß das. Ohne sie gibt es auf
+  der Karte einfach keine Verkehrsmeldungen, aber auch keinen Hinweis mehr
+  dazu. Fällt die Verkehrslage bei eingeschalteten Diensten aus, steht die
+  Warnung weiter da.
+
+**Die eingebettete Karte übernimmt den Ankerpunkt der Position.**
+Gemeldet aus einem Dashboard: „Das Meldungsfenster konnte ich verschieben,
+der Ankerpunkt wird nicht übernommen.“
+
+- Die Kachel „Karte mit Route“ setzt die eigene Position jetzt dorthin, wo
+  sie unter „Bildschirm anpassen“ in Yapaia Go hingeschoben wurde, für Fahrt
+  und Ruhe getrennt. Verschiebt man sie in Go, während das Dashboard offen
+  ist, rückt sie dort gleich mit.
+
 ## 0.48.1
 
 **Die Karten-Kachel lässt sich von einem Dashboard aus bedienen.**

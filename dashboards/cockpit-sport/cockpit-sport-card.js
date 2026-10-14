@@ -85,7 +85,7 @@ const STIL = `
   .ring { position: absolute; top: calc(var(--u) * 1.1); right: calc(var(--u) * 4.4); width: calc(var(--u) * 2.3);
     height: calc(var(--u) * 2.3); border-radius: 50%; background: rgba(255, 255, 255, 0.18); display: grid;
     place-items: center; --mdc-icon-size: calc(var(--u) * 1.4); }
-  .tasten { display: flex; gap: calc(var(--u) * 3); padding: calc(var(--u) * 1.3) 0 calc(var(--u) * 0.3) calc(var(--u) * 3.6); }
+  .tasten { display: flex; gap: calc(var(--u) * 2.2); padding: calc(var(--u) * 1.3) 0 calc(var(--u) * 0.3) calc(var(--u) * 2.6); }
   .tasten button { background: none; border: 0; color: #fff; cursor: pointer; padding: 0;
     --mdc-icon-size: calc(var(--u) * 2.5); }
   .label { font-size: calc(var(--u) * 1.3); font-weight: 500; margin-bottom: calc(var(--u) * 0.8); }
@@ -202,6 +202,7 @@ const HTML = `
         <button data-radio="media_previous_track" title="Zurück"><ha-icon icon="mdi:skip-previous-outline"></ha-icon></button>
         <button id="m-spiel" title="Wiedergabe"><ha-icon icon="mdi:play-outline"></ha-icon></button>
         <button data-radio="media_next_track" title="Weiter"><ha-icon icon="mdi:skip-next-outline"></ha-icon></button>
+        <button id="m-stumm" title="Stumm"><ha-icon icon="mdi:volume-high"></ha-icon></button>
       </div>
     </div></div>
 
@@ -344,6 +345,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._rufe('button', 'press', { entity_id: pausiert ? E.weiter : E.pause });
     });
     this.$('l-mikro').addEventListener('click', () => this._rufe('switch', 'toggle', { entity_id: E.stumm }));
+    this.$('m-stumm').addEventListener('click', () => this._stumm());
     this.$('l-leiser').addEventListener('click', () => this._lautstaerke(-0.05));
     this.$('l-lauter').addEventListener('click', () => this._lautstaerke(0.05));
     this.$('kompass').addEventListener('click', () => this._kompass());
@@ -363,11 +365,23 @@ class YapaiaCockpitSportCard extends HTMLElement {
   // ─── Lautstärke ────────────────────────────────────────────────────────────
   // Spielt Beat auf einem Lautsprecher aus Home Assistant (z. B. dem Satelliten),
   // bestimmt DESSEN Lautstärke, was man hört -- nicht die von Beat selbst.
-  _lautstaerke(schritt) {
+  _lautZiel() {
     const radio = this._hass && this._hass.states[E.radio];
     const sprecher = radio && radio.attributes && radio.attributes.speaker;
     const erreichbar = sprecher && this._hass.states[sprecher] && this._hass.states[sprecher].state !== 'unavailable';
-    const ziel = erreichbar ? sprecher : E.radio;
+    return erreichbar ? sprecher : E.radio;
+  }
+
+  /** Stumm schalten, wo man es hört (wie die Lautstärke), und zurück. */
+  _stumm() {
+    const ziel = this._lautZiel();
+    const z = this._hass && this._hass.states[ziel];
+    const stumm = !!(z && z.attributes && z.attributes.is_volume_muted);
+    this._rufe('media_player', 'volume_mute', { entity_id: ziel, is_volume_muted: !stumm });
+  }
+
+  _lautstaerke(schritt) {
+    const ziel = this._lautZiel();
     const jetzt = Number(this._hass.states[ziel] && this._hass.states[ziel].attributes.volume_level);
     const neu = Math.max(0, Math.min(1, (Number.isFinite(jetzt) ? jetzt : 0.5) + schritt));
     this._rufe('media_player', 'volume_set', { entity_id: ziel, volume_level: Math.round(neu * 100) / 100 });
@@ -693,6 +707,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const bild = a.logo || a.entity_picture || '';
     if (logo.getAttribute('src') !== bild) bild ? logo.setAttribute('src', bild) : logo.removeAttribute('src');
     this.$('m-spiel').firstElementChild.setAttribute('icon', spielt ? 'mdi:stop-circle-outline' : 'mdi:play-outline');
+    const laut = h.states[this._lautZiel()];
+    const tonAus = !!(laut && laut.attributes && laut.attributes.is_volume_muted);
+    this.$('m-stumm').firstElementChild.setAttribute('icon', tonAus ? 'mdi:volume-off' : 'mdi:volume-high');
+    this.$('m-stumm').title = tonAus ? 'Ton an' : 'Stumm';
 
     // Favoriten (wie die Kontakte im Vorbild): runde Senderlogos
     const favoriten = Array.isArray(a.favorites) ? a.favorites.slice(0, 4) : [];
