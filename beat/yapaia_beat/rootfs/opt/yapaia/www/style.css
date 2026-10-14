@@ -218,3 +218,5 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 16px
 }
 #stick-compare { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0; }
 #stick-compare[hidden] { display: none; }
+.stick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.stick-row[hidden] { display: none; }

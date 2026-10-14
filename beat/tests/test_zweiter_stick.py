@@ -353,3 +353,93 @@ def test_gegenprobe_der_verfolgung_landet_auch_im_vergleich(monkeypatch):
         assert [s["quality"] for s in r.stick_compare["sticks"]] == [30, 2]
 
     asyncio.run(run())
+
+
+# ---------------------------------------------------------------- stick wählen
+# 1.17.0: „Einen Schalter, mit dem ich beim Spielen eines Senders zwischen den
+# beiden Sticks wählen kann, und Auto – hier wird automatisch der stärkere
+# Stick genommen.“
+def test_stick_von_hand_waehlen_zieht_den_sender_um():
+    async def run():
+        r = make_radio(mode="suche")
+        st = _spielend(r)
+        r._bad_since = None
+        await r.set_stick(1)
+        assert r.tuner.opts.rtl_device_index == 1 and r.tuner.running
+        assert r.store.settings["stick_choice"] == 1
+        assert r.status()["stick_playing"] == 1
+        # neue Sender kommen auch auf den gewählten Stick
+        await r._bring_up(fm(101.1))
+        assert r.tuner.opts.rtl_device_index == 1
+        with pytest.raises(ValueError):
+            await r.set_stick(5)
+        assert st["id"]
+
+    asyncio.run(run())
+
+
+def test_auto_nimmt_den_stick_mit_dem_besseren_empfang(monkeypatch):
+    async def run():
+        r = make_radio(mode="suche")
+        _spielend(r, quality=0.0)
+        r.tuner.started = time.monotonic() - 60
+
+        async def probe_fm(opts, f, **kw):
+            return {"freq": f, "quality": 55.0, "pi": None, "name": None, "pty": None, "af": []}
+
+        monkeypatch.setattr(radio_mod, "probe_fm", probe_fm)
+        r._maybe_auto_stick()
+        await r._compare_task
+        assert r.tuner.opts.rtl_device_index == 1
+        r._maybe_auto_stick()  # gerade gemessen: kein Hin und Her
+        assert r._helper is None
+
+    asyncio.run(run())
+
+
+def test_auto_bleibt_wenn_der_andere_nicht_deutlich_besser_ist(monkeypatch):
+    async def run():
+        r = make_radio(mode="suche")
+        _spielend(r, quality=50.0)
+
+        async def probe_fm(opts, f, **kw):
+            return {"freq": f, "quality": 55.0, "pi": None, "name": None, "pty": None, "af": []}
+
+        monkeypatch.setattr(radio_mod, "probe_fm", probe_fm)
+        r._maybe_auto_stick()
+        await r._compare_task
+        assert r.tuner.opts.rtl_device_index == 0
+
+    asyncio.run(run())
+
+
+def test_von_hand_gewaehlt_misst_auto_nicht():
+    r = make_radio(mode="suche")
+    _spielend(r)
+    r.stick_choice = 0
+    r._maybe_auto_stick()
+    assert r._helper is None
+
+
+# ---------------------------------------------------------------- DAB-Automatik versagt
+# Gemeldet: kein DAB+ mehr. Die Automatik von welle-cli regelte den Nooelec auf
+# 3,7 dB herunter (kein Ensemble), mit fester Verstärkung 37 dB: SNR 13.
+def test_versagende_dab_automatik_gibt_dem_stick_feste_verstaerkung():
+    r = make_radio(mode="suche")
+    assert r._opts(0).dab_fixed_gain_index == -1
+    assert r._agc_failed_on(0, 3.7, "") is True
+    assert r._opts(0).dab_fixed_gain_index == radio_mod.DAB_FIXED_STEP
+    assert r._opts(1).dab_fixed_gain_index == -1
+    assert r.store.settings["dab_agc_failed"] == ["Nooelec NESDR SMArt v5"]
+    assert r._agc_failed_on(0, 3.7, "") is False  # schon bekannt
+    assert r._agc_failed_on(1, 2.7, "DR Deutschland") is False  # empfängt ja
+    assert r._agc_failed_on(1, 30.0, "") is False  # Automatik regelt hoch: einfach kein Empfang
+
+
+def test_feste_verstaerkung_landet_bei_welle_cli():
+    from yapaia.dab import DabTuner
+
+    t = DabTuner(Options(dab_fixed_gain_index=20), "5C", "0x15dc")
+    assert t._gain_args() == ["-g", "20"] and not t.uses_agc
+    assert DabTuner(Options(), "5C", "0x15dc")._gain_args() == []
+    assert DabTuner(Options(dab_fixed_gain_index=20), "5C", "0x15dc", gain_index=7)._gain_args() == ["-g", "7"]

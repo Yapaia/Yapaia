@@ -127,6 +127,7 @@ function render(s) {
     stick.textContent = `Zweiter Stick: ${mode} – ${busy}.` + (s.second_stick_hint ? ` ⚠ ${s.second_stick_hint}` : "");
   }
   renderCompare(s);
+  renderStickChoice(s);
   $("#stream-info").innerHTML = `Lokale Wiedergabe über Home Assistant Audio: <b>${s.local_audio ? "aktiv" : "aus"}</b> · MP3-Stream: <code>/stream.mp3</code> (${s.stream_clients} Hörer)`;
 
   const favKey = JSON.stringify(s.favorites.map((f) => [f.id, f.name, f.logo_url])) + (s.active_favorite || "");
@@ -371,6 +372,29 @@ $("#follow").addEventListener("change", (e) => api("api/settings", { auto_follow
 $$("[data-scan]").forEach((b) => (b.onclick = () => api("api/scan", { band: b.dataset.scan })));
 $("#compare-btn").onclick = () => api("api/sticks/compare", {});
 
+// Stick choice while playing: Auto (the one receiving better) or a fixed one
+function renderStickChoice(s) {
+  const row = $("#stick-row");
+  row.hidden = !(s.sticks > 1);
+  if (row.hidden) return;
+  const names = s.stick_names || {};
+  const ids = Object.keys(names).length ? Object.keys(names).map(Number) : [0, 1];
+  const opts = [["auto", "Auto", "Spielt auf dem Stick mit dem besseren Empfang"]].concat(
+    ids.map((i) => [String(i), `Stick ${i + 1}`, names[i] || `Stick ${i + 1}`]));
+  const key = opts.map((o) => o.join("|")).join(";") + "#" + s.stick_choice + "#" + s.stick_playing;
+  if (row.dataset.key === key) return;
+  row.dataset.key = key;
+  $("#stick-seg").innerHTML = opts.map(([v, label, title]) => {
+    const on = String(s.stick_choice) === v;
+    const live = v !== "auto" && s.stick_playing === Number(v);
+    return `<button data-stick="${v}" class="${on ? "active" : ""}" title="${esc(title)}">${esc(label)}${live ? " ●" : ""}</button>`;
+  }).join("");
+  $$("#stick-seg [data-stick]").forEach((b) => (b.onclick = () => api("api/sticks/choice", { choice: b.dataset.stick })));
+  const now = s.stick_playing != null ? (names[s.stick_playing] || `Stick ${s.stick_playing + 1}`) : null;
+  const fest = (s.dab_agc_failed || []).length ? ` · DAB mit fester Verstärkung: ${s.dab_agc_failed.join(", ")}` : "";
+  $("#stick-hint").textContent = (now ? `spielt auf ${now}` : "") + fest;
+}
+
 // Which stick (antenna) receives the current station better
 function renderCompare(s) {
   $("#stick-compare").hidden = !(s.sticks > 1);
@@ -381,10 +405,10 @@ function renderCompare(s) {
   btn.textContent = running ? "Vergleiche …" : "Antennen vergleichen";
   const c = s.stick_compare, res = $("#compare-res");
   res.classList.remove("err");
-  if (running) { res.textContent = "misst den laufenden Sender auf dem freien Stick (bis 8 s) …"; return; }
+  if (running) { res.textContent = "misst den laufenden Sender auf dem freien Stick (bis 20 s) …"; return; }
   if (!c) { res.textContent = s.playing ? "" : "Zum Vergleichen einen Sender abspielen"; return; }
   if (c.error) { res.textContent = "⚠ " + c.error; res.classList.add("err"); return; }
-  const name = (st) => (s.stick_names || {})[st.index] || `Stick ${st.index}`;
+  const name = (st) => (s.stick_names || {})[st.index] || `Stick ${st.index + 1}`;
   const [a, b] = [...c.sticks].sort((x, y) => y.quality - x.quality);
   const parts = c.sticks.map((st) => `${esc(name(st))}${st.playing ? " (spielt)" : ""}: <b>${st.quality} %</b>`);
   const verdict = a.quality - b.quality < 5 ? "etwa gleich gut" : `besser: <b>${esc(name(a))}</b>`;
