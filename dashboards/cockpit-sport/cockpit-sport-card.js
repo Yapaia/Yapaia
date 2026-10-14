@@ -55,6 +55,16 @@ const OBJEKTE = [
   ['ankunft', '.eta', 'Ankunft'],
   ['leiste', '.leiste', 'Leiste unten'],
 ];
+// ─── KOPFZEILE ───────────────────────────────────────────────────────────────
+// Die Kopfzeile von Home Assistant („Cockpit Sport“) lässt sich über den Knopf
+// in der oberen Leiste ausblenden, je Gerät gespeichert. Dafür bekommt
+// `hui-root` (die Hülle des Dashboards) eine Regel: Kopfzeile weg, Höhe 0 --
+// die Ansicht rückt nach oben und die Karte füllt den Bildschirm. Das greift
+// in Home Assistant hinein und kann nach einem Update nicht mehr wirken; dann
+// bleibt die Kopfzeile eben stehen.
+const KOPFZEILE = 'yapaia.cockpitSport.kopfzeile';
+const KOPF_STIL = ':host { --header-height: 0px; } .header { display: none !important; }';
+
 const FAHRT = new Set(['navigating', 'off_route', 'paused']);
 const MASSSTAB_MIN = 0.5;
 const MASSSTAB_MAX = 2;
@@ -248,6 +258,7 @@ const HTML = `
       <button class="knopf tuerkis" data-app="yapaia_beat" title="Yapaia Beat"><ha-icon icon="mdi:radio"></ha-icon></button>
       <button class="knopf rahmen" data-nav="/config/dashboard" title="Einstellungen"><ha-icon icon="mdi:plus"></ha-icon></button>
       <button class="knopf rund" id="anpassen" title="Dashboard anpassen"><ha-icon icon="mdi:arrow-expand-all"></ha-icon></button>
+      <button class="knopf rund" id="kopfzeile" title="Kopfzeile von Home Assistant ausblenden"><ha-icon icon="mdi:fullscreen"></ha-icon></button>
       <div class="mitte"><div class="griff"></div></div>
       <div class="status">
         <ha-icon id="s-mikro" icon="mdi:microphone"></ha-icon>
@@ -354,12 +365,53 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const feld = this.shadowRoot && this.shadowRoot.querySelector('.karte');
     if (feld) this._beobachter.observe(feld);
     this._zeit();
+    this._kopfzeile();
   }
 
   disconnectedCallback() {
     clearInterval(this._uhr);
     clearInterval(this._nadel);
     if (this._beobachter) this._beobachter.disconnect();
+    this._kopfzeile(false); // andere Dashboards behalten ihre Kopfzeile
+  }
+
+  // ─── Kopfzeile von Home Assistant ───────────────────────────────────────────
+  _kopfzeileAus() {
+    try {
+      return localStorage.getItem(KOPFZEILE) === 'aus';
+    } catch (err) {
+      return false;
+    }
+  }
+
+  /** Die Hülle des Dashboards, quer durch die Shadow-DOMs nach oben. */
+  _huiRoot() {
+    let n = this;
+    while (n && n.localName !== 'hui-root') n = n.assignedSlot || n.parentNode || n.host;
+    return n || null;
+  }
+
+  /** Kopfzeile nach Einstellung zeigen oder ausblenden; `false` zeigt sie immer. */
+  _kopfzeile(aus = this._kopfzeileAus()) {
+    const knopf = this.shadowRoot && this.$('kopfzeile');
+    if (knopf) {
+      knopf.firstElementChild.setAttribute('icon', aus ? 'mdi:fullscreen-exit' : 'mdi:fullscreen');
+      knopf.title = aus ? 'Kopfzeile von Home Assistant zeigen' : 'Kopfzeile von Home Assistant ausblenden';
+    }
+    // beim Abmelden hängt die Karte schon nicht mehr im Dashboard: gemerkte Hülle
+    const wurzel = this._huiRoot() || this._wurzel;
+    this._wurzel = wurzel;
+    const sr = wurzel && wurzel.shadowRoot;
+    if (!sr) return;
+    let stil = sr.getElementById('yapaia-kopfzeile');
+    if (aus && !stil) {
+      stil = document.createElement('style');
+      stil.id = 'yapaia-kopfzeile';
+      stil.textContent = KOPF_STIL;
+      sr.appendChild(stil);
+    } else if (!aus && stil) {
+      stil.remove();
+    }
   }
 
   set hass(hass) {
@@ -427,6 +479,14 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this.$('l-mikro').addEventListener('click', () => this._rufe('switch', 'toggle', { entity_id: E.stumm }));
     this.$('m-stumm').addEventListener('click', () => this._stumm());
     this.$('anpassen').addEventListener('click', () => this._anpassen(this._bearbeiten ? null : this._modus()));
+    this.$('kopfzeile').addEventListener('click', () => {
+      try {
+        localStorage.setItem(KOPFZEILE, this._kopfzeileAus() ? 'an' : 'aus');
+      } catch (err) {
+        /* ohne Speicher kein Umschalten */
+      }
+      this._kopfzeile();
+    });
     this.$('a-ruhe').addEventListener('click', () => this._anpassen('ruhe'));
     this.$('a-fahrt').addEventListener('click', () => this._anpassen('fahrt'));
     this.$('a-fertig').addEventListener('click', () => this._anpassen(null));

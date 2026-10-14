@@ -28,6 +28,18 @@ Enter nimmt den ersten Vorschlag.
 3. Neues Dashboard anlegen, im Raw-Konfigurationseditor den Inhalt von
    [`dashboard.yaml`](dashboard.yaml) einsetzen.
 
+## Kopfzeile ausblenden
+
+Der Knopf mit dem Vollbild-Symbol in der oberen Leiste blendet die Kopfzeile
+von Home Assistant („Cockpit Sport“) aus. Die Karte füllt dann den ganzen
+Bildschirm. Nochmal tippen holt sie zurück, etwa zum Bearbeiten des
+Dashboards. Gespeichert wird je Gerät. Andere Dashboards behalten ihre
+Kopfzeile.
+
+Das greift in Home Assistant hinein (getestet mit 2026.10). Ändert ein Update
+den Aufbau, bleibt die Kopfzeile einfach stehen. Dann hilft kiosk-mode aus
+HACS (`kiosk_mode: hide_header: true`).
+
 ## Anpassen
 
 Der Knopf mit den vier Pfeilen in der oberen Leiste startet das Anpassen:
