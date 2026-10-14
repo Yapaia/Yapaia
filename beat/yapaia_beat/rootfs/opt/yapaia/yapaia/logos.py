@@ -53,6 +53,10 @@ CTYPE = {v: k for k, v in EXT.items()}
 RETRY_AFTER = 24 * 3600
 REFRESH = 14 * 24 * 3600
 SI_CACHE = 24 * 3600
+# Raised when the lookup itself got better: every station (without a logo of
+# its own) is looked up once more.  3 = Beat 1.17.2: logos were read only up
+# to the first network chunk -- most real logos were thrown away as "half".
+LOOKUP_VERSION = 3
 PALETTE = ["#ff6b35", "#f7c548", "#2ec4b6", "#e71d36", "#8338ec", "#3a86ff", "#06d6a0", "#ef476f"]
 
 
@@ -92,7 +96,7 @@ class LogoManager:
         if self._find(self.dir / "custom", sid):
             return False
         p = self._find(self.dir, sid)
-        if not p:
+        if not p or station.get("logo_version") != LOOKUP_VERSION:
             return True
         if not image_complete(p.read_bytes(), self.content_type(p)):
             return True
@@ -162,12 +166,14 @@ class LogoManager:
         if self._find(self.dir / "custom", sid) and not force:
             return False  # the user's own logo always wins
         have = self._cached_ok(sid)
-        due = have and time.time() - self.version(sid) > REFRESH
+        upgrade = station.get("logo_version") != LOOKUP_VERSION
+        due = have and (upgrade or time.time() - self.version(sid) > REFRESH)
         if have and not due and not force:
             return False
-        if not force and time.time() - station.get("logo_lookup", 0) < RETRY_AFTER:
+        if not force and not upgrade and time.time() - station.get("logo_lookup", 0) < RETRY_AFTER:
             return False
         station["logo_lookup"] = time.time()
+        station["logo_version"] = LOOKUP_VERSION
         async with self._lock:
             for url in await self._candidates(station):
                 try:
@@ -191,9 +197,7 @@ class LogoManager:
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.debug("RadioDNS failed for %s: %s", station["id"], err)
         try:
-            url = await self._search(station)
-            if url:
-                out.append(url)
+            out += [u for u in await self._search(station) if u not in out]
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.debug("Logo lookup failed for %s: %s", station["id"], err)
             station["logo_lookup"] = time.time() - RETRY_AFTER + 600  # retry in 10 min
@@ -218,7 +222,9 @@ class LogoManager:
             async with self._http().get(url) as r:
                 if r.status != 200:
                     return None
-                xml = await r.content.read(20_000_000)
+                xml = await _read_all(r, 20_000_000)
+            if xml is None:
+                return None
             self._si[url] = (time.time(), xml)
         return radiodns.logo_aus_si(xml, radiodns.bearer_ids(station, self.country))
 
@@ -243,7 +249,8 @@ class LogoManager:
             raise aiohttp.ClientError(str(last))
         return []
 
-    async def _search(self, station: dict[str, Any]) -> str | None:
+    async def _search(self, station: dict[str, Any]) -> list[str]:
+        """Logo URLs from radio-browser.info, best first."""
         names = []
         for n in (station.get("custom_name"), station.get("name")):
             if n and n not in names:
@@ -256,11 +263,10 @@ class LogoManager:
             queries = [f"/json/stations/search?{params}&countrycode={self.country}"] if self.country else []
             queries.append(f"/json/stations/search?{params}")
             for q in queries:
-                candidates = [c for c in await self._query(q) if c.get("favicon")]
-                best = _best_match(wanted, candidates)
-                if best:
-                    return best["favicon"]
-        return None
+                ranked = _ranked(wanted, await self._query(q))
+                if ranked:
+                    return [c["favicon"] for c in ranked[:3]]
+        return []
 
     async def _download(self, url: str, station_id: str) -> bool:
         async with self._http().get(url, allow_redirects=True) as r:
@@ -273,8 +279,8 @@ class LogoManager:
                 ext = next((e for e in CTYPE if lower.endswith(e)), None)
             if not ext:
                 return False
-            data = await r.content.read(3_000_001)
-            if len(data) > 3_000_000 or len(data) < 64:
+            data = await _read_all(r, 3_000_000)
+            if data is None or len(data) < 64:
                 return False
             if not image_complete(data, CTYPE.get(ext, "")):
                 _LOGGER.debug("Logo from %s is incomplete", url)
@@ -284,14 +290,61 @@ class LogoManager:
         return True
 
 
+async def _read_all(r: aiohttp.ClientResponse, limit: int) -> bytes | None:
+    """The whole body, or None if larger than ``limit``.  (``content.read(n)``
+    only returns what has arrived so far -- often just the first chunk.)"""
+    data = bytearray()
+    async for chunk in r.content.iter_chunked(65536):
+        data += chunk
+        if len(data) > limit:
+            return None
+    return bytes(data)
+
+
 def _best_match(wanted: str, candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
+    ranked = _ranked(wanted, candidates)
+    return ranked[0] if ranked else None
+
+
+# Name additions that still mean the station itself, not a sub-channel:
+# "Radio Bob! Livestream Hessen" is RADIO BOB!, "... Classic Rock" is not.
+SAME_STATION = (
+    "livestream", "national", "deutschland", "official", "offiziell", "webradio", "stream", "live",
+    "badenwuerttemberg", "bayern", "berlin", "brandenburg", "bremen", "hamburg", "hessen",
+    "mecklenburgvorpommern", "niedersachsen", "nordrheinwestfalen", "nrw", "rheinlandpfalz",
+    "saarland", "sachsenanhalt", "sachsen", "schleswigholstein", "thueringen",
+)  # fmt: skip
+
+
+def _same_station(rest: str) -> bool:
+    """Does the rest of a longer name consist only of such additions?"""
+    while rest:
+        word = next((w for w in SAME_STATION if rest.startswith(w)), None)
+        if word is None:
+            return False
+        rest = rest[len(word):]
+    return True
+
+
+def _ranked(wanted: str, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Matching stations with a logo, best first.  If a station of exactly
+    this name exists (even without a logo), only exact names count -- or the
+    same name plus "Livestream", a region and the like: "Beats Radio" must
+    not get the logo of "Beats Radio - Nu Disco"."""
+    exact = any(normalize_name(c.get("name", "")) == wanted for c in candidates)
     scored = []
     for c in candidates:
+        if not c.get("favicon"):
+            continue
         n = normalize_name(c.get("name", ""))
         if not n:
             continue
         if n == wanted:
             score = 100
+        elif n.startswith(wanted) and _same_station(n[len(wanted):]):
+            score = 90
+        elif exact:
+            continue
         elif n.startswith(wanted) or wanted.startswith(n):
             score = 70 - abs(len(n) - len(wanted))
         elif wanted in n:
@@ -303,10 +356,8 @@ def _best_match(wanted: str, candidates: list[dict[str, Any]]) -> dict[str, Any]
         if fav.endswith(".ico") or "favicon" in fav:
             score -= 15
         scored.append((score, int(c.get("clickcount") or 0), c))
-    if not scored:
-        return None
     scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
-    return scored[0][2] if scored[0][0] >= 30 else None
+    return [c for score, _, c in scored if score >= 30]
 
 
 def image_complete(data: bytes, content_type: str) -> bool:

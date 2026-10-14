@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.17.2
+
+**Die richtigen Senderlogos.** Gemeldet: Die richtigen Logos werden nicht
+gefunden oder geladen.
+
+- Hauptursache: Logos wurden nur bis zum ersten Netzwerkstück gelesen
+  (`content.read(n)` liefert nur, was gerade angekommen ist). Fast jedes
+  echte Logo kam so halb an und wurde, richtig, als unvollständig verworfen.
+  Übrig blieben kleine Bilder, die in einem Stück kommen, meist Favicons.
+  Das offizielle SWR3-Logo von RadioDNS hat 24 KB, angekommen waren 2 KB.
+  Dasselbe galt für die Senderverzeichnisse von RadioDNS.
+- Kein fremdes Logo mehr: Gibt es bei radio-browser einen Sender mit genau
+  dem Namen (auch ohne Logo), zählt kein Unterkanal mit längerem Namen.
+  „Beats Radio“ bekam bisher das Logo von „Beats Radio – Nu Disco“. Zusätze
+  wie „Livestream“, „National“ oder ein Bundesland gelten weiter als
+  derselbe Sender („Radio Bob! Livestream Hessen“ für RADIO BOB!).
+- Mehrere Treffer werden der Reihe nach probiert, nicht nur der erste.
+- Nach dem Update sucht Beat einmal für alle Sender (ohne eigenes Logo) neu.
+  Am Gerät waren das 63 Logos in etwa 2½ Minuten. SWR3 und DASDING haben
+  jetzt das offizielle Logo des SWR.
+
 ## 1.17.1
 
 - Bringt die Integration „Yapaia“ 0.4.2 mit: Yapaia Router schaltet die SIM
