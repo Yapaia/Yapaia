@@ -226,6 +226,13 @@
             "de": "Oder: Koordinaten",
             "en": "Or: coordinates"
           }
+        },
+        "name": {
+          "typ": "text",
+          "titel": {
+            "de": "Name des Ziels (zu den Koordinaten)",
+            "en": "Destination name (for coordinates)"
+          }
         }
       }
     },

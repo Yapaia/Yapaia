@@ -10,6 +10,17 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.48.0
+
+**Ziele aus Dashboards tragen ihren Namen.**
+Wählt man in einem Dashboard einen Suchtreffer als Ziel, kam bisher nur die
+Koordinate bei Yapaia Go an – die Navigation lief, das Ziel hatte aber
+keinen Namen.
+
+- Die Aktion „Ziel setzen“ (`yapaia.go_ziel_setzen`) hat ein neues Feld
+  `name`: der Name zu den Koordinaten in `ort`, z. B. „Lidl“. Ohne `name`
+  bleibt alles wie bisher.
+
 ## 0.47.1
 
 **Routing über mehrere Länder bricht nicht mehr ab.**

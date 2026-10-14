@@ -25,6 +25,8 @@ describe('Aktionen von Yapaia Go', () => {
     expect(d.zielSetzen).toHaveBeenNthCalledWith(1, { query: 'Magdeburg' });
     expect(d.zielSetzen).toHaveBeenNthCalledWith(2, { query: 'Halle' });
     expect(d.zielSetzen).toHaveBeenNthCalledWith(3, { latlng: { lat: 52.1, lon: 11.6 } });
+    await a.ziel_setzen({ ort: { latitude: 49.2, longitude: 8.4 }, name: ' Lidl ' });
+    expect(d.zielSetzen).toHaveBeenNthCalledWith(4, { latlng: { lat: 49.2, lon: 8.4 }, name: 'Lidl' });
     await expect(a.ziel_setzen({})).rejects.toThrow(/Ziel angeben/);
   });
 

@@ -10,7 +10,7 @@ import { AktionsFehler, type Aktion } from './protokoll.js';
 
 export interface AktionenDeps {
   /** Ziel suchen, Route rechnen, Navigation starten. */
-  zielSetzen: (ziel: { query?: string; latlng?: LatLng }) => Promise<{ name: string | null }>;
+  zielSetzen: (ziel: { query?: string; latlng?: LatLng; name?: string }) => Promise<{ name: string | null }>;
   /** Laeuft gerade eine Fahrt (dann wird sie fuer ein neues Ziel beendet)? */
   faehrt: () => boolean;
   pause: () => void;
@@ -64,11 +64,13 @@ export function goAktionen(d: AktionenDeps): Record<string, Aktion> {
       // `wert` kommt vom Textfeld „Ziel eingeben"
       const roh = daten.ziel ?? daten.wert;
       const query = typeof roh === 'string' ? roh.trim() : '';
+      // Name zu den Koordinaten, z. B. der in einem Dashboard gewaehlte Suchtreffer
+      const name = typeof daten.name === 'string' ? daten.name.trim() : '';
       if (!latlng && !query) throw new AktionsFehler('Bitte ein Ziel angeben (Adresse, Ort oder Koordinaten).');
       try {
         if (d.faehrt()) d.stop();
-        const { name } = await d.zielSetzen(latlng ? { latlng } : { query });
-        return { ziel: name ?? query };
+        const ergebnis = await d.zielSetzen(latlng ? { latlng, ...(name ? { name } : {}) } : { query });
+        return { ziel: ergebnis.name ?? query };
       } catch (err) {
         throw uebersetze(err);
       }

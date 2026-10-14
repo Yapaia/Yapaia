@@ -163,6 +163,7 @@ export const AKTIONEN = [
     felder: {
       ziel: { typ: 'text', titel: { de: 'Adresse oder Ort', en: 'Address or place' } },
       ort: { typ: 'ort', titel: { de: 'Oder: Koordinaten', en: 'Or: coordinates' } },
+      name: { typ: 'text', titel: { de: 'Name des Ziels (zu den Koordinaten)', en: 'Destination name (for coordinates)' } },
     },
   },
   { name: 'navigation_pausieren', titel: { de: 'Navigation pausieren', en: 'Pause navigation' } },
