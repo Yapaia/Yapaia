@@ -34,6 +34,7 @@ import ThemeController from '../theme/ThemeController.js';
 import ScreenAwakeController from '../shell/ScreenAwakeController.js';
 import NavFeed from './NavFeed.js';
 import EinbettungsAnker from './EinbettungsAnker.js';
+import AnkerGriff from '../shell/AnkerGriff.js';
 import { einbettungSteuerung } from './steuerung.js';
 import '../index.css';
 
@@ -49,6 +50,8 @@ function EmbeddedMap(): React.ReactElement {
       <NavFeed />
       {/* Die Position sitzt, wo sie in „Bildschirm anpassen“ hingeschoben wurde. */}
       <EinbettungsAnker />
+      {/* Das Fadenkreuz dazu, solange das Dashboard die Einbettung einrichtet. */}
+      <AnkerGriff />
       <RoutingInitializer />
       {/* Auch hier: ein Dashboard, das die Fahrt zeigt, ist genau die Anzeige,
           vor der das Tablet nicht einschlafen soll. */}

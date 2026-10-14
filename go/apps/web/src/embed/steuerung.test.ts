@@ -3,6 +3,7 @@ import { einbettungSteuerung } from './steuerung';
 import { useFollowMeStore } from '../map/followMe';
 import { useViewModeStore } from '../map/viewMode';
 import { usePositionStore } from '../position/positionStore';
+import { useAnordnungStore } from '../shell/anordnung';
 
 describe('Steuerung der eingebetteten Karte', () => {
   beforeEach(() => {
@@ -12,7 +13,7 @@ describe('Steuerung der eingebetteten Karte', () => {
 
   it('meldet Ansicht und ob die Karte der Position folgt', () => {
     const s = einbettungSteuerung();
-    expect(s.version).toBe(1);
+    expect(s.version).toBe(2);
     expect(s.stand()).toEqual({ ansicht: '2d-north', zentriert: true });
     useFollowMeStore.getState().halten();
     expect(s.stand().zentriert).toBe(false);
@@ -33,5 +34,17 @@ describe('Steuerung der eingebetteten Karte', () => {
     useFollowMeStore.getState().halten();
     expect(s.zentrieren()).toBe(false);
     expect(s.stand().zentriert).toBe(true);
+  });
+
+  it('bearbeiten zeigt den Bildschirm als Vorschau und beendet sauber', () => {
+    const s = einbettungSteuerung();
+    expect(s.bearbeiten('fahrt')).toBe(true);
+    expect(useAnordnungStore.getState().bearbeiten).toBe('fahrt');
+    expect(useAnordnungStore.getState().vorschau).toBe('fahrt');
+    expect(s.bearbeiten('quer')).toBe(false);
+    expect(s.bearbeiten(null)).toBe(true);
+    expect(useAnordnungStore.getState().bearbeiten).toBeNull();
+    expect(useAnordnungStore.getState().vorschau).toBeNull();
+    expect(s.zuruecksetzen('quer')).toBe(false);
   });
 });

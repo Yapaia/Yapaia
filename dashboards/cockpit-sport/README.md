@@ -28,4 +28,21 @@ Enter nimmt den ersten Vorschlag.
 3. Neues Dashboard anlegen, im Raw-Konfigurationseditor den Inhalt von
    [`dashboard.yaml`](dashboard.yaml) einsetzen.
 
+## Anpassen
+
+Der Knopf mit den vier Pfeilen in der oberen Leiste startet das Anpassen:
+
+- **Ruhe** / **Navigation** wählt den Bildschirm. „Navigation“ zeigt dabei
+  Beispielwerte, man muss also nicht losfahren.
+- Jedes Objekt (Leisten, Radio, Favoriten, Anweisung, Kompass, Tempolimit,
+  Suche, Ankunft) hat einen Rahmen: ziehen verschiebt, der Punkt unten rechts
+  ändert die Größe.
+- Ab Yapaia Go 0.49.0 erscheint in der Karte ein Fadenkreuz: dort sitzt die
+  eigene Position. Auch die Verkehrsliste der Karte lässt sich dann
+  verschieben. Das gilt nur für die Karte im Dashboard, nicht für Yapaia Go
+  selbst.
+- **Zurücksetzen** stellt den gewählten Bildschirm wieder auf den Standard.
+
+Gespeichert wird je Gerät (im Browser), wie in Yapaia Go.
+
 Mit `demo: true` an der Karte zeigt sie Beispielwerte einer Navigation.

@@ -36,6 +36,44 @@ const E = {
 };
 const LEER = new Set(['unknown', 'unavailable', 'none', '', undefined, null]);
 
+// ─── ANORDNUNG ───────────────────────────────────────────────────────────────
+// Jedes Objekt lässt sich verschieben und vergrößern, getrennt für Ruhe und
+// Navigation -- unabhängig von Yapaia Go selbst. Gespeichert je Gerät (wie in
+// Go): ein Tablet im Fahrzeug und ein Telefon in der Hand brauchen Verschiedenes.
+const ANORDNUNG = 'yapaia.cockpitSport.anordnung';
+const OBJEKTE = [
+  ['oben', '.oben', 'Leiste oben'],
+  ['radio', '.medien', 'Radio'],
+  ['favoriten', '.gruen', 'Favoriten'],
+  ['anweisung', '.nav', 'Anweisung'],
+  ['kompass', '.kompass', 'Kompass'],
+  ['schild', '.schild', 'Tempolimit'],
+  ['lupe', '.lupe', 'Suche'],
+  ['ankunft', '.eta', 'Ankunft'],
+  ['leiste', '.leiste', 'Leiste unten'],
+];
+const FAHRT = new Set(['navigating', 'off_route', 'paused']);
+const MASSSTAB_MIN = 0.5;
+const MASSSTAB_MAX = 2;
+
+function anordnungLesen() {
+  const leer = { ruhe: {}, fahrt: {} };
+  try {
+    const w = JSON.parse(localStorage.getItem(ANORDNUNG) || 'null');
+    if (!w || typeof w !== 'object') return leer;
+    const pruefe = (m) => {
+      const raus = {};
+      for (const [id, p] of Object.entries((w && w[m]) || {})) {
+        if (p && [p.dx, p.dy, p.s].every(Number.isFinite)) raus[id] = { dx: p.dx, dy: p.dy, s: p.s };
+      }
+      return raus;
+    };
+    return { ruhe: pruefe('ruhe'), fahrt: pruefe('fahrt') };
+  } catch (err) {
+    return leer;
+  }
+}
+
 const STIL = `
   :host { display: block; height: 100%; }
   [hidden] { display: none !important; }
@@ -170,6 +208,24 @@ const STIL = `
   .hinweis { margin-top: calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.25); opacity: 0.85; }
   .hinweis.fehler { color: #ff8a80; opacity: 1; }
 
+  /* Anpassen */
+  .anpassen-leiste { position: absolute; z-index: 30; top: calc(var(--u) * 0.5); left: 50%; transform: translateX(-50%);
+    max-width: 60%; height: calc(var(--u) * 3.4); box-sizing: border-box;
+    display: flex; gap: calc(var(--u) * 0.6); align-items: center; background: var(--dunkel); padding: calc(var(--u) * 0.6);
+    border-radius: calc(var(--u) * 0.7); border-top: 2px solid var(--kupfer); box-shadow: 0 calc(var(--u) * 0.6) calc(var(--u) * 1.6) rgba(0, 0, 0, 0.5);
+    font-size: calc(var(--u) * 1.15); white-space: nowrap; }
+  .anpassen-leiste button { background: #1b2130; color: #fff; border: 1px solid #343b4b; border-radius: calc(var(--u) * 0.5);
+    padding: calc(var(--u) * 0.5) calc(var(--u) * 1); font: inherit; cursor: pointer; }
+  .anpassen-leiste button.an { background: var(--kupfer); border-color: var(--kupfer); }
+  .anpassen-leiste .info { opacity: 0.75; padding: 0 calc(var(--u) * 0.4); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .bearbeiten .griff-rahmen { position: absolute; inset: -3px; z-index: 25; border: 2px dashed var(--kupfer);
+    border-radius: calc(var(--u) * 0.6); cursor: move; touch-action: none; background: rgba(205, 127, 50, 0.08); }
+  .griff-rahmen .name { position: absolute; left: 4px; top: 4px; font-size: 12px; background: var(--kupfer); color: #fff;
+    padding: 1px 6px; border-radius: 4px; pointer-events: none; }
+  .griff-rahmen .groesse { position: absolute; right: -10px; bottom: -10px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--kupfer); border: 2px solid #fff; cursor: nwse-resize; touch-action: none; }
+  .bearbeiten .schild[hidden], .bearbeiten .eta[hidden] { display: flex !important; }
+
   @container (max-width: 700px) { .gruen, .lupe { display: none; } .nav { right: calc(var(--u) * 1.4); top: calc(var(--u) * 19); }
     .kompass { display: none; } .eta { transform: translateX(-50%); } }
 `;
@@ -183,6 +239,7 @@ const HTML = `
       <button class="knopf kupfer" data-app="yapaia_go" title="Yapaia Go"><ha-icon icon="mdi:rv-truck"></ha-icon></button>
       <button class="knopf tuerkis" data-app="yapaia_beat" title="Yapaia Beat"><ha-icon icon="mdi:radio"></ha-icon></button>
       <button class="knopf rahmen" data-nav="/config/dashboard" title="Einstellungen"><ha-icon icon="mdi:plus"></ha-icon></button>
+      <button class="knopf rund" id="anpassen" title="Dashboard anpassen"><ha-icon icon="mdi:arrow-expand-all"></ha-icon></button>
       <div class="mitte"><div class="griff"></div></div>
       <div class="status">
         <ha-icon id="s-mikro" icon="mdi:microphone"></ha-icon>
@@ -190,6 +247,12 @@ const HTML = `
         <ha-icon icon="mdi:wifi"></ha-icon>
         <span class="uhr" id="uhr"></span>
       </div>
+    </div>
+
+    <div class="anpassen-leiste" id="a-leiste" hidden>
+      <button id="a-ruhe">Ruhe</button><button id="a-fahrt">Navigation</button>
+      <span class="info" id="a-info"></span>
+      <button id="a-zurueck">Zurücksetzen</button><button id="a-fertig">Fertig</button>
     </div>
 
     <div class="kachel medien"><div class="flaeche">
@@ -292,9 +355,18 @@ class YapaiaCockpitSportCard extends HTMLElement {
   }
 
   set hass(hass) {
+    this._rohHass = hass;
     // `demo: true` in der Kartenkonfiguration zeigt Beispielwerte einer laufenden
-    // Navigation -- zum Ansehen und Einrichten, ohne loszufahren.
-    if (this._config && this._config.demo) {
+    // Navigation -- zum Ansehen und Einrichten, ohne loszufahren. Dasselbe beim
+    // Anpassen des Bildschirms „Navigation“.
+    if (this._bearbeiten === 'ruhe') {
+      const states = { ...hass.states };
+      for (const id of [E.anweisung, E.entfernung, E.ankunft, E.restweg, E.ziel, E.limit]) {
+        states[id] = { ...(states[id] || {}), state: 'unknown', attributes: {} };
+      }
+      states[E.zustand] = { ...(states[E.zustand] || {}), state: 'idle', attributes: {} };
+      hass = { ...hass, states, callService: hass.callService.bind(hass) };
+    } else if ((this._config && this._config.demo) || this._bearbeiten === 'fahrt') {
       const bsp = {
         [E.anweisung]: ['Rechts abbiegen auf Speyerer Straße', { icon: 'mdi:arrow-right-top' }],
         [E.entfernung]: ['260', {}],
@@ -346,6 +418,11 @@ class YapaiaCockpitSportCard extends HTMLElement {
     });
     this.$('l-mikro').addEventListener('click', () => this._rufe('switch', 'toggle', { entity_id: E.stumm }));
     this.$('m-stumm').addEventListener('click', () => this._stumm());
+    this.$('anpassen').addEventListener('click', () => this._anpassen(this._bearbeiten ? null : this._modus()));
+    this.$('a-ruhe').addEventListener('click', () => this._anpassen('ruhe'));
+    this.$('a-fahrt').addEventListener('click', () => this._anpassen('fahrt'));
+    this.$('a-fertig').addEventListener('click', () => this._anpassen(null));
+    this.$('a-zurueck').addEventListener('click', () => this._zuruecksetzen());
     this.$('l-leiser').addEventListener('click', () => this._lautstaerke(-0.05));
     this.$('l-lauter').addEventListener('click', () => this._lautstaerke(0.05));
     this.$('kompass').addEventListener('click', () => this._kompass());
@@ -359,6 +436,122 @@ class YapaiaCockpitSportCard extends HTMLElement {
     feld.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && feld.value.trim()) this._ersterTreffer(feld.value);
       if (e.key === 'Escape') this._sucheZeigen(false);
+    });
+  }
+
+  // ─── Anordnung ────────────────────────────────────────────────────────────
+  /** Ruhe oder Navigation -- beim Anpassen der gewählte Bildschirm. */
+  _modus() {
+    if (this._bearbeiten) return this._bearbeiten;
+    const z = this._hass && this._hass.states[E.zustand];
+    return z && FAHRT.has(z.state) ? 'fahrt' : 'ruhe';
+  }
+
+  _anordnen() {
+    if (!this._werte) this._werte = anordnungLesen();
+    const werte = this._werte[this._modus()] || {};
+    for (const [id, sel] of OBJEKTE) {
+      const el = this.shadowRoot.querySelector(sel);
+      if (!el) continue;
+      const p = werte[id];
+      const an = p && (p.dx || p.dy || p.s !== 1);
+      el.style.translate = an ? `${p.dx}px ${p.dy}px` : '';
+      el.style.scale = an ? String(p.s) : '';
+    }
+  }
+
+  _speichern() {
+    try {
+      localStorage.setItem(ANORDNUNG, JSON.stringify(this._werte));
+    } catch (err) {
+      /* ohne Speicher gilt es bis zum Neuladen */
+    }
+  }
+
+  /** `'ruhe'`/`'fahrt'` richtet diesen Bildschirm ein, `null` beendet. */
+  _anpassen(modus) {
+    this._bearbeiten = modus;
+    const tv = this.shadowRoot.querySelector('.tv');
+    tv.classList.toggle('bearbeiten', !!modus);
+    this.$('a-leiste').hidden = !modus;
+    this.$('a-ruhe').classList.toggle('an', modus === 'ruhe');
+    this.$('a-fahrt').classList.toggle('an', modus === 'fahrt');
+    this.$('anpassen').classList.toggle('an', !!modus);
+    this.shadowRoot.querySelectorAll('.griff-rahmen').forEach((g) => g.remove());
+    if (modus) for (const [id, sel, name] of OBJEKTE) this._griff(id, sel, name);
+    // Die Karte von Go hat ihre eigene Anordnung (Anker der Position,
+    // Verkehrsliste) -- ab Go 0.49.0 vom Dashboard aus einzurichten.
+    const w = this._kartenFenster();
+    const api = w && w.__yapaiaEinbettung;
+    const kann = api && api.version >= 2;
+    if (kann) api.bearbeiten(modus);
+    if (modus) {
+      const info = this.$('a-info');
+      info.textContent = kann ? 'Fadenkreuz = Position' : 'Position: ab Go 0.49.0';
+      info.title =
+        'Rahmen ziehen verschiebt, der Punkt unten rechts ändert die Größe. ' +
+        (kann ? 'Das Fadenkreuz in der Karte setzt die eigene Position.' : 'Die Position in der Karte lässt sich ab Yapaia Go 0.49.0 verschieben.');
+    }
+    if (this._rohHass) this.hass = this._rohHass;
+  }
+
+  _zuruecksetzen() {
+    const modus = this._bearbeiten;
+    if (!modus) return;
+    this._werte[modus] = {};
+    this._speichern();
+    const w = this._kartenFenster();
+    const api = w && w.__yapaiaEinbettung;
+    if (api && api.version >= 2) api.zuruecksetzen(modus);
+    this._anordnen();
+  }
+
+  /** Rahmen zum Ziehen, Punkt unten rechts zum Vergrößern. */
+  _griff(id, sel, name) {
+    const el = this.shadowRoot.querySelector(sel);
+    if (!el) return;
+    const rahmen = document.createElement('div');
+    rahmen.className = 'griff-rahmen';
+    rahmen.innerHTML = `<span class="name"></span><span class="groesse"></span>`;
+    rahmen.firstElementChild.textContent = name;
+    el.appendChild(rahmen);
+    let start = null;
+    const runter = (art) => (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const p = (this._werte[this._bearbeiten] || {})[id] || { dx: 0, dy: 0, s: 1 };
+      start = { x: e.clientX, y: e.clientY, p: { ...p }, art };
+    };
+    const bewegen = (e) => {
+      if (!start) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const ddx = e.clientX - start.x;
+      const ddy = e.clientY - start.y;
+      const p = start.p;
+      const neu =
+        start.art === 'ziehen'
+          ? { ...p, dx: Math.round(p.dx + ddx), dy: Math.round(p.dy + ddy) }
+          : { ...p, s: Math.round(Math.min(MASSSTAB_MAX, Math.max(MASSSTAB_MIN, p.s + (ddx + ddy) / 400)) * 100) / 100 };
+      this._werte[this._bearbeiten] = { ...this._werte[this._bearbeiten], [id]: neu };
+      this._anordnen();
+    };
+    const hoch = (e) => {
+      if (!start) return;
+      e.stopPropagation();
+      start = null;
+      this._speichern();
+    };
+    for (const [ziel, art] of [[rahmen, 'ziehen'], [rahmen.lastElementChild, 'groesse']]) {
+      ziel.addEventListener('pointerdown', runter(art));
+      ziel.addEventListener('pointermove', bewegen);
+      ziel.addEventListener('pointerup', hoch);
+      ziel.addEventListener('pointercancel', hoch);
+    }
+    rahmen.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
     });
   }
 
@@ -694,6 +887,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
   _zeigen() {
     if (!this.shadowRoot) return;
     const h = this._hass;
+    this._anordnen();
 
     // Radio
     const radio = h.states[E.radio];
