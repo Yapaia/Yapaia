@@ -10,6 +10,13 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.48.3
+
+**Der Ankerpunkt kommt jetzt wirklich in der eingebetteten Karte an.**
+0.48.2 versprach es, brachte den Teil dafür aber nur mit, ohne ihn in die
+Kachel „Karte mit Route“ einzubauen. Jetzt sitzt die Position im Dashboard
+dort, wo sie unter „Bildschirm anpassen“ in Yapaia Go hingeschoben wurde.
+
 ## 0.48.2
 
 **Kein Dauerhinweis mehr bei ausgeschalteten Online-Diensten.**
