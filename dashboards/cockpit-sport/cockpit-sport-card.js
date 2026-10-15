@@ -368,6 +368,8 @@ const STIL = `
   .treffer button { display: flex; align-items: center; gap: calc(var(--u) * 0.9); width: 100%; text-align: left; background: none;
     border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); color: #fff; cursor: pointer;
     padding: calc(var(--u) * 0.8) calc(var(--u) * 0.3); font-size: calc(var(--u) * 1.4); --mdc-icon-size: calc(var(--u) * 1.6); }
+  .treffer .titel { font-size: calc(var(--u) * 1.05); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    opacity: 0.55; padding: calc(var(--u) * 0.7) calc(var(--u) * 0.4) calc(var(--u) * 0.2); }
   .treffer button:active { background: rgba(255, 255, 255, 0.08); }
   .treffer .art { font-size: calc(var(--u) * 1.05); opacity: 0.65; }
   .treffer span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -997,6 +999,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this.$('such-feld').value = '';
       this.$('treffer').textContent = '';
       this._hinweis('Tippen und einen Vorschlag wählen – oder Enter für das erste passende Ziel.');
+      this._vorschlaege();
       setTimeout(() => this.$('such-feld').focus(), 50);
     }
   }
@@ -1024,7 +1027,103 @@ class YapaiaCockpitSportCard extends HTMLElement {
   // `name` kennt Yapaia Go ab 0.48.0; ältere Fassungen übergehen das Feld.
   _waehle(t) {
     const name = t.name || t.label;
+    this._verlaufMerken(name, t.latlng);
     this._zielSetzen({ ort: { latitude: t.latlng.lat, longitude: t.latlng.lon }, name }, name);
+  }
+
+  /**
+   * Wie die Suche in Go selbst (`SearchBar.tsx`, `favorites/navigate.ts`):
+   * jedes gewählte Ziel in den Verlauf. Über `go_ziel_setzen` trägt Go es
+   * nicht selbst ein. Fehler sind egal -- das Ziel wird trotzdem gesetzt.
+   */
+  _verlaufMerken(name, latlng) {
+    const basis = this._goBasis();
+    if (!basis) return;
+    fetch(`${basis}api/v1/history`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: name, destination: { latlng: { lat: latlng.lat, lon: latlng.lon }, name } }),
+    }).catch(() => {});
+  }
+
+  /** Ein Eintrag der Trefferliste (Suche, Favoriten, Verlauf). */
+  _trefferKnopf(symbol, name, zweite, art, beiKlick) {
+    const b = document.createElement('button');
+    const icon = document.createElement('ha-icon');
+    icon.setAttribute('icon', symbol);
+    const text = document.createElement('span');
+    text.className = 'text';
+    const n = document.createElement('span');
+    n.textContent = name;
+    text.append(n);
+    if (zweite) {
+      const z = document.createElement('span');
+      z.className = 'zeile2';
+      z.textContent = zweite;
+      text.append(z);
+    }
+    const a = document.createElement('span');
+    a.className = 'art';
+    a.textContent = art || '';
+    b.append(icon, text, a);
+    b.addEventListener('click', beiKlick);
+    return b;
+  }
+
+  /**
+   * Solange noch nichts (oder zu wenig) getippt ist: Favoriten und die
+   * letzten drei verschiedenen Ziele aus Yapaia Go -- wie dort, wo Favoriten
+   * und Verlauf erscheinen, sobald man in die Suche tippt.
+   */
+  async _vorschlaege() {
+    const liste = this.$('treffer');
+    const basis = this._goBasis();
+    if (!basis) return;
+    const nr = (this._suchNr = (this._suchNr || 0) + 1);
+    const holen = (pfad) =>
+      fetch(`${basis}api/v1/${pfad}`, { credentials: 'same-origin' })
+        .then((r) => (r.ok ? r.json() : { data: [] }))
+        .then((d) => (Array.isArray(d.data) ? d.data : []))
+        .catch(() => []);
+    const [favoriten, verlauf, hier] = await Promise.all([holen('favorites'), holen('history'), this._position(basis)]);
+    if (nr !== this._suchNr) return; // inzwischen wurde getippt
+    const gesehen = new Set();
+    const zuletzt = [];
+    for (const h of verlauf) {
+      const d = h && h.destination;
+      if (!d || !d.latlng || !Number.isFinite(d.latlng.lat)) continue;
+      const name = d.name || h.query || `${d.latlng.lat.toFixed(4)}, ${d.latlng.lon.toFixed(4)}`;
+      const schluessel = `${name}|${d.latlng.lat.toFixed(4)}|${d.latlng.lon.toFixed(4)}`;
+      if (gesehen.has(schluessel)) continue;
+      gesehen.add(schluessel);
+      zuletzt.push({ name, latlng: d.latlng });
+      if (zuletzt.length === 3) break;
+    }
+    const weg = (latlng) => (hier ? YapaiaCockpitSportCard._km(YapaiaCockpitSportCard._abstand(hier, latlng)) : '');
+    liste.textContent = '';
+    const titel = (text) => {
+      const t = document.createElement('div');
+      t.className = 'titel';
+      t.textContent = text;
+      liste.appendChild(t);
+    };
+    const favs = favoriten
+      .filter((f) => f && f.latlng)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (favs.length) {
+      titel('Favoriten');
+      for (const f of favs) {
+        const symbol = { home: 'mdi:home', work: 'mdi:briefcase' }[f.category] || 'mdi:star';
+        liste.appendChild(this._trefferKnopf(symbol, f.name, '', weg(f.latlng), () => this._waehle({ name: f.name, latlng: f.latlng })));
+      }
+    }
+    if (zuletzt.length) {
+      titel('Zuletzt');
+      for (const z of zuletzt) {
+        liste.appendChild(this._trefferKnopf('mdi:history', z.name, '', weg(z.latlng), () => this._waehle(z)));
+      }
+    }
   }
 
   /** Eigene Position aus Go, damit die Suche Treffer in der Nähe bevorzugt. */
@@ -1067,9 +1166,9 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const q = text.trim();
     const liste = this.$('treffer');
     if (q.length < 3) {
-      liste.textContent = '';
       this._treffer = [];
       this._trefferFuer = q;
+      this._vorschlaege();
       return;
     }
     const basis = this._goBasis();
@@ -1099,28 +1198,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._trefferFuer = q;
       liste.textContent = '';
       for (const t of treffer) {
-        const b = document.createElement('button');
-        const icon = document.createElement('ha-icon');
-        icon.setAttribute('icon', 'mdi:map-marker-outline');
-        const text = document.createElement('span');
-        text.className = 'text';
-        const name = document.createElement('span');
-        name.textContent = t.name || t.label;
-        text.append(name);
         const teile = [t.address, t.locality].filter((x) => typeof x === 'string' && x.trim());
         const zweite = teile.length ? teile.join(', ') : t.label && t.label.trim() !== (t.name || '').trim() ? t.label : '';
-        if (zweite) {
-          const z = document.createElement('span');
-          z.className = 'zeile2';
-          z.textContent = zweite;
-          text.append(z);
-        }
-        const art = document.createElement('span');
-        art.className = 'art';
-        art.textContent = t._m !== undefined ? YapaiaCockpitSportCard._km(t._m) : '';
-        b.append(icon, text, art);
-        b.addEventListener('click', () => this._waehle(t));
-        liste.appendChild(b);
+        const art = t._m !== undefined ? YapaiaCockpitSportCard._km(t._m) : '';
+        liste.appendChild(this._trefferKnopf('mdi:map-marker-outline', t.name || t.label, zweite, art, () => this._waehle(t)));
       }
       this._hinweis(treffer.length ? '' : `Zu „${q}“ hat Yapaia Go nichts gefunden.`, !treffer.length);
     } catch (err) {

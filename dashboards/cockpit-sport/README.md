@@ -106,3 +106,10 @@ Mit `demo: true` an der Karte zeigt sie Beispielwerte einer Navigation.
 - Tür, Lampe und die Liste der Lichter (Name, Entität, Reihenfolge per Ziehen) lassen sich im grafischen Editor
   der Karte ändern (`door_entity`, `light_entity`, `lights`).
 
+## Zielsuche: Favoriten und Verlauf
+
+Öffnet man die Suche (Lupe), stehen dort – solange weniger als drei Zeichen getippt sind – die Favoriten aus
+Yapaia Go und die letzten drei verschiedenen Ziele, jeweils mit Entfernung. Ein Tipp startet die Route.
+Jedes in der Karte gewählte Ziel landet wie in Go selbst im Verlauf (`POST api/v1/history`), da Go Ziele aus
+`yapaia.go_ziel_setzen` nicht selbst einträgt.
+
