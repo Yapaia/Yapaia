@@ -10,6 +10,13 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.51.1
+
+**Anordnen auf älteren Android-Geräten.** Auf dem Autoradio (WebView mit
+Chrome 101) ließen sich Elemente wie „Verkehr auf der Route" im
+Bearbeitungsmodus nicht verschieben oder verkleinern. Jetzt geht es auch
+dort.
+
 ## 0.51.0
 
 **Staus und Unfälle auf der Route.**
