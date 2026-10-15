@@ -1,0 +1,12 @@
+# Regeln für den Check „Geheimnisse“ (gitleaks, .github/workflows/ci.yml).
+# Es gelten alle Standardregeln von gitleaks; hier stehen nur bekannte
+# Platzhalter, die bewusst im Repo liegen.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Bekannte Platzhalter"
+regexes = [
+  # API-Schlüssel der Satellite-CI: base64 von „0123456789abcdef0123456789abcdef“
+  '''MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=''',
+]
