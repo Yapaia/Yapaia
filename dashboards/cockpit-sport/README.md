@@ -18,11 +18,20 @@ Enter nimmt den ersten Vorschlag.
 - Optional **Yapaia Beat** (Radio) und **Yapaia Satellite** (Mikrofon).
   Die Entitäten stehen oben in `cockpit-sport-card.js` unter `E`.
 
+## Ankunft antippen: die Route
+
+Ein Tipp auf die Ankunft öffnet die Halte: alle noch offenen Zwischenziele
+und das Ziel, jeweils mit Restkilometern und Ankunftszeit (ab Yapaia Go
+0.52.0, ältere Fassungen zeigen nur das Ziel). Die Zeile „Ziel: …“ unter der
+Anweisung gibt es dafür nicht mehr.
+
 ## Ältere Browser
 
 Die Karte kommt ohne Container-Einheiten (`cqw`, `@container`) aus: Das
 Autoradio (Eonon UX6K Pro Max) hat eine WebView, die sie nicht kennt. Die
 Maße setzt die Karte selbst per JavaScript nach der gemessenen Breite.
+Verschieben und Größe ändern laufen über `transform` und Touch-Events,
+weil die WebView (Chrome 101) `translate`/`scale` nicht kennt.
 
 ## Einrichten
 
