@@ -232,6 +232,17 @@ const STIL = `
   #s-tuer { cursor: pointer; }
   #s-tuer.offen { color: #ff6b5e; }
   .symbole button.licht-an { color: #ffd166; }
+  /* Halte: Zwischenziele und Ziel mit Ankunft und km (Antippen von „Ankunft“). */
+  .halte { bottom: calc(var(--u) * 13.4); left: 50%; transform: translateX(-50%); width: clamp(280px, calc(var(--cw, 1vw) * 40), 540px); }
+  .halte ol { list-style: none; margin: 0; padding: 0; max-height: calc(var(--ch, 1vh) * 45); overflow-y: auto; }
+  .halte li { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: calc(var(--u) * 0.9);
+    padding: calc(var(--u) * 0.55) 0; border-top: 1px solid rgba(255, 255, 255, 0.1); --mdc-icon-size: calc(var(--u) * 1.6); }
+  .halte li:first-child { border-top: 0; }
+  .halte .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .halte .km, .halte .uhr { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .halte .uhr { font-weight: 600; }
+  .halte li.ziel .name { font-weight: 600; }
+  .eta .raster { cursor: pointer; }
   .licht-menu { bottom: calc(var(--u) * 6.4); left: 50%; transform: translateX(-50%); width: clamp(280px, calc(var(--cw, 1vw) * 34), 460px); }
   .lichter { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 0.6); }
   .lichter button { display: flex; align-items: center; gap: calc(var(--u) * 0.6); background: #1b2130; color: #d7d9de;
@@ -325,8 +336,6 @@ const STIL = `
   .nav .weit { font-size: calc(var(--u) * 1.9); font-weight: 600; white-space: nowrap; }
   .nav .text { font-size: calc(var(--u) * 1.55); min-width: 0; overflow: hidden; text-overflow: ellipsis;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .nav .ziel { margin-top: calc(var(--u) * 0.6); padding-top: calc(var(--u) * 0.6); border-top: 1px solid rgba(255, 255, 255, 0.18);
-    font-size: calc(var(--u) * 1.2); opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kompass { position: absolute; z-index: 2; top: calc(var(--u) * 5.6); right: calc(var(--u) * 1.4); }
   .schild { position: absolute; z-index: 2; top: calc(var(--u) * 12.6); right: calc(var(--u) * 1.4);
     width: calc(var(--u) * 4.6); height: calc(var(--u) * 4.6); border-radius: 50%; background: #fff; color: #111;
@@ -470,7 +479,6 @@ const HTML = `
 
     <div class="nav">
       <div class="zeile"><ha-icon id="n-icon" icon="mdi:navigation-outline"></ha-icon><span class="weit" id="n-weit"></span><span class="text" id="n-text"></span></div>
-      <div class="ziel" id="n-ziel"></div>
     </div>
     <div class="kompass"><button class="knopf rund" id="kompass" title="Karte: Norden oben / in Fahrtrichtung"><ha-icon icon="mdi:navigation"></ha-icon></button></div>
     <div class="schild" id="schild" hidden></div>
@@ -505,6 +513,11 @@ const HTML = `
         <button id="ov-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button>
       </div>
       <div class="hinweis" id="orte-hinweis"></div>
+    </div>
+    <div class="klapp halte" id="halte" hidden>
+      <div class="kopf"><span>Route</span><button class="zu" id="halte-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <ol id="halte-liste"></ol>
+      <div class="hinweis" id="halte-hinweis" hidden></div>
     </div>
     <div class="eta" id="eta" hidden>
       <ha-icon icon="mdi:flag-checkered"></ha-icon>
@@ -711,6 +724,13 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._rufe('media_player', spielt ? 'media_stop' : 'media_play', { entity_id: E.radio });
     });
     this.$('e-ende').addEventListener('click', () => this._rufe('button', 'press', { entity_id: E.beenden }));
+    this.$('eta').addEventListener('click', (e) => {
+      if (e.target.closest && e.target.closest('#e-ende')) return;
+      const h = this.$('halte');
+      h.hidden = !h.hidden;
+      if (!h.hidden) this._halte();
+    });
+    this.$('halte-zu').addEventListener('click', () => (this.$('halte').hidden = true));
     this.$('l-orte').addEventListener('click', () => (this.$('orte').hidden ? this._orteOeffnen() : this._orteSchliessen()));
     this.$('orte-zu').addEventListener('click', () => this._orteSchliessen());
     this.$('ov-zu').addEventListener('click', () => this._orteSchliessen());
@@ -813,36 +833,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
   }
 
   /** `'ruhe'`/`'fahrt'` richtet diesen Bildschirm ein, `null` beendet. */
-  // VORÜBERGEHEND (2026-10-15): warum Ziehen auf dem Autoradio nicht geht.
-  _diag(text) {
-    try {
-      this._hass.callService('system_log', 'write', { message: `cockpit-diag: ${text}`, level: 'warning', logger: 'yapaia.cockpit' });
-    } catch (e) { /* egal */ }
-  }
-
   _anpassen(modus) {
-    if (modus && this._hass) {
-      this._diag(`UA=${navigator.userAgent} PE=${'PointerEvent' in window} w=${innerWidth}x${innerHeight} dpr=${devicePixelRatio}`);
-      if (!this._diagHorcher) {
-        this._diagHorcher = true;
-        let n = 0;
-        for (const t of ['pointerdown', 'touchstart', 'mousedown']) {
-          this.shadowRoot.addEventListener(t, (e) => {
-            if (!this._bearbeiten || n++ > 12) return;
-            const z = e.composedPath()[0];
-            const x = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX);
-            const y = e.clientY ?? (e.touches && e.touches[0] && e.touches[0].clientY);
-            const oben = this.shadowRoot.elementFromPoint(x, y);
-            this._diag(`${t} ${e.pointerType || ''} ziel=${z && (z.className || z.tagName)} oben=${oben && (oben.className || oben.tagName)} @${Math.round(x)},${Math.round(y)}`);
-          }, true);
-        }
-        window.addEventListener('pointerdown', (e) => {
-          if (!this._bearbeiten || n++ > 12) return;
-          const z = e.composedPath()[0];
-          this._diag(`window pointerdown ziel=${z && (z.className || z.tagName)} @${Math.round(e.clientX)},${Math.round(e.clientY)}`);
-        }, true);
-      }
-    }
     this._bearbeiten = modus;
     const tv = this.shadowRoot.querySelector('.tv');
     tv.classList.toggle('bearbeiten', !!modus);
@@ -889,14 +880,11 @@ class YapaiaCockpitSportCard extends HTMLElement {
     rahmen.firstElementChild.textContent = name;
     el.appendChild(rahmen);
     let start = null;
-    let zuege = 0;
     const anfang = (art, x, y) => {
       const p = (this._werte[this._bearbeiten] || {})[id] || { dx: 0, dy: 0, s: 1 };
       start = { x, y, p: { ...p }, art, u: this._u() || 14 };
-      zuege = 0;
     };
     const weiter = (x, y) => {
-      zuege += 1;
       const ddx = x - start.x;
       const ddy = y - start.y;
       const p = start.p;
@@ -908,8 +896,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._werte[this._bearbeiten] = { ...this._werte[this._bearbeiten], [id]: neu };
       this._anordnen();
     };
-    const ende = (wie) => {
-      this._diag(`ende ${wie} art=${start && start.art} zuege=${zuege}`);
+    const ende = () => {
       start = null;
       this._speichern();
     };
@@ -935,7 +922,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
         ziel.addEventListener(t, (e) => {
           if (!start) return;
           e.stopPropagation();
-          ende(t);
+          ende();
         });
       }
       ziel.addEventListener('pointerdown', (e) => {
@@ -955,7 +942,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
         ziel.addEventListener(t, (e) => {
           if (!start || e.pointerType === 'touch') return;
           e.stopPropagation();
-          ende(t);
+          ende();
         });
       }
     }
@@ -1572,8 +1559,6 @@ class YapaiaCockpitSportCard extends HTMLElement {
         : '',
     );
     this._text('n-text', anw || 'Keine Navigation');
-    const ziel = this._z(E.ziel);
-    this._text('n-ziel', ziel ? `Ziel: ${ziel}` : 'Ziel ansagen: „Okay Nabu – fahre mich nach …“');
     this.$('s-nav').setAttribute('icon', anw ? 'mdi:navigation-variant' : 'mdi:navigation-variant-outline');
 
     // Tempolimit als Schild
@@ -1952,6 +1937,55 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this._text('e-km', rest === null ? '–' : `${Number(rest).toLocaleString('de-DE', { maximumFractionDigits: Number(rest) < 10 ? 1 : 0 })} km`);
     this._text('e-uhr', gueltig ? t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '');
     this._text('e-zustand', this._z(E.zustand) === 'paused' ? 'pausiert' : '');
+    this._halte();
+  }
+
+  /**
+   * Die offenen Halte -- Zwischenziele, dann das Ziel -- mit Ankunft und km.
+   * Kommt als Attribut `halte` am Ziel-Sensor (ab Yapaia Go 0.52.0). Ältere
+   * Fassungen kennen nur das Ziel; das steht dann allein da.
+   */
+  _halte() {
+    const box = this.$('halte');
+    if (!box || box.hidden || !this._hass) return;
+    const s = this._hass.states[E.ziel];
+    const roh = s && s.attributes && Array.isArray(s.attributes.halte) ? s.attributes.halte : null;
+    const ziel = this._z(E.ziel);
+    const halte = roh && roh.length
+      ? roh
+      : ziel || this._z(E.ankunft)
+        ? [{ name: ziel, art: 'ziel', km: this._z(E.restweg), ankunft: this._z(E.ankunft) }]
+        : [];
+    const uhr = (iso) => {
+      const t = iso ? new Date(iso) : null;
+      return t && !Number.isNaN(t.getTime()) ? t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–';
+    };
+    const km = (k) => (k === null || k === undefined || k === '' || !Number.isFinite(Number(k))
+      ? '–'
+      : `${Number(k).toLocaleString('de-DE', { maximumFractionDigits: Number(k) < 10 ? 1 : 0 })} km`);
+    const liste = this.$('halte-liste');
+    liste.replaceChildren(...halte.map((h, i) => {
+      const li = document.createElement('li');
+      if (h.art === 'ziel') li.className = 'ziel';
+      const icon = document.createElement('ha-icon');
+      icon.setAttribute('icon', h.art === 'ziel' ? 'mdi:flag-checkered' : 'mdi:map-marker-outline');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = h.name || (h.art === 'ziel' ? 'Ziel' : `Zwischenziel ${i + 1}`);
+      const k = document.createElement('span');
+      k.className = 'km';
+      k.textContent = km(h.km);
+      const u = document.createElement('span');
+      u.className = 'uhr';
+      u.textContent = uhr(h.ankunft);
+      li.append(icon, name, k, u);
+      return li;
+    }));
+    const hinweis = this.$('halte-hinweis');
+    hinweis.hidden = halte.length > 0 && roh !== null;
+    hinweis.textContent = halte.length === 0
+      ? 'Keine Navigation aktiv.'
+      : 'Zwischenziele zeigt Yapaia Go ab Version 0.52.0.';
   }
 }
 
