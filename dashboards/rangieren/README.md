@@ -2,7 +2,7 @@
 
 Für Parkmanöver: links das Bild der Rückfahrkamera, rechts die Nivellierung
 (Wohnmobil von der Seite und von hinten, kippt mit der Neigung), darunter
-Licht Dinette und Aufbautür.
+Licht Dinette (OUT2) und Aufbautür.
 
 ## Karten
 
@@ -21,8 +21,6 @@ Im Editor: Kamera, Seitenverhältnis, Bild spiegeln, Platzhaltertext.
 
 ## Offen
 
-- Welcher Ausgang des Smartwomo-ESP die Dinette schaltet, ist noch unbekannt;
-  die Kachel zeigt vorerst auf `light.smartwomo_ausgang_out1`.
 - Die Rückfahrkamera ist noch nicht in Home Assistant. Sobald es sie gibt, in
   der Kamerakarte die Entität eintragen.
 

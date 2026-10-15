@@ -75,6 +75,21 @@ const OBJEKTE = [
 // die Ansicht rückt nach oben und die Karte füllt den Bildschirm. Das greift
 // in Home Assistant hinein und kann nach einem Update nicht mehr wirken; dann
 // bleibt die Kopfzeile eben stehen.
+// Tür und Lichter des Wohnmobils -- im grafischen Editor änderbar.
+const TUER = 'lock.door_aufbautur';
+const LICHT = 'light.smartwomo_ausgang_out2';
+const LICHTER = [
+  { entity: 'light.smartwomo_ausgang_out2', name: 'Dinette' },
+  { entity: 'light.smartwomo_ausgang_out1', name: 'Außen' },
+  { entity: 'light.smartwomo_ausgang_out5', name: 'Ambiente' },
+  { entity: 'light.smartwomo_ausgang_out6', name: 'Ambiente Bett' },
+  { entity: 'light.smartwomo_ausgang_out4', name: 'Bett' },
+  { entity: 'light.smartwomo_ausgang_out8', name: 'Bad' },
+  { entity: 'light.smartwomo_ausgang_out3', name: 'Eingang' },
+  { entity: 'light.smartwomo_ausgang_out7', name: 'Nachtlicht' },
+];
+const LANG_DRUECKEN_MS = 500;
+
 const KOPFZEILE = 'yapaia.cockpitSport.kopfzeile';
 const KOPF_STIL = ':host { --header-height: 0px; } .header { display: none !important; }';
 
@@ -208,6 +223,17 @@ const STIL = `
   .klapp .kopf { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--u) * 0.6);
     font-weight: 600; font-size: calc(var(--u) * 1.5); margin-bottom: calc(var(--u) * 0.6); }
   .klapp .kopf .zu { background: none; border: 0; color: #fff; cursor: pointer; padding: 0; --mdc-icon-size: calc(var(--u) * 1.8); }
+  #s-tuer { cursor: pointer; }
+  #s-tuer.offen { color: #ff6b5e; }
+  .symbole button.licht-an { color: #ffd166; }
+  .licht-menu { bottom: calc(var(--u) * 6.4); left: 50%; transform: translateX(-50%); width: clamp(280px, 34cqw, 460px); }
+  .lichter { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 0.6); }
+  .lichter button { display: flex; align-items: center; gap: calc(var(--u) * 0.6); background: #1b2130; color: #d7d9de;
+    border: 1px solid #343b4b; border-radius: calc(var(--u) * 0.5); padding: calc(var(--u) * 0.7) calc(var(--u) * 0.8);
+    cursor: pointer; font: inherit; text-align: left; --mdc-icon-size: calc(var(--u) * 1.8); }
+  .lichter button.an { border-color: #ffd166; color: #fff; }
+  .lichter button.an ha-icon { color: #ffd166; }
+  .lichter button.weg { opacity: 0.45; }
   .netz-info { top: calc(var(--u) * 4.6); right: calc(var(--u) * 1.4); width: clamp(260px, 30cqw, 420px); }
   .netz-info .kopf .netz { pointer-events: none; font-size: calc(var(--u) * 1.3); }
   .netz-info dl { display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 0.35) calc(var(--u) * 1); margin: 0; }
@@ -386,6 +412,7 @@ const HTML = `
       <button class="knopf rund" id="kopfzeile" title="Kopfzeile von Home Assistant ausblenden"><ha-icon icon="mdi:fullscreen"></ha-icon></button>
       <div class="mitte"><div class="griff"></div></div>
       <div class="status">
+        <ha-icon id="s-tuer" icon="mdi:lock" title="Aufbautür auf- / abschließen" hidden></ha-icon>
         <ha-icon id="s-mikro" icon="mdi:microphone" title="Mikrofon des Satelliten stumm / an"></ha-icon>
         <ha-icon id="s-nav" icon="mdi:navigation-variant-outline"></ha-icon>
         <button class="netz" id="netz" hidden title="Internet: Details"></button>
@@ -437,6 +464,10 @@ const HTML = `
       <div class="hinweis" id="such-hinweis"></div>
     </div>
     <div class="klapp netz-info" id="netz-info" hidden></div>
+    <div class="klapp licht-menu" id="licht-menu" hidden>
+      <div class="kopf"><span>Licht</span><button class="zu" id="licht-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <div class="lichter" id="lichter"></div>
+    </div>
     <div class="klapp orte" id="orte" hidden>
       <div class="kopf"><span id="orte-titel">Sonderziele in der Nähe</span>
         <button class="zu" id="orte-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
@@ -464,6 +495,7 @@ const HTML = `
       <span class="wert" id="l-tempo"></span>
       <div class="symbole">
         <button id="l-mikro" title="Spracheingabe"><ha-icon icon="mdi:microphone-outline"></ha-icon></button>
+        <button id="l-licht" title="Licht Dinette – lange drücken: alle Lichter"><ha-icon icon="mdi:lightbulb-outline"></ha-icon></button>
         <button id="l-orte" title="Sonderziele in der Nähe: Tankstelle, Stellplatz, Parkplatz …"><ha-icon icon="mdi:map-marker-radius-outline"></ha-icon></button>
         <span class="marke">YAPAIA</span>
         <button id="l-leiser" title="Leiser"><ha-icon icon="mdi:volume-minus"></ha-icon></button>
@@ -486,8 +518,45 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this._uhr = null;
   }
 
+  static getStubConfig() {
+    return { door_entity: TUER, light_entity: LICHT, lights: LICHTER };
+  }
+
+  static getConfigForm() {
+    return {
+      schema: [
+        { name: 'door_entity', selector: { entity: { domain: 'lock' } } },
+        { name: 'light_entity', selector: { entity: { domain: 'light' } } },
+        {
+          name: 'lights',
+          selector: {
+            object: {
+              multiple: true,
+              label_field: 'name',
+              fields: {
+                name: { label: 'Name', selector: { text: {} } },
+                entity: { label: 'Licht', required: true, selector: { entity: { domain: ['light', 'switch'] } } },
+              },
+            },
+          },
+        },
+        { name: 'height', selector: { number: { min: 300, max: 2000, mode: 'box', unit_of_measurement: 'px' } } },
+        { name: 'demo', selector: { boolean: {} } },
+      ],
+      computeLabel: (s) =>
+        ({
+          door_entity: 'Tür (Symbol oben)',
+          light_entity: 'Licht (Lampe unten, Tippen)',
+          lights: 'Lichter im Menü (Lampe lange drücken), in dieser Reihenfolge',
+          height: 'Höhe (leer: ganze Seite)',
+          demo: 'Beispielwerte einer Navigation zeigen',
+        })[s.name],
+    };
+  }
+
   setConfig(config) {
     this._config = config || {};
+    this._lichtSchluessel = null;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
       this.shadowRoot.innerHTML = `<style>${STIL}</style>${HTML}`;
@@ -627,6 +696,16 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this.$('ov-weiter').addEventListener('click', () => blaettern(1));
     this.$('l-mikro').addEventListener('click', () => this._sprechen());
     this.$('s-mikro').addEventListener('click', () => this._rufe('switch', 'toggle', { entity_id: E.stumm }));
+    this.$('s-tuer').addEventListener('click', () => this._tuerUmschalten());
+    this._langDruecken(this.$('l-licht'), () => this._licht().length && this._rufe('homeassistant', 'toggle', { entity_id: this._licht() }), () => {
+      this.$('licht-menu').hidden = !this.$('licht-menu').hidden;
+      this._lichtZeigen();
+    });
+    this.$('licht-zu').addEventListener('click', () => (this.$('licht-menu').hidden = true));
+    this.$('lichter').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-licht]');
+      if (b) this._rufe('homeassistant', 'toggle', { entity_id: b.dataset.licht });
+    });
     this.$('netz').addEventListener('click', () => {
       this.$('netz-info').hidden = !this.$('netz-info').hidden;
       this._netzInfo();
@@ -1119,10 +1198,85 @@ class YapaiaCockpitSportCard extends HTMLElement {
     if (el && el.textContent !== wert) el.textContent = wert;
   }
 
+  // ─── Tür und Licht ─────────────────────────────────────────────────────────
+  _tuer() {
+    return (this._config && this._config.door_entity) || TUER;
+  }
+
+  _licht() {
+    return (this._config && this._config.light_entity) || LICHT;
+  }
+
+  _lichter() {
+    const liste = this._config && Array.isArray(this._config.lights) && this._config.lights.length ? this._config.lights : LICHTER;
+    return liste.filter((l) => l && l.entity);
+  }
+
+  _tuerUmschalten() {
+    const st = this._hass && this._hass.states[this._tuer()];
+    if (!st) return;
+    this._rufe('lock', st.state === 'locked' ? 'unlock' : 'lock', { entity_id: this._tuer() });
+  }
+
+  _tuerZeigen() {
+    const knopf = this.$('s-tuer');
+    const st = this._hass && this._hass.states[this._tuer()];
+    knopf.hidden = !st;
+    if (!st) return;
+    const symbol = { locked: 'mdi:lock', unlocked: 'mdi:lock-open-variant', locking: 'mdi:lock-clock', unlocking: 'mdi:lock-clock', jammed: 'mdi:lock-alert', open: 'mdi:lock-open-variant' }[st.state] || 'mdi:lock-question';
+    knopf.setAttribute('icon', symbol);
+    knopf.classList.toggle('offen', st.state !== 'locked');
+    knopf.title = st.state === 'locked' ? 'Aufbautür ist zu – tippen zum Aufschließen' : 'Aufbautür ist offen – tippen zum Abschließen';
+  }
+
+  _lichtZeigen() {
+    const st = this._hass && this._hass.states[this._licht()];
+    const an = !!st && st.state === 'on';
+    const knopf = this.$('l-licht');
+    knopf.classList.toggle('licht-an', an);
+    knopf.querySelector('ha-icon').setAttribute('icon', an ? 'mdi:lightbulb-on' : 'mdi:lightbulb-outline');
+    if (this.$('licht-menu').hidden) return;
+    const schluessel = JSON.stringify(this._lichter().map((l) => [l.entity, l.name, this._hass.states[l.entity]?.state]));
+    if (schluessel === this._lichtSchluessel) return;
+    this._lichtSchluessel = schluessel;
+    const html = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    this.$('lichter').innerHTML = this._lichter()
+      .map((l) => {
+        const s = this._hass.states[l.entity];
+        const z = s ? s.state : 'unavailable';
+        const name = l.name || (s && s.attributes.friendly_name) || l.entity;
+        return `<button data-licht="${html(l.entity)}" class="${z === 'on' ? 'an' : LEER.has(z) ? 'weg' : ''}">
+          <ha-icon icon="${z === 'on' ? 'mdi:lightbulb-on' : 'mdi:lightbulb-outline'}"></ha-icon><span>${html(name)}</span></button>`;
+      })
+      .join('');
+  }
+
+  // Tippen und langes Drücken auf demselben Knopf.
+  _langDruecken(knopf, tippen, lang) {
+    let takt = null;
+    let war = false;
+    const ende = () => clearTimeout(takt);
+    knopf.addEventListener('pointerdown', () => {
+      war = false;
+      takt = setTimeout(() => {
+        war = true;
+        lang();
+      }, LANG_DRUECKEN_MS);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => knopf.addEventListener(ev, ende));
+    knopf.addEventListener('contextmenu', (e) => e.preventDefault());
+    knopf.addEventListener('click', () => {
+      if (war) war = false;
+      else tippen();
+    });
+  }
+
   _zeigen() {
     if (!this.shadowRoot) return;
     const h = this._hass;
     this._anordnen();
+    this._tuerZeigen();
+    this._lichtZeigen();
 
     // Radio
     const radio = h.states[E.radio];
