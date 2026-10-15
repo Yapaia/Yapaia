@@ -295,7 +295,15 @@ const STIL = `
   .tasten button { background: none; border: 0; color: #fff; cursor: pointer; padding: 0;
     --mdc-icon-size: calc(var(--u) * 2.5); }
   .label { font-size: calc(var(--u) * 1.3); font-weight: 500; margin-bottom: calc(var(--u) * 0.8); }
-  .favoriten { display: flex; gap: calc(var(--u) * 0.5); }
+  /* Seiten zu je vier Sendern, wischen blättert (Scroll-Snap). */
+  .favoriten { display: flex; width: calc(var(--u) * 21.9); overflow-x: auto; scroll-snap-type: x mandatory;
+    scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+  .favoriten::-webkit-scrollbar { display: none; }
+  .fav-seite { flex: none; width: 100%; display: flex; gap: calc(var(--u) * 0.5); scroll-snap-align: start; }
+  .punkte { display: inline-flex; gap: calc(var(--u) * 0.5); margin-left: calc(var(--u) * 0.8); vertical-align: middle; }
+  .punkte button { width: calc(var(--u) * 0.8); height: calc(var(--u) * 0.8); padding: 0; border: 0; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4); cursor: pointer; }
+  .punkte button.an { background: #fff; }
   .fav { background: none; border: 0; color: #fff; cursor: pointer; padding: 0; width: calc(var(--u) * 5.1);
     font-size: calc(var(--u) * 1); text-align: center; }
   .fav img, .fav .ersatz { width: calc(var(--u) * 4.4); height: calc(var(--u) * 4.4); border-radius: 50%;
@@ -444,7 +452,7 @@ const HTML = `
 
     <div class="kachel gruen"><div class="flaeche">
       <div class="ring"><ha-icon icon="mdi:star-outline"></ha-icon></div>
-      <div class="label">Favoriten</div>
+      <div class="label">Favoriten <span class="punkte" id="fav-punkte"></span></div>
       <div class="favoriten" id="favoriten"></div>
     </div></div>
 
@@ -1279,6 +1287,45 @@ class YapaiaCockpitSportCard extends HTMLElement {
     if (el && el.textContent !== wert) el.textContent = wert;
   }
 
+  // ─── Favoriten-Seiten ──────────────────────────────────────────────────────
+  _favSeiten(anzahl, aktiv, vorher = 0) {
+    const feld = this.$('favoriten');
+    const punkte = this.$('fav-punkte');
+    punkte.textContent = '';
+    if (anzahl > 1) {
+      for (let i = 0; i < anzahl; i++) {
+        const p = document.createElement('button');
+        p.title = `Seite ${i + 1}`;
+        p.addEventListener('click', () => feld.scrollTo({ left: i * feld.clientWidth, behavior: 'smooth' }));
+        punkte.appendChild(p);
+      }
+    }
+    const markieren = () => {
+      const nr = feld.clientWidth ? Math.round(feld.scrollLeft / feld.clientWidth) : 0;
+      [...punkte.children].forEach((p, i) => p.classList.toggle('an', i === nr));
+    };
+    if (!this._favScroll) {
+      this._favScroll = true;
+      feld.addEventListener('scroll', () => {
+        clearTimeout(this._favTakt);
+        this._favTakt = setTimeout(() => this._favMarkieren && this._favMarkieren(), 60);
+      }, { passive: true });
+    }
+    this._favMarkieren = markieren;
+    // Zur Seite mit dem laufenden Sender -- nur beim ersten Aufbau, sonst
+    // springt die Anzeige zurück, während man blättert.
+    if (!this._favGeblaettert) {
+      this._favGeblaettert = true;
+      requestAnimationFrame(() => {
+        feld.scrollLeft = aktiv * feld.clientWidth;
+        markieren();
+      });
+    } else {
+      feld.scrollLeft = vorher;
+      markieren();
+    }
+  }
+
   // ─── Tür und Licht ─────────────────────────────────────────────────────────
   _tuer() {
     return (this._config && this._config.door_entity) || TUER;
@@ -1377,13 +1424,22 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this.$('m-stumm').title = tonAus ? 'Ton an' : 'Stumm';
 
     // Favoriten (wie die Kontakte im Vorbild): runde Senderlogos
-    const favoriten = Array.isArray(a.favorites) ? a.favorites.slice(0, 4) : [];
+    const favoriten = Array.isArray(a.favorites) ? a.favorites : [];
     const schluessel = favoriten.map((f) => `${f.id}|${f.logo}`).join(',') + `#${a.active_favorite || ''}`;
     if (schluessel !== this._favSchluessel) {
       this._favSchluessel = schluessel;
       const feld = this.$('favoriten');
+      const vorher = feld.scrollLeft;
       feld.textContent = '';
-      for (const f of favoriten) {
+      let seite = null;
+      let aktivSeite = 0;
+      favoriten.forEach((f, i) => {
+        if (i % 4 === 0) {
+          seite = document.createElement('div');
+          seite.className = 'fav-seite';
+          feld.appendChild(seite);
+        }
+        if (f.id === a.active_favorite) aktivSeite = Math.floor(i / 4);
         const b = document.createElement('button');
         b.className = `fav${f.id === a.active_favorite ? ' aktiv' : ''}`;
         b.title = f.name;
@@ -1402,8 +1458,9 @@ class YapaiaCockpitSportCard extends HTMLElement {
         name.textContent = `${f.name}${f.band === 'dab' ? ' ·D' : ''}`;
         b.appendChild(name);
         b.addEventListener('click', () => this._rufe('yapaia', 'beat_abspielen', { station_id: f.id }));
-        feld.appendChild(b);
-      }
+        seite.appendChild(b);
+      });
+      this._favSeiten(feld.children.length, aktivSeite, vorher);
     }
 
     // Navigation
