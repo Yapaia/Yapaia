@@ -18,6 +18,12 @@ Enter nimmt den ersten Vorschlag.
 - Optional **Yapaia Beat** (Radio) und **Yapaia Satellite** (Mikrofon).
   Die Entitäten stehen oben in `cockpit-sport-card.js` unter `E`.
 
+## Ältere Browser
+
+Die Karte kommt ohne Container-Einheiten (`cqw`, `@container`) aus: Das
+Autoradio (Eonon UX6K Pro Max) hat eine WebView, die sie nicht kennt. Die
+Maße setzt die Karte selbst per JavaScript nach der gemessenen Breite.
+
 ## Einrichten
 
 1. Auf dem Mini-PC `python3 dashboards/deploy.py` ausführen: kopiert die

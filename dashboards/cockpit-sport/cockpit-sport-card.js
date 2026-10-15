@@ -184,12 +184,18 @@ const STIL = `
   :host { display: block; height: 100%; }
   [hidden] { display: none !important; }
   .tv {
-    position: relative; overflow: hidden; container-type: inline-size;
+    position: relative; overflow: hidden;
     height: var(--cockpit-hoehe, calc(100vh - var(--header-height, 56px)));
     min-height: 420px; background: #0a0d14; color: #f2f3f5;
     font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --kupfer: #c9895b; --dunkel: rgba(22, 24, 30, 0.92);
-    --u: clamp(9px, 1.25cqw, 17px);
+    /* ─── KEINE CONTAINER-EINHEITEN ─────────────────────────────────────────
+       Bis 2026-10-15 stand hier 1.calc(var(--cw, 1vw) * 25). Das Autoradio (Eonon UX6K Pro Max)
+       hat eine WebView ohne cqw/cqh/@container (erst ab Chrome 105): jedes
+       Maß wurde ungültig, Symbole riesig, Text winzig. Jetzt misst
+       _masse() die Kachel und setzt --cw/--ch (1 % Breite/Höhe in px);
+       bis dahin gilt die Fensterbreite. */
+    --u: clamp(9px, calc(var(--cw, 1vw) * 1.25), 17px);
   }
   .mass { position: absolute; width: calc(var(--u) * 100); height: 0; visibility: hidden; pointer-events: none; }
   .karte { position: absolute; inset: calc(var(--u) * 4.4) 0 calc(var(--u) * 5.6) 0; }
@@ -226,7 +232,7 @@ const STIL = `
   #s-tuer { cursor: pointer; }
   #s-tuer.offen { color: #ff6b5e; }
   .symbole button.licht-an { color: #ffd166; }
-  .licht-menu { bottom: calc(var(--u) * 6.4); left: 50%; transform: translateX(-50%); width: clamp(280px, 34cqw, 460px); }
+  .licht-menu { bottom: calc(var(--u) * 6.4); left: 50%; transform: translateX(-50%); width: clamp(280px, calc(var(--cw, 1vw) * 34), 460px); }
   .lichter { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 0.6); }
   .lichter button { display: flex; align-items: center; gap: calc(var(--u) * 0.6); background: #1b2130; color: #d7d9de;
     border: 1px solid #343b4b; border-radius: calc(var(--u) * 0.5); padding: calc(var(--u) * 0.7) calc(var(--u) * 0.8);
@@ -234,7 +240,7 @@ const STIL = `
   .lichter button.an { border-color: #ffd166; color: #fff; }
   .lichter button.an ha-icon { color: #ffd166; }
   .lichter button.weg { opacity: 0.45; }
-  .netz-info { top: calc(var(--u) * 4.6); right: calc(var(--u) * 1.4); width: clamp(260px, 30cqw, 420px); }
+  .netz-info { top: calc(var(--u) * 4.6); right: calc(var(--u) * 1.4); width: clamp(260px, calc(var(--cw, 1vw) * 30), 420px); }
   .netz-info .kopf .netz { pointer-events: none; font-size: calc(var(--u) * 1.3); }
   .netz-info dl { display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 0.35) calc(var(--u) * 1); margin: 0; }
   .netz-info dt { opacity: 0.65; }
@@ -246,12 +252,12 @@ const STIL = `
   .netz-info .sims button.an { background: var(--kupfer); border-color: var(--kupfer); color: #14161b; font-weight: 600; }
   .netz-info .sims button:disabled { opacity: 0.6; cursor: default; }
   .netz-info .stand { margin-top: calc(var(--u) * 0.5); font-size: calc(var(--u) * 1.1); opacity: 0.75; }
-  .orte { left: 50%; transform: translateX(-50%); bottom: calc(var(--u) * 6.4); width: clamp(300px, 46cqw, 640px); }
+  .orte { left: 50%; transform: translateX(-50%); bottom: calc(var(--u) * 6.4); width: clamp(300px, calc(var(--cw, 1vw) * 46), 640px); }
   .kategorien { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 0.5); }
   .kategorien button { background: #1b2130; color: #fff; border: 1px solid #343b4b; border-radius: calc(var(--u) * 0.5);
     padding: calc(var(--u) * 0.5) calc(var(--u) * 0.8); font-size: calc(var(--u) * 1.25); cursor: pointer; }
   .kategorien button.an { background: var(--kupfer); border-color: var(--kupfer); color: #14161b; }
-  .orte .treffer { max-height: 34cqh; }
+  .orte .treffer { max-height: calc(var(--ch, 1vh) * 34); }
   .orte .treffer button.an { background: rgba(124, 58, 237, 0.35); }
   .orte.vorschau .kategorien, .orte.vorschau #orte-liste, .orte.vorschau .kopf { display: none; }
   .orte-vorschau { display: none; align-items: center; gap: calc(var(--u) * 0.6); }
@@ -273,7 +279,7 @@ const STIL = `
   .orte .los { flex: none; background: #7c3aed; color: #fff; border-radius: calc(var(--u) * 0.4);
     padding: calc(var(--u) * 0.3) calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.1); font-weight: 600; }
 
-  .kachel { position: absolute; left: calc(var(--u) * 1.6); z-index: 2; width: clamp(230px, 31cqw, 460px);
+  .kachel { position: absolute; left: calc(var(--u) * 1.6); z-index: 2; width: clamp(230px, calc(var(--cw, 1vw) * 31), 460px);
     filter: drop-shadow(0 calc(var(--u) * 0.6) calc(var(--u) * 0.9) rgba(0, 0, 0, 0.45)); }
   .kachel > .flaeche { clip-path: polygon(0 0, 100% 0, 91% 100%, 0 100%);
     border-radius: calc(var(--u) * 1) 0 0 calc(var(--u) * 1); padding: calc(var(--u) * 1.2) calc(var(--u) * 4.2) calc(var(--u) * 1.2) calc(var(--u) * 1.4); }
@@ -313,7 +319,7 @@ const STIL = `
   .fav span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .nav { position: absolute; z-index: 2; top: calc(var(--u) * 5.6); right: calc(var(--u) * 5.6);
-    width: clamp(260px, 36cqw, 560px); background: var(--dunkel); border-radius: calc(var(--u) * 0.5);
+    width: clamp(260px, calc(var(--cw, 1vw) * 36), 560px); background: var(--dunkel); border-radius: calc(var(--u) * 0.5);
     padding: calc(var(--u) * 0.9) calc(var(--u) * 1.3); box-shadow: 0 calc(var(--u) * 0.4) calc(var(--u) * 1) rgba(0, 0, 0, 0.4); }
   .nav .zeile { display: flex; align-items: center; gap: calc(var(--u) * 1); --mdc-icon-size: calc(var(--u) * 2.6); }
   .nav .weit { font-size: calc(var(--u) * 1.9); font-weight: 600; white-space: nowrap; }
@@ -344,7 +350,7 @@ const STIL = `
   .leiste { bottom: 0; height: calc(var(--u) * 5.6); padding: 0 calc(var(--u) * 1.6); gap: calc(var(--u) * 1.6);
     background: linear-gradient(#10141d, #07090e); border-top: 1px solid #232937; }
   .auto { color: var(--kupfer); font-size: calc(var(--u) * 1.25); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-    max-width: 18cqw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    max-width: calc(var(--cw, 1vw) * 18); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wert { font-size: calc(var(--u) * 2.9); font-weight: 300; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .wert small { font-size: calc(var(--u) * 1.2); opacity: 0.75; margin-left: 0.25em; }
   .wert.warn { color: #ff6b5e; }
@@ -364,7 +370,7 @@ const STIL = `
   .kompass .knopf.frei ha-icon { transform: none !important; }
 
   .suche { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); top: calc(var(--u) * 6.2);
-    width: clamp(300px, 46cqw, 640px); background: var(--dunkel); border-radius: calc(var(--u) * 0.7);
+    width: clamp(300px, calc(var(--cw, 1vw) * 46), 640px); background: var(--dunkel); border-radius: calc(var(--u) * 0.7);
     box-shadow: 0 calc(var(--u) * 0.8) calc(var(--u) * 2.4) rgba(0, 0, 0, 0.55); padding: calc(var(--u) * 1);
     border-top: 2px solid var(--kupfer); }
   .suche .feld { display: flex; align-items: center; gap: calc(var(--u) * 0.8); --mdc-icon-size: calc(var(--u) * 1.9); }
@@ -372,7 +378,7 @@ const STIL = `
     border-radius: calc(var(--u) * 0.5); padding: calc(var(--u) * 0.8) calc(var(--u) * 1); font-size: calc(var(--u) * 1.6); outline: none; }
   .suche input:focus { border-color: var(--kupfer); }
   .suche .zu { background: none; border: 0; color: #fff; cursor: pointer; padding: 0; }
-  .treffer { margin-top: calc(var(--u) * 0.6); max-height: 46cqh; overflow-y: auto; }
+  .treffer { margin-top: calc(var(--u) * 0.6); max-height: calc(var(--ch, 1vh) * 46); overflow-y: auto; }
   .treffer button { display: flex; align-items: center; gap: calc(var(--u) * 0.9); width: 100%; text-align: left; background: none;
     border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); color: #fff; cursor: pointer;
     padding: calc(var(--u) * 0.8) calc(var(--u) * 0.3); font-size: calc(var(--u) * 1.4); --mdc-icon-size: calc(var(--u) * 1.6); }
@@ -404,8 +410,10 @@ const STIL = `
     background: var(--kupfer); border: 2px solid #fff; cursor: nwse-resize; touch-action: none; }
   .bearbeiten .schild[hidden], .bearbeiten .eta[hidden] { display: flex !important; }
 
-  @container (max-width: 700px) { .gruen, .lupe { display: none; } .nav { right: calc(var(--u) * 1.4); top: calc(var(--u) * 19); }
-    .kompass { display: none; } .eta { transform: translateX(-50%); } }
+  /* Schmal (bis 700 px Kachelbreite): setzt _masse(), kein @container (s. o.). */
+  .tv.schmal .gruen, .tv.schmal .lupe, .tv.schmal .kompass { display: none; }
+  .tv.schmal .nav { right: calc(var(--u) * 1.4); top: calc(var(--u) * 19); }
+  .tv.schmal .eta { transform: translateX(-50%); }
 `;
 
 const HTML = `
@@ -582,9 +590,15 @@ class YapaiaCockpitSportCard extends HTMLElement {
   connectedCallback() {
     this._uhr = setInterval(() => this._zeit(), 15000);
     this._nadel = setInterval(() => this._kompassZeigen(), 700);
-    this._beobachter = new ResizeObserver(() => this._kartePassen());
+    this._beobachter = new ResizeObserver(() => {
+      this._masse();
+      this._kartePassen();
+    });
     const feld = this.shadowRoot && this.shadowRoot.querySelector('.karte');
     if (feld) this._beobachter.observe(feld);
+    const tv = this.shadowRoot && this.shadowRoot.querySelector('.tv');
+    if (tv) this._beobachter.observe(tv);
+    this._masse();
     this._zeit();
     this._kopfzeile();
   }
@@ -1261,6 +1275,15 @@ class YapaiaCockpitSportCard extends HTMLElement {
   }
 
   /** Die Go-Kachel hat eine feste Höhe in Pixeln; bei geändertem Fenster nachziehen. */
+  // Ersatz für cqw/cqh/@container, die ältere WebViews nicht kennen (s. STIL).
+  _masse() {
+    const tv = this.shadowRoot && this.shadowRoot.querySelector('.tv');
+    if (!tv || !tv.clientWidth) return;
+    tv.style.setProperty('--cw', `${tv.clientWidth / 100}px`);
+    tv.style.setProperty('--ch', `${tv.clientHeight / 100}px`);
+    tv.classList.toggle('schmal', tv.clientWidth <= 700);
+  }
+
   _kartePassen() {
     if (!this.shadowRoot || !this._hass) return;
     const h = Math.round(this.shadowRoot.querySelector('.karte').clientHeight);
