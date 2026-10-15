@@ -10,6 +10,21 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.51.0
+
+**Staus und Unfälle auf der Route.**
+
+- Neben Baustellen und Sperrungen kommen jetzt auch Staus, Unfälle und
+  sonstige Warnungen der Autobahn GmbH auf die Karte (neue Symbole).
+- Staus färben die Route ein: gelb (zähfließend), orange (Stau), rot
+  (Stillstand oder ab 15 Minuten Verlust). Vollsperrungen dunkelrot.
+- In „Verkehr auf der Route" steht bei Staus Länge und Zeitverlust,
+  z. B. „Stau · 2,4 km · +16 min".
+- Ankunft und Restzeit rechnen den Stauverlust mit ein und werden dann gelb,
+  ab 15 Minuten rot; daneben „Ankunft (+N min)".
+- Die Verkehrslage wird während der Fahrt alle 5 Minuten neu geholt.
+- Nur Autobahnen: Staus auf Bundes- und Landstraßen meldet die Quelle nicht.
+
 ## 0.50.0
 
 **Sonderziele aus dem Dashboard als Zwischenziel.**
