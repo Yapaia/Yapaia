@@ -499,7 +499,7 @@ test.describe('Navigation control end-to-end (E04-T5, Flow 2 + W-19)', () => {
       await expect(page.getByTestId('fahrt-menue')).toHaveCount(0);
       await expect(page.getByTestId('fahrt-menue-eingeschoben')).toContainText('Tankstelle E2E');
       await expect.poll(() => gesendet.length, { timeout: 5_000 }).toBeGreaterThan(0);
-      expect(gesendet[0]!.waypoints[0]).toEqual({ lat: latForProgressM(600), lon: BASE_LON + 0.002 });
+      expect(gesendet[0]!.waypoints[0]).toEqual({ lat: latForProgressM(600), lon: BASE_LON + 0.002, name: 'Tankstelle E2E' });
     } finally {
       await page.request.delete(`${NAV_CONTROL_CORE_BASE_URL}/api/v1/favorites/${favId}`);
     }
