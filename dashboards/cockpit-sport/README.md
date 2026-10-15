@@ -113,3 +113,9 @@ Yapaia Go und die letzten drei verschiedenen Ziele, jeweils mit Entfernung. Ein 
 Jedes in der Karte gewählte Ziel landet wie in Go selbst im Verlauf (`POST api/v1/history`), da Go Ziele aus
 `yapaia.go_ziel_setzen` nicht selbst einträgt.
 
+## Radio-Favoriten
+
+Die Kachel „Favoriten“ zeigt alle Favoriten von Yapaia Beat in Seiten zu je vier Sendern. Wischen blättert,
+die Punkte neben „Favoriten“ zeigen die Seite und lassen sich antippen. Beim Öffnen steht die Seite mit dem
+laufenden Sender vorne.
+
