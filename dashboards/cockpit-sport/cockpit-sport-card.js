@@ -335,7 +335,7 @@ const STIL = `
   .schild.warn { animation: puls 0.8s ease-in-out infinite alternate; }
   @keyframes puls { to { transform: scale(1.12); box-shadow: 0 0 0 calc(var(--u) * 0.6) rgba(213, 35, 30, 0.45); } }
 
-  .eta { position: absolute; z-index: 2; left: 50%; transform: translateX(-10%); bottom: calc(var(--u) * 7);
+  .eta { position: absolute; z-index: 2; left: 50%; transform: var(--anordnung, translate(0)) translateX(-10%); bottom: calc(var(--u) * 7);
     background: var(--dunkel); border-radius: calc(var(--u) * 0.5); display: flex; align-items: center;
     gap: calc(var(--u) * 1.3); padding: calc(var(--u) * 0.8) calc(var(--u) * 1.2); --mdc-icon-size: calc(var(--u) * 1.9);
     box-shadow: 0 calc(var(--u) * 0.4) calc(var(--u) * 1) rgba(0, 0, 0, 0.4); }
@@ -408,12 +408,16 @@ const STIL = `
     padding: 1px 6px; border-radius: 4px; pointer-events: none; }
   .griff-rahmen .groesse { position: absolute; right: -10px; bottom: -10px; width: 22px; height: 22px; border-radius: 50%;
     background: var(--kupfer); border: 2px solid #fff; cursor: nwse-resize; touch-action: none; }
+  /* Eigene Anordnung (_anordnen), als transform statt translate/scale (Chrome 101). */
+  .oben, .medien, .gruen, .nav, .kompass, .schild, .lupe, .leiste { transform: var(--anordnung, none); }
   .bearbeiten .schild[hidden], .bearbeiten .eta[hidden] { display: flex !important; }
+  /* Das Tempolimit liegt auf dem Größenpunkt der Anweisung und ist selbst nicht verschiebbar. */
+  .bearbeiten .schild { pointer-events: none; }
 
   /* Schmal (bis 700 px Kachelbreite): setzt _masse(), kein @container (s. o.). */
   .tv.schmal .gruen, .tv.schmal .lupe, .tv.schmal .kompass { display: none; }
   .tv.schmal .nav { right: calc(var(--u) * 1.4); top: calc(var(--u) * 19); }
-  .tv.schmal .eta { transform: translateX(-50%); }
+  .tv.schmal .eta { transform: var(--anordnung, translate(0)) translateX(-50%); }
 `;
 
 const HTML = `
@@ -792,8 +796,11 @@ class YapaiaCockpitSportCard extends HTMLElement {
       if (!el) continue;
       const p = werte[id];
       const an = p && (p.dx || p.dy || p.s !== 1);
-      el.style.translate = an ? `calc(var(--u) * ${p.dx}) calc(var(--u) * ${p.dy})` : '';
-      el.style.scale = an ? String(p.s) : '';
+      // Nicht style.translate/style.scale: die gibt es erst ab Chrome 104, das
+      // Autoradio hat 101 -- die Werte änderten sich, zu sehen war nichts.
+      // Der STIL setzt --anordnung vor die eigene Transformation (.eta).
+      if (an) el.style.setProperty('--anordnung', `translate(calc(var(--u) * ${p.dx}), calc(var(--u) * ${p.dy})) scale(${p.s})`);
+      else el.style.removeProperty('--anordnung');
     }
   }
 
@@ -882,19 +889,16 @@ class YapaiaCockpitSportCard extends HTMLElement {
     rahmen.firstElementChild.textContent = name;
     el.appendChild(rahmen);
     let start = null;
-    const runter = (art) => (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.currentTarget.setPointerCapture(e.pointerId);
+    let zuege = 0;
+    const anfang = (art, x, y) => {
       const p = (this._werte[this._bearbeiten] || {})[id] || { dx: 0, dy: 0, s: 1 };
-      start = { x: e.clientX, y: e.clientY, p: { ...p }, art, u: this._u() || 14 };
+      start = { x, y, p: { ...p }, art, u: this._u() || 14 };
+      zuege = 0;
     };
-    const bewegen = (e) => {
-      if (!start) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const ddx = e.clientX - start.x;
-      const ddy = e.clientY - start.y;
+    const weiter = (x, y) => {
+      zuege += 1;
+      const ddx = x - start.x;
+      const ddy = y - start.y;
       const p = start.p;
       const u = start.u;
       const neu =
@@ -904,17 +908,56 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._werte[this._bearbeiten] = { ...this._werte[this._bearbeiten], [id]: neu };
       this._anordnen();
     };
-    const hoch = (e) => {
-      if (!start) return;
-      e.stopPropagation();
+    const ende = (wie) => {
+      this._diag(`ende ${wie} art=${start && start.art} zuege=${zuege}`);
       start = null;
       this._speichern();
     };
+    // ─── TOUCH ÜBER TOUCH-EVENTS, NICHT ÜBER POINTER-EVENTS ─────────────────
+    // Auf dem Autoradio (Eonon UX6K Pro Max) kam pointerdown am Rahmen an, die
+    // Bewegung aber nie: die WebView bricht den Pointer ab. Touch-Events mit
+    // preventDefault (nicht passiv) halten den Finger fest; Pointer bleibt für
+    // Maus und Stift.
     for (const [ziel, art] of [[rahmen, 'ziehen'], [rahmen.lastElementChild, 'groesse']]) {
-      ziel.addEventListener('pointerdown', runter(art));
-      ziel.addEventListener('pointermove', bewegen);
-      ziel.addEventListener('pointerup', hoch);
-      ziel.addEventListener('pointercancel', hoch);
+      ziel.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        e.preventDefault();
+        e.stopPropagation();
+        anfang(art, e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: false });
+      ziel.addEventListener('touchmove', (e) => {
+        if (!start) return;
+        e.preventDefault();
+        e.stopPropagation();
+        weiter(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: false });
+      for (const t of ['touchend', 'touchcancel']) {
+        ziel.addEventListener(t, (e) => {
+          if (!start) return;
+          e.stopPropagation();
+          ende(t);
+        });
+      }
+      ziel.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'touch') return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        anfang(art, e.clientX, e.clientY);
+      });
+      ziel.addEventListener('pointermove', (e) => {
+        if (!start || e.pointerType === 'touch') return;
+        e.preventDefault();
+        e.stopPropagation();
+        weiter(e.clientX, e.clientY);
+      });
+      for (const t of ['pointerup', 'pointercancel']) {
+        ziel.addEventListener(t, (e) => {
+          if (!start || e.pointerType === 'touch') return;
+          e.stopPropagation();
+          ende(t);
+        });
+      }
     }
     rahmen.addEventListener('click', (e) => {
       e.preventDefault();
