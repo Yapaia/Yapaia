@@ -15,6 +15,7 @@ import { checkCoverage, type InstalledRegionsProvider } from './coverageCheck.js
 import { RoutingError } from './errors.js';
 import { mapValhallaResponse } from './mapResponse.js';
 import { buildTraceAttributesBody, speedSegmentsFromTraceAttributes } from './speedLimits.js';
+import { buildTraceRouteBody, spurenEintragen } from './spurenAusTrace.js';
 import { VALHALLA_COSTING, buildValhallaRouteBody } from './profileMapping.js';
 import type { RoutingLogger, ValhallaClientLike } from './valhallaClient.js';
 
@@ -245,6 +246,8 @@ export class RoutingService {
     // Ohne Limits fehlt das Schild -- mit einer geworfenen Ausnahme fehlt die
     // ganze Fahrt.
     await this.enrichWithSpeedLimits(routes);
+    // Spuren genauso: Zusatz, fehlertolerant, NACH der Kartierung.
+    await this.enrichWithLanes(routes);
 
     for (const route of routes) {
       this.enforcePlausibility(route, originLatLng, destination);
@@ -274,6 +277,22 @@ export class RoutingService {
       if (segments.length > 0) {
         route.speed_limits = segments;
       }
+    }
+  }
+
+  /**
+   * Traegt die Spuren in die Manoever ein -- siehe spurenAusTrace.ts.
+   * Scheitert die Abfrage, bleibt die Route ohne Spuren; die Leiste
+   * erscheint dann einfach nicht.
+   */
+  private async enrichWithLanes(routes: Route[]): Promise<void> {
+    if (!this.client.traceRoute) return;
+    for (const route of routes) {
+      if (!route.geometry) continue;
+      const raw = await this.client.traceRoute(
+        buildTraceRouteBody(route.geometry, VALHALLA_COSTING),
+      );
+      if (raw) spurenEintragen(route.maneuvers, route.geometry, raw);
     }
   }
 

@@ -94,6 +94,27 @@ const KOPFZEILE = 'yapaia.cockpitSport.kopfzeile';
 const KOPF_STIL = ':host { --header-height: 0px; } .header { display: none !important; }';
 
 const FAHRT = new Set(['navigating', 'off_route', 'paused']);
+
+// Spuren vor dem Abbiegen (ab Yapaia Go 0.53.0, Attribut `anweisung_spuren`
+// der Anweisung). Wie in Go (`apps/web/src/drive/spuren.ts`): erst ab 500 m,
+// links nach rechts, nur die BESTE Spur (`active`) hell -- eine bloß
+// mögliche (`valid`) hieße unter Umständen, kurz vor der Ausfahrt noch einmal
+// wechseln zu müssen. Bits und Pfeile wie die der Anweisung oben.
+const SPUREN_AB_M = 500;
+const SPUR_PFEILE = [
+  [256, 'mdi:u-turn-left'],
+  [4 | 8 | 512, 'mdi:arrow-left-top'],
+  [16, 'mdi:arrow-top-left'],
+  [2, 'mdi:arrow-up'],
+  [32, 'mdi:arrow-top-right'],
+  [64 | 128 | 1024, 'mdi:arrow-right-top'],
+];
+function spurPfeile(maske) {
+  if (!(maske > 0)) return [];
+  // 1 = Spur ohne Markierung, auf der Autobahn die durchgehenden: geradeaus.
+  if (maske === 1) return ['mdi:arrow-up'];
+  return SPUR_PFEILE.filter(([bits]) => maske & bits).map(([, icon]) => icon);
+}
 const MASSSTAB_MIN = 0.5;
 const MASSSTAB_MAX = 2;
 const runde = (v) => Math.round(v * 100) / 100;
@@ -338,6 +359,12 @@ const STIL = `
   .nav .weit { font-size: calc(var(--u) * 1.9); font-weight: 600; white-space: nowrap; }
   .nav .text { font-size: calc(var(--u) * 1.55); min-width: 0; overflow: hidden; text-overflow: ellipsis;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .nav .spuren { display: flex; justify-content: center; gap: calc(var(--u) * 0.3); margin-top: calc(var(--u) * 0.7);
+    padding-top: calc(var(--u) * 0.7); border-top: 1px solid rgba(255, 255, 255, 0.2); --mdc-icon-size: calc(var(--u) * 2.2); }
+  .nav .spuren[hidden] { display: none; }
+  .nav .spur { display: flex; padding: calc(var(--u) * 0.2) calc(var(--u) * 0.3); border-radius: calc(var(--u) * 0.3);
+    color: rgba(255, 255, 255, 0.35); }
+  .nav .spur.an { background: #fff; color: #14161b; }
   .kompass { position: absolute; z-index: 2; top: calc(var(--u) * 5.6); right: calc(var(--u) * 1.4); }
   .schild { position: absolute; z-index: 2; top: calc(var(--u) * 12.6); right: calc(var(--u) * 1.4);
     width: calc(var(--u) * 4.6); height: calc(var(--u) * 4.6); border-radius: 50%; background: #fff; color: #111;
@@ -482,6 +509,7 @@ const HTML = `
 
     <div class="nav">
       <div class="zeile"><ha-icon id="n-icon" icon="mdi:navigation-outline"></ha-icon><span class="weit" id="n-weit"></span><span class="text" id="n-text"></span></div>
+      <div class="spuren" id="n-spuren" hidden></div>
     </div>
     <div class="kompass"><button class="knopf rund" id="kompass" title="Karte: Norden oben / in Fahrtrichtung"><ha-icon icon="mdi:navigation"></ha-icon></button></div>
     <div class="schild" id="schild" hidden></div>
@@ -683,7 +711,13 @@ class YapaiaCockpitSportCard extends HTMLElement {
       hass = { ...hass, states, callService: hass.callService.bind(hass) };
     } else if ((this._config && this._config.demo) || this._bearbeiten === 'fahrt') {
       const bsp = {
-        [E.anweisung]: ['Rechts abbiegen auf Speyerer Straße', { icon: 'mdi:arrow-right-top' }],
+        [E.anweisung]: [
+          'Rechts abbiegen auf Speyerer Straße',
+          {
+            icon: 'mdi:arrow-right-top',
+            anweisung_spuren: [{ directions: 8 }, { directions: 2 }, { directions: 2 | 64, valid: 64, active: 64 }],
+          },
+        ],
         [E.entfernung]: ['260', {}],
         [E.ankunft]: [new Date(Date.now() + 23 * 60000).toISOString(), {}],
         [E.restweg]: ['24.5', {}],
@@ -1372,6 +1406,35 @@ class YapaiaCockpitSportCard extends HTMLElement {
     if (el && el.textContent !== wert) el.textContent = wert;
   }
 
+  // Die Spurleiste unter der Anweisung. Neu gezeichnet nur, wenn sich etwas
+  // ändert -- `hass` kommt mehrmals in der Sekunde.
+  _spuren(lanes, meter) {
+    const feld = this.$('n-spuren');
+    if (!feld) return;
+    const spuren =
+      Array.isArray(lanes) && Number.isFinite(meter) && meter <= SPUREN_AB_M
+        ? lanes
+            .map((l) => ({ pfeile: spurPfeile(l && l.directions), an: !!(l && l.active) }))
+            .filter((l) => l.pfeile.length > 0)
+        : [];
+    const schluessel = JSON.stringify(spuren);
+    if (feld.dataset.spuren === schluessel) return;
+    feld.dataset.spuren = schluessel;
+    feld.hidden = spuren.length === 0;
+    feld.replaceChildren(
+      ...spuren.map((spur) => {
+        const el = document.createElement('div');
+        el.className = spur.an ? 'spur an' : 'spur';
+        for (const icon of spur.pfeile) {
+          const i = document.createElement('ha-icon');
+          i.setAttribute('icon', icon);
+          el.appendChild(i);
+        }
+        return el;
+      }),
+    );
+  }
+
   // ─── Favoriten-Seiten ──────────────────────────────────────────────────────
   _favSeiten(anzahl, aktiv, vorher = 0) {
     const feld = this.$('favoriten');
@@ -1562,6 +1625,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
         : '',
     );
     this._text('n-text', anw || 'Keine Navigation');
+    this._spuren(
+      anw && s.attributes ? s.attributes.anweisung_spuren : null,
+      this._z(E.entfernung) === null ? NaN : meter,
+    );
     this.$('s-nav').setAttribute('icon', anw ? 'mdi:navigation-variant' : 'mdi:navigation-variant-outline');
 
     // Tempolimit als Schild

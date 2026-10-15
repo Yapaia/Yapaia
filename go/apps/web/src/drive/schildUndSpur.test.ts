@@ -113,10 +113,7 @@ describe('pfeileAusMaske', () => {
   });
 
   it('erfindet keinen Pfeil, wo es keine Richtung gibt', () => {
-    // `KEINE` (0) und `UNBESTIMMT` (1) tragen keine Richtung. Eine zu
-    // zeichnen hiesse, eine zu behaupten.
     expect(pfeileAusMaske(SPUR.KEINE)).toEqual([]);
-    expect(pfeileAusMaske(SPUR.UNBESTIMMT)).toEqual([]);
     expect(pfeileAusMaske(-1)).toEqual([]);
     expect(pfeileAusMaske(NaN)).toEqual([]);
   });
@@ -157,9 +154,28 @@ describe('spurAnzeige', () => {
     expect(spurAnzeige(zweiSpuren, null)).toBeNull();
   });
 
-  it('wirft Spuren ohne Richtung weg', () => {
+  it('zeichnet eine Spur ohne Markierung als Geradeaus', () => {
+    // OSM `none` -- auf der Autobahn die durchgehenden Spuren. Fielen sie
+    // weg, sähe man vor der Ausfahrt nur die Ausfahrtsspur, und wer
+    // geradeaus weiter muss, sähe keine hervorgehobene Spur.
+    expect(pfeileAusMaske(SPUR.UNBESTIMMT)).toEqual(['straight']);
     expect(
-      spurAnzeige([{ directions: SPUR.UNBESTIMMT }, { directions: SPUR.RECHTS }], 100),
+      spurAnzeige(
+        [
+          { directions: SPUR.UNBESTIMMT, active: SPUR.UNBESTIMMT },
+          { directions: SPUR.LEICHT_RECHTS },
+        ],
+        100,
+      ),
+    ).toEqual([
+      { pfeile: ['straight'], aktiv: true },
+      { pfeile: ['turn_right'], aktiv: false },
+    ]);
+  });
+
+  it('wirft Spuren ohne jede Richtung weg', () => {
+    expect(
+      spurAnzeige([{ directions: SPUR.KEINE }, { directions: SPUR.RECHTS }], 100),
     ).toEqual([{ pfeile: ['turn_right'], aktiv: false }]);
   });
 

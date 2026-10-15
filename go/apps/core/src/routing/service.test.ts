@@ -13,7 +13,7 @@ import { RoutingService, type PositionLookup, type ProfileLookup } from './servi
 import { RoutingError } from './errors.js';
 import { type InstalledRegionsProvider } from './coverageCheck.js';
 import { ValhallaClient, type FetchLike, type FetchResponseLike } from './valhallaClient.js';
-import { encodePolyline6 } from './polyline.js';
+import { decodePolyline6, encodePolyline6 } from './polyline.js';
 import type { ValhallaRouteResponse, ValhallaTrip } from './types.js';
 
 // --- fixtures ------------------------------------------------------------
@@ -118,6 +118,9 @@ function recordingFetch(captured: Captured, response: FetchResponseLike): FetchL
     if (url.endsWith('/trace_attributes')) {
       return jsonResponse({ edges: [] });
     }
+    if (url.endsWith('/trace_route')) {
+      return jsonResponse({ matchings: [] });
+    }
     captured.url = url;
     captured.body = JSON.parse(init.body) as Record<string, unknown>;
     return response;
@@ -181,6 +184,63 @@ describe('Tempolimits (0.5.0)', () => {
 
     const routes = await service.createRoutes(request());
     expect(routes[0].speed_limits).toEqual([{ begin_shape_index: 0, end_shape_index: 2, kmh: 50, road_class: null }]);
+  });
+});
+
+describe('Spuren (0.53.0)', () => {
+  it('liefert die Route auch dann, wenn die Spur-Abfrage scheitert', async () => {
+    const service = serviceWith(async (url) => {
+      if (url.endsWith('/trace_route')) throw new Error('Valhalla antwortet nicht');
+      if (url.endsWith('/trace_attributes')) return jsonResponse({ edges: [] });
+      return jsonResponse(OK_RESPONSE);
+    });
+
+    const routes = await service.createRoutes(request());
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].maneuvers.every((m) => m.lanes === undefined)).toBe(true);
+  });
+
+  it('traegt die Spuren am Ort des Manoevers ein', async () => {
+    const service = serviceWith(async (url, init) => {
+      if (url.endsWith('/trace_attributes')) return jsonResponse({ edges: [] });
+      if (url.endsWith('/trace_route')) {
+        const body = JSON.parse(init.body) as Record<string, unknown>;
+        expect(body.format).toBe('osrm');
+        // Die Kreuzung genau dort, wo das erste Manoever beginnt.
+        const [start] = decodePolyline6(body.encoded_polyline as string);
+        return jsonResponse({
+          matchings: [
+            {
+              legs: [
+                {
+                  steps: [
+                    {
+                      intersections: [
+                        {
+                          location: [start!.lon, start!.lat],
+                          lanes: [
+                            { indications: ['left'], valid: false, active: false },
+                            { indications: ['straight'], valid: true, active: true },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      }
+      return jsonResponse(OK_RESPONSE);
+    });
+
+    const routes = await service.createRoutes(request());
+    const erstes = routes[0].maneuvers.find((m) => m.begin_shape_index === 0);
+    expect(erstes?.lanes).toEqual([
+      { directions: 8 },
+      { directions: 2, valid: 2, active: 2 },
+    ]);
   });
 });
 

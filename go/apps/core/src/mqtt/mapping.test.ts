@@ -176,6 +176,7 @@ describe('buildInstructionPayload', () => {
       distance_m: 250,
       icon: 'mdi:arrow-left-top',
       roundabout: '',
+      lanes: [],
     });
   });
 
@@ -248,6 +249,7 @@ describe('buildManeuverPayload — die ANZEIGE, nicht die Ansage', () => {
       distance_m: 250,
       icon: 'mdi:arrow-left-top',
       roundabout: '',
+      lanes: [],
     });
   });
 

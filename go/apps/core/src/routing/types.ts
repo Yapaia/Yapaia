@@ -199,7 +199,8 @@ export interface ValhallaManeuver {
   end_shape_index?: number;
   /** Was auf den Schildern steht. Fehlt ueberall ausser an Kreuzen/Abfahrten. */
   sign?: ValhallaSign;
-  /** Spurfuehrung. Kommt NUR, wenn die Anfrage `turn_lanes: true` setzt. */
+  /** Spurfuehrung. Kommt in Valhalla 3.5.1 nie, auch nicht mit `turn_lanes: true`
+   *  -- siehe spurenAusTrace.ts. */
   lanes?: ValhallaLane[];
   /** Nur an der Kreisel-Einfahrt: „The spoke to exit roundabout after entering." */
   roundabout_exit_count?: number;

@@ -44,7 +44,7 @@ export const ENTITAETEN: readonly Entitaet[] = [
     name: { de: 'Nächste Anweisung', en: 'Next instruction' },
     symbol: 'mdi:navigation',
     symbol_aus: 'anweisung_symbol',
-    attribute: ['anweisung_typ', 'anweisung_strassen', 'anweisung_kreisel'],
+    attribute: ['anweisung_typ', 'anweisung_strassen', 'anweisung_kreisel', 'anweisung_spuren'],
   },
   {
     schluessel: 'anweisung_entfernung',
@@ -257,6 +257,7 @@ export function werte(z: GoZustand): Record<string, unknown> {
     anweisung_typ: anweisung.type ?? null,
     anweisung_strassen: anweisung.street_names ?? null,
     anweisung_kreisel: anweisung.roundabout ?? null,
+    anweisung_spuren: anweisung.lanes ?? null,
     anweisung_entfernung: zahl(st('sensor.yapaia_instruction_distance')),
     ankunft: textOderNull(st('sensor.yapaia_eta')),
     restweg: zahl(st('sensor.yapaia_distance_remaining')),

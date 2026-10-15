@@ -283,9 +283,9 @@ export function buildValhallaRouteBody(
     costing_options: { truck: buildTruckCostingOptions(profile, excludeOptions?.avoidOverrides, mode) },
     directions_options: { units: 'kilometers', language: valhallaSprache(sprache) },
     alternates: alternatives,
-    // ─── OHNE DIESE ZEILE GIBT ES KEINE SPURFUEHRUNG ──────────────────────
-    // Valhalla liefert `lanes` nur auf Anforderung; Standard ist aus. Die
-    // ganze Spurfuehrung waere sonst gebaut und lautlos leer.
+    // Spuren an den Manoevern, falls ein kuenftiges Valhalla sie nativ
+    // liefert. 3.5.1 tut es trotz dieser Zeile NICHT -- die Spuren kommen
+    // deshalb aus `/trace_route` (siehe spurenAusTrace.ts).
     turn_lanes: true,
   };
 

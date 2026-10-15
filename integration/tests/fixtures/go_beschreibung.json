@@ -21,7 +21,8 @@
       "attribute": [
         "anweisung_typ",
         "anweisung_strassen",
-        "anweisung_kreisel"
+        "anweisung_kreisel",
+        "anweisung_spuren"
       ]
     },
     {
