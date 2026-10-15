@@ -29,12 +29,12 @@ import type {
   LatLng,
   Maneuver,
   NavState,
+  NavStopp,
   Position,
   Route,
   RouteAvoidOverrides,
   RouteRequest,
-  VehicleProfile,
-} from '@yapaia/shared';
+  VehicleProfile } from '@yapaia/shared';
 import { checkNavState } from '@yapaia/shared';
 import type {
   EventBus,
@@ -92,7 +92,7 @@ import {
   type DeadReckoningRouteSource,
   type StableSpeedState,
 } from './deadreckoning.js';
-import { remainingWaypoints } from './waypointProgress.js';
+import { anchorWaypoints, remainingWaypoints } from './waypointProgress.js';
 // Was DIESES Fahrzeug darf -- getrennt von dem, was ausgeschildert ist.
 import { fahrzeugGrenze, type Strassenklasse } from '../routing/fahrzeugTempo.js';
 
@@ -320,6 +320,11 @@ export class NavigationService implements DeadReckoningRouteSource {
   private readonly rerouteGuard = new RerouteGuard();
   /** Waypoints + avoidances to reproduce on reroute (from `start`, E04-T5 wires it). */
   private rerouteContext: RerouteContext | null = null;
+  /**
+   * Namen der Zwischenziele, nach Koordinate. Die Neuberechnung kennt nur
+   * Punkte; die Namen braucht allein die Halte-Übersicht (`stopps`).
+   */
+  private zielNamen = new Map<string, string>();
   /** True while a `createRoutes` call is in flight (prevents overlapping reroutes). */
   private rerouteInFlight = false;
   /** Pending 15 s failure-retry timer, or null. */
@@ -462,6 +467,7 @@ export class NavigationService implements DeadReckoningRouteSource {
     this.resetRerouteState();
     this.resetDeadReckoningState();
     this.rerouteContext = null;
+    this.zielNamen.clear();
     this.activeRouteProfileId = null;
     this.pendingProfileChange = null;
     this.recoveryStore.clear();
@@ -1269,14 +1275,17 @@ export class NavigationService implements DeadReckoningRouteSource {
    * (schon passierte fallen dabei weg, wie bei jeder Neuberechnung).
    * Gewünscht fürs Dashboard: „Tankstelle in der Nähe → als Zwischenziel“.
    */
-  zwischenzielVorn(punkt: LatLng): void {
+  zwischenzielVorn(punkt: LatLng, name?: string | null): void {
+    if (name) this.zielNamen.set(punktSchluessel(punkt), name);
     const offene = this.active
       ? remainingWaypoints(this.rerouteContext?.waypoints ?? [], this.active.geom, this.lastProgressM)
       : [...(this.rerouteContext?.waypoints ?? [])];
     this.updateWaypoints([punkt, ...offene]);
   }
 
-  updateWaypoints(waypoints: LatLng[]): void {
+  updateWaypoints(eingang: Array<LatLng & { name?: string | null }>): void {
+    for (const w of eingang) if (w.name) this.zielNamen.set(punktSchluessel(w), w.name);
+    const waypoints: LatLng[] = eingang.map((w) => ({ lat: w.lat, lon: w.lon }));
     // Der Wunsch wird IMMER gemerkt, auch wenn gerade nicht neu gerechnet
     // werden kann (keine Position, andere Neuberechnung laeuft). Sonst waere
     // die Liste in der Oberflaeche eine andere als die im Core.
@@ -1412,6 +1421,7 @@ export class NavigationService implements DeadReckoningRouteSource {
     let routeId: string | null = null;
     let speedLimitKmh: number | null = null;
     let speedLimitVehicleKmh: number | null = null;
+    let stopps: NavStopp[] | undefined;
 
     // Every state that owns a route (all but `idle`) reports route-relative
     // fields; only `idle` (stopped) nulls them out.
@@ -1469,6 +1479,7 @@ export class NavigationService implements DeadReckoningRouteSource {
       this.lastDurationRemainingS = durationRemaining;
 
       eta = etaTimestamp(Date.now(), durationRemaining);
+      stopps = this.halte(active, progress, durationRemaining, distanceRemaining, avgSpeedKmh);
     }
 
     const speedKmh = this.lastPosition?.speed != null ? this.lastPosition.speed * 3.6 : null;
@@ -1487,7 +1498,59 @@ export class NavigationService implements DeadReckoningRouteSource {
       speed_limit_vehicle_kmh: speedLimitVehicleKmh,
       altitude_m: altitudeM,
       destination,
+      ...(stopps ? { stopps } : {}),
     };
+  }
+
+  /**
+   * Die offenen Halte mit Reststrecke und Restzeit.
+   *
+   * Die Restzeit bis zu einem Zwischenziel ist die Restzeit bis zum Ende
+   * minus die Restzeit ab dem Zwischenziel -- dieselbe Rechnung wie für die
+   * Ankunft (`computeEtaDuration`), damit beide zusammenpassen.
+   */
+  private halte(
+    active: ActiveNavigation,
+    progress: number,
+    durationRemaining: number,
+    distanceRemaining: number,
+    avgSpeedKmh: number | null,
+  ): NavStopp[] {
+    const jetzt = Date.now();
+    const halte: NavStopp[] = [];
+    const anker = anchorWaypoints(this.rerouteContext?.waypoints ?? [], active.geom)
+      .filter((a): a is typeof a & { progressM: number } => a.progressM !== null && a.progressM > progress)
+      .sort((a, b) => a.progressM - b.progressM);
+    for (const a of anker) {
+      const ab = computeEtaDuration({
+        segments: active.timeSegments,
+        totalLengthM: active.geom.totalLengthM,
+        progressM: a.progressM,
+        calibration: this.calibration,
+        avgSpeedKmh,
+      }).durationRemainingS;
+      const dauer = Math.max(0, Math.round(durationRemaining - ab));
+      halte.push({
+        art: 'zwischenziel',
+        name: this.zielNamen.get(punktSchluessel(a.waypoint)) ?? null,
+        lat: a.waypoint.lat,
+        lon: a.waypoint.lon,
+        distance_remaining_m: Math.round(a.progressM - progress),
+        duration_remaining_s: dauer,
+        eta: etaTimestamp(jetzt, dauer),
+      });
+    }
+    const ziel = active.destination;
+    halte.push({
+      art: 'ziel',
+      name: ziel?.name ?? null,
+      lat: ziel?.latlng.lat ?? 0,
+      lon: ziel?.latlng.lon ?? 0,
+      distance_remaining_m: Math.round(distanceRemaining),
+      duration_remaining_s: Math.round(durationRemaining),
+      eta: etaTimestamp(jetzt, durationRemaining),
+    });
+    return halte;
   }
 
   private publishState(): NavState {
@@ -1528,4 +1591,9 @@ export class NavigationService implements DeadReckoningRouteSource {
       destination: record.destination,
     });
   }
+}
+
+/** Schlüssel für die Namen der Zwischenziele: auf rund einen Meter genau. */
+function punktSchluessel(p: LatLng): string {
+  return `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`;
 }

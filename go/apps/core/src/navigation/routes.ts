@@ -233,14 +233,20 @@ export const navigationPlugin: FastifyPluginAsync<NavigationRoutesOptions> = asy
         .code(400)
         .send(errorResponse('VALIDATION_ERROR', 'waypoints must be an array of {lat, lon}'));
     }
-    const waypoints: LatLng[] = [];
+    const waypoints: Array<LatLng & { name?: string }> = [];
     for (const entry of raw.waypoints) {
       if (!validateLatLng(entry)) {
         return reply
           .code(400)
           .send(errorResponse('VALIDATION_ERROR', 'waypoints must be an array of {lat, lon}'));
       }
-      waypoints.push(entry);
+      // Ein Name ist freiwillig; er landet nur in der Halte-Übersicht.
+      const name = (entry as { name?: unknown }).name;
+      waypoints.push({
+        lat: entry.lat,
+        lon: entry.lon,
+        ...(typeof name === 'string' && name.trim() ? { name: name.trim().slice(0, 200) } : {}),
+      });
     }
     try {
       service.updateWaypoints(waypoints);

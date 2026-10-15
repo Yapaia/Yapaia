@@ -14,7 +14,7 @@ export interface AktionenDeps {
   /** Laeuft gerade eine Fahrt (dann wird sie fuer ein neues Ziel beendet)? */
   faehrt: () => boolean;
   /** Als nächsten Halt in die laufende Fahrt einschieben. */
-  zwischenzielVorn: (punkt: LatLng) => void;
+  zwischenzielVorn: (punkt: LatLng, name?: string | null) => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -88,7 +88,7 @@ export function goAktionen(d: AktionenDeps): Record<string, Aktion> {
           const ergebnis = await d.zielSetzen({ latlng, ...(name ? { name } : {}) });
           return { ziel: ergebnis.name ?? name, als: 'ziel' };
         }
-        d.zwischenzielVorn(latlng);
+        d.zwischenzielVorn(latlng, name || null);
         return { ziel: name || null, als: 'zwischenziel' };
       } catch (err) {
         throw uebersetze(err);

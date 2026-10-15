@@ -88,6 +88,24 @@ export const navStateSchema = {
       ],
       description: 'Destination with coordinates and optional name or null',
     },
+    stopps: {
+      type: 'array',
+      description: 'Open stops, next first: waypoints, then the destination (absent without active route)',
+      items: {
+        type: 'object',
+        properties: {
+          art: { type: 'string', enum: ['zwischenziel', 'ziel'] },
+          name: { type: ['string', 'null'] },
+          lat: { type: 'number', minimum: -90, maximum: 90 },
+          lon: { type: 'number', minimum: -180, maximum: 180 },
+          distance_remaining_m: { type: 'number', minimum: 0 },
+          duration_remaining_s: { type: 'number', minimum: 0 },
+          eta: { type: 'string', format: 'date-time' },
+        },
+        required: ['art', 'name', 'lat', 'lon', 'distance_remaining_m', 'duration_remaining_s', 'eta'],
+        additionalProperties: false,
+      },
+    },
   },
   required: [
     'status',

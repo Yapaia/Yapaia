@@ -97,7 +97,7 @@ export async function startNavigation(body: StartNavigationBody): Promise<NavSta
  * Ansagestand wegwerfen. Der Core legt die Strecke stattdessen mit derselben
  * Maschinerie neu, die er fuer Abweichungen und Profilwechsel schon hat.
  */
-export async function updateNavigationWaypoints(waypoints: LatLng[]): Promise<NavState> {
+export async function updateNavigationWaypoints(waypoints: Array<LatLng & { name?: string }>): Promise<NavState> {
   return postControl('api/v1/navigation/waypoints', { waypoints });
 }
 

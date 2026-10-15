@@ -10,6 +10,14 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.52.0
+
+**Halte mit Ankunftszeit.** Der Sensor „Ziel" hat jetzt das Attribut
+`halte`: alle noch offenen Zwischenziele und das Ziel, jeweils mit Name,
+Restkilometern und Ankunftszeit. Das Cockpit-Dashboard zeigt sie beim
+Antippen von „Ankunft". Zwischenziele aus der Suche oder den Sonderzielen
+behalten dabei ihren Namen.
+
 ## 0.51.1
 
 **Anordnen auf älteren Android-Geräten.** Auf dem Autoradio (WebView mit

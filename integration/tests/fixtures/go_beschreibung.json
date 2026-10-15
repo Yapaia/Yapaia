@@ -67,7 +67,8 @@
       "symbol": "mdi:flag-checkered",
       "attribute": [
         "ziel_breite",
-        "ziel_laenge"
+        "ziel_laenge",
+        "halte"
       ]
     },
     {
