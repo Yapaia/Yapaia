@@ -1,0 +1,100 @@
+# Dashboard „Stellplatz“ – Rohkonfiguration
+# (Dashboard → ⋮ → Bearbeiten → ⋮ → Raw-Konfigurationseditor)
+# Einspielen geht auch mit: python3 dashboards/deploy.py --dashboard stellplatz
+title: Stellplatz
+views:
+  - title: Stellplatz
+    path: stellplatz
+    icon: mdi:caravan
+    type: sections
+    max_columns: 4
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Heizung
+            icon: mdi:radiator
+          - type: thermostat
+            entity: climate.heizung_truma_room
+            name: Raum
+            grid_options: { columns: 6 }
+            features:
+              - type: climate-hvac-modes
+                hvac_modes: ["off", heat]
+          - type: thermostat
+            entity: climate.heizung_truma_water
+            name: Wasser
+            grid_options: { columns: 6 }
+            features:
+              - type: climate-hvac-modes
+                hvac_modes: ["off", heat]
+          - type: tile
+            entity: binary_sensor.heizung_heater_has_error
+            name: Störung
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Licht
+            icon: mdi:lightbulb-group
+          - { type: tile, entity: light.smartwomo_ausgang_out1, name: OUT1 }
+          - { type: tile, entity: light.smartwomo_ausgang_out2, name: OUT2 }
+          - { type: tile, entity: light.smartwomo_ausgang_out3, name: OUT3 }
+          - { type: tile, entity: light.smartwomo_ausgang_out4, name: OUT4 }
+          - { type: tile, entity: light.smartwomo_ausgang_out5, name: OUT5 }
+          - { type: tile, entity: light.smartwomo_ausgang_out6, name: OUT6 }
+          - { type: tile, entity: light.smartwomo_ausgang_out7, name: OUT7 }
+          - { type: tile, entity: light.smartwomo_ausgang_out8, name: OUT8 }
+          - type: heading
+            heading: Tür
+            icon: mdi:door
+          - type: tile
+            entity: lock.door_aufbautur
+            name: Aufbautür
+            features:
+              - type: lock-commands
+            features_position: bottom
+            vertical: false
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Batterie
+            icon: mdi:car-battery
+          - type: gauge
+            entity: sensor.btcollector_btcollector_battery_1_state_of_charge
+            name: Batterie 1
+            min: 0
+            max: 100
+            severity: { green: 50, yellow: 25, red: 0 }
+            grid_options: { columns: 6 }
+          - type: gauge
+            entity: sensor.btcollector_btcollector_battery_2_state_of_charge
+            name: Batterie 2
+            min: 0
+            max: 100
+            severity: { green: 50, yellow: 25, red: 0 }
+            grid_options: { columns: 6 }
+          - { type: tile, entity: sensor.btcollector_battery_voltage, name: Spannung }
+          - { type: tile, entity: sensor.btcollector_current, name: Strom }
+          - { type: tile, entity: sensor.btcollector_btcollector_battery_1_power, name: Leistung 1 }
+          - { type: tile, entity: sensor.btcollector_btcollector_battery_2_power, name: Leistung 2 }
+          - { type: tile, entity: sensor.btcollector_time_remaining, name: Restlaufzeit }
+          - { type: tile, entity: binary_sensor.btcollector_battery_has_alarm, name: Alarm }
+          - type: heading
+            heading: Gas und Wasser
+            icon: mdi:gas-cylinder
+          # Kachel statt Tacho: zeigt „Unbekannt“, solange der Sensor nichts liefert
+          - { type: tile, entity: sensor.btcollector_gas_sensor_1_level, name: Gas 1, icon: mdi:gas-cylinder }
+          # Kachel statt Tacho: zeigt „Unbekannt“, solange der Sensor nichts liefert
+          - { type: tile, entity: sensor.btcollector_gas_sensor_2_level, name: Gas 2, icon: mdi:gas-cylinder }
+          - { type: tile, entity: sensor.smartwomo_analog_pressure_sensor, name: Wasser, icon: mdi:water }
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Radio
+            icon: mdi:radio
+          - type: custom:yapaia-beat-card
+            entity: media_player.yapaia_beat
+            style: modern
