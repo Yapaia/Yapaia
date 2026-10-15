@@ -56,9 +56,12 @@ export interface SpurAnzeige {
  * Spurpfeil-Paar „links, geradeaus" muss auch so herum stehen — andersherum
  * gelesen zeigte es in die falsche Richtung.
  *
- * `SPUR.UNBESTIMMT` (1, „keine bestimmte Richtung") und `SPUR.KEINE` (0)
- * ergeben keinen Pfeil: dafür gibt es kein Bild, und eines zu erfinden hiesse
- * eine Richtung zu behaupten, die die Daten nicht hergeben.
+ * `SPUR.KEINE` (0) ergibt keinen Pfeil. `SPUR.UNBESTIMMT` (1, in OSM
+ * `none`) dagegen ist eine Spur ohne Pfeil auf dem Asphalt -- auf der
+ * Autobahn sind das die durchgehenden Spuren. Sie wird als Geradeaus
+ * gezeichnet, aber nur, wenn sonst nichts in ihr steht. Bis 0.52 fiel sie
+ * weg; vor einer Ausfahrt blieb dann nur die Ausfahrtsspur stehen, und wer
+ * geradeaus weiter musste, sah gar keine hervorgehobene Spur.
  */
 const BIT_ZU_PFEIL: ReadonlyArray<readonly [number, ArrowKey]> = [
   [SPUR.WENDEN, 'uturn_left'],
@@ -76,6 +79,7 @@ const BIT_ZU_PFEIL: ReadonlyArray<readonly [number, ArrowKey]> = [
 /** Die Pfeile einer Richtungsmaske, ohne Doppelte, von links nach rechts. */
 export function pfeileAusMaske(maske: number): ArrowKey[] {
   if (!Number.isFinite(maske) || maske <= 0) return [];
+  if (maske === SPUR.UNBESTIMMT) return ['straight'];
   const raus: ArrowKey[] = [];
   for (const [bit, pfeil] of BIT_ZU_PFEIL) {
     // Mehrere Bits fallen auf denselben Pfeil (links, leicht links und

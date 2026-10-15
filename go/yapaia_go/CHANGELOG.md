@@ -10,6 +10,23 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.53.0
+
+**Spurempfehlung vor dem Abbiegen.** Ab 500 m vor einer Abbiegung oder
+Ausfahrt zeigt die Anweisung die Fahrspuren, die richtige hell
+hervorgehoben – auf der Autobahn genauso wie in der Stadt, wo die Karte
+Spurpfeile kennt.
+
+- Die Leiste war schon länger eingebaut, blieb aber immer leer: Das
+  eingebaute Valhalla liefert die Spuren nicht mit der Route. Sie kommen
+  jetzt aus einer zweiten, schnellen Abfrage (unter 0,1 s). Ein Neubau der
+  Karten ist nicht nötig.
+- Spuren ohne Pfeil auf dem Asphalt (auf der Autobahn die durchgehenden)
+  erscheinen als Geradeaus-Spur, statt wegzufallen. Vorher sah man vor
+  einer Ausfahrt nur die Ausfahrtsspur.
+- Home Assistant: die Anweisung trägt die Spuren als Attribut
+  `anweisung_spuren` (MQTT: `lanes`), z. B. für das Dashboard Cockpit Sport.
+
 ## 0.51.1
 
 **Anordnen auf älteren Android-Geräten.** Auf dem Autoradio (WebView mit

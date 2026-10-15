@@ -457,6 +457,7 @@ describe('MqttBridge (aedes in-process broker)', () => {
       distance_m: 150,
       icon: 'mdi:arrow-left-top',
       roundabout: '',
+      lanes: [],
     });
 
     // Die ANZEIGE des Manoevers -- aus dem Zustand, nicht aus der Ansage.
@@ -470,6 +471,7 @@ describe('MqttBridge (aedes in-process broker)', () => {
       distance_m: 275,
       icon: expect.stringContaining('mdi:'),
       roundabout: '',
+      lanes: [],
     });
 
     for (const eventTopic of ['yapaia/event/deviation', 'yapaia/event/arrived', 'yapaia/event/gps_lost']) {

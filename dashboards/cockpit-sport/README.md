@@ -18,6 +18,11 @@ Enter nimmt den ersten Vorschlag.
 - Optional **Yapaia Beat** (Radio) und **Yapaia Satellite** (Mikrofon).
   Die Entitäten stehen oben in `cockpit-sport-card.js` unter `E`.
 
+## Spuren vor dem Abbiegen
+
+Ab 500 m vor einer Abbiegung zeigt die Anweisung darunter die Fahrspuren,
+die richtige hell (ab Yapaia Go 0.53.0, wo die Karte Spurpfeile kennt).
+
 ## Ankunft antippen: die Route
 
 Ein Tipp auf die Ankunft öffnet die Halte: alle noch offenen Zwischenziele
