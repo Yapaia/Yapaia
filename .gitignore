@@ -1,0 +1,2 @@
+# ESPHome-Geheimnisse nie einchecken
+devices/esphome/**/secrets.yaml

@@ -1,0 +1,426 @@
+esphome:
+  name: btcollector
+  friendly_name: btcollector
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret btcollector_api_key
+
+ota:
+  - platform: esphome
+    password: !secret btcollector_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Btcollector Fallback Hotspot"
+    password: !secret btcollector_ap_password
+
+captive_portal:
+
+
+external_components:
+  - source: github://Fabian-Schmidt/esphome-victron_ble
+  - source: github://syssi/esphome-jbd-bms@main
+
+
+substitutions:
+  name: btcollector
+  bms0: "${name} Battery 1"
+  bms1: "${name} Battery 2"
+  #device_description: "Monitor and control a Xiaoxiang Battery Management System (JBD-BMS) via BLE"
+  #external_components_source: github://syssi/esphome-jbd-bms@main
+  bms0_mac_address: !secret btcollector_mac_1
+  bms1_mac_address: !secret btcollector_mac_2
+
+esp32_ble_tracker:
+#mopeka_ble:
+  scan_parameters:
+    interval: 1100ms
+    window: 1100ms
+
+  on_ble_advertise:
+
+    # TPMS deevices
+    # RR
+    - mac_address: !secret rr_mac
+      then:
+        - lambda: |-
+            for (auto data : x.get_manufacturer_datas()) {
+              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
+              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              const int pressure = data.data[1] << 8 | data.data[2];
+
+              id(ble_rr_temp).publish_state(data.data[0]);
+              id(ble_rr_press).publish_state((float) pressure * 0.0058);
+              id(ble_rr_batt).publish_state(voltage);
+            }
+    # RL
+    - mac_address: !secret rl_mac
+      then:
+        - lambda: |-
+            for (auto data : x.get_manufacturer_datas()) {
+              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
+              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              const int pressure = data.data[1] << 8 | data.data[2];
+
+              id(ble_rl_temp).publish_state(data.data[0]);
+              id(ble_rl_press).publish_state((float) pressure * 0.0058);
+              id(ble_rl_batt).publish_state(voltage);
+            }
+
+    # FR
+    - mac_address: !secret fr_mac
+      then:
+        - lambda: |-
+            for (auto data : x.get_manufacturer_datas()) {
+              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
+              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              const int pressure = data.data[1] << 8 | data.data[2];
+
+              id(ble_fr_temp).publish_state(data.data[0]);
+              id(ble_fr_press).publish_state((float) pressure * 0.0058);
+              id(ble_fr_batt).publish_state(voltage);
+            }
+
+    # FL
+    - mac_address: !secret fl_mac
+      then:
+        - lambda: |-
+            for (auto data : x.get_manufacturer_datas()) {
+              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
+              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              const int pressure = data.data[1] << 8 | data.data[2];
+
+              id(ble_fl_temp).publish_state(data.data[0]);
+              id(ble_fl_press).publish_state((float) pressure * 0.0058);
+              id(ble_fl_batt).publish_state(voltage);
+            }
+ble_client:
+  - mac_address: ${bms0_mac_address}
+    id: client0
+  - mac_address: ${bms1_mac_address}
+    id: client1
+
+jbd_bms_ble:
+  - id: bms0
+    ble_client_id: client0
+    update_interval: 5s
+  - id: bms1
+    ble_client_id: client1
+    update_interval: 5s
+
+
+#smartshunt
+victron_ble:
+  - id: MySmartShunt
+    mac_address: !secret btcollector_mac_3
+    bindkey: !secret btcollector_bindkey_1
+  - id: MySmartShunt2
+    mac_address: !secret btcollector_mac_4
+    bindkey: !secret btcollector_bindkey_2
+
+
+
+binary_sensor:
+  #SmartShunt
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt
+    name: "Battery has Alarm"
+    type: ALARM
+# JDB BMS
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms0
+    balancing:
+      name: "${bms0} balancing"
+    charging:
+      name: "${bms0} charging"
+    discharging:
+      name: "${bms0} discharging"
+    online_status:
+      name: "${bms0} online status"
+
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms1
+    balancing:
+      name: "${bms1} balancing"
+    charging:
+      name: "${bms1} charging"
+    discharging:
+      name: "${bms1} discharging"
+    online_status:
+      name: "${bms1} online status"
+
+
+sensor:
+
+  # Example using 11kg 100% propane tank.
+  - platform: mopeka_std_check
+    mac_address: !secret btcollector_mac_5
+    tank_type: Europe_11kg
+    temperature:
+        name: "Gas Sensor 1 Temperatur"
+    level:
+        name: "Gas Sensor 1 Level"
+    distance:
+        name: "Gas Sensor 1 distance"
+    battery_level:
+        name: "Gas Sensor 1 battery level"
+
+  - platform: mopeka_std_check
+    mac_address: !secret btcollector_mac_6
+    tank_type: Europe_11kg
+    temperature:
+        name: "Gas Sensor 2 Temperatur"
+    level:
+        name: "Gas Sensor 2 Level"
+    distance:
+        name: "Gas Sensor 2 distance"
+    battery_level:
+        name: "Gas Sensor 2 battery level"
+
+  # MySmartShunt
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt
+    name: "Time remaining"
+    type: TIME_TO_GO
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt
+    name: "Battery voltage"
+    type: BATTERY_VOLTAGE
+  #- platform: victron_ble
+    #victron_ble_id: MySmartShunt
+    #name: "Starter Battery"
+   # AUX_VOLTAGE or MID_VOLTAGE or TEMPERATURE.
+   # Depending on configuration of SmartShunt.
+    #type: AUX_VOLTAGE
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt
+    name: "Current"
+    type: BATTERY_CURRENT
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt
+    name: "Consumed Ah"
+    type: CONSUMED_AH
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt
+    name: "State of charge"
+    type: STATE_OF_CHARGE
+
+#SmartShunt 2
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt2
+    name: "Time remaining 2"
+    type: TIME_TO_GO
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt2
+    name: "Battery voltage 2"
+    type: BATTERY_VOLTAGE
+  #- platform: victron_ble
+    #victron_ble_id: MySmartShunt
+    #name: "Starter Battery"
+   # AUX_VOLTAGE or MID_VOLTAGE or TEMPERATURE.
+   # Depending on configuration of SmartShunt.
+    #type: AUX_VOLTAGE
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt2
+    name: "Current 2"
+    type: BATTERY_CURRENT
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt2
+    name: "Consumed Ah 2"
+    type: CONSUMED_AH
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt2
+    name: "State of charge 2"
+    type: STATE_OF_CHARGE
+
+# TPMS
+#FL
+  - platform: template
+    name: "FL Temperature"
+    id: ble_fl_temp
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+    device_class: "temperature"
+    state_class: "measurement"
+  - platform: template
+    name: "FL Pressure"
+    id: ble_fl_press
+    unit_of_measurement: "bar"
+    icon: "mdi:gauge"
+    device_class: "pressure"
+    state_class: "measurement"
+  - platform: template
+    name: "FL Voltage"
+    id: ble_fl_batt
+    unit_of_measurement: "V"
+    icon: "mdi:battery"
+    device_class: "voltage"
+    state_class: "measurement"
+  #FR
+  - platform: template
+    name: "FR Temperature"
+    id: ble_fr_temp
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+    device_class: "temperature"
+    state_class: "measurement"
+  - platform: template
+    name: "FR Pressure"
+    id: ble_fr_press
+    unit_of_measurement: "bar"
+    icon: "mdi:gauge"
+    device_class: "pressure"
+    state_class: "measurement"
+  - platform: template
+    name: "FR Voltage"
+    id: ble_fr_batt
+    unit_of_measurement: "V"
+    icon: "mdi:battery"
+    device_class: "voltage"
+    state_class: "measurement"
+  #RL
+  - platform: template
+    name: "RL Temperature"
+    id: ble_rl_temp
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+    device_class: "temperature"
+    state_class: "measurement"
+  - platform: template
+    name: "RL Pressure"
+    id: ble_rl_press
+    unit_of_measurement: "bar"
+    icon: "mdi:gauge"
+    device_class: "pressure"
+    state_class: "measurement"
+  - platform: template
+    name: "RL Voltage"
+    id: ble_rl_batt
+    unit_of_measurement: "V"
+    icon: "mdi:battery"
+    device_class: "voltage"
+    state_class: "measurement"
+    #RR
+  - platform: template
+    name: "RR Temperature"
+    id: ble_rr_temp
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+    device_class: "temperature"
+    state_class: "measurement"
+  - platform: template
+    name: "RR Pressure"
+    id: ble_rr_press
+    unit_of_measurement: "bar"
+    icon: "mdi:gauge"
+    device_class: "pressure"
+    state_class: "measurement"
+  - platform: template
+    name: "RR Voltage"
+    id: ble_rr_batt
+    unit_of_measurement: "V"
+    icon: "mdi:battery"
+    device_class: "voltage"
+    state_class: "measurement"
+
+# JDB BMS Sensors
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms0
+    power:
+      name: "${bms0} power"
+    state_of_charge:
+      name: "${bms0} state of charge"
+    total_voltage:
+      name: "${bms0} total voltage"
+    average_cell_voltage:
+      name: "${bms0} average cell voltage"
+    delta_cell_voltage:
+      name: "${bms0} delta cell voltage"
+    current:
+      name: "${bms0} current"
+    charging_power:
+      name: "${bms0} charging power"
+    discharging_power:
+      name: "${bms0} discharging power"
+    capacity_remaining:
+      name: "${bms0} capacity remaining"
+
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms1
+    power:
+      name: "${bms1} power"
+    state_of_charge:
+      name: "${bms1} state of charge"
+    total_voltage:
+      name: "${bms1} total voltage"
+    current:
+      name: "${bms1} current"
+
+
+text_sensor:
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt
+    name: "Battery Alarm reason"
+    type: ALARM_REASON
+  - platform: victron_ble
+    victron_ble_id: MySmartShunt2
+    name: "Battery Alarm reason 2"
+    type: ALARM_REASON
+
+#JDB BMS
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms0
+    errors:
+      name: "${bms0} errors"
+    operation_status:
+      name: "${bms0} operation status"
+    device_model:
+      name: "${bms0} device model"
+
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms1
+    errors:
+      name: "${bms1} errors"
+    operation_status:
+      name: "${bms1} operation status"
+    device_model:
+      name: "${bms1} device model"
+
+switch:
+#JDB BMS
+  - platform: ble_client
+    ble_client_id: client0
+    name: "${bms0} enable bluetooth connection"
+
+  - platform: ble_client
+    ble_client_id: client1
+    name: "${bms1} enable bluetooth connection"
+
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms0
+    charging:
+      name: "${bms0} charging"
+    discharging:
+      name: "${bms0} discharging"
+
+  - platform: jbd_bms_ble
+    jbd_bms_ble_id: bms1
+    charging:
+      name: "${bms1} charging"
+    discharging:
+      name: "${bms1} discharging"
+

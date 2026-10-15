@@ -1,0 +1,149 @@
+esphome:
+  name: door
+  friendly_name: Door
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret door_api_key
+
+ota:
+  - platform: esphome
+    password: !secret door_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  output_power: 8.5
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Door Fallback Hotspot"
+    password: !secret door_ap_password
+
+captive_portal:
+
+binary_sensor:
+  - platform: gpio
+    name: "Eingang IN1"
+    id: IN1
+    pin:
+      number: GPIO1
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+      then:
+      - lock.lock: 'Aufbau'
+
+  - platform: gpio
+    name: "Eingang IN2"
+    id: ID2
+    pin:
+      number: GPIO2
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+      then:
+      - lock.unlock: 'Aufbau'
+
+
+lock:
+  - platform: template
+    name: "Aufbautür"
+    id: Aufbau
+    lock_action:
+      then:
+      #- switch.turn_on: EN
+      - switch.turn_on: PH
+      - lambda: "id(Aufbau).publish_state(LOCK_STATE_LOCKED);"
+      #- lock.lock: Aufbau
+    unlock_action:
+      then:
+      - switch.turn_on: EN
+      - lambda: "id(Aufbau).publish_state(LOCK_STATE_UNLOCKED);"
+
+      #- lock.unlock: Aufbau
+    on_lock:
+    - logger.log: "Lock Door"
+
+    on_unlock:
+    - logger.log: "Unlock Door"
+
+
+
+sensor:
+  - platform: adc
+    name: "Strom"
+    id: current
+    pin: GPIO0
+    update_interval: 1s
+
+  - platform: internal_temperature
+    name: "ESP32 Internal Temperature"
+    id: esp32_temp
+    update_interval: 5s
+
+
+switch:
+  - platform: gpio
+    name: "IMODE"
+    id: IMODE
+    restore_mode: ALWAYS_OFF
+    pin:
+      number: GPIO3
+      mode:
+          output: True
+
+  - platform: gpio
+    name: "PMODE"
+    id: PMODE
+    restore_mode: ALWAYS_ON
+    pin:
+      number: GPIO6
+      mode:
+          output: True
+
+  - platform: gpio
+    name: "Sleep"
+    id: Sleep
+    restore_mode: RESTORE_DEFAULT_ON
+    pin:
+      number: GPIO8
+      mode:
+          output: True
+
+  - platform: gpio
+    id: EN
+    name: "EN"
+    restore_mode: ALWAYS_OFF
+    pin:
+      number: GPIO10
+      mode:
+           output: True
+    on_turn_on:
+    - delay: 800ms
+    - switch.turn_off: EN
+
+  - platform: gpio
+    id: PH
+    name: "PH"
+    restore_mode: ALWAYS_OFF
+    pin:
+       number: GPIO9
+       mode:
+           output: True
+    on_turn_on:
+    - delay: 800ms
+    - switch.turn_off: PH
