@@ -198,12 +198,14 @@ const STIL = `
     --u: clamp(9px, calc(var(--cw, 1vw) * 1.25), 17px);
   }
   .mass { position: absolute; width: calc(var(--u) * 100); height: 0; visibility: hidden; pointer-events: none; }
-  .karte { position: absolute; inset: calc(var(--u) * 4.4) 0 calc(var(--u) * 5.6) 0; }
+  /* Bildschirmfüllend; die Leisten liegen halbdurchsichtig darüber (Wunsch
+     2026-10-15: kein schwarzer Streifen hinter Kopf- und Fußleiste). */
+  .karte { position: absolute; inset: 0; }
   yapaia-map-card { display: block; height: 100%;
     --ha-card-border-radius: 0; --ha-card-border-width: 0; --ha-card-box-shadow: none; }
   .oben, .leiste { position: absolute; left: 0; right: 0; display: flex; align-items: center; z-index: 3; }
   .oben { top: 0; height: calc(var(--u) * 4.4); padding: 0 calc(var(--u) * 1.4); gap: calc(var(--u) * 0.9);
-    background: linear-gradient(#0a0d14, #10141d); }
+    background: linear-gradient(rgba(10, 13, 20, 0.78), rgba(16, 20, 29, 0.62)); backdrop-filter: blur(3px); }
   .knopf { width: calc(var(--u) * 2.9); height: calc(var(--u) * 2.9); border-radius: calc(var(--u) * 0.7);
     display: grid; place-items: center; background: #1b202b; color: #e8e9ec; border: 0; cursor: pointer; padding: 0;
     --mdc-icon-size: calc(var(--u) * 1.7); }
@@ -357,7 +359,8 @@ const STIL = `
   .lupe .knopf { background: var(--dunkel); border-radius: calc(var(--u) * 0.4); }
 
   .leiste { bottom: 0; height: calc(var(--u) * 5.6); padding: 0 calc(var(--u) * 1.6); gap: calc(var(--u) * 1.6);
-    background: linear-gradient(#10141d, #07090e); border-top: 1px solid #232937; }
+    background: linear-gradient(rgba(16, 20, 29, 0.62), rgba(7, 9, 14, 0.78)); backdrop-filter: blur(3px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08); }
   .auto { color: var(--kupfer); font-size: calc(var(--u) * 1.25); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
     max-width: calc(var(--cw, 1vw) * 18); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wert { font-size: calc(var(--u) * 2.9); font-weight: 300; font-variant-numeric: tabular-nums; white-space: nowrap; }
