@@ -43,6 +43,12 @@ export interface KartenMeldung {
   lat: number | null;
   lon: number | null;
   symbol: string | null;
+  /** Nur Staus und Vollsperrungen: der Abschnitt, [lon, lat], in Fahrtrichtung. */
+  linie?: Array<[number, number]>;
+  laenge_m?: number;
+  /** Nur Staus: gemeldeter Reisezeitverlust in Minuten. */
+  verzug_min?: number;
+  stau?: 'stillstand' | 'stau' | 'zaehfliessend' | 'dicht' | 'unbekannt';
 }
 
 export interface VerkehrPunkte {

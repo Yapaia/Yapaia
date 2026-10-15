@@ -62,13 +62,17 @@ export interface VerkehrsmeldungMitBild extends Verkehrsmeldung {
 /**
  * Welche Dienste für die Karte abgefragt werden.
  *
- * Bewusst NUR diese beiden. `warning` ist auf einer Autobahn fast immer leer,
+ * `warning` kam am 2026-10-15 dazu. Die frühere Annahme „fast immer leer"
+ * war geraten, nicht gemessen: live lieferte der Dienst auf A2, A3, A8, A9
+ * Staus mit Geometrie und Reisezeitverlust, dazu Fahrbahnschäden und
+ * gesperrte Fahrstreifen. Genau das, was man unterwegs wissen will.
+ *
  * `parking_lorry` liefert nach heutigem Stand keine Koordinaten, und
  * `electric_charging_station` gehört zu den POIs und nicht zu den
  * Verkehrsmeldungen. Jeder zusätzliche Dienst ist ein weiterer Aufruf nach
  * draußen je Straße — das gehört begründet und nicht vorsichtshalber gemacht.
  */
-export const VERKEHR_DIENSTE: readonly AutobahnDienst[] = ['roadworks', 'closure'];
+export const VERKEHR_DIENSTE: readonly AutobahnDienst[] = ['roadworks', 'closure', 'warning'];
 
 /** Wie lange auf EINEN Aufruf gewartet wird. */
 export const VERKEHR_ZEITGRENZE_MS = 6000;

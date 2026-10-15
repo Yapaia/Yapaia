@@ -84,7 +84,9 @@ describe('holeVerkehr — der gute Fall', () => {
       fetchFn: fetchMit((url) =>
         url.includes('roadworks')
           ? antwort('roadworks', [baustelle('r1')])
-          : antwort('closure', [baustelle('c1', 'Fahrbahninstandsetzung')]),
+          : url.includes('warning')
+            ? antwort('warning', [])
+            : antwort('closure', [baustelle('c1', 'Fahrbahninstandsetzung')]),
       ),
       cache: new VerkehrCache(),
     });

@@ -20,12 +20,14 @@ import type { Verkehrsmeldung } from '../../online/autobahn.js';
  * Die Arten, für die es ein Bild gibt.
  *
  * Bewusst nicht alle aus `AUTOBAHN_DIENSTE`: abgefragt werden für die Karte
- * nur Baustellen und Sperrungen (siehe `online/verkehr.ts`,
+ * nur Baustellen, Sperrungen und Warnungen/Staus (siehe `online/verkehr.ts`,
  * `VERKEHR_DIENSTE`). Was nicht abgefragt wird, braucht kein Bild.
  */
 export const VERKEHR_SYMBOLE = {
   baustelle: 'verkehr-baustelle',
   sperrung: 'verkehr-sperrung',
+  stau: 'verkehr-stau',
+  warnung: 'verkehr-warnung',
 } as const;
 
 export type VerkehrArt = keyof typeof VERKEHR_SYMBOLE;
@@ -55,4 +57,6 @@ export function symbolFuer(meldung: Pick<Verkehrsmeldung, 'art'>): string | null
 export const VERKEHR_BEZEICHNUNG: Record<VerkehrArt, string> = {
   baustelle: 'Baustelle',
   sperrung: 'Sperrung',
+  stau: 'Stau',
+  warnung: 'Warnung',
 };
