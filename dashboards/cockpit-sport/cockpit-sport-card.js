@@ -806,7 +806,36 @@ class YapaiaCockpitSportCard extends HTMLElement {
   }
 
   /** `'ruhe'`/`'fahrt'` richtet diesen Bildschirm ein, `null` beendet. */
+  // VORÜBERGEHEND (2026-10-15): warum Ziehen auf dem Autoradio nicht geht.
+  _diag(text) {
+    try {
+      this._hass.callService('system_log', 'write', { message: `cockpit-diag: ${text}`, level: 'warning', logger: 'yapaia.cockpit' });
+    } catch (e) { /* egal */ }
+  }
+
   _anpassen(modus) {
+    if (modus && this._hass) {
+      this._diag(`UA=${navigator.userAgent} PE=${'PointerEvent' in window} w=${innerWidth}x${innerHeight} dpr=${devicePixelRatio}`);
+      if (!this._diagHorcher) {
+        this._diagHorcher = true;
+        let n = 0;
+        for (const t of ['pointerdown', 'touchstart', 'mousedown']) {
+          this.shadowRoot.addEventListener(t, (e) => {
+            if (!this._bearbeiten || n++ > 12) return;
+            const z = e.composedPath()[0];
+            const x = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX);
+            const y = e.clientY ?? (e.touches && e.touches[0] && e.touches[0].clientY);
+            const oben = this.shadowRoot.elementFromPoint(x, y);
+            this._diag(`${t} ${e.pointerType || ''} ziel=${z && (z.className || z.tagName)} oben=${oben && (oben.className || oben.tagName)} @${Math.round(x)},${Math.round(y)}`);
+          }, true);
+        }
+        window.addEventListener('pointerdown', (e) => {
+          if (!this._bearbeiten || n++ > 12) return;
+          const z = e.composedPath()[0];
+          this._diag(`window pointerdown ziel=${z && (z.className || z.tagName)} @${Math.round(e.clientX)},${Math.round(e.clientY)}`);
+        }, true);
+      }
+    }
     this._bearbeiten = modus;
     const tv = this.shadowRoot.querySelector('.tv');
     tv.classList.toggle('bearbeiten', !!modus);
