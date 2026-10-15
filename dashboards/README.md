@@ -10,6 +10,8 @@ einen eigenen Ordner mit
 | Dashboard | Was es ist |
 |---|---|
 | [Cockpit Sport](cockpit-sport/) | Navigation, Radio und Fahrdaten im Stil eines Auto-Infotainments |
+| [Rangieren](rangieren/) | Parkmanöver: Rückfahrkamera, Nivellierung, Licht Dinette, Aufbautür |
+| [Stellplatz](stellplatz/) | Stellplatz/Camping: Heizung, Licht, Tür, Batterie, Gas, Wasser, Radio |
 
 ## Einspielen
 
@@ -25,3 +27,8 @@ nicht mehr nötig: Die Prüfsumme ändert sich genau dann, wenn sich die Datei
 ändert, und jeder Browser lädt die neue Fassung beim nächsten Öffnen. Fehlt
 die Ressource noch, legt das Skript sie an. Neue Karten trägt man in
 `KARTEN` in `deploy.py` ein.
+
+Mit `--dashboard <ordner>` legt das Skript zusätzlich das Dashboard aus
+`<ordner>/dashboard.yaml` an bzw. überschreibt es (eingetragen in `DASHBOARDS`).
+Ohne die Option bleiben Dashboards unangetastet. Python braucht `aiohttp`
+und `pyyaml`.

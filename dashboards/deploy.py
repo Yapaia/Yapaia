@@ -8,10 +8,16 @@ die Datei ändert -- dann lädt jeder Browser die neue Fassung beim nächsten
 Läuft auf dem Mini-PC (Add-on mit `SUPERVISOR_TOKEN` und `/config`):
 
     python3 dashboards/deploy.py
+
+Mit `--dashboard <ordner>` (mehrfach möglich) legt es außerdem das Dashboard
+aus `<ordner>/dashboard.yaml` an bzw. überschreibt dessen Konfiguration. Ohne
+die Option bleiben die Dashboards selbst unangetastet -- Änderungen, die man
+in der Oberfläche gemacht hat, gehen also nicht verloren.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import hashlib
 import os
@@ -26,6 +32,13 @@ WWW = Path("/config/www")
 # Datei im Repository → Ordner unter /config/www (= /local/…)
 KARTEN = {
     HIER / "cockpit-sport" / "cockpit-sport-card.js": "yapaia-cockpit",
+    HIER / "rangieren" / "nivellierung-card.js": "yapaia-dashboards",
+    HIER / "rangieren" / "kamera-card.js": "yapaia-dashboards",
+}
+# Ordner → (url_path, Titel, Symbol) für `--dashboard`
+DASHBOARDS = {
+    "rangieren": ("yapaia-rangieren", "Rangieren", "mdi:car-brake-parking"),
+    "stellplatz": ("yapaia-stellplatz", "Stellplatz", "mdi:caravan"),
 }
 
 
@@ -37,7 +50,26 @@ async def ws_rufen(ws: aiohttp.ClientWebSocketResponse, nr: int, **befehl: objec
     return antwort.get("result")
 
 
+async def dashboard_einspielen(ws: aiohttp.ClientWebSocketResponse, nr: int, ordner: str) -> int:
+    import yaml  # nur hier gebraucht
+
+    url_path, titel, symbol = DASHBOARDS[ordner]
+    konfig = yaml.safe_load((HIER / ordner / "dashboard.yaml").read_text(encoding="utf-8"))
+    vorhanden = await ws_rufen(ws, nr, type="lovelace/dashboards/list")
+    if not any(d["url_path"] == url_path for d in vorhanden):
+        nr += 1
+        await ws_rufen(ws, nr, type="lovelace/dashboards/create", url_path=url_path, title=titel, icon=symbol, mode="storage", show_in_sidebar=True, require_admin=False)
+        print(f"Dashboard angelegt: /{url_path}")
+    nr += 1
+    await ws_rufen(ws, nr, type="lovelace/config/save", url_path=url_path, config=konfig)
+    print(f"Dashboard gespeichert: /{url_path}")
+    return nr + 1
+
+
 async def main() -> int:
+    args = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    args.add_argument("--dashboard", action="append", default=[], choices=sorted(DASHBOARDS), help="Dashboard anlegen bzw. überschreiben")
+    optionen = args.parse_args()
     token = os.environ.get("SUPERVISOR_TOKEN")
     if not token:
         print("Kein SUPERVISOR_TOKEN – nur auf dem Mini-PC (Add-on) aufrufen.", file=sys.stderr)
@@ -66,6 +98,8 @@ async def main() -> int:
                 print(f"neu:  {url} (war {alt['url']})")
             else:
                 print(f"gleich: {url}")
+        for ordner in optionen.dashboard:
+            nr = await dashboard_einspielen(ws, nr + 1, ordner)
     return 0
 
 
