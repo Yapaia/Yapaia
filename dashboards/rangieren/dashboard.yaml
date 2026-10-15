@@ -29,7 +29,7 @@ views:
             tolerance: 0.5
             exaggeration: 4
           - type: tile
-            entity: light.smartwomo_ausgang_out1
+            entity: light.smartwomo_ausgang_out2
             name: Licht Dinette
             icon: mdi:ceiling-light
             features_position: bottom

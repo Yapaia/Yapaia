@@ -37,14 +37,14 @@ views:
           - type: heading
             heading: Licht
             icon: mdi:lightbulb-group
-          - { type: tile, entity: light.smartwomo_ausgang_out1, name: OUT1 }
-          - { type: tile, entity: light.smartwomo_ausgang_out2, name: OUT2 }
-          - { type: tile, entity: light.smartwomo_ausgang_out3, name: OUT3 }
-          - { type: tile, entity: light.smartwomo_ausgang_out4, name: OUT4 }
-          - { type: tile, entity: light.smartwomo_ausgang_out5, name: OUT5 }
-          - { type: tile, entity: light.smartwomo_ausgang_out6, name: OUT6 }
-          - { type: tile, entity: light.smartwomo_ausgang_out7, name: OUT7 }
-          - { type: tile, entity: light.smartwomo_ausgang_out8, name: OUT8 }
+          - { type: tile, entity: light.smartwomo_ausgang_out2, name: Dinette, icon: 'mdi:table-chair' }
+          - { type: tile, entity: light.smartwomo_ausgang_out1, name: Außen, icon: 'mdi:outdoor-lamp' }
+          - { type: tile, entity: light.smartwomo_ausgang_out5, name: Ambiente, icon: 'mdi:led-strip-variant' }
+          - { type: tile, entity: light.smartwomo_ausgang_out6, name: Ambiente Bett, icon: 'mdi:led-strip-variant' }
+          - { type: tile, entity: light.smartwomo_ausgang_out4, name: Bett, icon: 'mdi:bed' }
+          - { type: tile, entity: light.smartwomo_ausgang_out8, name: Bad, icon: 'mdi:shower' }
+          - { type: tile, entity: light.smartwomo_ausgang_out3, name: Eingang, icon: 'mdi:door-open' }
+          - { type: tile, entity: light.smartwomo_ausgang_out7, name: Nachtlicht, icon: 'mdi:weather-night' }
           - type: heading
             heading: Tür
             icon: mdi:door

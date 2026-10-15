@@ -97,3 +97,12 @@ beim ersten Öffnen einmal umgerechnet. Lagen sie nach dem Umklappen schief,
 einmal nachrücken.
 
 Mit `demo: true` an der Karte zeigt sie Beispielwerte einer Navigation.
+
+## Tür und Licht
+
+- **Schloss oben rechts** in der Kopfzeile: zeigt, ob die Aufbautür zu ist (rot = offen); Tippen schließt auf bzw. ab.
+- **Lampe unten** in der Leiste: Tippen schaltet das Licht der Dinette; **lange drücken** öffnet ein Menü mit allen
+  Lichtern (Dinette und Außen zuerst).
+- Tür, Lampe und die Liste der Lichter (Name, Entität, Reihenfolge per Ziehen) lassen sich im grafischen Editor
+  der Karte ändern (`door_entity`, `light_entity`, `lights`).
+
