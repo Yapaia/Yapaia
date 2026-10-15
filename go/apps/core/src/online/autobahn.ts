@@ -37,7 +37,7 @@
 export interface Verkehrsmeldung {
   /** Stabile Kennung der Quelle, für „schon gesehen". */
   id: string;
-  art: 'baustelle' | 'sperrung' | 'warnung' | 'parkplatz' | 'ladesaeule' | 'unbekannt';
+  art: 'baustelle' | 'sperrung' | 'stau' | 'warnung' | 'parkplatz' | 'ladesaeule' | 'unbekannt';
   /** Die Autobahn, z. B. `A61`. */
   strasse: string;
   titel: string;
@@ -45,7 +45,32 @@ export interface Verkehrsmeldung {
   beschreibung: string;
   lat: number | null;
   lon: number | null;
+  /**
+   * Nur bei Staus und Vollsperrungen: der betroffene Abschnitt, [lon, lat],
+   * ausgedünnt. Damit färbt die Oberfläche das Stück der Route ein.
+   *
+   * Bei Staus liegt die Linie in Fahrtrichtung (gemessen am 2026-10-15 auf
+   * A2, A3, A9: der erste Punkt ist das Stauende, an dem man ankommt). Bei
+   * Baustellen ist sie das NICHT verlässlich -- dort fehlt sie deshalb.
+   */
+  linie?: Array<[number, number]>;
+  /** Länge des Abschnitts in Metern, aus der Geometrie gerechnet. */
+  laenge_m?: number;
+  /** Nur bei Staus: gemeldeter Reisezeitverlust in Minuten (`delayTimeValue`). */
+  verzug_min?: number;
+  /** Nur bei Staus: wie dicht der Verkehr steht. */
+  stau?: StauTyp;
 }
+
+export type StauTyp = 'stillstand' | 'stau' | 'zaehfliessend' | 'dicht' | 'unbekannt';
+
+/** `abnormalTrafficType` der Quelle, übersetzt. */
+const STAU_TYPEN: Record<string, StauTyp> = {
+  STATIONARY_TRAFFIC: 'stillstand',
+  QUEUING_TRAFFIC: 'stau',
+  SLOW_TRAFFIC: 'zaehfliessend',
+  HEAVY_TRAFFIC: 'dicht',
+};
 
 /** Die Dienste, die diese Schnittstelle je Autobahn führt. */
 export const AUTOBAHN_DIENSTE = {
@@ -226,15 +251,78 @@ export function normalisiere(
     // aus „schon gesehen" eine Ansage bei jeder Aktualisierung.
     `${strasse}:${dienst}:${titel}`;
 
-  return {
-    id,
-    art: AUTOBAHN_DIENSTE[dienst],
-    strasse,
-    titel,
-    beschreibung: leseText(o.description),
-    lat,
-    lon,
-  };
+  const beschreibung = leseText(o.description);
+  const anzeige = leseText(o.display_type);
+  const stauRoh = leseText(o.abnormalTrafficType);
+
+  // ─── AUS „WARNUNG" WIRD STAU ODER SPERRUNG ───────────────────────────────
+  // Der Dienst `warning` liefert Staus (mit `abnormalTrafficType`), sonstige
+  // Ereignisse wie Fahrbahnschäden oder Unfälle -- und gelegentlich eine
+  // Vollsperrung (`display_type: CLOSURE`).
+  let art: Verkehrsmeldung['art'] = AUTOBAHN_DIENSTE[dienst];
+  if (dienst === 'warning' && stauRoh) art = 'stau';
+  else if (dienst === 'warning' && anzeige === 'CLOSURE') art = 'sperrung';
+
+  const meldung: Verkehrsmeldung = { id, art, strasse, titel, beschreibung, lat, lon };
+
+  const geometrie = leseLinie(o.geometry);
+  if (geometrie) meldung.laenge_m = Math.round(linienLaenge(geometrie));
+
+  if (art === 'stau') {
+    meldung.stau = /im stillstand/i.test(beschreibung) ? 'stillstand' : (STAU_TYPEN[stauRoh] ?? 'unbekannt');
+    const verzug = Number(leseText(o.delayTimeValue) || o.delayTimeValue);
+    if (Number.isFinite(verzug) && verzug > 0) meldung.verzug_min = Math.round(verzug);
+  }
+  // Nur ganze Sperrungen färben die Strecke -- gesperrte Auf- und Abfahrten
+  // (`CLOSURE_ENTRY_EXIT`, auf der A7 25 von 30) betreffen die Durchfahrt nicht.
+  if (geometrie && (art === 'stau' || (art === 'sperrung' && anzeige === 'CLOSURE'))) {
+    meldung.linie = duenneAus(geometrie);
+  }
+  return meldung;
+}
+
+/** Eine GeoJSON-LineString-Geometrie als [lon, lat]-Liste, sonst `null`. */
+export function leseLinie(roh: unknown): Array<[number, number]> | null {
+  if (roh === null || typeof roh !== 'object') return null;
+  const g = roh as { type?: unknown; coordinates?: unknown };
+  if (g.type !== 'LineString' || !Array.isArray(g.coordinates)) return null;
+  const punkte: Array<[number, number]> = [];
+  for (const p of g.coordinates) {
+    if (!Array.isArray(p)) continue;
+    const lon = Number(p[0]);
+    const lat = Number(p[1]);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
+    punkte.push([lon, lat]);
+  }
+  return punkte.length >= 2 ? punkte : null;
+}
+
+function abstandM(a: readonly [number, number], b: readonly [number, number]): number {
+  const k = Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180);
+  return Math.hypot((b[0] - a[0]) * k * 111_320, (b[1] - a[1]) * 111_320);
+}
+
+export function linienLaenge(punkte: ReadonlyArray<readonly [number, number]>): number {
+  let summe = 0;
+  for (let i = 1; i < punkte.length; i++) summe += abstandM(punkte[i - 1]!, punkte[i]!);
+  return summe;
+}
+
+/** Punkte näher als das am Vorgänger fallen weg: ein Stau mit 321 Stützpunkten
+ *  braucht für eine farbige Linie keine 321. */
+const DUENN_M = 40;
+
+export function duenneAus(punkte: ReadonlyArray<readonly [number, number]>): Array<[number, number]> {
+  const runde = (p: readonly [number, number]): [number, number] => [
+    Math.round(p[0] * 1e5) / 1e5,
+    Math.round(p[1] * 1e5) / 1e5,
+  ];
+  const raus: Array<[number, number]> = [runde(punkte[0]!)];
+  for (let i = 1; i < punkte.length - 1; i++) {
+    if (abstandM(raus[raus.length - 1]!, punkte[i]!) >= DUENN_M) raus.push(runde(punkte[i]!));
+  }
+  raus.push(runde(punkte[punkte.length - 1]!));
+  return raus;
 }
 
 export interface AntwortBefund {

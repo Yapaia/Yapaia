@@ -353,7 +353,7 @@ export const POI_MARKEN = [
 
 /** Groesse einer POI-Marke in logischen Punkten. */
 /**
- * Die Marken der VERKEHRSLAGE — Baustellen und Sperrungen.
+ * Die Marken der VERKEHRSLAGE — Baustellen, Sperrungen, Staus, Warnungen.
  *
  * ─── WARUM EINE EIGENE LISTE ────────────────────────────────────────────────
  * Sie teilen sich Zeichenmaschinerie und Blatt mit den POIs, sind aber etwas
@@ -410,6 +410,28 @@ export const VERKEHR_MARKEN = [
       // Gesehen hat man das erst im vergroesserten Abzug; gerechnet hatte es
       // vorher niemand.
       { typ: 'rechteck', x: 2.0, y: 4.4, b: 8.0, h: 3.2, r: 0.7 },
+    ],
+  },
+  {
+    id: 'verkehr-stau',
+    // Himbeer. Rot ist die Sperrung; ein Stau ist ernst, aber man kommt
+    // durch -- er darf daneben nicht wie ihr kleiner Bruder aussehen.
+    farbe: [0xad, 0x14, 0x57, 0xff],
+    formen: [
+      // Zwei Wagen hintereinander, aufrecht: eine Schlange, kein Balken.
+      { typ: 'rechteck', x: 3.4, y: 1.4, b: 5.2, h: 4.0, r: 1.0 },
+      { typ: 'rechteck', x: 3.4, y: 6.6, b: 5.2, h: 4.0, r: 1.0 },
+    ],
+  },
+  {
+    id: 'verkehr-warnung',
+    // Schiefer. Sonstige Ereignisse -- Fahrbahnschaden, Unfall,
+    // gesperrter Fahrstreifen -- sollen auffallen, aber nicht schreien.
+    farbe: [0x45, 0x5a, 0x64, 0xff],
+    formen: [
+      // Ein Ausrufezeichen.
+      { typ: 'rechteck', x: 5.0, y: 1.8, b: 2.0, h: 5.4, r: 0.6 },
+      { typ: 'rechteck', x: 5.0, y: 8.2, b: 2.0, h: 2.0, r: 0.6 },
     ],
   },
 ];

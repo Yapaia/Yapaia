@@ -17,6 +17,7 @@ import { EDGE_INSET_PX, FAB_SIZE_PX, MANEUVER_PANEL_TOP_PX, STACK_GAP_PX } from 
 import { lageAufRoute, naechsteMeldungen } from './entlangDerRoute.js';
 import { useRoutenMeldungen } from './useRoutenMeldungen.js';
 import { useAnordnung } from '../shell/useAnordnung.js';
+import { SCHWERE_FARBE, schwere, stauText } from './stauAufRoute.js';
 
 const SCHLUESSEL = 'yapaia.verkehrListeZu';
 
@@ -27,6 +28,8 @@ function liesZu(): boolean {
     return false;
   }
 }
+
+const SYMBOL: Record<string, string> = { sperrung: '⛔', stau: '🚗', warnung: '⚠️', baustelle: '🚧' };
 
 function km(m: number): string {
   if (m < 100) return 'jetzt';
@@ -92,10 +95,15 @@ export default function VerkehrListe(): React.ReactElement | null {
           {naechste.map(({ meldung: m, voraus_m }) => (
             <li key={m.id} className="px-3 py-2" data-testid={`verkehr-eintrag-${m.id}`}>
               <div className="flex items-baseline gap-2">
-                <span aria-hidden="true">{m.art === 'sperrung' ? '⛔' : '🚧'}</span>
+                <span aria-hidden="true">{SYMBOL[m.art] ?? '🚧'}</span>
                 <span className="font-semibold tabular-nums">{km(Math.max(0, voraus_m))}</span>
                 <span className="min-w-0 flex-1 truncate">{m.titel}</span>
               </div>
+              {stauText(m) && (
+                <p className="pl-6 text-xs font-semibold" style={{ color: SCHWERE_FARBE[schwere(m) ?? 'orange'] }}>
+                  {stauText(m)}
+                </p>
+              )}
               {m.beschreibung && (
                 <p className="line-clamp-2 pl-6 text-xs text-slate-600 dark:text-slate-300">{m.beschreibung}</p>
               )}

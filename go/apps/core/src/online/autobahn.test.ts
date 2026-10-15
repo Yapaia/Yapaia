@@ -328,3 +328,50 @@ describe('ausAntwort — was NICHT auf die Karte kann, wird gezählt', () => {
     expect(ausAntwort({ warning: [] }, 'A61', 'warning').felder).toBeNull();
   });
 });
+
+describe('Staus aus dem Dienst `warning` (Form live gesehen am 2026-10-15)', () => {
+  const stauRoh = {
+    identifier: 'INRIX--vi-avl.x',
+    title: 'A8 | Lämmerbuckeltunnel - Mühlhausen',
+    subtitle: ' München -> Stuttgart',
+    display_type: 'WARNING',
+    abnormalTrafficType: 'QUEUING_TRAFFIC',
+    delayTimeValue: '16',
+    coordinate: { lat: 48.5546, long: 9.6577 },
+    description: ['Angespannte Verkehrslage', '- Im Stillstand', '- Reisezeitverlust: 16 Minuten'],
+    // ~2,2 km nach Norden, 23 Stützpunkte im Abstand von ~100 m.
+    geometry: { type: 'LineString', coordinates: Array.from({ length: 23 }, (_, i) => [9.6577, 48.5546 + i * 0.0009]) },
+  };
+
+  it('macht daraus einen Stau mit Verlust, Länge und ausgedünnter Linie', () => {
+    const m = normalisiere(stauRoh, 'A8', 'warning')!;
+    expect(m.art).toBe('stau');
+    expect(m.stau).toBe('stillstand');
+    expect(m.verzug_min).toBe(16);
+    expect(m.laenge_m).toBeGreaterThan(2150);
+    expect(m.laenge_m).toBeLessThan(2250);
+    expect(m.linie![0]).toEqual([9.6577, 48.5546]);
+    expect(m.linie!.length).toBeLessThanOrEqual(23);
+  });
+
+  it('ohne Stau-Typ bleibt es eine Warnung -- ohne Linie', () => {
+    const m = normalisiere({ ...stauRoh, abnormalTrafficType: undefined, delayTimeValue: undefined }, 'A5', 'warning')!;
+    expect(m.art).toBe('warnung');
+    expect(m.linie).toBeUndefined();
+    expect(m.verzug_min).toBeUndefined();
+  });
+
+  it('nur eine ganze Sperrung bekommt eine Linie, keine gesperrte Ausfahrt', () => {
+    const ganz = normalisiere({ ...stauRoh, abnormalTrafficType: undefined, display_type: 'CLOSURE' }, 'A7', 'closure')!;
+    const ausfahrt = normalisiere({ ...stauRoh, abnormalTrafficType: undefined, display_type: 'CLOSURE_ENTRY_EXIT' }, 'A7', 'closure')!;
+    expect(ganz.art).toBe('sperrung');
+    expect(ganz.linie).toBeDefined();
+    expect(ausfahrt.linie).toBeUndefined();
+  });
+
+  it('Baustellen bekommen keine Linie (Richtung nicht verlässlich)', () => {
+    const m = normalisiere({ ...stauRoh, display_type: 'ROADWORKS' }, 'A7', 'roadworks')!;
+    expect(m.art).toBe('baustelle');
+    expect(m.linie).toBeUndefined();
+  });
+});
