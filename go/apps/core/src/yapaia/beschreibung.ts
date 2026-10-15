@@ -75,7 +75,7 @@ export const ENTITAETEN: readonly Entitaet[] = [
     plattform: 'sensor',
     name: { de: 'Ziel', en: 'Destination' },
     symbol: 'mdi:flag-checkered',
-    attribute: ['ziel_breite', 'ziel_laenge'],
+    attribute: ['ziel_breite', 'ziel_laenge', 'halte'],
   },
   {
     schluessel: 'zustand',
@@ -264,6 +264,14 @@ export function werte(z: GoZustand): Record<string, unknown> {
     ziel_eingabe: zielName ?? '',
     ziel_breite: ziel.lat ?? null,
     ziel_laenge: ziel.lon ?? null,
+    // Die offenen Halte (Zwischenziele, dann Ziel) für die Übersicht im
+    // Cockpit: Name, Art, Restkilometer, Ankunft. Leer ohne Route.
+    halte: (z.navState?.stopps ?? []).map((h) => ({
+      name: h.name,
+      art: h.art,
+      km: Math.round(h.distance_remaining_m / 100) / 10,
+      ankunft: h.eta,
+    })),
     zustand: textOderNull(st('sensor.yapaia_nav_state')),
     tempo: zahl(st('sensor.yapaia_speed')),
     tempolimit: zahl(st('sensor.yapaia_speed_limit')),

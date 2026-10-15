@@ -128,6 +128,11 @@ export function toRequestWaypoints(waypoints: readonly Waypoint[]): LatLng[] {
   return waypoints.map((w) => w.latlng);
 }
 
+/** Für die laufende Fahrt: mit Namen, für die Halte-Übersicht im Kern. */
+export function mitNamen(waypoints: readonly Waypoint[]): Array<LatLng & { name?: string }> {
+  return waypoints.map((w) => (w.name ? { ...w.latlng, name: w.name } : w.latlng));
+}
+
 /**
  * Beschriftung eines Eintrags.
  *

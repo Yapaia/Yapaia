@@ -31,6 +31,7 @@ import {
   moveWaypoint as moveWaypointInList,
   removeWaypoint as removeWaypointFromList,
   toRequestWaypoints,
+  mitNamen,
   type Waypoint,
 } from './waypoints.js';
 import { useNavStore } from '../drive/navStore.js';
@@ -228,7 +229,7 @@ function applyWaypointChange(
   get: () => RoutingState,
 ): void {
   if (isDriveActive(useNavStore.getState().navState?.status)) {
-    void updateNavigationWaypoints(toRequestWaypoints(waypoints)).catch(() => {
+    void updateNavigationWaypoints(mitNamen(waypoints)).catch(() => {
       // Ein Fehlschlag darf die Liste nicht zuruecksetzen: der Wunsch steht,
       // und der Core versucht es bei der naechsten Neuberechnung erneut. Ein
       // stiller Ruecksprung der Liste waere schlimmer als eine Strecke, die
@@ -477,7 +478,7 @@ export const useRoutingStore = create<RoutingState>((set, get) => ({
       if (brauchbar) {
         const sortiert = order.map((i) => waypoints[i]);
         set({ waypoints: sortiert });
-        void updateNavigationWaypoints(toRequestWaypoints(sortiert)).catch(() => {
+        void updateNavigationWaypoints(mitNamen(sortiert)).catch(() => {
           // Wie bei jeder anderen Aenderung der Liste.
         });
       }

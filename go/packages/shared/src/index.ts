@@ -16,6 +16,7 @@ export type {
   ManeuverType,
   Route,
   NavState,
+  NavStopp,
   NavInstructionPayload,
   ApiError,
   SearchResult,

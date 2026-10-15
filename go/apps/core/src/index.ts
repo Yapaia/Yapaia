@@ -846,7 +846,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
         return { name: navState.destination?.name ?? null };
       },
       faehrt: () => !['idle', 'arrived'].includes(navigationService.getStatus()),
-      zwischenzielVorn: (punkt) => navigationService.zwischenzielVorn(punkt),
+      zwischenzielVorn: (punkt, name) => navigationService.zwischenzielVorn(punkt, name),
       pause: () => navigationService.pause(),
       resume: () => navigationService.resume(),
       stop: () => navigationService.stop(),

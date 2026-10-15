@@ -35,7 +35,7 @@ describe('Aktionen von Yapaia Go', () => {
     const fahrt = deps({ faehrt: () => true });
     const ort = { latitude: 49.27, longitude: 8.34 };
     expect(await goAktionen(fahrt).zwischenziel_einfuegen({ ort, name: 'Shell' })).toEqual({ ziel: 'Shell', als: 'zwischenziel' });
-    expect(fahrt.zwischenzielVorn).toHaveBeenCalledWith({ lat: 49.27, lon: 8.34 });
+    expect(fahrt.zwischenzielVorn).toHaveBeenCalledWith({ lat: 49.27, lon: 8.34 }, 'Shell');
     expect(fahrt.stop).not.toHaveBeenCalled();
 
     const ruhe = deps();

@@ -183,6 +183,33 @@ describe('Zwischenziele waehrend der Fahrt', () => {
     expect(createRoutes.mock.calls[0][0].waypoints).toEqual([tanke, WP_VORN]);
   });
 
+  it('stopps: Zwischenziele und Ziel mit Restweg und Ankunft, der nächste zuerst', async () => {
+    const nav = makeNav({ createRoutes: rerouteMock(originalRoute) });
+    nav.start({ route: originalRoute, reroute: { profile_id: 'pA', waypoints: [WP_VORN, WP_HINTEN] } });
+    await feed(nav, pos(BASE_LAT + 0.003, BASE_LON));
+
+    const stopps = nav.getState().stopps!;
+    // WP_HINTEN liegt schon hinter uns und fällt weg.
+    expect(stopps.map((s) => s.art)).toEqual(['zwischenziel', 'ziel']);
+    expect(stopps[0]!.distance_remaining_m).toBeGreaterThan(900);
+    expect(stopps[0]!.distance_remaining_m).toBeLessThan(1100);
+    expect(stopps[1]!.distance_remaining_m).toBe(Math.round(nav.getState().distance_remaining_m!));
+    expect(stopps[0]!.duration_remaining_s).toBeLessThan(stopps[1]!.duration_remaining_s);
+    expect(stopps[1]!.eta).toBe(nav.getState().eta);
+  });
+
+  it('stopps: der Name eines eingefügten Zwischenziels bleibt erhalten', async () => {
+    const newRoute = makeRoute(straightNorthPoints(BASE_LAT, BASE_LON, 19), 'mit-tanke');
+    const nav = makeNav({ createRoutes: rerouteMock(newRoute) });
+    nav.start({ route: originalRoute, reroute: { profile_id: 'pA' } });
+    await feed(nav, pos(BASE_LAT + 0.001, BASE_LON));
+
+    nav.zwischenzielVorn({ lat: BASE_LAT + 0.005, lon: BASE_LON }, 'Shell');
+    await vi.advanceTimersByTimeAsync(10);
+    await feed(nav, pos(BASE_LAT + 0.002, BASE_LON));
+    expect(nav.getState().stopps?.[0]).toMatchObject({ art: 'zwischenziel', name: 'Shell' });
+  });
+
   it('die Fahrt laeuft weiter -- sie wird nicht beendet und neu begonnen', async () => {
     // `start()` waere aus `navigating` gar nicht erlaubt (409) und wuerde
     // Kalibrierung und Ansagestand wegwerfen. Ein sichtbarer Aussetzer mitten

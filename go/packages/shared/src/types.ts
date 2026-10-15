@@ -370,6 +370,24 @@ export interface NavState {
     latlng: LatLng;
     name: string | null;
   } | null;
+  /**
+   * Die noch offenen Halte, der nächste zuerst: Zwischenziele, dann das Ziel.
+   * Für die Übersicht „bis wann bin ich wo" (Cockpit Sport, Antippen von
+   * „Ankunft"). Fehlt ohne aktive Route.
+   */
+  stopps?: NavStopp[];
+}
+
+export interface NavStopp {
+  art: 'zwischenziel' | 'ziel';
+  /** Der Name, wenn er bekannt ist (Suchtreffer, Sonderziel). */
+  name: string | null;
+  lat: number;
+  lon: number;
+  distance_remaining_m: number;
+  duration_remaining_s: number;
+  /** ISO 8601 in UTC, wie `eta`. */
+  eta: string;
 }
 
 // Announcement published on the `nav/instruction` bus/WS topic (E04-T3, docs/03
