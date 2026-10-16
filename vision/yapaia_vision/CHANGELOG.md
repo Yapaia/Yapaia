@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.2.3
+
+- **Live-Bild auf der Seite von Vision blieb schwarz.** Der Ingress von Home
+  Assistant reicht beim MJPEG-Strom die `boundary` nicht weiter; die Seite
+  zerlegt den Strom jetzt selbst. Die Kameras in Home Assistant waren nicht
+  betroffen.
+
 ## 0.2.2
 
 - **Erstes Bild mit falschen Farben:** Nach dem Start der Aufnahme braucht
