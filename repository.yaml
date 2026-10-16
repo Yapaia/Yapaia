@@ -6,6 +6,7 @@
 # Add-on-Ordner in seinem eigenen Verzeichnis behalten:
 #   go/yapaia_go/      → Yapaia Go
 #   beat/yapaia_beat/  → Yapaia Beat
+#   vision/yapaia_vision/ → Yapaia Vision
 name: "Yapaia"
 url: "https://github.com/Yapaia/yapaia"
 maintainer: "Yapaia"

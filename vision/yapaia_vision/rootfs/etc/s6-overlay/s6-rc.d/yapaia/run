@@ -1,0 +1,13 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Yapaia Vision – start the radio service
+# ==============================================================================
+bashio::log.info "Starte Yapaia Vision ..."
+
+if ! ls /dev/bus/usb >/dev/null 2>&1; then
+    bashio::log.warning "Kein USB-Bus sichtbar – ist der Video-Grabber eingesteckt?"
+fi
+
+cd /opt/yapaia || bashio::exit.nok "Anwendung fehlt"
+exec python3 -m yapaia

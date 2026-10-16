@@ -1,0 +1,39 @@
+configuration:
+  testbild:
+    name: Test picture
+    description: Without a grabber every channel shows a generated picture with its name and the time.
+  geraet:
+    name: Device
+    description: '"auto" uses the first video grabber, otherwise e.g. /dev/video0.'
+  norm:
+    name: TV standard
+    description: Analog cameras in Europe send PAL.
+  aufloesung:
+    name: Resolution
+    description: 720x576 for PAL, 720x480 for NTSC.
+  bilder_pro_sekunde:
+    name: Frames per second
+    description: Fewer frames save CPU time.
+  qualitaet:
+    name: JPEG quality
+    description: 2 = best, 31 = smallest.
+  entflechten:
+    name: Deinterlace
+    description: Avoids combing artefacts on movement.
+  nachlauf_s:
+    name: Run-on (s)
+    description: How long capturing continues after the last viewer left.
+  immer_an:
+    name: Always capture
+    description: The picture is there immediately instead of after about a second.
+  kanaele:
+    name: Channels
+    description: One entry per camera, in the order of the grabber inputs. Set "geraet" and "eingang" (from 0) only to override the automatic mapping.
+  install_integration:
+    name: Install integration
+    description: Installs or updates the Yapaia integration in Home Assistant.
+  log_level:
+    name: Log level
+    description: How verbose the log is.
+network:
+  8099/tcp: Web interface and MJPEG streams on the local network (optional)

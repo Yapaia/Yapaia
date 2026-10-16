@@ -1,0 +1,71 @@
+name: Vision
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: vision
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install aiohttp pytest
+      - run: pytest -q tests
+
+  lint-addon:
+    name: Add-on-Linter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: frenck/action-addon-linter@v2
+        with:
+          path: "./vision/yapaia_vision"
+
+  build:
+    name: Add-on-Image bauen
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: tests
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build add-on image (amd64)
+        run: |
+          docker build \
+            --build-context yapaia-integration=../integration/custom_components \
+            --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm \
+            --build-arg BUILD_VERSION=ci \
+            -t yapaia-vision:ci yapaia_vision
+      # Ohne Grabber, mit Testbild: echtes ffmpeg, echte JPEGs, echter
+      # Kanalwechsel -- alles außer dem Stick.
+      - name: Smoke test (Testbild)
+        run: |
+          mkdir -p /tmp/vision
+          echo '{"testbild": true, "kanaele": [{"name": "Rückfahrkamera"}, {"name": "Tür"}]}' > /tmp/vision/options.json
+          docker run -d --name vision --entrypoint "" -e YAPAIA_DATA=/data -v /tmp/vision:/data -p 8099:8099 \
+            yapaia-vision:ci python3 -m yapaia
+          for i in $(seq 1 30); do curl -sf http://localhost:8099/api/status > /dev/null && break; sleep 1; done
+          curl -sf http://localhost:8099/api/status | python3 -m json.tool
+          curl -sf -o /tmp/k1.jpg http://localhost:8099/api/kamera/1/bild.jpg
+          python3 -c 'import sys; d=open("/tmp/k1.jpg","rb").read(); assert d[:2]==b"\xff\xd8" and d[-2:]==b"\xff\xd9" and len(d)>5000, len(d); print("Kanal 1:", len(d), "Bytes")'
+          curl -sf -X POST -H 'content-type: application/json' -d '{"kanal": "Tür"}' http://localhost:8099/api/kanal
+          sleep 2
+          curl -sf -o /tmp/k2.jpg http://localhost:8099/api/kamera/2/bild.jpg
+          python3 -c 'd=open("/tmp/k2.jpg","rb").read(); assert d[:2]==b"\xff\xd8", len(d); print("Kanal 2:", len(d), "Bytes")'
+          # das Protokoll ist ohne Token zu
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8099/yapaia/v1/beschreibung)" = 401
+          docker logs vision
+          docker rm -f vision
+      - name: Integration im Image
+        run: |
+          docker run --rm --entrypoint "" yapaia-vision:ci \
+            python3 -c 'import json; print("Integration", json.load(open("/opt/yapaia/integration/yapaia/manifest.json"))["version"])'
