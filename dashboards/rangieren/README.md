@@ -21,8 +21,8 @@ Im Editor: Kamera, Seitenverhältnis, Bild spiegeln, Platzhaltertext.
 
 ## Offen
 
-- Die Rückfahrkamera ist noch nicht in Home Assistant. Sobald es sie gibt, in
-  der Kamerakarte die Entität eintragen.
+- Die Rückfahrkamera kommt von Yapaia Vision (`camera.yapaia_vision_kamera_1`,
+  NTSC 720x480, daher 3:2).
 
 ## Einspielen
 
