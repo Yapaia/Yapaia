@@ -1,0 +1,44 @@
+configuration:
+  testbild:
+    name: Testbild
+    description: >-
+      Ohne Grabber: jeder Kanal zeigt ein erzeugtes Bild mit seinem Namen und
+      der Uhrzeit. So lässt sich alles bis Home Assistant prüfen.
+  geraet:
+    name: Gerät
+    description: '"auto" nimmt den ersten Video-Grabber, sonst z. B. /dev/video0.'
+  norm:
+    name: Fernsehnorm
+    description: Analoge Kameras in Europa senden PAL. Falsche Norm = rollendes oder schwarz-weißes Bild.
+  aufloesung:
+    name: Auflösung
+    description: Für PAL 720x576, für NTSC 720x480.
+  bilder_pro_sekunde:
+    name: Bilder pro Sekunde
+    description: Weniger Bilder sparen Rechenzeit. Für die Rückfahrkamera 25 lassen.
+  qualitaet:
+    name: JPEG-Qualität
+    description: 2 = beste, 31 = kleinste Datenmenge.
+  entflechten:
+    name: Halbbilder entflechten
+    description: Verhindert Kammzacken bei Bewegung (analoge Kameras senden Halbbilder).
+  nachlauf_s:
+    name: Nachlauf (s)
+    description: So lange läuft die Aufnahme weiter, nachdem niemand mehr zusieht.
+  immer_an:
+    name: Aufnahme immer an
+    description: Das Bild ist sofort da statt nach etwa einer Sekunde. Kostet etwas Rechenzeit.
+  kanaele:
+    name: Kanäle
+    description: >-
+      Ein Eintrag je Kamera, in der Reihenfolge der Eingänge am Grabber
+      (Eingang 1, 2, 3, 4). "geraet" und "eingang" (ab 0) nur angeben, wenn die
+      automatische Zuordnung nicht passt.
+  install_integration:
+    name: Integration installieren
+    description: Installiert bzw. aktualisiert die Yapaia-Integration in Home Assistant.
+  log_level:
+    name: Protokollstufe
+    description: Wie ausführlich das Protokoll ist.
+network:
+  8099/tcp: Web-Oberfläche und MJPEG-Ströme im lokalen Netz (optional)

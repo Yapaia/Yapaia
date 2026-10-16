@@ -8,6 +8,7 @@ mehr Yapaia-Module zusammenarbeiten.
 |---|---|---|
 | **Yapaia Go** | Offline-Navigation fürs Wohnmobil (Add-on) | [`go/`](go/) |
 | **Yapaia Beat** | UKW- und DAB+-Radio mit RTL-SDR-Stick (Add-on) | [`beat/`](beat/) |
+| **Yapaia Vision** | Analoge Kameras (z. B. Rückfahrkamera) über einen USB-Video-Grabber (Add-on) | [`vision/`](vision/) |
 | **Yapaia Satellite** | Sprachsatellit auf dem ESP32 Audio Kit (ESPHome) | [`satellite/`](satellite/) |
 | **Yapaia Router** | Mobilfunk des GL.iNet-Routers (GL-X3000): Status, SIM-Umschaltung nach Land (Teil der Integration „Yapaia“) | [`router/`](router/) |
 
@@ -43,7 +44,7 @@ hinzufügen → Yapaia → GL.iNet-Router*.
   Prüfungen der geänderten Module** (`.github/workflows/ci.yml`); der Check
   **„Gate“** fasst sie zusammen und entscheidet über das Mergen.
 - Versionen und Änderungslisten führt jedes Modul selbst
-  (`go/yapaia_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`).
+  (`go/yapaia_go/CHANGELOG.md`, `beat/yapaia_beat/CHANGELOG.md`, `vision/yapaia_vision/CHANGELOG.md`).
   Release-Tags tragen das Modul im Namen, z. B. `go-v0.43.0`.
 - Die Geschichte der früheren Einzel-Repositories ist vollständig erhalten
   (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`, `git log -- router/`).

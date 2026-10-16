@@ -36,6 +36,7 @@ jobs:
       go: ${{ steps.filter.outputs.go }}
       go_addon: ${{ steps.filter.outputs.go_addon }}
       beat: ${{ steps.filter.outputs.beat }}
+      vision: ${{ steps.filter.outputs.vision }}
       satellite: ${{ steps.filter.outputs.satellite }}
       integration: ${{ steps.filter.outputs.integration }}
     steps:
@@ -64,6 +65,13 @@ jobs:
               # Beats Image enthält die Integration, Beats Tests prüfen ihren Beat-Teil
               - 'integration/custom_components/yapaia/**'
               - '.github/workflows/beat.yml'
+            vision:
+              - *shared
+              - 'vision/**'
+              # Visions Image enthält die Integration, Visions Test prüft ihre Testbeschreibung
+              - 'integration/custom_components/yapaia/**'
+              - 'integration/tests/fixtures/vision_beschreibung.json'
+              - '.github/workflows/vision.yml'
             satellite:
               - *shared
               - 'satellite/**'
@@ -90,6 +98,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.beat == 'true' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/beat.yml
+
+  vision:
+    name: Vision
+    needs: changes
+    if: needs.changes.outputs.vision == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/vision.yml
 
   satellite:
     name: Satellite
@@ -135,7 +149,7 @@ jobs:
   gate:
     name: Gate
     if: always()
-    needs: [changes, secrets, go, go-addon, beat, satellite, integration]
+    needs: [changes, secrets, go, go-addon, beat, vision, satellite, integration]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

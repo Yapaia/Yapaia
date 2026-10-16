@@ -13,6 +13,7 @@ Modulnamens.
 | `ansage.einmischen` | Beat | Ansagen werden ins laufende Radio gemischt (Musik leiser, Ansage, Musik zurück). |
 | `mobilfunk` | Router | Mobilfunkstatus: Land (`land_code`), Roaming, Anbieter, Signal als Entitäten `…yapaia_router_<schlüssel>`. |
 | `mobilfunk.sim_wechsel` | Router | SIM 1/2 umschalten per Aktion `yapaia.router_sim_waehlen` (`sim`); Ergebnis über die Ereignisse `sim_gewechselt` / `sim_wechsel_fehlgeschlagen`. |
+| `kamera` | Vision | Kameras als Entitäten `camera.yapaia_vision_kamera_<n>`; Kanal wählen per `yapaia.vision_kanal_waehlen` (`kanal`: Name oder Nummer). |
 | `sprache.eingabe` | Satellite | Mikrofon für den Home-Assistant-Sprachassistenten. |
 | `sprache.ausgabe` | Satellite | Lautsprecher als Mediaplayer (Ansagen per `tts.speak`). |
 
@@ -46,6 +47,15 @@ Modulnamens.
 - **Antwort** (mit `return_response`): `{"ok": true, "weg": "gemischt" |
   "lautsprecher"}` oder `{"ok": false, "error": "…"}`. Bei `ok: false` spricht
   der Aufrufer selbst (z. B. über den gewählten Lautsprecher).
+
+## `kamera`
+
+- **Entitäten:** `camera.yapaia_vision_kamera_<n>` je Kanal (Standbild und
+  MJPEG-Live-Strom), dazu `select.yapaia_vision_kanal`, wenn sich Kanäle einen
+  Grabber teilen.
+- **Aufruf:** `yapaia.vision_kanal_waehlen` (`kanal`: Name wie
+  „Rückfahrkamera“ oder Nummer). Teilen sich Kanäle einen Grabber, läuft nur
+  der gewählte live; die anderen zeigen ihr letztes Bild.
 
 ## `sprache.ausgabe`
 
