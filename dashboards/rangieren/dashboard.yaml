@@ -14,6 +14,8 @@ views:
         cards:
           - type: custom:yapaia-kamera-card
             name: Rückfahrkamera
+            entity: camera.yapaia_vision_kamera_1
+            aspect_ratio: "3:2"
       - type: grid
         cards:
           - type: custom:yapaia-nivellierung-card
