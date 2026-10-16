@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.2.2
+
+- **Erstes Bild mit falschen Farben:** Nach dem Start der Aufnahme braucht
+  der Grabber einen Moment, bis die Farbe eingerastet ist. Diese ersten Bilder
+  (eine halbe Sekunde) gibt Vision nicht mehr heraus.
+- Am EasyCAP002 mit Rückfahrkamera geprüft. Viele Rückfahrkameras senden
+  **NTSC** – dann unter *Fernsehnorm* NTSC und als Auflösung `720x480`
+  einstellen (mit PAL fehlt unten ein Stück und es erscheint ein grüner Balken).
+
 ## 0.2.1
 
 - **Stick ohne USB-Konfiguration** (gesehen unter Proxmox: „can't set config

@@ -86,8 +86,10 @@ def test_kette_vorstufe_und_ffmpeg(monkeypatch):
     """Vorstufe schreibt in eine Pipe, „ffmpeg“ liest sie -- wie somagic-capture | ffmpeg."""
     schreiber = r"""
 import sys, time
+n = 0
 while True:
-    sys.stdout.buffer.write(b"\xff\xd8S" + sys.argv[1].encode() + b"\xff\xd9"); sys.stdout.buffer.flush(); time.sleep(0.02)
+    n += 1
+    sys.stdout.buffer.write(b"\xff\xd8S" + sys.argv[1].encode() + b"-%d\xff\xd9" % n); sys.stdout.buffer.flush(); time.sleep(0.01)
 """
     durch = "import sys, shutil; shutil.copyfileobj(sys.stdin.buffer, sys.stdout.buffer, 1)"
     monkeypatch.setattr(aufnahme, "vorstufe", lambda o, q, g: [sys.executable, "-c", schreiber, str(q.eingang + 1)])
@@ -98,13 +100,15 @@ while True:
         o.kanaele = [Kanal(1, "Rückfahrkamera"), Kanal(2, "Tür")]
         v = Vision(o, gefunden=[somagic.geraet("003f")])
         e = v.erfassung(1)
-        assert await e.standbild(1) == b"\xff\xd8S1\xff\xd9"
+        erstes = await e.standbild(1)
+        # Die ersten Bilder nach dem Start (Farbe noch nicht eingerastet) kommen nicht heraus.
+        assert erstes.startswith(b"\xff\xd8S1-") and int(erstes[5:-2]) > aufnahme.ANLAUF_BILDER
         v.waehlen("Tür")
         for _ in range(150):
             if e.letzte.get(2):
                 break
             await asyncio.sleep(0.02)
-        assert e.letzte[2] == b"\xff\xd8S2\xff\xd9"
+        assert e.letzte[2].startswith(b"\xff\xd8S2-")
         await v.stoppen()
 
     asyncio.run(ablauf())
