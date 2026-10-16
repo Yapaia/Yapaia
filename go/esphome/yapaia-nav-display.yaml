@@ -82,12 +82,13 @@ substitutions:
   entity_neigung_lr: sensor.heizung_neigung_links_rechts
   entity_neigung_vh: sensor.heizung_neigung_vorne_hinten
 
-  # Ab welchem Tempo die Wasserwaage erscheint (km/h).
+  # Bis zu welchem Tempo die Wasserwaage erscheint (km/h, einschliesslich).
   #
-  # Nicht 0: ein stehendes Fahrzeug meldet durch das GPS-Rauschen selten
-  # exakt null. Zwei km/h ist langsamer als Schrittgeschwindigkeit -- wer so
-  # fuhr, parkt.
-  wasserwaage_ab_kmh: "2"
+  # Gewuenscht: „setze den Trigger auf null KMH anstatt auf zwei KMH". Bei
+  # `0` erscheint die Waage also nur, wenn Yapaia Go genau 0 km/h meldet --
+  # beim Rollen bleibt die Navigation stehen. Wer GPS-Rauschen abfangen
+  # will, traegt wieder eine kleine Zahl wie `2` ein.
+  wasserwaage_ab_kmh: "0"
 
   # Ab wann gilt „steht gerade"? In Grad.
   #
@@ -749,7 +750,7 @@ display:
       // nichts aendert.
       const bool bei_stillstand = ${wasserwaage_bei_stillstand};
       const bool steht = bei_stillstand && hat(id(yapaia_tempo)) &&
-                         id(yapaia_tempo).state < (float) (${wasserwaage_ab_kmh});
+                         id(yapaia_tempo).state <= (float) (${wasserwaage_ab_kmh});
       const bool tempo_unbekannt = bei_stillstand && !hat(id(yapaia_tempo));
 
       const bool neigung_da = hat(id(neigung_lr)) && hat(id(neigung_vh));

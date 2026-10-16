@@ -23,9 +23,8 @@
 # grosser Pfeil ohnehin mehr als eine Karte.
 #
 # ─── WORAUS DIE WERTE KOMMEN ────────────────────────────────────────────────
-# Aus Home Assistant, ueber die native ESPHome-API. Yapaia schreibt dieselben
-# Entity-IDs auf BEIDEN Wegen — direkt (`ha_internal`) und ueber MQTT —, also
-# passt diese Datei zu beiden Betriebsarten ohne Aenderung.
+# Aus Home Assistant, ueber die native ESPHome-API: die Entitaeten des Geraets
+# „Yapaia Go" aus der Integration „Yapaia".
 #
 # WLAN-Zugangsdaten stehen in `secrets.yaml`, nicht hier.
 
@@ -61,30 +60,16 @@ substitutions:
   rund: "true"
 
   # ─── DIE ENTITAETEN AUS HOME ASSISTANT ────────────────────────────────────
-  # ACHTUNG: Diese Namen stehen NICHT fest.
+  # Die Entitaeten des Geraets „Yapaia Go" aus der Integration „Yapaia":
+  # `sensor.yapaia_go_tempo`, `sensor.yapaia_go_anweisung` und so fort. Die
+  # Endungen sind feste Schluessel (`apps/core/src/yapaia/beschreibung.ts`);
+  # nur der Anfang folgt dem Geraetenamen.
   #
-  # Gemeldet vom Geraet: „Keine Verbindung", obwohl es in ESPHome online war.
-  # Das Geraet WAR verbunden — es bekam nur keinen Wert, weil die Entitaet in
-  # Home Assistant anders heisst als hier eingetragen.
-  #
-  # Warum das so ist, steht in `apps/core/src/ha/dashboard.ts`: Home Assistant
-  # vergibt eine Entity-ID aus GERAETE- plus Entitaetsnamen, solange die
-  # MQTT-Discovery kein `object_id` mitschickt. Seit 0.6.9 schickt Yapaia eines
-  # mit, und dann heisst sie `sensor.yapaja_nav_state`. Aeltere Installationen
-  # behalten aber ihre einmal vergebene ID — dort heisst dieselbe Entitaet
-  # `sensor.yapaia_go_nav_state`. Eine Registrierung benennt nichts um.
-  #
-  # Genau deshalb erzeugt Yapaia sein Lovelace-Dashboard zur Laufzeit und
-  # liefert es nicht fertig aus: es SIEHT NACH, wie die Entitaeten heissen.
-  # Diese Datei kann das nicht — ESPHome loest die Namen beim Uebersetzen auf.
-  # Also stehen sie hier an EINER Stelle, zum Nachsehen und Anpassen.
-  #
-  # ─── SO FINDEN SIE DIE RICHTIGEN NAMEN ────────────────────────────────────
-  # In Home Assistant: Entwicklerwerkzeuge -> Zustaende -> Filter „yapa".
-  # Dort stehen die echten IDs. Weicht der Anfang ab (etwa `yapaia_go_`
-  # statt `yapaja_`), tragen Sie ihn unten ein und flashen neu.
-  entity_praefix: sensor.yapaja
-  entity_praefix_binaer: binary_sensor.yapaja
+  # Wer das Geraet in Home Assistant umbenannt hat: Entwicklerwerkzeuge ->
+  # Zustaende -> Filter „tempo" zeigt den echten Anfang; unten eintragen und
+  # neu flashen.
+  entity_praefix: sensor.yapaia_go
+  entity_praefix_binaer: binary_sensor.yapaia_go
 
   # ─── DIE DIGITALE WASSERWAAGE ─────────────────────────────────────────────
   # Beim Parken wechselt die Anzeige auf eine runde Libelle: steht das
@@ -97,12 +82,13 @@ substitutions:
   entity_neigung_lr: sensor.heizung_neigung_links_rechts
   entity_neigung_vh: sensor.heizung_neigung_vorne_hinten
 
-  # Ab welchem Tempo die Wasserwaage erscheint (km/h).
+  # Bis zu welchem Tempo die Wasserwaage erscheint (km/h, einschliesslich).
   #
-  # Nicht 0: ein stehendes Fahrzeug meldet durch das GPS-Rauschen selten
-  # exakt null. Zwei km/h ist langsamer als Schrittgeschwindigkeit -- wer so
-  # fuhr, parkt.
-  wasserwaage_ab_kmh: "2"
+  # Gewuenscht: „setze den Trigger auf null KMH anstatt auf zwei KMH". Bei
+  # `0` erscheint die Waage also nur, wenn Yapaia Go genau 0 km/h meldet --
+  # beim Rollen bleibt die Navigation stehen. Wer GPS-Rauschen abfangen
+  # will, traegt wieder eine kleine Zahl wie `2` ein.
+  wasserwaage_ab_kmh: "0"
 
   # Ab wann gilt „steht gerade"? In Grad.
   #
@@ -231,8 +217,8 @@ logger:
 # ─── WAS HIER VORHER STAND UND WARUM ES STOERTE ─────────────────────────────
 # Bis 0.13.1 standen hier zwei `!secret`-Verweise:
 #
-#     key:      !secret yapaja_display_api_key
-#     password: !secret yapaja_display_ota_password
+#     key:      !secret yapaia_display_api_key
+#     password: !secret yapaia_display_ota_password
 #
 # Das ist fuer eine von Hand gepflegte Konfiguration richtig. Fuer den
 # Device Builder ist es falsch: der erzeugt den Schluessel selbst und traegt
@@ -252,7 +238,7 @@ api:
     # Quelltext: hier stuende er im Repository, waere auf jedem Geraet
     # derselbe und laege offen.
     #
-    # Der Name ist der des Betreibers -- bewusst NICHT `yapaja_...`, denn das
+    # Der Name ist der des Betreibers -- bewusst NICHT `yapaia_...`, denn das
     # Geraet heisst in seiner ESPHome-Installation `navi`, und `secrets.yaml`
     # gehoert der Installation, nicht dieser Datei. Wer einen anderen Namen
     # benutzt, aendert ihn hier.
@@ -295,19 +281,19 @@ time:
 # waere ein zweiter Satz Entitaeten mit denselben Werten.
 sensor:
   - platform: homeassistant
-    id: yapaja_tempo
-    entity_id: ${entity_praefix}_speed
+    id: yapaia_tempo
+    entity_id: ${entity_praefix}_tempo
   - platform: homeassistant
-    id: yapaja_tempolimit
-    entity_id: ${entity_praefix}_speed_limit
+    id: yapaia_tempolimit
+    entity_id: ${entity_praefix}_tempolimit
 
   # ─── WAS DIESES FAHRZEUG DARF ─────────────────────────────────────────────
   # Getrennt vom Schild und nicht damit verrechnet. Auf einer unbegrenzten
   # Autobahn ist das Schild `unknown` und dieser Wert 80 -- zusammengelegt
   # stuende „80" in einem runden Verkehrszeichen, das dort gar nicht steht.
   - platform: homeassistant
-    id: yapaja_tempolimit_fahrzeug
-    entity_id: ${entity_praefix}_speed_limit_vehicle
+    id: yapaia_tempolimit_fahrzeug
+    entity_id: ${entity_praefix}_tempolimit_fahrzeug
 
   # ─── DIE NEIGUNG, FUER DIE WASSERWAAGE ────────────────────────────────────
   # Aus einem ANDEREN Geraet als der Rest dieser Anzeige -- deshalb eigene
@@ -319,8 +305,8 @@ sensor:
     id: neigung_vh
     entity_id: ${entity_neigung_vh}
   - platform: homeassistant
-    id: yapaja_manoever_entfernung
-    entity_id: ${entity_praefix}_instruction_distance
+    id: yapaia_manoever_entfernung
+    entity_id: ${entity_praefix}_anweisung_entfernung
 
 # ─── DIE BEIDEN SCHALTER ────────────────────────────────────────────────────
 # Beide erscheinen in Home Assistant als gewoehnliche Schalter und lassen sich
@@ -352,7 +338,7 @@ switch:
   # Vorgeschichte: „Auch die eta ist unterschiedlich zwischen den Anzeigen."
   # Beide Anzeigen lesen DENSELBEN Wert -- es gibt im Kern nur eine Rechnung
   # (`navigation/service.ts`, `buildState()`), und daraus entsteht
-  # `sensor.yapaja_eta`. Was sich unterscheidet, ist die DARSTELLUNG: der
+  # `sensor.yapaia_eta`. Was sich unterscheidet, ist die DARSTELLUNG: der
   # Sensor traegt `device_class: timestamp`, und Home Assistant zeigt so
   # etwas als Countdown („in 13 Minuten"). Das Display zeigte eine Uhrzeit.
   #
@@ -371,28 +357,36 @@ switch:
 
 binary_sensor:
   - platform: homeassistant
-    id: yapaja_zu_schnell
-    entity_id: ${entity_praefix_binaer}_speeding
+    id: yapaia_zu_schnell
+    entity_id: ${entity_praefix_binaer}_zu_schnell
 
 text_sensor:
   # Der Anweisungstext, bereits auf Deutsch formuliert ("Links abbiegen auf B27").
   - platform: homeassistant
-    id: yapaja_anweisung
-    entity_id: ${entity_praefix}_instruction
+    id: yapaia_anweisung
+    entity_id: ${entity_praefix}_anweisung
   # Die Art des Manoevers — daraus wird der Pfeil. Steht im Attribut, nicht
   # im Zustand.
   - platform: homeassistant
-    id: yapaja_manoever_art
-    entity_id: ${entity_praefix}_instruction
-    attribute: type
+    id: yapaia_manoever_art
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_typ
+  # Der Kreisel: "<Ausfahrt>|<Drehung in Grad>", z. B. "2|90". Leer, wenn
+  # das naechste Manoever kein Kreisel ist -- und zwar wirklich leer und
+  # nicht fehlend: ein fehlendes Attribut schickt Home Assistant gar nicht,
+  # dann bliebe hier die Ausfahrt des LETZTEN Kreisels stehen.
+  - platform: homeassistant
+    id: yapaia_kreisel
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_kreisel
   # idle | routing | navigating | paused | arrived | off_route
   - platform: homeassistant
-    id: yapaja_fahrzustand
-    entity_id: ${entity_praefix}_nav_state
+    id: yapaia_fahrzustand
+    entity_id: ${entity_praefix}_zustand
   # ISO 8601 in UTC. Wird unten umgerechnet, nicht abgeschnitten.
   - platform: homeassistant
-    id: yapaja_ankunft
-    entity_id: ${entity_praefix}_eta
+    id: yapaia_ankunft
+    entity_id: ${entity_praefix}_ankunft
 
 # ─── HINTERGRUNDBELEUCHTUNG ─────────────────────────────────────────────────
 # Als Licht ausgefuehrt, damit Home Assistant sie dimmen kann — nachts im
@@ -555,7 +549,7 @@ display:
       // beiden Aufrufe nicht auseinanderlaufen koennen.
       const int RING_DICKE = 4;
       auto randwarnung = [&]() {
-        if (id(yapaja_zu_schnell).state) {
+        if (id(yapaia_zu_schnell).state) {
           it.filled_ring(cx, cy, r, r - RING_DICKE, id(c_warnung));
         }
       };
@@ -620,14 +614,14 @@ display:
       // Die zweite Lage ist von aussen nicht zu erraten und war bisher von
       // der ersten nicht zu unterscheiden.
       const int diag_da =
-          (hat(id(yapaja_tempo))               ? 1 : 0) +
-          (hat(id(yapaja_tempolimit))          ? 1 : 0) +
-          (hat(id(yapaja_tempolimit_fahrzeug)) ? 1 : 0) +
-          (hat(id(yapaja_manoever_entfernung)) ? 1 : 0) +
+          (hat(id(yapaia_tempo))               ? 1 : 0) +
+          (hat(id(yapaia_tempolimit))          ? 1 : 0) +
+          (hat(id(yapaia_tempolimit_fahrzeug)) ? 1 : 0) +
+          (hat(id(yapaia_manoever_entfernung)) ? 1 : 0) +
           (hat(id(neigung_lr))                 ? 1 : 0) +
           (hat(id(neigung_vh))                 ? 1 : 0) +
-          (hat_text(id(yapaja_fahrzustand))    ? 1 : 0) +
-          (hat_text(id(yapaja_anweisung))      ? 1 : 0);
+          (hat_text(id(yapaia_fahrzustand))    ? 1 : 0) +
+          (hat_text(id(yapaia_anweisung))      ? 1 : 0);
       const int diag_gesamt = 8;
 
       if (${diagnose} || diag_da == 0) {
@@ -663,12 +657,12 @@ display:
 
         it.print(cx, cy - 96, id(font_s), id(c_text), TextAlign::CENTER, "Diagnose");
 
-        zeile(cy - 72, "Tempo",     zahl(id(yapaja_tempo)),               hat(id(yapaja_tempo)));
-        zeile(cy - 56, "Limit",     zahl(id(yapaja_tempolimit)),          hat(id(yapaja_tempolimit)));
-        zeile(cy - 40, "Limit Fzg", zahl(id(yapaja_tempolimit_fahrzeug)), hat(id(yapaja_tempolimit_fahrzeug)));
-        zeile(cy - 24, "Entfernung",zahl(id(yapaja_manoever_entfernung)), hat(id(yapaja_manoever_entfernung)));
-        zeile(cy -  8, "Zustand",   kurz(id(yapaja_fahrzustand)),         hat_text(id(yapaja_fahrzustand)));
-        zeile(cy +  8, "Anweisung", kurz(id(yapaja_anweisung)),           hat_text(id(yapaja_anweisung)));
+        zeile(cy - 72, "Tempo",     zahl(id(yapaia_tempo)),               hat(id(yapaia_tempo)));
+        zeile(cy - 56, "Limit",     zahl(id(yapaia_tempolimit)),          hat(id(yapaia_tempolimit)));
+        zeile(cy - 40, "Limit Fzg", zahl(id(yapaia_tempolimit_fahrzeug)), hat(id(yapaia_tempolimit_fahrzeug)));
+        zeile(cy - 24, "Entfernung",zahl(id(yapaia_manoever_entfernung)), hat(id(yapaia_manoever_entfernung)));
+        zeile(cy -  8, "Zustand",   kurz(id(yapaia_fahrzustand)),         hat_text(id(yapaia_fahrzustand)));
+        zeile(cy +  8, "Anweisung", kurz(id(yapaia_anweisung)),           hat_text(id(yapaia_anweisung)));
         zeile(cy + 24, "Neig L/R",  zahl(id(neigung_lr)),                 hat(id(neigung_lr)));
         zeile(cy + 40, "Neig V/H",  zahl(id(neigung_vh)),                 hat(id(neigung_vh)));
 
@@ -698,7 +692,7 @@ display:
       // war zu eng und ist im Betrieb prompt aufgefallen -- gemeldet mit
       // Foto: das Geraet zeigte die Fahrzustandsmeldung statt der Libelle.
       //
-      // Der Grund: `sensor.yapaja_speed` hatte gar keinen Wert. Damit fiel
+      // Der Grund: `sensor.yapaia_speed` hatte gar keinen Wert. Damit fiel
       // die Pruefung durch, obwohl die Neigungswerte anlagen. Die
       // Wasserwaage haengt aber an einem GANZ ANDEREN Geraet -- sie von
       // Yapaias Tempowert abhaengig zu machen war die falsche Kopplung.
@@ -727,7 +721,7 @@ display:
       // Mit `0.5` ginge es gut, mit `2` nicht. Wer oben also eine glatte
       // Zahl eintraegt, haette den Bau zerlegt -- und zwar erst beim
       // Uebersetzen auf dem eigenen Geraet. Die Klammer nimmt beide Formen.
-      const std::string zustand = id(yapaja_fahrzustand).state;
+      const std::string zustand = id(yapaia_fahrzustand).state;
       const bool navigiert = zustand == "navigating";
 
       // ─── DER DRITTE WEG: EIN SCHALTER ─────────────────────────────────
@@ -755,9 +749,9 @@ display:
       // Schalter. Vorgabe bleibt `true`, damit sich fuer bestehende Geraete
       // nichts aendert.
       const bool bei_stillstand = ${wasserwaage_bei_stillstand};
-      const bool steht = bei_stillstand && hat(id(yapaja_tempo)) &&
-                         id(yapaja_tempo).state < (float) (${wasserwaage_ab_kmh});
-      const bool tempo_unbekannt = bei_stillstand && !hat(id(yapaja_tempo));
+      const bool steht = bei_stillstand && hat(id(yapaia_tempo)) &&
+                         id(yapaia_tempo).state <= (float) (${wasserwaage_ab_kmh});
+      const bool tempo_unbekannt = bei_stillstand && !hat(id(yapaia_tempo));
 
       const bool neigung_da = hat(id(neigung_lr)) && hat(id(neigung_vh));
 
@@ -1021,14 +1015,14 @@ display:
         //
         // Der Zustandstext bleibt darunter stehen, klein und gedaempft: er
         // ist die Nebenauskunft, nicht die Hauptsache.
-        if (hat(id(yapaja_tempo))) {
+        if (hat(id(yapaia_tempo))) {
           // `it.printf` und dieselbe Rundung wie in der Fahransicht weiter
           // unten -- kein `snprintf`, kein `lroundf`: dafuer muesste diese
           // Datei Header einbinden, die sie bisher nicht braucht, und zwei
           // verschiedene Rundungen fuer dasselbe Tempo waeren ohnehin eine
           // Stelle, an der die beiden Ansichten auseinanderlaufen koennten.
           it.printf(cx, cy - 18, id(font_l), id(c_text), TextAlign::CENTER,
-                    "%d", (int) (id(yapaja_tempo).state + 0.5f));
+                    "%d", (int) (id(yapaia_tempo).state + 0.5f));
           it.print(cx, cy + 14, id(font_s), id(c_gedaempft), TextAlign::CENTER, "km/h");
           it.print(cx, cy + 36, id(font_s), id(c_gedaempft), TextAlign::CENTER, text);
           // Auch OHNE Route kann man zu schnell sein -- seit 0.14.1 kennt
@@ -1050,7 +1044,7 @@ display:
       // frueh abgeschnitten als eines, das im Rund verschwindet.
       const int ty = cy - (r * 62) / 100;
       const int platz = (halbbreite(ty) * 2) / 7;   // ~7 Bildpunkte je Zeichen
-      std::string anweisung = id(yapaja_anweisung).state;
+      std::string anweisung = id(yapaia_anweisung).state;
       if (anweisung == "unknown" || anweisung == "unavailable") anweisung.clear();
       if (platz > 1 && (int) anweisung.size() > platz) {
         // ─── NICHT MITTEN IN EIN ZEICHEN SCHNEIDEN ──────────────────────
@@ -1081,7 +1075,7 @@ display:
       // liefert auch `slight_left`, `sharp_right`, `ramp_left`, `merge` und
       // anderes. Wer auf genaue Gleichheit prueft, bekommt bei jedem dieser
       // Werte den Geradeaus-Pfeil, also die falsche Richtung.
-      const std::string art = id(yapaja_manoever_art).state;
+      const std::string art = id(yapaia_manoever_art).state;
       auto enthaelt = [&](const char *teil) {
         return art.find(teil) != std::string::npos;
       };
@@ -1136,12 +1130,90 @@ display:
         rechteck(ex - d / 2, py - s, d, s / 2);
         it.filled_triangle(ex - s / 2, py - s / 2, ex + s / 2, py - s / 2, ex, py + s / 4, C);
       } else if (enthaelt("roundabout")) {
-        it.filled_ring(cx, py, (s * 2) / 3, (s * 2) / 5, C);
-        rechteck(cx - d / 2, py, d, s);
-        const int seite = enthaelt("left") ? -1 : 1;
-        const int ax = cx + (seite * s * 2) / 3;
-        rechteck(cx, py - (s * 2) / 3 - d / 2, (seite * s * 2) / 3, d);
-        it.filled_triangle(ax, py - s, ax, py - s / 3, ax + seite * s / 2, py - (s * 2) / 3, C);
+        // ─── DER KREISEL: DER BOGEN, DEN MAN FAEHRT, UND DIE AUSFAHRT ──────
+        // Gemeldet: „wenn ich auf einen Kreisel zu fahre zeigt der ESP
+        // komische Symbole an. Besser wären sowas wie ein viertelkreis,
+        // Halbkreis etc. oder eine zusätzliche Nummerierung wann man den
+        // Kreisel wieder verlassen muss."
+        //
+        // Bis 0.17.3 stand hier fuer JEDEN Kreisel dasselbe Bild -- Ring,
+        // Stiel und ein Pfeil oben rechts --, weil das Display nichts weiter
+        // wusste als „roundabout". Jetzt schickt der Kern im Attribut
+        // `roundabout` zwei Zahlen: die wievielte Ausfahrt und um wie viel
+        // Grad sich die Fahrtrichtung dreht (`"2|90"`, rechts positiv; siehe
+        // `apps/core/src/routing/kreisel.ts`).
+        //
+        // Gezeichnet wird, was man faehrt: blass der ganze Kreisel, kraeftig
+        // der Bogen von der Einfahrt (unten) bis zur Ausfahrt -- ein Viertel
+        // fuer rechts, die Haelfte fuer geradeaus, drei Viertel fuer links --,
+        // und von dort ein Pfeil in die Richtung, in die es weitergeht. In
+        // der Mitte die Nummer der Ausfahrt.
+        //
+        // ─── GEGEN DEN UHRZEIGERSINN ────────────────────────────────────────
+        // So faehrt man bei Rechtsverkehr, also ueberall auf dem Kontinent.
+        // In Grossbritannien und Irland liefe der Bogen andersherum; die
+        // Ausfahrt und ihre Nummer stimmen dort trotzdem.
+        int nummer = 0;
+        int grad = 0;
+        bool hat_grad = false;
+        {
+          const std::string k = id(yapaia_kreisel).state;
+          const size_t strich = k.find('|');
+          if (strich != std::string::npos) {
+            nummer = atoi(k.substr(0, strich).c_str());
+            const std::string g = k.substr(strich + 1);
+            if (!g.empty()) { grad = atoi(g.c_str()); hat_grad = true; }
+          }
+        }
+        const int rm = s / 2;                // Mittellinie des Rings
+        const int rs = (s * 3) / 4;          // wo der Ausfahrtsarm endet
+        // Blass und genauso breit wie der Bogen darueber: der Bogen deckt
+        // den Ring genau ab, statt an einer Seite ueberzustehen.
+        it.filled_ring(cx, py, rm + d / 2, rm - d / 2, id(c_gedaempft));
+        // Der Stiel: von unten an den Ring heran.
+        rechteck(cx - d / 2, py + rm, d, s - rm);
+        // Ein Punkt auf einem Kreis um die Mitte. `phi` in Grad, 0 = oben,
+        // im Uhrzeigersinn -- dieselbe Zaehlung wie eine Kompassrichtung,
+        // damit die Drehung aus dem Kern ohne Umrechnung hineinpasst.
+        auto auf_kreis = [&](float phi, int rad, int &x, int &y) {
+          const float b = phi * 3.14159265f / 180.0f;
+          x = cx + (int) lroundf(rad * sinf(b));
+          y = py - (int) lroundf(rad * cosf(b));
+        };
+        if (hat_grad) {
+          // Vom Eintritt (unten, 180°) GEGEN den Uhrzeigersinn bis zur
+          // Ausfahrt. Rechts (90°) ist ein Viertel, geradeaus (0°) die
+          // Haelfte, links (-90°) drei Viertel, Wenden (180°) der ganze Kreis.
+          int bogen = 180 - grad;
+          if (bogen <= 0) bogen += 360;
+          for (int a = 0; a <= bogen; a += 6) {
+            int x, y;
+            auf_kreis(180.0f - a, rm, x, y);
+            it.filled_circle(x, y, d / 2, C);
+          }
+          // Der Arm, in Richtung der Ausfahrt nach aussen, und die Spitze.
+          int ax, ay, bx, by, tx, ty_, lx, ly, qx, qy;
+          auf_kreis((float) grad, rm, ax, ay);
+          auf_kreis((float) grad, rs, bx, by);
+          for (int t = 0; t <= 4; t++) {
+            it.filled_circle(ax + (bx - ax) * t / 4, ay + (by - ay) * t / 4, d / 2, C);
+          }
+          auf_kreis((float) grad, s + s / 8, tx, ty_);
+          // Die Grundlinie der Spitze steht quer zum Arm: bei `rs`, um
+          // ±90° versetzt, aber mit dem Hebel `s/3` statt des Radius.
+          const float b = grad * 3.14159265f / 180.0f;
+          lx = bx + (int) lroundf((s / 3) * cosf(b));
+          ly = by + (int) lroundf((s / 3) * sinf(b));
+          qx = bx - (int) lroundf((s / 3) * cosf(b));
+          qy = by - (int) lroundf((s / 3) * sinf(b));
+          it.filled_triangle(lx, ly, qx, qy, tx, ty_, C);
+        }
+        // Die Nummer der Ausfahrt, mitten im Ring. Ohne Nummer nichts -- eine
+        // geratene Zahl im Kreisel ist genau die Sorte Hilfe, die in die
+        // falsche Ausfahrt schickt.
+        if (nummer > 0) {
+          it.printf(cx, py, id(font_m), id(c_text), TextAlign::CENTER, "%d", nummer);
+        }
       } else if (enthaelt("left") || enthaelt("right")) {
         const int seite = enthaelt("right") ? 1 : -1;
         rechteck(cx - d / 2, py, d, s);
@@ -1170,8 +1242,8 @@ display:
       // "483 m" taeuscht eine Genauigkeit vor, die GPS nicht hat, und die
       // letzte Ziffer flackerte im Sekundentakt.
       const int dy_ = cy + (r * 28) / 100;
-      if (hat(id(yapaja_manoever_entfernung))) {
-        const float m = id(yapaja_manoever_entfernung).state;
+      if (hat(id(yapaia_manoever_entfernung))) {
+        const float m = id(yapaia_manoever_entfernung).state;
         if (m >= 1000.0f) {
           it.printf(cx, dy_, id(font_xl), id(c_text), TextAlign::CENTER, "%.1f km", m / 1000.0f);
         } else {
@@ -1186,7 +1258,7 @@ display:
       const int uy = cy + (r * 68) / 100;
       const int hb = halbbreite(uy);
 
-      const bool zu_schnell = id(yapaja_zu_schnell).state;
+      const bool zu_schnell = id(yapaia_zu_schnell).state;
 
       // ─── HIER STANDEN ZWEI ZAHLEN ZUM TEMPOLIMIT ──────────────────────
       // Ein weisses Verkehrszeichen mit rotem Rand in der Mitte, daneben
@@ -1203,7 +1275,7 @@ display:
       //
       // ─── WARUM AUCH DIE FAHRZEUGGRENZE WEG IST ────────────────────────
       // Sie war die zweite Zahl. Ihre Aussage geht nicht verloren:
-      // `binary_sensor.yapaja_speeding` warnt seit 0.14.0 an der NIEDRIGEREN
+      // `binary_sensor.yapaia_speeding` warnt seit 0.14.0 an der NIEDRIGEREN
       // der beiden Grenzen -- dem Schild und dem, was dieses Fahrzeug darf.
       // Der Ring traegt damit beides.
       //
@@ -1211,21 +1283,21 @@ display:
       // Das ist der Preis, und er ist bewusst bezahlt: die Zahl stand auf
       // einem 240 Punkte grossen Glas neben einer zweiten, und wer sie
       // wirklich braucht, hat sie im Dashboard.
-      if (hat(id(yapaja_tempo))) {
+      if (hat(id(yapaia_tempo))) {
         // ─── GROESSER UND MITTIG ────────────────────────────────────────
         // Vorher stand das Tempo linksbuendig am Rand, klein, neben dem
         // Schild. Ohne das Schild ist die Mitte frei -- und das Tempo ist
         // die Zahl, die beim Fahren zaehlt.
         it.printf(cx, uy, id(font_xl),
                   zu_schnell ? id(c_warnung) : id(c_text), TextAlign::CENTER,
-                  "%d", (int) (id(yapaja_tempo).state + 0.5f));
+                  "%d", (int) (id(yapaia_tempo).state + 0.5f));
       }
 
       // Yapaia liefert die Ankunft als ISO 8601 in UTC. Hier wird sie
       // GERECHNET, nicht abgeschnitten: `14:32Z` ist in Deutschland 16:32,
       // im Winter 15:32. Ein `substr(11, 5)` waere kuerzer und im Sommer
       // zwei Stunden falsch.
-      const std::string iso = id(yapaja_ankunft).state;
+      const std::string iso = id(yapaia_ankunft).state;
       int Y, Mo, D, h, mi, se;
       if (sscanf(iso.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &Y, &Mo, &D, &h, &mi, &se) == 6) {
         esphome::ESPTime t{};
@@ -1240,8 +1312,8 @@ display:
         if (id(eta_als_restzeit).state) {
           // ─── DIE RESTZEIT WIRD HIER GERECHNET, NICHT GEHOLT ───────────
           // Home Assistant hat gar keinen Sensor dafuer -- es gibt
-          // `sensor.yapaja_eta` (Zeitstempel) und
-          // `sensor.yapaja_distance_remaining`, sonst nichts. Einen dritten
+          // `sensor.yapaia_eta` (Zeitstempel) und
+          // `sensor.yapaia_distance_remaining`, sonst nichts. Einen dritten
           // anzulegen waere der naheliegende Weg und der schlechtere:
           //
           //  1. Er braeuchte ein Add-on-Update. Aus DERSELBEN Ankunftszeit
