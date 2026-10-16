@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.2.4
+
+- Live-Bild auf der Seite jetzt auch in der Companion-App auf dem iPad: Die
+  Seite holt fortlaufend Einzelbilder statt eines Stroms.
+
 ## 0.2.3
 
 - **Live-Bild auf der Seite von Vision blieb schwarz.** Der Ingress von Home
