@@ -45,6 +45,11 @@ EOI = b"\xff\xd9"
 # Länger als das hier ohne Bild = ffmpeg hängt (Stecker gezogen, Treiber weg).
 STILLE_S = 10
 NEUSTART_MAX_S = 30
+# Nach dem Start (und nach jedem Umschalten) braucht der Decoder im Grabber
+# einen Moment, bis die Farbe eingerastet ist. Gesehen am EasyCAP002 mit
+# NTSC-Kamera (2026-10-16): das erste Bild oben grau, unten übersättigt.
+# Diese Bilder kommen nicht heraus -- ein halbe Sekunde später ist es richtig.
+ANLAUF_BILDER = 15
 
 
 class JpegZerleger:
@@ -310,6 +315,8 @@ class Erfassung:
                         self.laeuft = True
                         self.fehler = None
                         self._gemeldet()
+                    if vor_befehl and bilder <= ANLAUF_BILDER:
+                        continue
                     self._verteilen(nummer, bild)
         finally:
             # Die Vorstufe zuerst: sie hält den USB-Stick, und der nächste
