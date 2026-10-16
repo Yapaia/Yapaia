@@ -28,11 +28,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
 
+from . import somagic
 from .config import Kanal, Options
 from .quellen import TESTGERAET, Geraet, Quelle
 
@@ -95,6 +97,15 @@ def ffmpeg_befehl(opts: Options, quelle: Quelle, kanal: Kanal, geraet: Geraet | 
                 f"drawtext=text='%{{localtime}}':fontcolor=white:fontsize={groesse * 2 // 3}"
                 ":box=1:boxcolor=black@0.6:boxborderw=8:x=(w-tw)/2:y=h/3+th*3"
             )
+    elif geraet is not None and geraet.treiber == "somagic":
+        # Rohes UYVY von somagic-capture (siehe `vorstufe`) über stdin.
+        rb, rh, rfps = somagic.rohformat(opts.norm)
+        eingabe = ["-f", "rawvideo", "-pix_fmt", "uyvy422", "-video_size", f"{rb}x{rh}", "-framerate", rfps, "-i", "-"]
+        if opts.entflechten:
+            filter_.append("yadif")
+        if (rb, rh) != (breite, hoehe):
+            filter_.append(f"scale={breite}:{hoehe}")
+        filter_.append(f"fps={fps}")
     else:
         eingabe = ["-f", "v4l2"]
         if geraet is None or geraet.normen:
@@ -110,6 +121,13 @@ def ffmpeg_befehl(opts: Options, quelle: Quelle, kanal: Kanal, geraet: Geraet | 
         befehl += ["-vf", ",".join(filter_)]
     befehl += ["-f", "image2pipe", "-c:v", "mjpeg", "-q:v", str(max(2, min(31, opts.qualitaet))), "-"]
     return befehl
+
+
+def vorstufe(opts: Options, quelle: Quelle, geraet: Geraet | None) -> list[str] | None:
+    """Ein Programm, das ffmpeg das Bild liefert -- nur für den Somagic."""
+    if geraet is not None and geraet.treiber == "somagic":
+        return somagic.capture_befehl(opts.norm, len(geraet.eingaenge), quelle.eingang)
+    return None
 
 
 class Erfassung:
@@ -239,26 +257,43 @@ class Erfassung:
             f.write(f"Kanal {kanal.nummer} · {kanal.name}")
             textdatei = Path(f.name)
         befehl = ffmpeg_befehl(self.opts, quelle, kanal, self.geraet, textdatei)
-        _LOGGER.debug("Starte %s", " ".join(befehl))
+        vor_befehl = vorstufe(self.opts, quelle, self.geraet)
+        _LOGGER.debug("Starte %s%s", " ".join(vor_befehl) + " | " if vor_befehl else "", " ".join(befehl))
+        vor: asyncio.subprocess.Process | None = None
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *befehl, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
+            if vor_befehl:
+                lesen, schreiben = os.pipe()
+                try:
+                    vor = await asyncio.create_subprocess_exec(
+                        *vor_befehl, stdout=schreiben, stderr=asyncio.subprocess.PIPE
+                    )
+                    proc = await asyncio.create_subprocess_exec(
+                        *befehl, stdin=lesen, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                    )
+                finally:
+                    os.close(lesen)
+                    os.close(schreiben)
+            else:
+                proc = await asyncio.create_subprocess_exec(
+                    *befehl, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                )
         except OSError as err:
-            self._fehler(f"ffmpeg nicht startbar: {err}")
+            self._fehler(f"{(vor_befehl or befehl)[0]} nicht startbar: {err}")
             textdatei.unlink(missing_ok=True)
+            if vor is not None:
+                await _beenden(vor)
             return False
         zerleger = JpegZerleger()
         bilder = 0
         fehlertext = b""
 
-        async def stderr_lesen() -> None:
+        async def stderr_lesen(p: asyncio.subprocess.Process) -> None:
             nonlocal fehlertext
-            assert proc.stderr is not None
-            async for zeile in proc.stderr:
+            assert p.stderr is not None
+            async for zeile in p.stderr:
                 fehlertext = (fehlertext + zeile)[-2000:]
 
-        stderr_task = asyncio.create_task(stderr_lesen())
+        stderr_tasks = [asyncio.create_task(stderr_lesen(p)) for p in (vor, proc) if p is not None]
         try:
             assert proc.stdout is not None
             while self._gebraucht():
@@ -277,16 +312,13 @@ class Erfassung:
                         self._gemeldet()
                     self._verteilen(nummer, bild)
         finally:
-            if proc.returncode is None:
-                with contextlib.suppress(ProcessLookupError):
-                    proc.terminate()
-                try:
-                    await asyncio.wait_for(proc.wait(), 3)
-                except asyncio.TimeoutError:
-                    with contextlib.suppress(ProcessLookupError):
-                        proc.kill()
-                    await proc.wait()
-            stderr_task.cancel()
+            # Die Vorstufe zuerst: sie hält den USB-Stick, und der nächste
+            # Lauf (anderer Eingang) bekommt ihn erst, wenn sie weg ist.
+            for p in (vor, proc):
+                if p is not None:
+                    await _beenden(p)
+            for t in stderr_tasks:
+                t.cancel()
             textdatei.unlink(missing_ok=True)
         if bilder == 0 and self._gebraucht():
             text = fehlertext.decode(errors="replace").strip().splitlines()
@@ -308,3 +340,16 @@ class Erfassung:
             _LOGGER.warning("%s", text)
             self.fehler = text
             self._gemeldet()
+
+
+async def _beenden(p: asyncio.subprocess.Process) -> None:
+    if p.returncode is not None:
+        return
+    with contextlib.suppress(ProcessLookupError):
+        p.terminate()
+    try:
+        await asyncio.wait_for(p.wait(), 3)
+    except asyncio.TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            p.kill()
+        await p.wait()

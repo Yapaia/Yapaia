@@ -9,7 +9,7 @@ import signal
 
 from aiohttp import web
 
-from . import ha, protokoll
+from . import ha, protokoll, quellen, somagic
 from .config import VERSION, load_options
 from .vision import Vision
 from .web import create_app
@@ -29,7 +29,12 @@ async def main() -> None:
     log = logging.getLogger("yapaia")
     log.info("Yapaia Vision %s startet%s", VERSION, " (Testbild)" if opts.testbild else "")
 
-    vision = Vision(opts)
+    # Der Somagic-Stick (EasyCAP002) hat keinen Kernel-Treiber: Firmware
+    # laden und ihn als Gerät dazunehmen (somagic.py).
+    stick, hinweise = (None, []) if opts.testbild else await somagic.vorbereiten()
+    gefunden = quellen.geraete() + ([stick] if stick else [])
+    firmware_fehlt = somagic.usb_kennung() == somagic.OHNE_FIRMWARE and not somagic.FIRMWARE.is_file()
+    vision = Vision(opts, gefunden, hinweise, firmware_fehlt)
     ident = protokoll.Identitaet()
     runner = web.AppRunner(create_app(vision, ident), access_log=None)
     await runner.setup()

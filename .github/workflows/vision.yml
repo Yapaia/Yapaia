@@ -65,6 +65,10 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8099/yapaia/v1/beschreibung)" = 401
           docker logs vision
           docker rm -f vision
+      - name: Somagic-Programme im Image
+        run: |
+          docker run --rm --entrypoint "" yapaia-vision:ci bash -c \
+            'for p in somagic-init somagic-capture somagic-extract-firmware 7z; do command -v $p || exit 1; done; somagic-capture --version 2>&1 | head -1; true'
       - name: Integration im Image
         run: |
           docker run --rm --entrypoint "" yapaia-vision:ci \

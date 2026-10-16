@@ -1,5 +1,20 @@
 # Änderungen
 
+## 0.2.0
+
+**EasyCAP002 „4CH USB DVR“ (Somagic SMI2021CBE).** Für diesen Chip hat Linux
+keinen Treiber – Vision bringt jetzt die Programme von easycap-somagic-linux
+mit, die den Stick direkt über USB ansprechen. Alle vier Eingänge, einer zur
+Zeit (umschalten wie gehabt).
+
+- Der Stick braucht beim Einstecken eine **Firmware** aus seinem
+  Windows-Treiber. Die darf Yapaia nicht mitliefern: Auf der Seite von Vision
+  die Datei `SmiUsbGrabber3F.sys` bzw. `SmiUsbGrabber3E.sys` von der CD zum
+  Stick hochladen (auch `Setup.exe` geht) oder nach `/share/yapaia-vision/`
+  legen. Vision merkt sie sich und lädt sie bei jedem Start.
+- **Proxmox:** den Stick nach USB-Anschluss durchreichen, nicht nach Kennung –
+  mit der Firmware meldet er sich unter neuer Kennung neu an.
+
 ## 0.1.0
 
 Erste Fassung.

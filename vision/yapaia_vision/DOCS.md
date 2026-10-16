@@ -15,6 +15,27 @@ einen USB-Video-Grabber als Kameras in Home Assistant.
 Ohne Grabber: **Testbild** einschalten. Jeder Kanal zeigt dann seinen Namen
 und die Uhrzeit – so lässt sich alles bis zum Dashboard prüfen.
 
+## EasyCAP002 „4CH USB DVR“ (Somagic)
+
+`lsusb` zeigt ihn als `1c88:0007 Somagic … SMI Grabber (no firmware)`. Linux
+hat keinen Treiber dafür; Vision spricht ihn selbst an, braucht aber die
+**Firmware** aus dem Windows-Treiber:
+
+1. Von der CD zum Stick `SmiUsbGrabber3F.sys` oder `SmiUsbGrabber3E.sys`
+   nehmen – oder einfach das ganze `Setup.exe`.
+2. Auf der Seite von Yapaia Vision hochladen (erscheint, solange die Firmware
+   fehlt) oder nach `/share/yapaia-vision/` legen und Vision neu starten.
+
+Danach meldet sich der Stick als `1c88:003e`/`003f` neu an.
+
+**Proxmox:** Den Stick **nach USB-Anschluss** (*Use USB Port*) an die
+Home-Assistant-VM durchreichen, nicht nach Kennung (*Use USB Vendor/Device
+ID*): Mit der Firmware ändert sich die Kennung, und die Weiterleitung nach
+Kennung verlöre ihn.
+
+Welche Buchse welcher Eingang ist, ist bei diesen Sticks nicht immer
+aufgedruckt – im Zweifel am Kanal `eingang` (0–3) ändern.
+
 ## Kanäle
 
 Unter **Kanäle** ein Eintrag je Kamera, in der Reihenfolge der Eingänge am
