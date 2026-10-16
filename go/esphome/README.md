@@ -137,7 +137,7 @@ Platz leer.
    **`ota:` braucht nichts.** Der Device Builder vergibt kein OTA-Passwort,
    und OTA ist bereits durch den API-Schlüssel geschützt.
 2. **Zeitzone und Pins** oben in `substitutions` eintragen.
-2b. **Digitale Wasserwaage** (optional). Unter 2 km/h wechselt die Anzeige auf
+2b. **Digitale Wasserwaage** (optional). Bei 0 km/h wechselt die Anzeige auf
    eine runde Libelle — beim Parken die einzige Frage, die zählt. Dafür
    braucht es zwei Neigungssensoren in Grad (etwa ein MPU6050). Alles dazu
    steht in `substitutions`:

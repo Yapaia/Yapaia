@@ -798,13 +798,13 @@ int main() {
   // und zwar das, wofuer man im Fahrzeug ueberhaupt auf einen Tacho sieht.
   // Der Zustandstext bleibt darunter stehen: er ist die Nebenauskunft.
   // ─── DIE DIGITALE WASSERWAAGE (0.15.0) ──────────────────────────────────
-  // Unter 2 km/h wechselt die Anzeige auf eine runde Libelle. Gemessen wird
+  // Bei 0 km/h wechselt die Anzeige auf eine runde Libelle. Gemessen wird
   // an den TEXTEN: die Blase selbst ist eine Zeichnung, aber die Zahlen und
   // der Satz „steht gerade" sagen eindeutig, welcher Zweig lief.
   Fall parkt = sommer;
-  parkt.tempo = 0.4f; parkt.tempo_da = true;
+  parkt.tempo = 0; parkt.tempo_da = true;
   parkt.lr = -1.2f; parkt.vh = -0.6f; parkt.neigung_da = true;
-  genau("unter 2 km/h: Wasserwaage statt Navigation", parkt, 240,240,
+  genau("bei 0 km/h: Wasserwaage statt Navigation", parkt, 240,240,
         {"L/R -1.2°", "V/H -0.6°"});
 
   // Innerhalb der Toleranz kommt der Satz dazu -- und NUR dann.
