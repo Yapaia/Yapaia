@@ -1,9 +1,9 @@
 name: Yapaia Vision
-version: "0.1.0"
+version: "0.2.0"
 slug: yapaia_vision
 description: >-
   Analoge Kameras (z. B. Rückfahrkamera) über einen USB-Video-Grabber wie den
-  EasyCAP 4CH USB DVR als Kameras in Home Assistant.
+  EasyCAP002 4CH USB DVR (Somagic) als Kameras in Home Assistant.
 url: https://github.com/Yapaia/yapaia
 # Fertiges Image aus .github/workflows/images.yml -- der Supervisor zieht
 # `<image>:<version>` statt auf dem Gerät zu bauen.
@@ -25,6 +25,9 @@ discovery:
 map:
   - type: homeassistant_config
     read_only: false
+  # /share/yapaia-vision/: hier kann die Treiberdatei für den EasyCAP liegen
+  - type: share
+    read_only: true
 ports:
   8099/tcp: null
 ports_description:

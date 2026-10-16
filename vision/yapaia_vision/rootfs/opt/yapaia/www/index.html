@@ -29,6 +29,13 @@
 <main>
   <h1>Yapaia Vision <small id="geraet"></small></h1>
   <div id="hinweise"></div>
+  <form class="hinweis" id="firmware" hidden>
+    <b>Firmware für den EasyCAP</b><br>
+    Treiberdatei von der CD zum Stick wählen: <code>SmiUsbGrabber3F.sys</code>,
+    <code>SmiUsbGrabber3E.sys</code> oder das ganze <code>Setup.exe</code>.<br>
+    <input type="file" id="fw-datei"> <button type="submit">Hochladen</button>
+    <div id="fw-antwort"></div>
+  </form>
   <div class="knoepfe" id="knoepfe"></div>
   <div class="raster" id="raster"></div>
   <details><summary>Technik</summary><pre id="technik"></pre></details>
@@ -43,6 +50,7 @@
     try { st = await (await fetch('api/status', { cache: 'no-store' })).json(); } catch { return; }
     $('geraet').textContent = `${st.geraet} · ${st.version}`;
     $('technik').textContent = JSON.stringify(st, null, 2);
+    $('firmware').hidden = !st.firmware_fehlt;
 
     const meldungen = [...st.hinweise, ...st.kanaele.map((k) => k.fehler).filter(Boolean)];
     $('hinweise').replaceChildren(...[...new Set(meldungen)].map((t) => {
@@ -84,6 +92,20 @@
       }));
     }
   }
+  $('firmware').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const datei = $('fw-datei').files[0];
+    if (!datei) return;
+    const form = new FormData();
+    form.append('datei', datei);
+    $('fw-antwort').textContent = 'Lade hoch …';
+    try {
+      const r = await (await fetch('api/firmware', { method: 'POST', body: form })).json();
+      $('fw-antwort').textContent = r.ok ? r.text : r.fehler;
+    } catch (e) {
+      $('fw-antwort').textContent = String(e);
+    }
+  };
   laden();
   setInterval(laden, 3000);
 </script>

@@ -15,10 +15,20 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Vision:
-    def __init__(self, opts: Options, gefunden: list[Geraet] | None = None) -> None:
+    def __init__(
+        self,
+        opts: Options,
+        gefunden: list[Geraet] | None = None,
+        hinweise: list[str] | None = None,
+        firmware_fehlt: bool = False,
+    ) -> None:
         self.opts = opts
         self.gefunden = quellen.geraete() if gefunden is None else gefunden
-        self.zuordnung, self.hinweise = quellen.zuordnen(opts, self.gefunden)
+        # Hinweise von vorher (Somagic: Firmware fehlt …) zuerst -- sie
+        # erklären, warum danach „kein Grabber gefunden“ folgt.
+        self.firmware_fehlt = firmware_fehlt
+        self.zuordnung, eigene = quellen.zuordnen(opts, self.gefunden)
+        self.hinweise = [*(hinweise or []), *eigene]
         for h in self.hinweise:
             _LOGGER.warning("%s", h)
         nach_pfad = {g.pfad: g for g in self.gefunden}
@@ -112,6 +122,7 @@ class Vision:
                 for g in self.gefunden
             ],
             "testbild": self.opts.testbild,
+            "firmware_fehlt": self.firmware_fehlt,
             "gewaehlt": self.gewaehlt(),
             "aufnahme": any(e.laeuft for e in self.erfassungen.values()),
             "hinweise": self.hinweise,

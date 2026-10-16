@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
+from pathlib import Path
 
 from aiohttp import web
 
-from . import protokoll
-from .config import APP_DIR, VERSION
+from . import protokoll, somagic
+from .config import APP_DIR, DATA_DIR, VERSION
 from .vision import Vision
 
 GRENZE = "yapaiabild"
@@ -92,16 +94,51 @@ async def waehlen(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "kanal": k.name})
 
 
+async def firmware(request: web.Request) -> web.Response:
+    """Treiberdatei hochladen (`SmiUsbGrabber3F.sys`, `Setup.exe` …).
+
+    Danach startet Vision neu: der Stick bekommt die Firmware und meldet sich
+    mit neuer Kennung, und alles wird frisch zugeordnet."""
+    try:
+        teile = await request.multipart()
+        teil = await teile.next()
+    except (ValueError, AssertionError):
+        teil = None
+    if teil is None or not getattr(teil, "filename", None):
+        return web.json_response({"ok": False, "fehler": "Keine Datei"}, status=400)
+    ordner = DATA_DIR / "hochgeladen"
+    ordner.mkdir(parents=True, exist_ok=True)
+    datei = ordner / Path(teil.filename).name
+    groesse = 0
+    with datei.open("wb") as f:
+        while chunk := await teil.read_chunk(1 << 20):
+            groesse += len(chunk)
+            if groesse > 200 * 1024 * 1024:
+                datei.unlink(missing_ok=True)
+                return web.json_response({"ok": False, "fehler": "Datei zu groß"}, status=413)
+            f.write(chunk)
+    try:
+        ok, text = await asyncio.to_thread(somagic.extrahieren, datei)
+    finally:
+        datei.unlink(missing_ok=True)
+    if not ok:
+        return web.json_response({"ok": False, "fehler": text}, status=400)
+    # s6 startet den Dienst neu (Ende mit 0 hält den Container nicht an).
+    asyncio.get_running_loop().call_later(1, os._exit, 0)
+    return web.json_response({"ok": True, "text": f"{text}. Vision startet neu …"})
+
+
 async def seite(request: web.Request) -> web.FileResponse:
     return web.FileResponse(APP_DIR / "www" / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 def create_app(vision: Vision, ident: protokoll.Identitaet) -> web.Application:
-    app = web.Application()
+    app = web.Application(client_max_size=200 * 1024 * 1024)
     app["vision"] = vision
     app.router.add_get("/", seite)
     app.router.add_get("/api/status", status)
     app.router.add_post("/api/kanal", waehlen)
+    app.router.add_post("/api/firmware", firmware)
     for basis in ("/api", protokoll.API):
         app.router.add_get(basis + "/kamera/{nummer}/bild.jpg", bild)
         app.router.add_get(basis + "/kamera/{nummer}/stream.mjpeg", strom)
