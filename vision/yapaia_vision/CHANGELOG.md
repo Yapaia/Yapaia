@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.2.1
+
+- **Stick ohne USB-Konfiguration** (gesehen unter Proxmox: „can't set config
+  #1, error -32“): Vision setzt sie jetzt selbst per USB-Reset, statt mit
+  „Failed to claim device interface“ zu scheitern.
+- **Firmware aus `SmiUsbGrabber3C.sys`** (DC60) geht jetzt auch für den
+  EasyCAP002: Er meldet sich damit als `1c88:003c`, behält aber seine vier
+  Eingänge.
+
 ## 0.2.0
 
 **EasyCAP002 „4CH USB DVR“ (Somagic SMI2021CBE).** Für diesen Chip hat Linux

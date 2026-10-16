@@ -126,7 +126,7 @@ def ffmpeg_befehl(opts: Options, quelle: Quelle, kanal: Kanal, geraet: Geraet | 
 def vorstufe(opts: Options, quelle: Quelle, geraet: Geraet | None) -> list[str] | None:
     """Ein Programm, das ffmpeg das Bild liefert -- nur für den Somagic."""
     if geraet is not None and geraet.treiber == "somagic":
-        return somagic.capture_befehl(opts.norm, len(geraet.eingaenge), quelle.eingang)
+        return somagic.capture_befehl(opts.norm, quelle.eingang)
     return None
 
 

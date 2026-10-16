@@ -28,6 +28,7 @@ ihn in diesem Moment -- er muss nach USB-Anschluss durchgereicht werden.
 from __future__ import annotations
 
 import asyncio
+import ctypes
 import logging
 import shutil
 import subprocess
@@ -49,24 +50,82 @@ SUCHORDNER = Path("/share/yapaia-vision")
 SYSFS = Path("/sys/bus/usb/devices")
 
 
-def usb_kennung(sysfs: Path = SYSFS) -> str | None:
-    """Die Produktkennung des ersten Somagic-Sticks (`0007`, `003f` …) oder `None`."""
-    for geraet in sorted(sysfs.glob("*")):
+def usb_kennung(sysfs: Path | None = None) -> str | None:
+    """Die Produktkennung des ersten Somagic-Sticks (`0007`, `003c` …) oder `None`."""
+    g = _sysfs_geraet(sysfs)
+    try:
+        return (g / "idProduct").read_text().strip() if g else None
+    except OSError:
+        return None
+
+
+def geraet(kennung: str | None) -> Geraet | None:
+    """Der Stick als Aufnahmegerät -- erst NACH dem Laden der Firmware.
+
+    Die Kennung nach dem Laden kommt aus der FIRMWARE, nicht vom Stick: ein
+    EasyCAP002 mit der Firmware aus `SmiUsbGrabber3C.sys` (der einzigen, die
+    frei zu finden ist) meldet sich als `003c` wie ein DC60. Den Eingang
+    wählt `somagic-capture -i` aber unabhängig von der Kennung (Register 0x02
+    des SAA7113) -- deshalb gelten immer die vier Eingänge."""
+    if kennung in EASYCAP002 or kennung == DC60:
+        return Geraet(PFAD, "somagic", f"EasyCAP (SMI2021CBE, {HERSTELLER}:{kennung})",
+                      [f"CVBS {i}" for i in range(1, 5)], normen=True)
+    return None
+
+
+def _sysfs_geraet(sysfs: Path | None = None) -> Path | None:
+    for g in sorted((sysfs or SYSFS).glob("*")):
         try:
-            if (geraet / "idVendor").read_text().strip() == HERSTELLER:
-                return (geraet / "idProduct").read_text().strip()
+            if (g / "idVendor").read_text().strip() == HERSTELLER:
+                return g
         except OSError:
             continue
     return None
 
 
-def geraet(kennung: str | None) -> Geraet | None:
-    """Der Stick als Aufnahmegerät -- erst NACH dem Laden der Firmware."""
-    if kennung in EASYCAP002:
-        return Geraet(PFAD, "somagic", "EasyCAP002 (SMI2021CBE)", [f"CVBS {i}" for i in range(1, 5)], normen=True)
-    if kennung == DC60:
-        return Geraet(PFAD, "somagic", "EasyCAP DC60 (SMI2021CBE)", ["CVBS", "S-Video"], normen=True)
-    return None
+def konfigurieren(kennung: str) -> str | None:
+    """USB-Konfiguration setzen, falls der Kernel es nicht geschafft hat.
+
+    Gesehen unter Proxmox (2026-10-16): Beim Einstecken meldet der Kernel
+    „can't set config #1, error -32“, der Stick hat danach keine Schnittstelle
+    und `somagic-init` scheitert mit „Failed to claim device interface“. Ein
+    USB-Reset und danach `set_configuration(1)` über libusb hilft.
+    Gibt einen Fehlertext zurück oder `None`."""
+    g = _sysfs_geraet()
+    try:
+        if g is not None and (g / "bConfigurationValue").read_text().strip():
+            return None
+    except OSError:
+        pass
+    try:
+        u = ctypes.CDLL("libusb-1.0.so.0")
+    except OSError as err:
+        return f"libusb fehlt: {err}"
+    u.libusb_open_device_with_vid_pid.restype = ctypes.c_void_p
+    u.libusb_open_device_with_vid_pid.argtypes = [ctypes.c_void_p, ctypes.c_uint16, ctypes.c_uint16]
+    u.libusb_reset_device.argtypes = [ctypes.c_void_p]
+    u.libusb_set_configuration.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    u.libusb_close.argtypes = [ctypes.c_void_p]
+    u.libusb_exit.argtypes = [ctypes.c_void_p]
+    u.libusb_error_name.restype = ctypes.c_char_p
+    ctx = ctypes.c_void_p()
+    if u.libusb_init(ctypes.byref(ctx)) != 0:
+        return "libusb startet nicht"
+    try:
+        h = u.libusb_open_device_with_vid_pid(ctx, int(HERSTELLER, 16), int(kennung, 16))
+        if not h:
+            return "Stick lässt sich nicht öffnen"
+        try:
+            u.libusb_reset_device(h)
+            r = u.libusb_set_configuration(h, 1)
+            if r != 0:
+                return f"USB-Konfiguration scheitert: {u.libusb_error_name(r).decode()}"
+            _LOGGER.info("USB-Konfiguration nachträglich gesetzt (Reset)")
+            return None
+        finally:
+            u.libusb_close(h)
+    finally:
+        u.libusb_exit(ctx)
 
 
 def _ausfuehren(befehl: list[str], timeout: float = 60) -> tuple[bool, str]:
@@ -137,11 +196,15 @@ async def vorbereiten() -> tuple[Geraet | None, list[str]]:
         return None, []
     _LOGGER.info("Somagic-Stick %s:%s gefunden", HERSTELLER, kennung)
     if kennung != OHNE_FIRMWARE:
-        return geraet(kennung), []
+        fehler = await asyncio.to_thread(konfigurieren, kennung)
+        return geraet(kennung), [fehler] if fehler else []
 
     vorhanden, text = await asyncio.to_thread(firmware_suchen)
     if not vorhanden:
         return None, [text or "Firmware fehlt"]
+    fehler = await asyncio.to_thread(konfigurieren, kennung)
+    if fehler:
+        return None, [fehler]
     ok, ausgabe = await asyncio.to_thread(_ausfuehren, ["somagic-init", "-f", str(FIRMWARE)])
     if not ok:
         return None, [f"Firmware ließ sich nicht laden: {ausgabe.splitlines()[-1] if ausgabe else '?'}"]
@@ -154,18 +217,14 @@ async def vorbereiten() -> tuple[Geraet | None, list[str]]:
             return geraet(neu), []
     return None, [
         "Firmware geladen, aber der Stick hat sich nicht neu gemeldet. Unter Proxmox: den Stick "
-        "nach USB-Anschluss durchreichen, nicht nach Kennung (sie ändert sich dabei)."
+        "nach USB-Anschluss durchreichen oder zusätzlich die neue Kennung 1c88:003c (bzw. 003e/003f) "
+        "an die VM geben -- mit der Firmware meldet er sich unter ihr neu an."
     ]
 
 
-def capture_befehl(norm: str, eingaenge: int, eingang: int) -> list[str]:
+def capture_befehl(norm: str, eingang: int) -> list[str]:
     """`somagic-capture` für einen Eingang (0-basiert) -- rohes UYVY auf stdout."""
-    befehl = ["somagic-capture", {"NTSC": "-n", "SECAM": "--secam"}.get(norm, "-p")]
-    if eingaenge > 2:
-        befehl += ["-i", str(eingang + 1)]
-    else:
-        befehl.append("-s" if eingang == 1 else "-c")
-    return befehl
+    return ["somagic-capture", {"NTSC": "-n", "SECAM": "--secam"}.get(norm, "-p"), "-i", str(eingang + 1)]
 
 
 def rohformat(norm: str) -> tuple[int, int, str]:

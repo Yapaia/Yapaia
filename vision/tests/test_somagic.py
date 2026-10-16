@@ -33,7 +33,9 @@ def test_geraet_erst_mit_firmware():
     assert somagic.geraet("0007") is None
     g = somagic.geraet("003f")
     assert g.pfad == "somagic" and g.eingaenge == ["CVBS 1", "CVBS 2", "CVBS 3", "CVBS 4"] and g.normen
-    assert somagic.geraet("003c").eingaenge == ["CVBS", "S-Video"]
+    # Mit der Firmware aus SmiUsbGrabber3C.sys meldet sich auch der
+    # EasyCAP002 als 003c -- die vier Eingänge bleiben.
+    assert somagic.geraet("003c").eingaenge == g.eingaenge
 
 
 def test_vier_kanaele_auf_vier_eingaenge():
@@ -45,11 +47,8 @@ def test_vier_kanaele_auf_vier_eingaenge():
 
 
 def test_capture_befehl():
-    # EasyCAP002: Eingänge 1–4 über -i
-    assert somagic.capture_befehl("PAL", 4, 0) == ["somagic-capture", "-p", "-i", "1"]
-    assert somagic.capture_befehl("NTSC", 4, 3) == ["somagic-capture", "-n", "-i", "4"]
-    # DC60: Composite oder S-Video
-    assert somagic.capture_befehl("PAL", 2, 1) == ["somagic-capture", "-p", "-s"]
+    assert somagic.capture_befehl("PAL", 0) == ["somagic-capture", "-p", "-i", "1"]
+    assert somagic.capture_befehl("NTSC", 3) == ["somagic-capture", "-n", "-i", "4"]
 
 
 def test_ffmpeg_liest_rohes_uyvy():
@@ -64,6 +63,16 @@ def test_ffmpeg_liest_rohes_uyvy():
     # NTSC liefert 720x480; die gewünschte Größe bleibt -- also skalieren.
     b = ffmpeg_befehl(Options(norm="NTSC"), q, Kanal(3, "Heck"), g, None)
     assert b[b.index("-video_size") + 1] == "720x480" and "scale=720:576" in b[b.index("-vf") + 1]
+
+
+def test_konfiguriert_ist_nichts_zu_tun(tmp_path, monkeypatch):
+    g = tmp_path / "2-5"
+    g.mkdir()
+    (g / "idVendor").write_text("1c88\n")
+    (g / "idProduct").write_text("0007\n")
+    (g / "bConfigurationValue").write_text("1\n")
+    monkeypatch.setattr(somagic, "SYSFS", tmp_path)
+    assert somagic.konfigurieren("0007") is None
 
 
 def test_firmware_fehlt_mit_hinweis(tmp_path, monkeypatch):
