@@ -79,7 +79,9 @@ views:
           - { type: tile, entity: sensor.btcollector_current, name: Strom }
           - { type: tile, entity: sensor.btcollector_btcollector_battery_1_power, name: Leistung 1 }
           - { type: tile, entity: sensor.btcollector_btcollector_battery_2_power, name: Leistung 2 }
-          - { type: tile, entity: sensor.btcollector_time_remaining, name: Restlaufzeit }
+          - { type: tile, entity: sensor.btcollector_time_remaining, name: Restlaufzeit 1, icon: mdi:timer-sand }
+          - { type: tile, entity: sensor.btcollector_time_remaining_2, name: Restlaufzeit 2, icon: mdi:timer-sand }
+          - { type: tile, entity: sensor.batterien_restlaufzeit, name: Restlaufzeit gesamt, icon: mdi:timer-sand-complete }
           - { type: tile, entity: binary_sensor.btcollector_battery_has_alarm, name: Alarm }
           - type: heading
             heading: Gas und Wasser
