@@ -75,8 +75,10 @@ views:
             max: 100
             severity: { green: 50, yellow: 25, red: 0 }
             grid_options: { columns: 6 }
-          - { type: tile, entity: sensor.btcollector_battery_voltage, name: Spannung }
-          - { type: tile, entity: sensor.btcollector_current, name: Strom }
+          - { type: tile, entity: sensor.btcollector_battery_voltage, name: Spannung 1 }
+          - { type: tile, entity: sensor.btcollector_battery_voltage_2, name: Spannung 2 }
+          - { type: tile, entity: sensor.btcollector_current, name: Strom 1 }
+          - { type: tile, entity: sensor.btcollector_current_2, name: Strom 2 }
           - { type: tile, entity: sensor.btcollector_btcollector_battery_1_power, name: Leistung 1 }
           - { type: tile, entity: sensor.btcollector_btcollector_battery_2_power, name: Leistung 2 }
           - { type: tile, entity: sensor.btcollector_time_remaining, name: Restlaufzeit 1, icon: mdi:timer-sand }
