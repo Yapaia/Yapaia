@@ -17,3 +17,9 @@ grafischen Editor änderbar.
 ```sh
 python3 dashboards/deploy.py --dashboard stellplatz
 ```
+
+## Hilfssensoren
+
+- `sensor.batterien_restlaufzeit` (Template-Helfer in HA): Restlaufzeit beider
+  Batterien zusammen = 3 × (SOC Shunt 1 + SOC Shunt 2) Ah ÷ Entladestrom
+  (2 × 300 Ah). Beim Laden „Unbekannt“. Anzeige der drei Restlaufzeiten in HA auf Stunden umgestellt (Entitätseinstellung).
