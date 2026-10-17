@@ -131,6 +131,10 @@ victron_ble:
   - id: MySmartShunt2
     mac_address: !secret btcollector_mac_4
     bindkey: !secret btcollector_bindkey_2
+  # SmartSolar MPPT (nur lesen, Instant Readout)
+  - id: MySmartSolar
+    mac_address: !secret btcollector_mac_7
+    bindkey: !secret btcollector_bindkey_3
 
 
 
@@ -140,6 +144,15 @@ binary_sensor:
     victron_ble_id: MySmartShunt
     name: "Battery has Alarm"
     type: ALARM
+  # SmartSolar
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT has Error"
+    type: CHARGER_ERROR
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT is in Fault state"
+    type: DEVICE_STATE_FAULT
 # JDB BMS
   - platform: jbd_bms_ble
     jbd_bms_ble_id: bms0
@@ -246,6 +259,28 @@ sensor:
     victron_ble_id: MySmartShunt2
     name: "State of charge 2"
     type: STATE_OF_CHARGE
+
+# SmartSolar MPPT
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT Output Voltage"
+    type: BATTERY_VOLTAGE
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT Output Current"
+    type: BATTERY_CURRENT
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT PV Power"
+    type: PV_POWER
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT Yield Today"
+    type: YIELD_TODAY
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT Load Current"
+    type: LOAD_CURRENT
 
 # TPMS
 #FL
@@ -380,6 +415,14 @@ text_sensor:
     victron_ble_id: MySmartShunt2
     name: "Battery Alarm reason 2"
     type: ALARM_REASON
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT State"
+    type: DEVICE_STATE
+  - platform: victron_ble
+    victron_ble_id: MySmartSolar
+    name: "MPPT Error reason"
+    type: CHARGER_ERROR
 
 #JDB BMS
   - platform: jbd_bms_ble
