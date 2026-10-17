@@ -63,18 +63,20 @@ views:
             icon: mdi:car-battery
           - type: gauge
             entity: sensor.btcollector_btcollector_battery_1_state_of_charge
-            name: Batterie 1
+            name: Batterie 1 (BMS)
             min: 0
             max: 100
             severity: { green: 50, yellow: 25, red: 0 }
             grid_options: { columns: 6 }
           - type: gauge
             entity: sensor.btcollector_btcollector_battery_2_state_of_charge
-            name: Batterie 2
+            name: Batterie 2 (BMS)
             min: 0
             max: 100
             severity: { green: 50, yellow: 25, red: 0 }
             grid_options: { columns: 6 }
+          - { type: tile, entity: sensor.btcollector_state_of_charge, name: Ladung Shunt 1 }
+          - { type: tile, entity: sensor.btcollector_state_of_charge_2, name: Ladung Shunt 2 }
           - { type: tile, entity: sensor.btcollector_battery_voltage, name: Spannung 1 }
           - { type: tile, entity: sensor.btcollector_battery_voltage_2, name: Spannung 2 }
           - { type: tile, entity: sensor.btcollector_current, name: Strom 1 }
