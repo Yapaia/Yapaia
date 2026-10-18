@@ -88,6 +88,14 @@ views:
           - { type: tile, entity: sensor.batterien_restlaufzeit, name: Restlaufzeit gesamt, icon: mdi:timer-sand-complete }
           - { type: tile, entity: binary_sensor.btcollector_battery_has_alarm, name: Alarm }
           - type: heading
+            heading: Solar
+            icon: mdi:solar-power-variant
+          - { type: tile, entity: sensor.btcollector_mppt_pv_power, name: PV-Leistung, icon: mdi:solar-power }
+          - { type: tile, entity: sensor.btcollector_mppt_yield_today, name: Ertrag heute, icon: mdi:solar-panel }
+          - { type: tile, entity: sensor.btcollector_mppt_output_current, name: Ladestrom, icon: mdi:current-dc }
+          - { type: tile, entity: sensor.btcollector_mppt_state, name: Laderzustand, icon: mdi:battery-charging }
+          - { type: tile, entity: binary_sensor.btcollector_mppt_has_error, name: Solar-Fehler }
+          - type: heading
             heading: Gas und Wasser
             icon: mdi:gas-cylinder
           # Kachel statt Tacho: zeigt „Unbekannt“, solange der Sensor nichts liefert
