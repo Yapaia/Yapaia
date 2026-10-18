@@ -96,11 +96,12 @@ const KOPF_STIL = ':host { --header-height: 0px; } .header { display: none !impo
 const FAHRT = new Set(['navigating', 'off_route', 'paused']);
 
 // Spuren vor dem Abbiegen (ab Yapaia Go 0.53.0, Attribut `anweisung_spuren`
-// der Anweisung). Wie in Go (`apps/web/src/drive/spuren.ts`): erst ab 500 m,
+// der Anweisung). Erst ab 1500 m (Go selbst: 500 m, `apps/web/src/drive/spuren.ts`;
+// auf der Autobahn war das zu knapp zum Einordnen),
 // links nach rechts, nur die BESTE Spur (`active`) hell -- eine bloß
 // mögliche (`valid`) hieße unter Umständen, kurz vor der Ausfahrt noch einmal
 // wechseln zu müssen. Bits und Pfeile wie die der Anweisung oben.
-const SPUREN_AB_M = 500;
+const SPUREN_AB_M = 1500;
 const SPUR_PFEILE = [
   [256, 'mdi:u-turn-left'],
   [4 | 8 | 512, 'mdi:arrow-left-top'],
@@ -355,10 +356,12 @@ const STIL = `
   .nav { position: absolute; z-index: 2; top: calc(var(--u) * 5.6); right: calc(var(--u) * 5.6);
     width: clamp(260px, calc(var(--cw, 1vw) * 36), 560px); background: var(--dunkel); border-radius: calc(var(--u) * 0.5);
     padding: calc(var(--u) * 0.9) calc(var(--u) * 1.3); box-shadow: 0 calc(var(--u) * 0.4) calc(var(--u) * 1) rgba(0, 0, 0, 0.4); }
+  /* Links Pfeil und Entfernung untereinander, rechts der GANZE Text (umbrechen statt
+     abschneiden -- „Auf die A3 Richtung …“ braucht die Richtung). */
   .nav .zeile { display: flex; align-items: center; gap: calc(var(--u) * 1); --mdc-icon-size: calc(var(--u) * 2.6); }
-  .nav .weit { font-size: calc(var(--u) * 1.9); font-weight: 600; white-space: nowrap; }
-  .nav .text { font-size: calc(var(--u) * 1.55); min-width: 0; overflow: hidden; text-overflow: ellipsis;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .nav .links { display: flex; flex-direction: column; align-items: center; flex: none; gap: calc(var(--u) * 0.2); }
+  .nav .weit { font-size: calc(var(--u) * 1.6); font-weight: 600; white-space: nowrap; }
+  .nav .text { font-size: calc(var(--u) * 1.45); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
   .nav .spuren { display: flex; justify-content: center; gap: calc(var(--u) * 0.3); margin-top: calc(var(--u) * 0.7);
     padding-top: calc(var(--u) * 0.7); border-top: 1px solid rgba(255, 255, 255, 0.2); --mdc-icon-size: calc(var(--u) * 2.2); }
   .nav .spuren[hidden] { display: none; }
@@ -508,7 +511,7 @@ const HTML = `
     </div></div>
 
     <div class="nav">
-      <div class="zeile"><ha-icon id="n-icon" icon="mdi:navigation-outline"></ha-icon><span class="weit" id="n-weit"></span><span class="text" id="n-text"></span></div>
+      <div class="zeile"><div class="links"><ha-icon id="n-icon" icon="mdi:navigation-outline"></ha-icon><span class="weit" id="n-weit"></span></div><span class="text" id="n-text"></span></div>
       <div class="spuren" id="n-spuren" hidden></div>
     </div>
     <div class="kompass"><button class="knopf rund" id="kompass" title="Karte: Norden oben / in Fahrtrichtung"><ha-icon icon="mdi:navigation"></ha-icon></button></div>
