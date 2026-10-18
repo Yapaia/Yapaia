@@ -1481,9 +1481,23 @@ class YapaiaCockpitSportCard extends HTMLElement {
 
   // Die Spurleiste unter der Anweisung. Neu gezeichnet nur, wenn sich etwas
   // ändert -- `hass` kommt mehrmals in der Sekunde.
-  _spuren(lanes, meter) {
+  _spuren(lanes, meter, typ) {
     const feld = this.$('n-spuren');
     if (!feld) return;
+    // Ohne Spurdaten an einer Teilung, Auf- oder Ausfahrt: eine vereinfachte
+    // Zweierleiste, die Seite, auf die es geht, hell -- wie auf der
+    // Navi-Anzeige. Spurdaten gibt es nur, wo OpenStreetMap sie kennt.
+    const art = String(typ || '');
+    const links = art.includes('left');
+    const rechts = art.includes('right');
+    if ((!Array.isArray(lanes) || lanes.length === 0) && (links || rechts) &&
+        /fork|ramp|exit|stay|keep|slight/.test(art)) {
+      const teilung = /fork|stay|keep/.test(art);
+      lanes = [
+        { directions: links || teilung ? 16 : 2, active: links ? 1 : 0 },
+        { directions: rechts || teilung ? 32 : 2, active: rechts ? 1 : 0 },
+      ];
+    }
     const spuren =
       Array.isArray(lanes) && Number.isFinite(meter) && meter <= SPUREN_AB_M
         ? lanes
@@ -1701,6 +1715,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this._spuren(
       anw && s.attributes ? s.attributes.anweisung_spuren : null,
       this._z(E.entfernung) === null ? NaN : meter,
+      anw && s.attributes ? s.attributes.anweisung_typ : '',
     );
     this.$('s-nav').setAttribute('icon', anw ? 'mdi:navigation-variant' : 'mdi:navigation-variant-outline');
 

@@ -172,7 +172,7 @@ static sensor::Sensor s_tempo, s_limit, s_limit_fz, s_mdist, s_rest;
 // Die digitale Wasserwaage: Neigung links/rechts und vorne/hinten.
 static sensor::Sensor s_lr, s_vh;
 static binary_sensor::BinarySensor s_schnell;
-static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel;
+static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel, s_spuren;
 // Die beiden Schalter: Waage erzwingen, und Fahrzeug statt Libelle.
 static switch_::Switch s_erzwingen, s_fahrzeug;
 // Und der dritte: Restzeit statt Ankunftszeit.
@@ -209,7 +209,8 @@ static text_sensor::TextSensor *yapaia_anweisung = &s_anweisung,
                                *yapaia_manoever_art = &s_art,
                                *yapaia_fahrzustand = &s_zustand,
                                *yapaia_ankunft = &s_ankunft,
-                               *yapaia_kreisel = &s_kreisel;
+                               *yapaia_kreisel = &s_kreisel,
+                               *yapaia_spuren = &s_spuren;
 
 static void zeichne(Display &it) {
 #include "lambda_body.inc"  // wird von run.mjs erzeugt
@@ -240,6 +241,8 @@ struct Fall {
   const char *jetzt;  // "YYYY-MM-DDThh:mm:ss" in UTC, oder nullptr
   // Der Kreisel, wie der Kern ihn schickt: "2|90". nullptr = leer.
   const char *kreisel;
+  // Die Spuren als Text der Liste, wie Home Assistant sie schickt. nullptr = leer.
+  const char *spuren;
 };
 
 static int fehler = 0;
@@ -270,6 +273,7 @@ static void aufbauen(const Fall &f) {
   s_zustand.state = f.zustand; s_art.state = f.art;
   s_anweisung.state = f.anweisung; s_ankunft.state = f.ankunft;
   s_kreisel.state = f.kreisel ? f.kreisel : "";
+  s_spuren.state = f.spuren ? f.spuren : "";
   auto setze = [](sensor::Sensor &s, float wert, bool da) {
     s.has = da; s.state = da ? wert : NAN;
   };
@@ -384,7 +388,7 @@ int main() {
     // Stillstand mitten in der Navigation. Mit der Automatik waere hier die
     // Waage erschienen; ohne sie laeuft die Navigation weiter.
     genau("Stillstand an der Ampel: die Navigation bleibt", ampel, 240,240,
-          {"Links abbiegen", "300 m", "0", "16:32"});
+          {"300 m", "0", "16:32"});
 
     // Und die Gegenprobe: der Schalter oeffnet sie sehr wohl. Ohne diesen
     // Fall waere die Abschaltung auch dann gruen, wenn die Waage GAR NICHT
@@ -618,7 +622,7 @@ int main() {
   // Bildpunkten ist kein Platz fuer ein fuenftes Feld, und sie ist von den
   // fuenf das entbehrlichste.
   genau("volle Fahrt, MESZ", sommer, 240,240,
-        {"Links abbiegen auf B27","1.2 km","87","16:32"});
+        {"1.2 km","87","16:32"});
 
   // ─── HIER STANDEN FUENF FAELLE ZUM TEMPOLIMIT-SCHILD ────────────────────
   // Ein weisses Verkehrszeichen mit dem Limit, daneben klein die
@@ -640,22 +644,22 @@ int main() {
   // als Zahl erscheint.
   Fall schwer = sommer; schwer.limit_fz = 60; schwer.limit_fz_da = true;
   genau("Fahrzeuggrenze vorhanden: trotzdem keine Zahl", schwer, 240,240,
-        {"Links abbiegen auf B27","1.2 km","87","16:32"});
+        {"1.2 km","87","16:32"});
 
   Fall autobahn = sommer;
   autobahn.limit_da = false;
   autobahn.limit_fz = 80; autobahn.limit_fz_da = true;
   autobahn.tempo = 130;
   genau("unbegrenzte Autobahn: nur das eigene Tempo", autobahn, 240,240,
-        {"Links abbiegen auf B27","1.2 km","130","16:32"});
+        {"1.2 km","130","16:32"});
 
   Fall winter = sommer; winter.ankunft = "2026-01-15T14:32:00.000Z";
   genau("dieselbe Fahrt, MEZ", winter, 240,240,
-        {"Links abbiegen auf B27","1.2 km","87","15:32"});
+        {"1.2 km","87","15:32"});
 
   Fall meter = sommer; meter.mdist = 483;
   genau("Meter, auf 10 gerundet", meter, 240,240,
-        {"Links abbiegen auf B27","480 m","87","16:32"});
+        {"480 m","87","16:32"});
 
   // ─── DER ROTE RING STATT DER ZAHL ───────────────────────────────────────
   // Er ist keine Schrift, also sieht ihn `genau` nicht. Geprueft wird die
@@ -711,80 +715,40 @@ int main() {
   // kein Tempo, kein Tempolimit-Schild, keine Reststrecke.
   Fall leer{"x","navigating","turn_left","unknown","unknown",
             0,0,0,0,false,false,false,false,false};
-  genau("nichts bekannt: nichts erfinden", leer, 240,240, {"","--","--:--"});
+  genau("nichts bekannt: nichts erfinden", leer, 240,240, {"--","--:--"});
 
   // Kein Tempolimit in der Karte -> gar kein Schild. Ein Schild mit "0"
   // waere die Behauptung, hier gelte Tempo 0.
   Fall ohneLimit = sommer; ohneLimit.limit_da = false;
   genau("kein Tempolimit: kein Schild", ohneLimit, 240,240,
-        {"Links abbiegen auf B27","1.2 km","87","16:32"});
+        {"1.2 km","87","16:32"});
 
-  // Wird nicht navigiert, hat ein Manoeverpfeil nichts zu sagen.
-  // ─── LANGE STRASSENNAMEN, UND DAS ß DARIN ───────────────────────────
-  // Auf 240 runden Bildpunkten passen rund 25 Zeichen. Gekuerzt wird nach
-  // BYTES -- und "ß", "ü", "ä" sind in UTF-8 ZWEI Bytes lang. Faellt der
-  // Schnitt zwischen die beiden, entsteht kein Zeichen, sondern Bruch: die
-  // Schrift zeigt dann ein Ersatzzeichen oder gar nichts. Deutsche
-  // Strassennamen bestehen zu einem guten Teil aus solchen Zeichen.
-  //
-  // Geprueft wird die EIGENSCHAFT, nicht eine von Hand ausgerechnete Stelle:
-  // was gezeichnet wird, muss gueltiges UTF-8 sein. Damit faellt jeder
-  // Schnitt auf, egal wo er liegt -- ein Testfall mit einem geratenen Offset
-  // haette genau den einen Fall geprueft, den ich mir ausgedacht habe.
-  auto ist_utf8 = [](const std::string &t) {
-    size_t i = 0;
-    while (i < t.size()) {
-      unsigned char c = t[i];
-      size_t n = c < 0x80 ? 1 : (c & 0xE0) == 0xC0 ? 2 : (c & 0xF0) == 0xE0 ? 3
-               : (c & 0xF8) == 0xF0 ? 4 : 0;
-      if (n == 0 || i + n > t.size()) return false;
-      for (size_t k = 1; k < n; k++)
-        if ((static_cast<unsigned char>(t[i + k]) & 0xC0) != 0x80) return false;
-      i += n;
+  // ─── DIE SPURLEISTE ─────────────────────────────────────────────────────
+  // Der Anweisungstext oben ist weg (gewuenscht), dafuer steht unter der
+  // Entfernung die Spurleiste. Geprueft wird, dass sie auch bei vielen Spuren
+  // und jeder Pfeilart im Rund bleibt -- und dass sie den Text nicht stoert.
+  printf("\n── Spurleiste: bleibt sie im Rund? ──\n");
+  {
+    const char *spuren[] = {
+      "[{'directions': 2, 'valid': 2, 'active': 2}, {'directions': 2, 'valid': 2, 'active': 2}, {'directions': 32}, {'directions': 32}]",
+      "[{'directions': 8}, {'directions': 2}, {'directions': 2}, {'directions': 2}, {'directions': 34, 'valid': 32, 'active': 32}, {'directions': 64}, {'directions': 64}, {'directions': 256}]",
+      "[{\"directions\": 4}, {\"directions\": 16, \"active\": 16}, {\"directions\": 1}, {\"directions\": 128}, {\"directions\": 1024}, {\"directions\": 512}]",
+      "[]", "", "kaputt {directions: x}",
+    };
+    for (auto *sp : spuren) {
+      Fall f{"Spuren", "navigating", "slight_right", "x", "2026-09-15T14:32:00.000Z",
+             87, 80, 900, 42.5, true, true, true, true, false};
+      f.spuren = sp;
+      lauf(f, 240, 240, false);
     }
-    return true;
-  };
-
-  printf("\n── Kürzen langer Namen: bleibt es gültiges UTF-8? ──\n");
-  // Die Schnittstelle liegt FEST (nach der geschaetzten Zeichenzahl). Es
-  // bringt also nichts, die Laenge der Eingabe zu variieren -- geschoben
-  // werden muss das Mehrbyte-Zeichen ueber die Schnittstelle. Dafuer waechst
-  // hier ein Vorsatz Buchstabe um Buchstabe.
-  int kaputt = 0, geprueft = 0;
-  for (int k = 0; k < 24; k++) {
-    const std::string text =
-        std::string(k, 'A') + " Bundesstraße 27 Richtung Tübingen-Grötzingen über Wüstenrot";
-    s_zustand.state="navigating"; s_art.state="turn_left";
-    s_anweisung.state=text; s_ankunft.state="2026-09-15T14:32:00.000Z";
-    s_tempo.has=s_limit.has=s_mdist.has=true;
-    s_tempo.state=87; s_limit.state=80; s_mdist.state=1240; s_schnell.state=false;
-    Display it(240,240); zeichne(it);
-    geprueft++;
-    bool schlecht = false;
-    for (auto &t : it.texte)
-      if (!ist_utf8(t)) {
-        if (kaputt < 3)
-          printf("  FEHL Vorsatz %2d -> \"%s\" ist kein gültiges UTF-8\n", k, t.c_str());
-        schlecht = true;
-        break;
-      }
-    // Und es muss ueberhaupt gekuerzt werden: die Eingabe ist hier immer
-    // deutlich laenger als der Platz. Ohne diese Zusicherung waere „gar nicht
-    // kuerzen" ein gueltiges Ergebnis -- gueltiges UTF-8 ist es ja auch.
-    const std::string &oben = it.texte.empty() ? text : it.texte[0];
-    if (oben.size() > 28) {
-      if (kaputt < 3)
-        printf("  FEHL Vorsatz %2d -> \"%s\" (%zu Bytes) wurde nicht gekürzt\n",
-               k, oben.c_str(), oben.size());
-      schlecht = true;
+    // Ohne Spurdaten an einer Teilung: die vereinfachte Zweierleiste.
+    const char *teilungen[] = {"fork_left", "fork_right", "ramp_right", "exit_left", "stay_right", "slight_left"};
+    for (auto *a : teilungen) {
+      Fall f{a, "navigating", a, "x", "2026-09-15T14:32:00.000Z",
+             87, 80, 900, 42.5, true, true, true, true, false};
+      lauf(f, 240, 240, false);
     }
-    if (schlecht) kaputt++;
-  }
-  if (kaputt > 0) {
-    printf("  %d von %d Verschiebungen erzeugen Bruch\n", kaputt, geprueft);
-    fehler++;
-  } else {
-    printf("  OK   alle %d Verschiebungen bleiben gültiges UTF-8\n", geprueft);
+    printf("  OK   (keine Ausgabe davor = keine Leiste lief aus dem Rund)\n");
   }
 
   // ─── OHNE ROUTE ZEIGT DAS GERAET DAS TEMPO ──────────────────────────────
@@ -827,7 +791,7 @@ int main() {
   // dann bleibt die Route stehen.
   Fall tempo_weg = parkt; tempo_weg.tempo_da = false;
   genau("Tempo unbekannt, aber navigierend: KEINE Wasserwaage", tempo_weg, 240,240,
-        {"Links abbiegen auf B27","1.2 km","16:32"});
+        {"1.2 km","16:32"});
 
   // ─── DER GEMELDETE FALL ─────────────────────────────────────────────────
   // Mit Foto: das Geraet zeigte „Kein Wert aus Home Assistant", obwohl die
@@ -860,7 +824,7 @@ int main() {
   // Die Gegenprobe zur Schwelle: knapp darueber laeuft die Navigation weiter.
   Fall rollt = parkt; rollt.tempo = 5.0f;
   genau("ueber der Schwelle: Navigation", rollt, 240,240,
-        {"Links abbiegen auf B27","1.2 km","5","16:32"});
+        {"1.2 km","5","16:32"});
 
   Fall ruhe = sommer; ruhe.zustand = "idle";
   genau("idle mit Tempo: Tacho gross, Lage klein", ruhe, 240,240,
@@ -1103,7 +1067,7 @@ int main() {
   // ein Schalter, der nichts aendert, weil ohnehin immer die Waage kaeme,
   // waere keiner.
   genau("8 km/h ohne Schalter: Navigation", faehrt, 240,240,
-        {"Links abbiegen", "300 m", "8", "16:32"});
+        {"300 m", "8", "16:32"});
 
   Fall rangiert = faehrt; rangiert.erzwingen = true;
   genau("8 km/h MIT Schalter: trotzdem die Waage", rangiert, 240,240,
