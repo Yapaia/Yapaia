@@ -15,8 +15,9 @@ vi.mock('../state/styleStore', () => ({
   },
 }));
 
-const ansicht = vi.hoisted(() => ({ setMode: vi.fn() }));
+const ansicht = vi.hoisted(() => ({ setMode: vi.fn(), setNeigungsGrenze: vi.fn() }));
 vi.mock('../map/viewMode', () => ({
+  setNeigungsGrenze: ansicht.setNeigungsGrenze,
   useViewModeStore: {
     getState: vi.fn(() => ({
       mode: '3d-course',
@@ -301,6 +302,22 @@ describe('useDegradationStore', () => {
       for (let i = 0; i <= 24; i++) store.updateFps(10, t0 + i * 500);
       expect(useDegradationStore.getState().level).toBe(3);
       expect(ansicht.setMode).not.toHaveBeenCalled();
+    });
+
+    it('Stufe 3 macht 3D flacher statt auf 2D zu schalten', () => {
+      ansicht.setNeigungsGrenze.mockClear();
+      useDegradationStore.getState().applyLevel(3);
+      expect(ansicht.setNeigungsGrenze).toHaveBeenLastCalledWith(40);
+      useDegradationStore.getState().applyLevel(0);
+      expect(ansicht.setNeigungsGrenze).toHaveBeenLastCalledWith(null);
+    });
+
+    it('jede Stufe ab 1 deckelt die Pixeldichte, nie nach oben', () => {
+      const deckel = [0, 1, 2, 3].map((n) => {
+        useDegradationStore.getState().applyLevel(n as 0 | 1 | 2 | 3);
+        return useDegradationStore.getState().pixelRatioCap;
+      });
+      expect(deckel).toEqual([null, 1.5, 1, 1]);
     });
 
     it("ausdruecklich 'niedrig' schaltet weiterhin auf 2D", () => {

@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.54.0
+
+**Flüssiger auf schwachen Geräten (Autoradio, ältere Tablets).** Der
+Leistungswächter greift jetzt dort, wo es wirklich etwas bringt:
+
+- Stufe 1: die Karte zeichnet mit höchstens 1,5-facher Pixeldichte.
+- Stufe 2: mit einfacher Pixeldichte – auf einem Bildschirm mit Dichte 2 ein
+  Viertel der Bildpunkte. Dazu weniger Sonderziele.
+- Stufe 3: 3D bleibt 3D, nur flacher (40° statt 55°) – weniger Kacheln bis
+  zum Horizont. Sonderziele aus. Die gewählte Ansicht wird nicht verändert.
+
+Vorher tat Stufe 1 nichts (sie sollte 3D-Gebäude abschalten, die es nicht
+gibt), und Stufe 3 schaltete auf 2D.
+
 ## 0.53.2
 
 **Die Karte im Dashboard lädt nicht mehr neu, wenn sich ihre Höhe ändert.**

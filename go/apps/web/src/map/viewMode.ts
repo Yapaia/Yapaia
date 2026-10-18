@@ -116,6 +116,9 @@ function applyViewMode(mode: ViewMode): void {
 
   const params = MODE_PARAMS[mode];
   const camera: CameraOptions = { ...params };
+  if (neigungsGrenze !== null && typeof camera.pitch === 'number') {
+    camera.pitch = Math.min(camera.pitch, neigungsGrenze);
+  }
 
   // For course modes, read current heading
   if (mode === '2d-course' || mode === '3d-course') {
@@ -129,6 +132,18 @@ function applyViewMode(mode: ViewMode): void {
   }
 
   mapController.setCamera(camera, { animate: true, duration: ANIMATION_DURATION });
+}
+
+// ─── VORUEBERGEHENDE NEIGUNGSGRENZE (0.54.0) ────────────────────────────────
+// Der Leistungswaechter (`perf/degrade.ts`) setzt sie bei Stufe 3: 3D bleibt,
+// nur flacher. Bewusst ausserhalb des Stores -- nichts davon wird gespeichert,
+// und die gewaehlte Ansicht bleibt `3d-course`.
+let neigungsGrenze: number | null = null;
+
+export function setNeigungsGrenze(grenze: number | null): void {
+  if (grenze === neigungsGrenze) return;
+  neigungsGrenze = grenze;
+  if (useViewModeStore.getState().mode === '3d-course') applyViewMode('3d-course');
 }
 
 /**

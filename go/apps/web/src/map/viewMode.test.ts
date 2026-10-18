@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useViewModeStore, syncHeadingToBearing } from './viewMode';
+import { useViewModeStore, syncHeadingToBearing, setNeigungsGrenze } from './viewMode';
 import { mapController } from '../state/mapStore';
 
 // Mock mapController
@@ -66,6 +66,17 @@ describe('ViewModeStore', () => {
     const call = mockSetCamera.mock.calls[0];
     expect(call[0]).toEqual({ pitch: 0, bearing: 45 }); // heading from position
     expect(call[1]).toEqual({ animate: true, duration: 300 });
+  });
+
+  it('Neigungsgrenze macht 3D flacher, ohne die Ansicht zu aendern (0.54.0)', () => {
+    const mockSetCamera = vi.mocked(mapController.setCamera);
+    useViewModeStore.getState().setMode('3d-course');
+    mockSetCamera.mockClear();
+    setNeigungsGrenze(40);
+    expect(mockSetCamera.mock.calls.at(-1)?.[0]).toMatchObject({ pitch: 40 });
+    expect(useViewModeStore.getState().mode).toBe('3d-course');
+    setNeigungsGrenze(null);
+    expect(mockSetCamera.mock.calls.at(-1)?.[0]).toMatchObject({ pitch: 55 });
   });
 
   it('applies correct pitch for 3d-course mode', () => {
