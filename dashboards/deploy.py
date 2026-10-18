@@ -34,6 +34,7 @@ KARTEN = {
     HIER / "cockpit-sport" / "cockpit-sport-card.js": "yapaia-cockpit",
     HIER / "rangieren" / "nivellierung-card.js": "yapaia-dashboards",
     HIER / "rangieren" / "kamera-card.js": "yapaia-dashboards",
+    HIER / "rangieren" / "reifen-card.js": "yapaia-dashboards",
 }
 # Ordner → (url_path, Titel, Symbol) für `--dashboard`
 DASHBOARDS = {

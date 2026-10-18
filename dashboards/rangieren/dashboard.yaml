@@ -16,6 +16,11 @@ views:
             name: Rückfahrkamera
             entity: camera.yapaia_vision_kamera_1
             aspect_ratio: "3:2"
+          - type: custom:yapaia-reifen-card
+            name: Reifendruck
+            target_front: 4.5
+            target_rear: 5.0
+            grid_options: { columns: full }
       - type: grid
         cards:
           - type: custom:yapaia-nivellierung-card
