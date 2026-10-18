@@ -1037,7 +1037,8 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const jetzt = Date.now();
     this._diagZuletzt = this._diagZuletzt || {};
     this._diagAnzahl = this._diagAnzahl || 0;
-    if (this._diagAnzahl >= 300 || jetzt - (this._diagZuletzt[art] || 0) < 30000) return;
+    const abstand = art === 'bild' ? 60000 : 30000;
+    if (this._diagAnzahl >= 300 || jetzt - (this._diagZuletzt[art] || 0) < abstand) return;
     this._diagZuletzt[art] = jetzt;
     this._diagAnzahl += 1;
     this._hass
@@ -1077,6 +1078,18 @@ class YapaiaCockpitSportCard extends HTMLElement {
       const p = map.project([pos.lon, pos.lat]);
       const weit = Math.abs(p.x - ax) > c.clientWidth * 0.2 || Math.abs(p.y - ay) > c.clientHeight * 0.2;
       this._diagWeit = weit ? (this._diagWeit || 0) + 1 : 0;
+      // Einmal je Minute eine Momentaufnahme: wo der Anker liegt, wo der Punkt,
+      // wie hoch Karte und Rahmen sind, Neigung und Leistungsstufe.
+      const dg = w.__yapaiaDegrade;
+      const stufe = dg ? dg.level : '?';
+      if (this._diagStufe !== undefined && stufe !== this._diagStufe) {
+        this._diag('stufe', `Leistungsstufe ${this._diagStufe} → ${stufe}`);
+      }
+      this._diagStufe = stufe;
+      this._diag('bild', `Momentaufnahme: Anker ${(ax / c.clientWidth).toFixed(2)}|${(ay / c.clientHeight).toFixed(2)}, ` +
+        `Punkt ${(p.x / c.clientWidth).toFixed(2)}|${(p.y / c.clientHeight).toFixed(2)}, Karte ${c.clientWidth}x${c.clientHeight}, ` +
+        `Feld ${Math.round(this.shadowRoot.querySelector('.karte').clientHeight)} hoch, ${modus}, Neigung ${Math.round(map.getPitch())}°, ` +
+        `Stufe ${stufe}, ${Math.round(nav.speed_kmh || 0)} km/h`);
       if (this._diagWeit === 3) {
         const f = w.__yapaiaFollowMeStore && w.__yapaiaFollowMeStore.getState();
         const alter = pos.timestamp ? Math.round((Date.now() - new Date(pos.timestamp).getTime()) / 1000) : '?';

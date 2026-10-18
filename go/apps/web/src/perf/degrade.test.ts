@@ -15,11 +15,12 @@ vi.mock('../state/styleStore', () => ({
   },
 }));
 
+const ansicht = vi.hoisted(() => ({ setMode: vi.fn() }));
 vi.mock('../map/viewMode', () => ({
   useViewModeStore: {
     getState: vi.fn(() => ({
       mode: '3d-course',
-      setMode: vi.fn(),
+      setMode: ansicht.setMode,
     })),
   },
 }));
@@ -284,6 +285,27 @@ describe('useDegradationStore', () => {
 
       // Should not have triggered upgrade (only 1 sample, need >= 2)
       expect(useDegradationStore.getState().level).toBe(0);
+    });
+  });
+
+  // Gemeldet: unterwegs fiel die Karte immer wieder auf Norden oben zurueck,
+  // obwohl 3D gewaehlt war -- der Waechter hatte bei Stufe 3 die Ansicht
+  // umgestellt (und damit gespeichert).
+  describe('Die Ansicht bleibt, was der Mensch gewaehlt hat', () => {
+    beforeEach(() => ansicht.setMode.mockClear());
+
+    it('automatische Stufe 3 aendert die Ansicht NICHT', () => {
+      const store = useDegradationStore.getState();
+      useDegradationStore.setState({ level: 2, _lastLevelChangeTime: 0 });
+      const t0 = 1_000_000;
+      for (let i = 0; i <= 24; i++) store.updateFps(10, t0 + i * 500);
+      expect(useDegradationStore.getState().level).toBe(3);
+      expect(ansicht.setMode).not.toHaveBeenCalled();
+    });
+
+    it("ausdruecklich 'niedrig' schaltet weiterhin auf 2D", () => {
+      useDegradationStore.getState().setOverride('low');
+      expect(ansicht.setMode).toHaveBeenCalledWith('2d-north');
     });
   });
 });

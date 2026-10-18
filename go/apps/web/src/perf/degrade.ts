@@ -125,12 +125,23 @@ function capsForLevel(level: DegradationLevel): {
 function applyDegradationLevel(
   level: DegradationLevel,
   set: (partial: Partial<DegradationState>) => void,
+  ansichtErzwingen = false,
 ): void {
   const { poiCap, labelScaleCap } = capsForLevel(level);
   set({ poiCap, labelScaleCap });
 
-  if (level === 3) {
-    // Force 2D at the most degraded level (tilt/3D is the biggest GPU cost).
+  // ─── DIE ANSICHT GEHOERT DEM MENSCHEN ─────────────────────────────────────
+  // Gemeldet von der Autobahn (iPad im Cockpit Sport): „die Karte verliert
+  // die Ansicht, die ich auswaehle -- mein Favorit ist die 3D-Ansicht".
+  // Ursache war genau diese Stelle: bei Stufe 3 schaltete der Waechter auf
+  // 2D-Norden, und `setMode` SPEICHERT das als Wahl des Nutzers. Das Tablet
+  // fiel unterwegs immer wieder unter 25 Bilder je Sekunde -- und stand
+  // danach dauerhaft auf Norden oben, auch als die Leistung zurueck war.
+  //
+  // Deshalb nur noch bei der AUSDRUECKLICHEN Wahl „niedrig" (Override
+  // 'low'). Der automatische Waechter drosselt POIs und Beschriftung, die
+  // Ansicht laesst er stehen.
+  if (level === 3 && ansichtErzwingen) {
     useViewModeStore.getState().setMode('2d-north');
   }
 
@@ -169,7 +180,7 @@ export const useDegradationStore = create<DegradationState>((set, get) => ({
     const newLevel: DegradationLevel =
       override === 'high' ? 0 : override === 'low' ? 3 : get().level;
     if (override !== 'auto') {
-      get().applyLevel(newLevel);
+      applyDegradationLevel(newLevel, set, override === 'low');
       set({ level: newLevel, _lastLevelChangeTime: Date.now() });
     }
   },
@@ -259,7 +270,7 @@ export const useDegradationStore = create<DegradationState>((set, get) => ({
       applyDegradationLevel(0, set);
     } else if (override === 'low') {
       set({ level: 3 });
-      applyDegradationLevel(3, set);
+      applyDegradationLevel(3, set, true);
     }
     // 'auto': keep current level (0 by default)
   },

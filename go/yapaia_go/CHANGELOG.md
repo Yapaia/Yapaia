@@ -10,6 +10,17 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.53.1
+
+**Die Karte behält die gewählte Ansicht.** Wer 3D oder „in Fahrtrichtung"
+gewählt hatte, fand die Karte unterwegs immer wieder auf „Norden oben" –
+und dort blieb sie auch.
+
+- Ursache war der Leistungswächter: fiel das Tablet länger unter 25 Bilder
+  je Sekunde, stellte er auf 2D-Norden und speicherte das als eigene Wahl.
+  Jetzt drosselt er nur noch Sonderziele und Beschriftung; die Ansicht
+  bleibt. Wer ausdrücklich „niedrige Qualität" wählt, bekommt weiterhin 2D.
+
 ## 0.53.0
 
 **Spurempfehlung vor dem Abbiegen.** Ab 500 m vor einer Abbiegung oder
