@@ -275,9 +275,14 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
       attributionControl: { customAttribution: '© OpenStreetMap contributors' },
       // Enables reading back rendered pixels (gl.readPixels) after a frame
       // for pixel-sample assertions (E01-T4 e2e: dark vs light background).
-      // Negligible cost for a background-canvas map; standard practice for
-      // WebGL content that needs to be inspected/tested from outside.
-      canvasContextAttributes: { preserveDrawingBuffer: true },
+      //
+      // ─── NICHT IN DER EINBETTUNG ─────────────────────────────────────────
+      // „Vernachlaessigbar" stimmt auf dem Desktop, nicht auf schwachen
+      // Mobil-Grafikchips (Android-Autoradio im Cockpit Sport, dauerhaft
+      // unter 25 Bildern je Sekunde): dort erzwingt der erhaltene Puffer je
+      // Bild eine zusaetzliche Kopie. Die Pixelpruefungen laufen nur gegen
+      // die App selbst, nie gegen `embed.html` -- dort also aus.
+      canvasContextAttributes: { preserveDrawingBuffer: chrome },
     });
 
     // Die Zoomgruppe setzt der Effekt „ZOOM GEGENUEBER DEM PANEL" unten --
@@ -304,6 +309,7 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
     // `setMap` is a stable zustand action reference and intentionally
     // omitted from the dependency array (no react-hooks/exhaustive-deps
     // lint rule is configured in this repo).
+    // `chrome` steht fest, solange die Karte lebt (App oder Einbettung).
   }, [status, initialRegion, initialStyle]);
 
   // Step 3: live style switching. Whenever the effective styleId/options

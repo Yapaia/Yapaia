@@ -1058,6 +1058,26 @@ class YapaiaCockpitSportCard extends HTMLElement {
         this._diagFenster = w;
         this._diagKarte = null;
       }
+      // Bildrate im Rahmen und Verzug des eigenen Takts (blockierter
+      // Hauptfaden = träge Knöpfe), gemessen über 5 s.
+      if (!this._diagFps || this._diagFps.w !== w) {
+        const m = { w, n: 0, t0: performance.now(), fps: null };
+        const zaehle = () => {
+          if (this._diagFps !== m) return;
+          m.n += 1;
+          const t = performance.now();
+          if (t - m.t0 >= 5000) { m.fps = Math.round((m.n * 1000) / (t - m.t0)); m.n = 0; m.t0 = t; }
+          w.requestAnimationFrame(zaehle);
+        };
+        this._diagFps = m;
+        w.requestAnimationFrame(zaehle);
+      }
+      const jetztT = performance.now();
+      if (this._diagTaktZeit) {
+        const verzug = jetztT - this._diagTaktZeit - 1000;
+        this._diagVerzug = Math.max(this._diagVerzug || 0, verzug);
+      }
+      this._diagTaktZeit = jetztT;
       if (map !== this._diagKarte) {
         if (this._diagKarte) this._diag('neukarte', 'Neue Karteninstanz im selben Fenster');
         this._diagKarte = map;
@@ -1090,7 +1110,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._diag('bild', `Momentaufnahme: Anker ${(ax / c.clientWidth).toFixed(2)}|${(ay / c.clientHeight).toFixed(2)}, ` +
         `Punkt ${(p.x / c.clientWidth).toFixed(2)}|${(p.y / c.clientHeight).toFixed(2)}, Karte ${c.clientWidth}x${c.clientHeight}, ` +
         `Feld ${Math.round(this.shadowRoot.querySelector('.karte').clientHeight)} hoch, ${modus}, Neigung ${Math.round(map.getPitch())}°, ` +
-        `Stufe ${stufe}, ${Math.round(nav.speed_kmh || 0)} km/h`);
+        `Stufe ${stufe}, ${Math.round(nav.speed_kmh || 0)} km/h, ${this._diagFps.fps} fps, ` +
+        `Takt-Verzug max ${Math.round(this._diagVerzug || 0)} ms, Pixeldichte ${w.devicePixelRatio}, ` +
+        `Leinwand ${map.getCanvas().width}x${map.getCanvas().height}, Kacheln ${Object.keys(map.style && map.style.sourceCaches ? map.style.sourceCaches : {}).length}`);
+      if (this._diagZuletzt && Date.now() - this._diagZuletzt.bild < 1500) this._diagVerzug = 0;
       if (this._diagWeit === 3) {
         const f = w.__yapaiaFollowMeStore && w.__yapaiaFollowMeStore.getState();
         const alter = pos.timestamp ? Math.round((Date.now() - new Date(pos.timestamp).getTime()) / 1000) : '?';
@@ -1475,9 +1498,20 @@ class YapaiaCockpitSportCard extends HTMLElement {
       void this._karteAnlegen(h);
       return;
     }
-    if (Math.abs(h - this._kartenHoehe) < 24) return;
-    this._diag('hoehe', `Kartenhöhe ${this._kartenHoehe} → ${h} px, Kachel wird neu aufgebaut`);
+    // Seit die Höhe ohne Neuaufbau nachgezogen wird, auch kleine Änderungen:
+    // ein zu hoher Rahmen schob den Anker unter die untere Leiste.
+    if (Math.abs(h - this._kartenHoehe) < 2) return;
+    this._diag('hoehe', `Kartenhöhe ${this._kartenHoehe} → ${h} px`);
     this._kartenHoehe = h;
+    // Nur die Höhe nachziehen, den Rahmen stehen lassen: `setConfig` baute ihn
+    // bis Go 0.53.1 neu auf, die Karte lud neu (Flackern, Ansicht zurück).
+    // Ab Go 0.53.2 tut die Kachel das selbst; das hier gilt auch für ältere.
+    const rahmen = this._karte.shadowRoot && this._karte.shadowRoot.querySelector('.frame');
+    if (rahmen && rahmen.querySelector('iframe') && this._karte._config) {
+      this._karte._config.height = h;
+      rahmen.style.height = `${h}px`;
+      return;
+    }
     // Gedrehtes Tablet oder geändertes Fenster: die Kachel baut sich mit der neuen Höhe neu auf.
     this._karte.setConfig({ height: h });
   }
