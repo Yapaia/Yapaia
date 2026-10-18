@@ -113,8 +113,8 @@ const SPUR_PFEILE = [
 function spurPfeile(maske) {
   if (!(maske > 0)) return [];
   // 1 = Spur ohne Markierung, auf der Autobahn die durchgehenden: geradeaus.
-  if (maske === 1) return ['mdi:arrow-up'];
-  return SPUR_PFEILE.filter(([bits]) => maske & bits).map(([, icon]) => icon);
+  if (maske === 1) return [[1 | 2, 'mdi:arrow-up']];
+  return SPUR_PFEILE.filter(([bits]) => maske & bits);
 }
 const MASSSTAB_MIN = 0.5;
 const MASSSTAB_MAX = 2;
@@ -368,6 +368,7 @@ const STIL = `
   .nav .spur { display: flex; padding: calc(var(--u) * 0.2) calc(var(--u) * 0.3); border-radius: calc(var(--u) * 0.3);
     color: rgba(255, 255, 255, 0.35); }
   .nav .spur.an { background: #fff; color: #14161b; }
+  .nav .spur.an .blass { opacity: 0.3; }
   .kompass { position: absolute; z-index: 2; top: calc(var(--u) * 5.6); right: calc(var(--u) * 1.4); }
   .schild { position: absolute; z-index: 2; top: calc(var(--u) * 12.6); right: calc(var(--u) * 1.4);
     width: calc(var(--u) * 4.6); height: calc(var(--u) * 4.6); border-radius: 50%; background: #fff; color: #111;
@@ -1507,14 +1508,25 @@ class YapaiaCockpitSportCard extends HTMLElement {
         /fork|ramp|exit|stay|keep|slight/.test(art)) {
       const teilung = /fork|stay|keep/.test(art);
       lanes = [
-        { directions: links || teilung ? 16 : 2, active: links ? 1 : 0 },
-        { directions: rechts || teilung ? 32 : 2, active: rechts ? 1 : 0 },
+        { directions: links || teilung ? 16 : 2, active: links ? 16 : 0 },
+        { directions: rechts || teilung ? 32 : 2, active: rechts ? 32 : 0 },
       ];
     }
     const spuren =
       Array.isArray(lanes) && Number.isFinite(meter) && meter <= SPUREN_AB_M
         ? lanes
-            .map((l) => ({ pfeile: spurPfeile(l && l.directions), an: !!(l && l.active) }))
+            .map((l) => {
+              // In der empfohlenen Spur nur DER Pfeil kräftig, der für diese
+              // Route gilt (`active`): eine Spur „geradeaus + rechts raus“ zeigte
+              // sonst zwei gleich helle Pfeile, und man las zwei Spuren.
+              const aktiv = (l && l.active) || 0;
+              const pfeile = spurPfeile(l && l.directions);
+              const trifft = pfeile.some(([bits]) => aktiv & bits);
+              return {
+                an: aktiv > 0,
+                pfeile: pfeile.map(([bits, icon]) => ({ icon, blass: aktiv > 0 && trifft && !(aktiv & bits) })),
+              };
+            })
             .filter((l) => l.pfeile.length > 0)
         : [];
     const schluessel = JSON.stringify(spuren);
@@ -1525,9 +1537,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
       ...spuren.map((spur) => {
         const el = document.createElement('div');
         el.className = spur.an ? 'spur an' : 'spur';
-        for (const icon of spur.pfeile) {
+        for (const { icon, blass } of spur.pfeile) {
           const i = document.createElement('ha-icon');
           i.setAttribute('icon', icon);
+          if (blass) i.className = 'blass';
           el.appendChild(i);
         }
         return el;
