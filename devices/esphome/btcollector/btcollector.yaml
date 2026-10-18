@@ -59,8 +59,8 @@ esp32_ble_tracker:
       then:
         - lambda: |-
             for (auto data : x.get_manufacturer_datas()) {
-              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
-              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              // Batteriespannung steckt im oberen Byte der 16-Bit-UUID (0,1 V je Schritt)
+              const float voltage = (float) (data.uuid.get_uuid().uuid.uuid16 >> 8) * 0.1;
               const int pressure = data.data[1] << 8 | data.data[2];
 
               id(ble_rr_temp).publish_state(data.data[0]);
@@ -72,8 +72,8 @@ esp32_ble_tracker:
       then:
         - lambda: |-
             for (auto data : x.get_manufacturer_datas()) {
-              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
-              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              // Batteriespannung steckt im oberen Byte der 16-Bit-UUID (0,1 V je Schritt)
+              const float voltage = (float) (data.uuid.get_uuid().uuid.uuid16 >> 8) * 0.1;
               const int pressure = data.data[1] << 8 | data.data[2];
 
               id(ble_rl_temp).publish_state(data.data[0]);
@@ -86,8 +86,8 @@ esp32_ble_tracker:
       then:
         - lambda: |-
             for (auto data : x.get_manufacturer_datas()) {
-              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
-              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              // Batteriespannung steckt im oberen Byte der 16-Bit-UUID (0,1 V je Schritt)
+              const float voltage = (float) (data.uuid.get_uuid().uuid.uuid16 >> 8) * 0.1;
               const int pressure = data.data[1] << 8 | data.data[2];
 
               id(ble_fr_temp).publish_state(data.data[0]);
@@ -100,8 +100,8 @@ esp32_ble_tracker:
       then:
         - lambda: |-
             for (auto data : x.get_manufacturer_datas()) {
-              const char *hexstring = data.uuid.to_string().substr(2,2).c_str();
-              const float voltage = (float) strtol(hexstring, NULL, 16) * 0.1;
+              // Batteriespannung steckt im oberen Byte der 16-Bit-UUID (0,1 V je Schritt)
+              const float voltage = (float) (data.uuid.get_uuid().uuid.uuid16 >> 8) * 0.1;
               const int pressure = data.data[1] << 8 | data.data[2];
 
               id(ble_fl_temp).publish_state(data.data[0]);
