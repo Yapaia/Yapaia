@@ -10,6 +10,19 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.53.2
+
+**Die Karte im Dashboard lädt nicht mehr neu, wenn sich ihre Höhe ändert.**
+Gemeldet: „die Karte flackert, als ob sie komplett neu geladen wird, und
+danach ist wieder Norden oben". Kam etwa die Kopfzeile von Home Assistant
+dazu oder ging weg, baute die Kartenkachel ihren Rahmen neu auf. Jetzt zieht
+sie nur die Höhe nach.
+
+**Flüssiger auf schwachen Geräten.** Die eingebettete Karte (Dashboard)
+verzichtet auf einen Grafikpuffer, den nur die Testsuite braucht und der auf
+Mobil-Grafikchips (z. B. Android-Autoradio) jedes Bild ein zweites Mal
+kopierte.
+
 ## 0.53.1
 
 **Die Karte behält die gewählte Ansicht.** Wer 3D oder „in Fahrtrichtung"
