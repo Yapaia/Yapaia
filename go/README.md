@@ -110,6 +110,11 @@ both Valhalla's and Photon's footprint scale with the size of the region.
 Disk: budget roughly 10 GB for one region, more if you install several.
 CPU: x86-64 or ARM64; an N100-class mini-PC is the reference machine.
 
+Measured on the reference machine (N100, Germany + Switzerland + Liechtenstein,
+2026-10): with Photon **off** (lite search) the whole add-on uses about
+**330 MB** (Valhalla ~300 MB resident, Core ~110 MB). Building the map data on
+the device needs far more than running it — see the installation guide.
+
 Tight on RAM? Turning off the `photon_enabled` option drops the single biggest
 consumer and falls back to a built-in lightweight search index — you keep place
 and street names, you lose house numbers. The

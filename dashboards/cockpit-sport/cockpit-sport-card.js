@@ -641,7 +641,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
 
   connectedCallback() {
     this._uhr = setInterval(() => this._zeit(), 15000);
-    this._nadel = setInterval(() => this._kompassZeigen(), 700);
+    // Die Nadel folgt dem Drehen der Karte (Ereignis `rotate`, siehe
+    // `_diagnose`); der Takt hier ist nur noch das Netz darunter -- vorher
+    // alle 0,7 s, auf dem Autoradio spürbar.
+    this._nadel = setInterval(() => this._kompassZeigen(), 3000);
     this._diagTakt = setInterval(() => this._diagnose(), 1000);
     if (this._warEingehaengt) this._diag('eingehaengt', 'Karte erneut eingehängt (Home Assistant hat das Dashboard neu aufgebaut)');
     this._warEingehaengt = true;
@@ -1081,6 +1084,11 @@ class YapaiaCockpitSportCard extends HTMLElement {
       if (map !== this._diagKarte) {
         if (this._diagKarte) this._diag('neukarte', 'Neue Karteninstanz im selben Fenster');
         this._diagKarte = map;
+        let nadelPlan = 0;
+        map.on('rotate', () => {
+          if (nadelPlan) return;
+          nadelPlan = w.requestAnimationFrame(() => { nadelPlan = 0; this._kompassZeigen(); });
+        });
         map.on('webglcontextlost', () => this._diag('webgl', 'WebGL-Kontext verloren (iPad hat der Karte die Grafik entzogen)'));
         map.on('webglcontextrestored', () => this._diag('webgl2', 'WebGL-Kontext wiederhergestellt'));
       }

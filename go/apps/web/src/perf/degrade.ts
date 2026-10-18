@@ -2,11 +2,16 @@
  * Degradation Controller (E01-T6): Manages auto-degradation levels based on FPS,
  * with hysteresis and user override.
  *
- * Levels:
+ * Levels (seit 0.54.0):
  * - 0: Full quality
- * - 1: 3D buildings off
- * - 2: POI/label density reduced
- * - 3: Force 2D (no 3D/tilt)
+ * - 1: Pixeldichte hoechstens 1,5
+ * - 2: Pixeldichte 1, POI-Dichte reduziert
+ * - 3: dazu POIs aus, Beschriftung 1,0, 3D flacher (40° statt 55°)
+ *
+ * Die Stufen 1 und 3 taten vorher nichts Brauchbares: 1 sollte „3D-Gebaeude
+ * aus" sein (es gibt keine), 3 schaltete auf 2D-Norden und speicherte das
+ * (bis 0.53.0). Gemessen auf einem Android-Autoradio im Cockpit Sport:
+ * dauerhaft Stufe 3, also unter 25 Bildern je Sekunde.
  *
  * Upgrade (more degradation) at < 25 fps over 10 s
  * Downgrade (less degradation) at > 45 fps over 60 s
@@ -15,7 +20,7 @@
  */
 
 import { create } from 'zustand';
-import { useViewModeStore } from '../map/viewMode';
+import { setNeigungsGrenze, useViewModeStore } from '../map/viewMode';
 import type { StyleLabelScale, StylePoiDensity } from '../map/styleClient';
 
 export type DegradationLevel = 0 | 1 | 2 | 3;
@@ -50,6 +55,13 @@ interface DegradationState {
    */
   poiCap: StylePoiDensity | null;
   labelScaleCap: StyleLabelScale | null;
+  /**
+   * Hoechste Pixeldichte, mit der die Karte zeichnet, oder `null` (Geraet
+   * entscheidet). Auf einem Bildschirm mit Dichte 2 zeichnet die Karte sonst
+   * viermal so viele Bildpunkte -- auf schwachen Grafikchips der groesste
+   * einzelne Posten. Wird von MapView angewandt, nie gespeichert.
+   */
+  pixelRatioCap: number | null;
 
   /** Internal: for hysteresis */
   _lastLevelChangeTime: number;
@@ -104,18 +116,23 @@ function readPersistedOverride(): QualityOverride {
 function capsForLevel(level: DegradationLevel): {
   poiCap: StylePoiDensity | null;
   labelScaleCap: StyleLabelScale | null;
+  pixelRatioCap: number | null;
 } {
   switch (level) {
-    case 2:
-      return { poiCap: 'reduced', labelScaleCap: null };
-    case 3:
-      return { poiCap: 'off', labelScaleCap: '1.0' };
-    case 0:
     case 1:
+      return { poiCap: null, labelScaleCap: null, pixelRatioCap: 1.5 };
+    case 2:
+      return { poiCap: 'reduced', labelScaleCap: null, pixelRatioCap: 1 };
+    case 3:
+      return { poiCap: 'off', labelScaleCap: '1.0', pixelRatioCap: 1 };
+    case 0:
     default:
-      return { poiCap: null, labelScaleCap: null };
+      return { poiCap: null, labelScaleCap: null, pixelRatioCap: null };
   }
 }
+
+/** So flach wird 3D bei Stufe 3 (statt 55°): weniger Kacheln bis zum Horizont. */
+export const NEIGUNG_STUFE_3 = 40;
 
 /**
  * Apply a degradation level: publish the transient render-quality caps (read
@@ -127,8 +144,11 @@ function applyDegradationLevel(
   set: (partial: Partial<DegradationState>) => void,
   ansichtErzwingen = false,
 ): void {
-  const { poiCap, labelScaleCap } = capsForLevel(level);
-  set({ poiCap, labelScaleCap });
+  const { poiCap, labelScaleCap, pixelRatioCap } = capsForLevel(level);
+  set({ poiCap, labelScaleCap, pixelRatioCap });
+  // Statt auf 2D zu schalten: 3D bleibt 3D, nur flacher -- voruebergehend,
+  // die gespeicherte Ansicht bleibt unberuehrt.
+  setNeigungsGrenze(level === 3 ? NEIGUNG_STUFE_3 : null);
 
   // ─── DIE ANSICHT GEHOERT DEM MENSCHEN ─────────────────────────────────────
   // Gemeldet von der Autobahn (iPad im Cockpit Sport): „die Karte verliert
@@ -169,6 +189,7 @@ export const useDegradationStore = create<DegradationState>((set, get) => ({
   override: 'auto',
   poiCap: null,
   labelScaleCap: null,
+  pixelRatioCap: null,
   _lastLevelChangeTime: 0,
   _fpsHistory: [],
 

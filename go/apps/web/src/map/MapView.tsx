@@ -165,6 +165,8 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
     poi: poiCap,
     labelScale: labelScaleCap,
   });
+  // Pixeldichte (0.54.0): ab Stufe 1 gedeckelt, siehe `perf/degrade.ts`.
+  const pixelRatioCap = useDegradationStore((state) => state.pixelRatioCap);
   // Tracks the (styleId, options, region) combination already applied to the
   // live map, so the live-switch effect below can skip the redundant re-fetch
   // right after mount (the map was just initialized with exactly this style).
@@ -311,6 +313,17 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
     // lint rule is configured in this repo).
     // `chrome` steht fest, solange die Karte lebt (App oder Einbettung).
   }, [status, initialRegion, initialStyle]);
+
+  // ─── PIXELDICHTE NACH LEISTUNGSSTUFE ────────────────────────────────────
+  // Auf einem Bildschirm mit Dichte 2 zeichnet die Karte viermal so viele
+  // Bildpunkte wie mit 1. Auf schwachen Grafikchips (Android-Autoradio) ist
+  // das der groesste einzelne Posten; ab Stufe 1 wird gedeckelt, nie erhoeht.
+  useEffect(() => {
+    if (!map || typeof window === 'undefined') return;
+    const geraet = window.devicePixelRatio || 1;
+    const ziel = pixelRatioCap === null ? geraet : Math.min(geraet, pixelRatioCap);
+    if (Math.abs(map.getPixelRatio() - ziel) > 0.01) map.setPixelRatio(ziel);
+  }, [map, pixelRatioCap]);
 
   // Step 3: live style switching. Whenever the effective styleId/options
   // change to something other than what's currently applied, fetch the new
