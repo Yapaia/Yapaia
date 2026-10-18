@@ -641,6 +641,9 @@ class YapaiaCockpitSportCard extends HTMLElement {
   connectedCallback() {
     this._uhr = setInterval(() => this._zeit(), 15000);
     this._nadel = setInterval(() => this._kompassZeigen(), 700);
+    this._diagTakt = setInterval(() => this._diagnose(), 1000);
+    if (this._warEingehaengt) this._diag('eingehaengt', 'Karte erneut eingehängt (Home Assistant hat das Dashboard neu aufgebaut)');
+    this._warEingehaengt = true;
     this._beobachter = new ResizeObserver(() => {
       this._masse();
       this._kartePassen();
@@ -657,6 +660,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
   disconnectedCallback() {
     clearInterval(this._uhr);
     clearInterval(this._nadel);
+    clearInterval(this._diagTakt);
     if (this._beobachter) this._beobachter.disconnect();
     this._kopfzeile(false); // andere Dashboards behalten ihre Kopfzeile
   }
@@ -1022,6 +1026,70 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this._lautTakt = setTimeout(() => anzeige.classList.remove('sichtbar'), 2500);
   }
 
+  // ─── Diagnose (vorübergehend) ──────────────────────────────────────────────
+  // Gemeldet: unterwegs wandert die eigene Position aus dem Bild, und die Karte
+  // flackert, als würde sie neu geladen (danach wieder Norden oben). Im
+  // Testbrowser nicht nachzustellen -- deshalb schreibt die Karte Auffälligkeiten
+  // ins Log von Home Assistant (Einstellungen → System → Protokolle,
+  // Logger `yapaia.cockpit_sport`). Je Art höchstens alle 30 s, insgesamt 300.
+  _diag(art, text) {
+    if (!this._hass) return;
+    const jetzt = Date.now();
+    this._diagZuletzt = this._diagZuletzt || {};
+    this._diagAnzahl = this._diagAnzahl || 0;
+    if (this._diagAnzahl >= 300 || jetzt - (this._diagZuletzt[art] || 0) < 30000) return;
+    this._diagZuletzt[art] = jetzt;
+    this._diagAnzahl += 1;
+    this._hass
+      .callService('system_log', 'write', { message: `[Cockpit-Diagnose] ${text}`, level: 'warning', logger: 'yapaia.cockpit_sport' })
+      .catch(() => {});
+  }
+
+  _diagnose() {
+    const w = this._kartenFenster();
+    if (!w) return;
+    try {
+      const map = w.__yapaiaMapController.getMap();
+      if (!map) return;
+      if (w !== this._diagFenster) {
+        if (this._diagFenster) this._diag('neuladen', 'Karte neu geladen (neues Fenster im Rahmen)');
+        this._diagFenster = w;
+        this._diagKarte = null;
+      }
+      if (map !== this._diagKarte) {
+        if (this._diagKarte) this._diag('neukarte', 'Neue Karteninstanz im selben Fenster');
+        this._diagKarte = map;
+        map.on('webglcontextlost', () => this._diag('webgl', 'WebGL-Kontext verloren (iPad hat der Karte die Grafik entzogen)'));
+        map.on('webglcontextrestored', () => this._diag('webgl2', 'WebGL-Kontext wiederhergestellt'));
+      }
+      const modus = w.localStorage.getItem('yapaia.viewMode') || '2d-north';
+      if (this._diagModus && modus !== this._diagModus && Date.now() - (this._kompassZeit || 0) > 3000) {
+        this._diag('modus', `Ansicht ohne Kompass-Knopf gewechselt: ${this._diagModus} → ${modus}`);
+      }
+      this._diagModus = modus;
+      const pos = w.__yapaiaPositionStore && w.__yapaiaPositionStore.getState().position;
+      const nav = w.__yapaiaNavStore && w.__yapaiaNavStore.getState().navState;
+      if (!pos || !nav || !FAHRT.has(nav.status)) return;
+      const c = map.getContainer();
+      const pad = map.getPadding();
+      const ax = pad.left + (c.clientWidth - pad.left - pad.right) / 2;
+      const ay = pad.top + (c.clientHeight - pad.top - pad.bottom) / 2;
+      const p = map.project([pos.lon, pos.lat]);
+      const weit = Math.abs(p.x - ax) > c.clientWidth * 0.2 || Math.abs(p.y - ay) > c.clientHeight * 0.2;
+      this._diagWeit = weit ? (this._diagWeit || 0) + 1 : 0;
+      if (this._diagWeit === 3) {
+        const f = w.__yapaiaFollowMeStore && w.__yapaiaFollowMeStore.getState();
+        const alter = pos.timestamp ? Math.round((Date.now() - new Date(pos.timestamp).getTime()) / 1000) : '?';
+        this._diag('weg', `Position weg vom Anker: dx ${Math.round(p.x - ax)} dy ${Math.round(p.y - ay)} px ` +
+          `(Karte ${c.clientWidth}x${c.clientHeight}, Rahmen ${Math.round(this.shadowRoot.querySelector('.karte').clientHeight)} hoch), ` +
+          `folgen ${f && f.isFollowing} pause ${f && f.isPaused}, ${modus}, Kurs ${Math.round(map.getBearing())}°, ` +
+          `Zoom ${map.getZoom().toFixed(1)}, ${Math.round(nav.speed_kmh || 0)} km/h, Fix vor ${alter} s, bewegt ${map.isMoving()}`);
+      }
+    } catch (err) {
+      /* Karte lädt gerade */
+    }
+  }
+
   // ─── Karte im Rahmen ───────────────────────────────────────────────────────
   /** Das Fenster der eingebetteten Go-Karte (gleiche Herkunft wie Home Assistant). */
   _kartenFenster() {
@@ -1053,6 +1121,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
    * den Ansichtswechsel neu geladen.
    */
   _kompass() {
+    this._kompassZeit = Date.now();
     const w = this._kartenFenster();
     if (!w) return;
     const folge = ['2d-north', '2d-course', '3d-course'];
@@ -1393,6 +1462,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       return;
     }
     if (Math.abs(h - this._kartenHoehe) < 24) return;
+    this._diag('hoehe', `Kartenhöhe ${this._kartenHoehe} → ${h} px, Kachel wird neu aufgebaut`);
     this._kartenHoehe = h;
     // Gedrehtes Tablet oder geändertes Fenster: die Kachel baut sich mit der neuen Höhe neu auf.
     this._karte.setConfig({ height: h });
