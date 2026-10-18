@@ -1255,7 +1255,7 @@ display:
       // Ausfahrt, steht hier eine vereinfachte Zweierleiste: die Seite, auf
       // die es geht, hell.
       int sp_maske[8];
-      bool sp_an[8];
+      int sp_an[8];   // `active` als Maske: WELCHE Richtung der Spur gilt
       int sp_n = 0;
       const bool sp_nah = hat(id(yapaia_manoever_entfernung)) &&
                           id(yapaia_manoever_entfernung).state <= 1500.0f;
@@ -1275,7 +1275,7 @@ display:
           const int m = wert("directions");
           if (m > 0) {
             sp_maske[sp_n] = m;
-            sp_an[sp_n] = wert("active") > 0;
+            sp_an[sp_n] = wert("active");
             sp_n++;
           }
           i = ende + 1;
@@ -1287,8 +1287,8 @@ display:
           const bool teilung = enthaelt("fork") || enthaelt("stay") || enthaelt("keep");
           sp_maske[0] = links ? 16 : (teilung ? 16 : 2);
           sp_maske[1] = rechts ? 32 : (teilung ? 32 : 2);
-          sp_an[0] = links;
-          sp_an[1] = rechts;
+          sp_an[0] = links ? sp_maske[0] : 0;
+          sp_an[1] = rechts ? sp_maske[1] : 0;
           sp_n = 2;
         }
       }
@@ -1311,9 +1311,19 @@ display:
           const int fx = x0 + k * (sw + sg);
           const int x = fx + sw / 2, y = ly + 1;   // Knick der Pfeile
           const int m = sp_maske[k];
-          if (sp_an[k]) it.filled_rectangle(fx, ly - sh / 2, sw, sh, id(c_text));
-          const Color c = sp_an[k] ? id(c_hintergrund) : id(c_gedaempft);
+          const int aktiv = sp_an[k];
+          if (aktiv) it.filled_rectangle(fx, ly - sh / 2, sw, sh, id(c_text));
+          // In der hellen Spur nur DIE Richtung kraeftig, die fuer diese Route
+          // gilt: „geradeaus + rechts raus" las man sonst als zwei Spuren.
+          // Passt `active` zu keinem Pfeil, bleiben alle kraeftig.
+          const bool trifft = (aktiv & m & ~1) != 0 || ((aktiv & 1) && (m & 1));
+          auto farbe = [&](int bits) -> Color {
+            if (!aktiv) return id(c_gedaempft);
+            return (!trifft || (aktiv & bits)) ? id(c_hintergrund) : id(c_gedaempft);
+          };
+          Color c = aktiv ? id(c_hintergrund) : id(c_gedaempft);
           strich(x, y + 9, x, y, c);   // Stiel
+          c = farbe(1 | 2);
           if (m & (1 | 2)) {
             strich(x, y, x, y - 5, c);
             it.filled_triangle(x - 5, y - 5, x + 5, y - 5, x, y - 10, c);
@@ -1321,16 +1331,19 @@ display:
           for (int seite = -1; seite <= 1; seite += 2) {
             const int leicht = seite < 0 ? 16 : 32;
             const int scharf = seite < 0 ? (4 | 8 | 512) : (64 | 128 | 1024);
+            c = farbe(leicht);
             if (m & leicht) {
               strich(x, y, x + seite * 5, y - 5, c);
               it.filled_triangle(x + seite * 9, y - 10, x + seite * 2, y - 8, x + seite * 8, y - 3, c);
             }
+            c = farbe(scharf);
             if (m & scharf) {
               strich(x, y, x, y - 4, c);
               strich(x, y - 4, x + seite * 6, y - 4, c);
               it.filled_triangle(x + seite * 6, y - 9, x + seite * 6, y + 1, x + seite * 11, y - 4, c);
             }
           }
+          c = farbe(256);
           if (m & 256) {
             strich(x, y, x, y - 8, c);
             strich(x, y - 8, x - 7, y - 8, c);
