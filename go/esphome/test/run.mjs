@@ -96,6 +96,7 @@ export const ZEIGER_IDS = new Set([
   'yapaia_manoever_art', 'yapaia_fahrzustand', 'yapaia_ankunft',
   // Der Kreisel: Ausfahrt und Drehung als ein Text.
   'yapaia_kreisel',
+  'yapaia_spuren',
   // Die digitale Wasserwaage.
   'neigung_lr', 'neigung_vh',
   // Die beiden Schalter: Waage erzwingen, und Fahrzeug statt Libelle.

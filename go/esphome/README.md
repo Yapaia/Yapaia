@@ -58,12 +58,12 @@ zeigt diese Datei.
 
 ```
         ╭───────────────────╮
-      ╱   Links abbiegen auf  ╲      ← Anweisung, gekürzt
-     │          ┌─┐            │
-     │       ┌──┘ │            │     ← Manöverpfeil
+      ╱         ┌─┐           ╲
+     │       ┌──┘ │            │     ← Manöverpfeil (weiter oben)
      │       └────┘            │
      │        1,2 km           │     ← Entfernung, groß
-      ╲   87    ⬤80    16:32  ╱      ← Tempo · Limit · Ankunft
+     │   [↑][↑] ↗  ↗           │     ← Spuren ab 1500 m, die beste hell
+      ╲      98     16:32     ╱      ← Tempo · Ankunft
         ╰───────────────────╯
 ```
 
@@ -83,7 +83,7 @@ Im Einzelnen:
 | Manöverpfeil | Attribut `anweisung_typ` von `sensor.yapaia_go_anweisung` | gezeichnet, keine Symbolschrift |
 | Kreisel | Attribut `anweisung_kreisel` von `sensor.yapaia_go_anweisung` (`"2\|90"` = 2. Ausfahrt, 90° nach rechts) | der Bogen, den man fährt (Viertel = rechts, Hälfte = geradeaus, drei Viertel = links), der Pfeil in Richtung der Ausfahrt und ihre Nummer in der Mitte |
 | Entfernung zum Manöver | `sensor.yapaia_go_anweisung_entfernung` | unter 1 km in Metern, auf 10 m gerundet |
-| Anweisungstext | `sensor.yapaia_go_anweisung` | bereits auf Deutsch, bei Überlänge gekürzt |
+| Spuren | Attribut `anweisung_spuren` von `sensor.yapaia_go_anweisung` | ab 1500 m vor dem Manöver, die beste Spur hell; ohne Spurdaten an Teilung/Auf-/Ausfahrt eine vereinfachte Zweierleiste. Der Anweisungstext wird nicht mehr gezeigt (war ohnehin gekürzt). |
 | Tempo | `sensor.yapaia_go_tempo` | rot, wenn `binary_sensor.yapaia_go_zu_schnell` an ist |
 | Tempolimit | `sensor.yapaia_go_tempolimit` | als rundes Schild — **nur**, wenn die Karte eines kennt |
 | Ankunftszeit | `sensor.yapaia_go_ankunft` | aus UTC in Ihre Zeitzone **gerechnet** |

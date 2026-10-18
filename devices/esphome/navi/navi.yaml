@@ -379,6 +379,13 @@ text_sensor:
     id: yapaia_kreisel
     entity_id: ${entity_praefix}_anweisung
     attribute: anweisung_kreisel
+  # Die Spuren vor dem Abbiegen (ab Yapaia Go 0.53.0), als Text der Liste,
+  # z. B. "[{'directions': 2, 'valid': 2, 'active': 2}, {'directions': 32}]".
+  # Unten werden nur `directions` und `active` herausgelesen.
+  - platform: homeassistant
+    id: yapaia_spuren
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_spuren
   # idle | routing | navigating | paused | arrived | off_route
   - platform: homeassistant
     id: yapaia_fahrzustand
@@ -1037,32 +1044,12 @@ display:
         return;
       }
 
-      // ══ Oben: der Anweisungstext ═══════════════════════════════════════
-      // Gekuerzt nach ZEICHENZAHL, geschaetzt aus der verfuegbaren Breite.
-      // Das ist eine Schaetzung und als solche gemeint: die tatsaechliche
-      // Breite einer Zeichenkette kennt nur die Schrift. Lieber ein Wort zu
-      // frueh abgeschnitten als eines, das im Rund verschwindet.
-      const int ty = cy - (r * 62) / 100;
-      const int platz = (halbbreite(ty) * 2) / 7;   // ~7 Bildpunkte je Zeichen
-      std::string anweisung = id(yapaia_anweisung).state;
-      if (anweisung == "unknown" || anweisung == "unavailable") anweisung.clear();
-      if (platz > 1 && (int) anweisung.size() > platz) {
-        // ─── NICHT MITTEN IN EIN ZEICHEN SCHNEIDEN ──────────────────────
-        // `std::string` zaehlt BYTES. „ß", „ü", „ä" sind in UTF-8 zwei Bytes
-        // lang, und deutsche Strassennamen bestehen zu einem guten Teil
-        // daraus. Faellt der Schnitt zwischen die beiden Bytes, entsteht
-        // kein Zeichen, sondern Bruch -- die Schrift zeigt dann ein
-        // Ersatzkaestchen oder gar nichts, mitten im Strassennamen.
-        //
-        // Also zurueck bis zum Anfang des Zeichens: Folgebytes eines
-        // UTF-8-Zeichens haben immer das Bitmuster 10xxxxxx.
-        size_t schnitt = (size_t) platz - 1;
-        while (schnitt > 0 && ((unsigned char) anweisung[schnitt] & 0xC0) == 0x80) {
-          schnitt--;
-        }
-        anweisung = anweisung.substr(0, schnitt) + "…";
-      }
-      it.print(cx, ty, id(font_s), id(c_gedaempft), TextAlign::CENTER, anweisung.c_str());
+      // ══ Oben: KEIN Anweisungstext mehr ═══════════════════════════════
+      // Gewuenscht (von der Autobahn): „den Text brauch ich nicht, das Bild
+      // natuerlich schon, der koennte ein Stueck nach oben wandern und
+      // darunter die Entfernung. Mit dem Platz, der uebrig bleibt, die
+      // Spurpfeile wie im Cockpit Sport." Der Text war ohnehin nach rund
+      // 25 Zeichen abgeschnitten -- die Richtung stand meist im Rest.
 
       // ══ Mitte: der Manoeverpfeil ═══════════════════════════════════════
       // Gezeichnet, nicht als Symbolschrift geladen: so haengt die Anzeige
@@ -1080,7 +1067,7 @@ display:
         return art.find(teil) != std::string::npos;
       };
 
-      const int py = cy - (r * 20) / 100;
+      const int py = cy - (r * 41) / 100;
       // Die Kantenlaenge kommt aus `r`, also aus der KLEINEREN Seite. Damit
       // passt der Pfeil in jedem Seitenverhaeltnis; eine zusaetzliche
       // Begrenzung auf die Halbbreite stand hier zunaechst, konnte aber nie
@@ -1241,7 +1228,7 @@ display:
       // Unter 1000 m in Metern, darueber in Kilometern. Auf 10 m gerundet:
       // "483 m" taeuscht eine Genauigkeit vor, die GPS nicht hat, und die
       // letzte Ziffer flackerte im Sekundentakt.
-      const int dy_ = cy + (r * 28) / 100;
+      const int dy_ = cy + (r * 12) / 100;
       if (hat(id(yapaia_manoever_entfernung))) {
         const float m = id(yapaia_manoever_entfernung).state;
         if (m >= 1000.0f) {
@@ -1252,6 +1239,105 @@ display:
         }
       } else {
         it.print(cx, dy_, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
+      }
+
+      // ══ Darunter: die Spuren ═══════════════════════════════════════════
+      // Wie im Cockpit Sport: ab 1500 m vor dem Manoever, links nach rechts,
+      // nur die BESTE Spur (`active`) hell hinterlegt. Bits wie bei Valhalla:
+      // 1/2 geradeaus, 16 leicht links, 32 leicht rechts, 4|8|512 links,
+      // 64|128|1024 rechts, 256 wenden.
+      //
+      // ─── OHNE SPURDATEN AN EINER TEILUNG ─────────────────────────────────
+      // Gewuenscht: „manchmal braeuchte ich ein bisschen mehr Guidance,
+      // welche Spur ich tatsaechlich benutze" -- gerade wenn sich die
+      // Ausfahrt teilt. Spurdaten gibt es nur, wo sie in OpenStreetMap
+      // eingetragen sind. Fehlen sie bei einer Teilung, Auffahrt oder
+      // Ausfahrt, steht hier eine vereinfachte Zweierleiste: die Seite, auf
+      // die es geht, hell.
+      int sp_maske[8];
+      bool sp_an[8];
+      int sp_n = 0;
+      const bool sp_nah = hat(id(yapaia_manoever_entfernung)) &&
+                          id(yapaia_manoever_entfernung).state <= 1500.0f;
+      if (sp_nah) {
+        const std::string &t = id(yapaia_spuren).state;
+        size_t i = 0;
+        while (sp_n < 8 && (i = t.find('{', i)) != std::string::npos) {
+          const size_t ende = t.find('}', i);
+          if (ende == std::string::npos) break;
+          const std::string teil = t.substr(i, ende - i);
+          auto wert = [&](const char *name) -> int {
+            const size_t p = teil.find(name);
+            if (p == std::string::npos) return 0;
+            const size_t z = teil.find_first_of("0123456789", p + std::strlen(name));
+            return z == std::string::npos ? 0 : std::atoi(teil.c_str() + z);
+          };
+          const int m = wert("directions");
+          if (m > 0) {
+            sp_maske[sp_n] = m;
+            sp_an[sp_n] = wert("active") > 0;
+            sp_n++;
+          }
+          i = ende + 1;
+        }
+        const bool links = enthaelt("left"), rechts = enthaelt("right");
+        if (sp_n == 0 && (links || rechts) &&
+            (enthaelt("fork") || enthaelt("ramp") || enthaelt("exit") ||
+             enthaelt("stay") || enthaelt("keep") || enthaelt("slight"))) {
+          const bool teilung = enthaelt("fork") || enthaelt("stay") || enthaelt("keep");
+          sp_maske[0] = links ? 16 : (teilung ? 16 : 2);
+          sp_maske[1] = rechts ? 32 : (teilung ? 32 : 2);
+          sp_an[0] = links;
+          sp_an[1] = rechts;
+          sp_n = 2;
+        }
+      }
+      if (sp_n > 0) {
+        const int ly = cy + (r * 44) / 100;   // Mitte der Leiste
+        const int sw = 26, sh = 24, sg = 4;   // Feldbreite, -hoehe, Abstand
+        int n = sp_n;
+        // Passt die Leiste nicht ins Rund, faellt hinten etwas weg -- lieber
+        // das, als dass die erste Spur im Rand verschwindet.
+        while (n > 1 && n * sw + (n - 1) * sg > 2 * halbbreite(ly + sh / 2) - 8) n--;
+        const int x0 = cx - (n * sw + (n - 1) * sg) / 2;
+        // Ein Strich, drei Bildpunkte dick.
+        auto strich = [&](int x1, int y1, int x2, int y2, Color c) {
+          for (int k = -1; k <= 1; k++) {
+            if (std::abs(x2 - x1) >= std::abs(y2 - y1)) it.line(x1, y1 + k, x2, y2 + k, c);
+            else it.line(x1 + k, y1, x2 + k, y2, c);
+          }
+        };
+        for (int k = 0; k < n; k++) {
+          const int fx = x0 + k * (sw + sg);
+          const int x = fx + sw / 2, y = ly + 1;   // Knick der Pfeile
+          const int m = sp_maske[k];
+          if (sp_an[k]) it.filled_rectangle(fx, ly - sh / 2, sw, sh, id(c_text));
+          const Color c = sp_an[k] ? id(c_hintergrund) : id(c_gedaempft);
+          strich(x, y + 9, x, y, c);   // Stiel
+          if (m & (1 | 2)) {
+            strich(x, y, x, y - 5, c);
+            it.filled_triangle(x - 5, y - 5, x + 5, y - 5, x, y - 10, c);
+          }
+          for (int seite = -1; seite <= 1; seite += 2) {
+            const int leicht = seite < 0 ? 16 : 32;
+            const int scharf = seite < 0 ? (4 | 8 | 512) : (64 | 128 | 1024);
+            if (m & leicht) {
+              strich(x, y, x + seite * 5, y - 5, c);
+              it.filled_triangle(x + seite * 9, y - 10, x + seite * 2, y - 8, x + seite * 8, y - 3, c);
+            }
+            if (m & scharf) {
+              strich(x, y, x, y - 4, c);
+              strich(x, y - 4, x + seite * 6, y - 4, c);
+              it.filled_triangle(x + seite * 6, y - 9, x + seite * 6, y + 1, x + seite * 11, y - 4, c);
+            }
+          }
+          if (m & 256) {
+            strich(x, y, x, y - 8, c);
+            strich(x, y - 8, x - 7, y - 8, c);
+            strich(x - 7, y - 8, x - 7, y - 2, c);
+            it.filled_triangle(x - 11, y - 3, x - 3, y - 3, x - 7, y + 2, c);
+          }
+        }
       }
 
       // ══ Unten: Tempo und Ankunft ═══════════════════════════════════════
