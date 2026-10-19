@@ -112,7 +112,7 @@ Ein Eintrag in `index.json` ist rückwärtskompatibel zu
   "id": "…", "name": "…", "version": "1.0.0", "description": "…",
   "icon": "https://…" , "screenshots": [],
   "download_url": "B/v1/addons/{id}/{version}/download",
-  "sha256": "…", "scopes": ["pos.read"], "core_api": "^0.47.0",
+  "sha256": "…", "scopes": ["pos.read"], "core_api": "*",
   "signature": "ysig1.…",
   "licensing": "free" | "paid", "publisher": "yapaia", "price_label": "4,99 €"
 }
@@ -163,3 +163,8 @@ Verbindung von Go zum Marktplatz.
 Add-ons sprechen mit Go nur über das SDK (postMessage bzw. REST/WS) und laufen
 als eigener Prozess oder im iframe — sie sind keine abgeleiteten Werke des
 GPL-Kerns.
+
+> **`core_api`** bezieht sich auf die Version der Add-on-API (`@yapaia/core`,
+> per Changesets versioniert), nicht auf die Add-on-Version von Yapaia Go in
+> Home Assistant (z. B. 0.47.0). Bis zum ersten Release steht die API auf
+> 0.0.x; Add-ons verwenden bis dahin `"*"`.
