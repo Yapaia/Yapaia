@@ -10,6 +10,18 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.55.0
+
+**Neue Hinweise zur Nutzung – einmal neu zustimmen.** Beim nächsten Öffnen von
+Yapaia Go erscheint ein Fenster mit den überarbeiteten Hinweisen: Die
+Verantwortung bleibt bei der Person am Steuer, alle Anzeigen (Route,
+Durchfahrtshöhe, Tempolimit, Spuren, Kamera, Reifendruck …) sind Hinweise ohne
+Gewähr. Bis zur Zustimmung lässt sich in Yapaia Go keine neue Navigation
+starten; die übrige Einrichtung muss man nicht wiederholen.
+
+**Lizenz.** Yapaia steht jetzt unter der GNU General Public License 3.0 oder
+später.
+
 ## 0.54.0
 
 **Flüssiger auf schwachen Geräten (Autoradio, ältere Tablets).** Der

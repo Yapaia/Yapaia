@@ -15,6 +15,7 @@ import TopBar from './shell/TopBar.js';
 import FavoritenLader from './favorites/FavoritenLader.js';
 import UpdatePrompt from './pwa/UpdatePrompt.js';
 import OnboardingWizard from './onboarding/OnboardingWizard.js';
+import ZustimmungErneuern from './onboarding/ZustimmungErneuern.js';
 import UnconfirmedDimensionsBanner from './profiles/UnconfirmedDimensionsBanner.js';
 import AddonHost from './addons/AddonHost.js';
 import BordHinweis from './bord/BordHinweis.js';
@@ -60,6 +61,7 @@ export default function App(): React.ReactElement {
           Er blendet sich selbst aus, solange der Assistent laeuft (beide sind
           `z-50`-Overlays) -- siehe UnconfirmedDimensionsBanner.tsx. */}
       <OnboardingWizard />
+      <ZustimmungErneuern />
       <UnconfirmedDimensionsBanner />
       {/* E09-T2: sandboxed UI add-on runtime (iframes + scope-checked bridge,
           add-on widgets, route-proposal banner). Renders nothing until an

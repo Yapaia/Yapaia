@@ -48,3 +48,20 @@ hinzufügen → Yapaia → GL.iNet-Router*.
   Release-Tags tragen das Modul im Namen, z. B. `go-v0.43.0`.
 - Die Geschichte der früheren Einzel-Repositories ist vollständig erhalten
   (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`, `git log -- router/`).
+
+## Lizenz
+
+Yapaia ist freie Software unter der **GNU General Public License 3.0 oder
+später** ([`LICENSE`](LICENSE)): du darfst es nutzen, verändern und
+weitergeben – auch verändert, solange es dabei unter derselben Lizenz und mit
+Quelltext bleibt.
+
+- **Ohne Gewähr.** Yapaia wird unentgeltlich und ohne Gewährleistung
+  bereitgestellt; die Haftung ist ausgeschlossen, soweit das Gesetz es zulässt
+  (GPL-3.0, Abschnitte 15 und 16). Alle Anzeigen – Route, Durchfahrtshöhe,
+  Tempolimit, Spuren, Kamera, Reifendruck, Füllstände – sind Hinweise; die
+  Verantwortung für das Fahrzeug liegt immer bei der Person am Steuer.
+- **Fremde Bausteine und Daten** (OpenStreetMap, welle.io, Valhalla …):
+  [`DRITTLIZENZEN.md`](DRITTLIZENZEN.md).
+- **Name und Logo** sind nicht Teil der Lizenz: [`NAME-UND-LOGO.md`](NAME-UND-LOGO.md).
+
