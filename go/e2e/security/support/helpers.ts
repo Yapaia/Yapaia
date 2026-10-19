@@ -95,6 +95,12 @@ export async function installTarball(
   request: APIRequestContext,
   bytes: Buffer,
 ): Promise<InstallOutcome> {
+  // The attack fixtures are unsigned -- developer mode (docs/marktplatz.md),
+  // so the suite still reaches the tarball/sandbox defences behind it.
+  await request.put(`${SECURITY_CORE_BASE_URL}/api/v1/addons/marketplace/developer-mode`, {
+    headers: coreAuth(),
+    data: { enabled: true },
+  });
   const begin = await request.post(`${SECURITY_CORE_BASE_URL}/api/v1/addons/install`, {
     headers: coreAuth(),
     data: { source: 'upload', data: bytes.toString('base64') },

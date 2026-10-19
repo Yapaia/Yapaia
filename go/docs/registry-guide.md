@@ -72,7 +72,7 @@ Ein JSON-**Array** von Einträgen (kein umschließendes Objekt). Jeder Eintrag:
 | `scopes` | ja | Array der im Manifest deklarierten Permission-Scopes (docs/05 §2) — die "Scope-Vorschau" im Store |
 | `core_api` | ja | Semver-Range, identisch zum Manifest-Feld |
 | `screenshots` | nein | Array von `http(s)`-URLs |
-| `signature` | nein | **reserviert, siehe §3** |
+| `signature` | nein (ohne: nur im Entwicklermodus installierbar) | `ysig1`-Release-Signatur, siehe §3 |
 
 ### Validierung durch den Core (`apps/core/src/addons/registry.ts`)
 
@@ -107,20 +107,21 @@ herunterladen, sha256 bilden, vergleichen) passiert ausschließlich dort
 Registry-Eintrag kann diese Prüfung **nicht umgehen**: `sha256` ist für
 einen URL-Install serverseitig ohnehin Pflicht.
 
-## 3. Das `signature`-Feld (reserviert, NICHT verifiziert)
+## 3. Das `signature`-Feld (seit Go 0.47.0 geprüft)
 
-`signature` ist ab jetzt im Schema reserviert (docs/05 §5: "Signierung
-(minisign) ist ab v1.1 vorgesehen"). **Klarstellung, damit hier keine
-Fehlannahme entsteht:**
+`signature` ist eine `ysig1`-Release-Signatur des Marktplatzes (Ed25519,
+Format und Schlüssel: [`marktplatz.md`](marktplatz.md)). Der Core prüft sie
+bei **jeder** Installation (`installService.ts#checkRelease`):
 
-> Ein `signature`-Feld — egal welchen Inhalts, auch offensichtlicher Unsinn —
-> wird vom Core **weder geprüft noch in irgendeiner Form als
-> Vertrauens-Signal behandelt**. Es wird nur auf FORM geprüft (String, unter
-> einer Längengrenze) und unverändert durchgereicht. Ein Add-on mit
-> `signature` ist heute **nicht** vertrauenswürdiger als eines ohne.
+- gültige Signatur eines vertrauten Schlüssels, passend zu genau diesen
+  Bytes, dieser Id und Version → Installation erlaubt;
+- vorhandene, aber ungültige Signatur → immer abgelehnt (`SIGNATURE_INVALID`);
+- keine Signatur → nur im **Entwicklermodus** erlaubt (`SIGNATURE_REQUIRED`).
 
-Die tatsächliche minisign-Verifikation ist ein separates, zukünftiges Task.
-Bis dahin ist Kuratierung ausschließlich Menschen-Review (§4).
+Ein statisches Registry-Repo ohne Marktplatz-Schlüssel liefert also nur noch
+im Entwicklermodus installierbare Einträge. Der Weg für veröffentlichte
+Add-ons ist der Marktplatz (`Yapaia/Addon-server`), der beim Veröffentlichen
+signiert.
 
 ## 4. Einreichungs-PR-Checkliste
 

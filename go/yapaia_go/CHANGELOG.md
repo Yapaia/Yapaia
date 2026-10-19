@@ -10,6 +10,25 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.47.0
+
+**Add-ons aus dem Yapaia-Marktplatz – geprüft, auch kostenpflichtige.**
+
+- Neu im Add-on-Store: **Marktplatz** mit Adresse und Konto-Token. Go lädt den
+  Katalog von dort und installiert nur Pakete, die der Marktplatz signiert
+  hat. Einträge zeigen „✓ Geprüft" oder „Unsigniert".
+- Kostenpflichtige Add-ons bekommen beim Installieren eine Lizenz für genau
+  diese Go-Installation. Ohne gültige Lizenz lassen sie sich nicht aktivieren.
+- Vom Marktplatz gesperrte Versionen werden beim Abgleich deaktiviert und
+  lassen sich nicht mehr installieren.
+- **Achtung, falls du eigene Add-ons per Datei installierst:** Unsignierte
+  Pakete gehen jetzt nur noch mit eingeschaltetem **Entwicklermodus**
+  (Add-on-Store → Marktplatz). Bereits installierte Add-ons laufen weiter.
+- Der Marktplatz braucht `https`. Go selbst und Home Assistant laufen
+  weiterhin über `http` im lokalen Netz.
+
+---
+
 ## 0.46.2
 
 **Die Integration „Yapaia“ lässt sich wieder hinzufügen.**

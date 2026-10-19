@@ -235,6 +235,10 @@ export function connectPostMessage(options: PostMessageTransportOptions = {}): P
           send: () => unsupported('notify.send', 'ha.notify has no postMessage bridge method; it is service-only'),
         },
 
+        license: {
+          get: () => unsupported('license.get', 'the license status is served to service add-ons only'),
+        },
+
         fetch: () => unsupported('fetch', 'the egress proxy has no postMessage bridge method; it is service-only'),
 
         dispose,

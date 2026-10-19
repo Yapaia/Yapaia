@@ -18,6 +18,13 @@ import { Buffer } from 'node:buffer';
 import type { AddonManifest } from '@yapaia/shared';
 
 /** How long an unconfirmed pending install stays valid. */
+/** What a valid `addon-release` signature established about a package. */
+export interface VerifiedRelease {
+  licensing: 'free' | 'paid';
+  publisher: string;
+  kid: string;
+}
+
 export const PENDING_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 export interface PendingInstall {
@@ -35,6 +42,9 @@ export interface PendingInstall {
    *  combinations, e.g. `nav.control` + any `net.fetch:*`). Purely
    *  informational -- install is never blocked on a warning, only shown. */
   warnings: string[];
+  /** The verified marketplace signature, or `null` for an unsigned package
+   *  accepted in developer mode (`installService.ts#checkRelease`). */
+  release: VerifiedRelease | null;
   createdAt: number;
   expiresAt: number;
 }
@@ -49,6 +59,7 @@ export class PendingInstallStore {
     tarballBytes: Buffer;
     isUpdate: boolean;
     warnings: string[];
+    release?: VerifiedRelease | null;
   }): PendingInstall {
     const now = Date.now();
     const entry: PendingInstall = {
@@ -57,6 +68,7 @@ export class PendingInstallStore {
       tarballBytes: params.tarballBytes,
       isUpdate: params.isUpdate,
       warnings: params.warnings,
+      release: params.release ?? null,
       createdAt: now,
       expiresAt: now + this.ttlMs,
     };

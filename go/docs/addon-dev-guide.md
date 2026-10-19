@@ -430,6 +430,36 @@ Aufruf unabhängig noch einmal (§0).
    `connectAddon({ transport: 'service', service: { fetchImpl, webSocketImpl, ... } })`
    nimmt injizierbare Implementierungen entgegen.
 
+## 8a. Veröffentlichen, Signatur und Lizenz
+
+Seit Go 0.47.0 installiert Go nur signierte Pakete, außer im
+**Entwicklermodus** (Add-on-Store → Marktplatz). Zum Entwickeln und für das
+Testrezept oben den Entwicklermodus einschalten.
+
+Veröffentlicht wird über den Marktplatz (`Yapaia/Addon-server`):
+`POST /v1/publish?licensing=free|paid` mit dem Tarball und einem
+Publisher-Token. Der Server signiert; Go prüft die Signatur bei jeder
+Installation. Details und Formate: [`marktplatz.md`](marktplatz.md).
+
+Ein **kostenpflichtiges** Add-on prüft seine Lizenz zusätzlich selbst
+(Service-Transport):
+
+```ts
+import { connectAddon, verifyLicense } from '@yapaia/addon-sdk';
+
+const addon = await connectAddon();
+const status = await addon.license.get(); // { licensing, installation_id, token, valid }
+if (status.licensing === 'paid') {
+  const res = await verifyLicense(status.token, { addonId: addon.addonId, installationId: status.installation_id });
+  if (!res.valid) { /* nichts tun, Hinweis in der UI */ }
+}
+```
+
+`verifyLicense` vertraut nur den offiziellen Marktplatz-Schlüsseln, die im SDK
+stecken – nicht denen, die in einem Go eingetragen sind. SDK und
+`@yapaia/shared` stehen unter Apache-2.0 und dürfen in Closed-Source-Add-ons
+gebündelt werden.
+
 ## 9. Bekannte Lücken (ehrlich dokumentiert)
 
 - `storage.delete()` existiert nur auf dem Service-Transport – die E09-T2-Host-Bridge

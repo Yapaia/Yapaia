@@ -102,6 +102,8 @@ test.describe.serial('docs/07 §5 Flow 10 (add-on install from registry -> unins
   test('[Flow 10] install the reference POI add-on from a local registry fixture -> layer visible -> uninstall -> residue-free', async ({
     page,
   }) => {
+    // Unsigned fixture packages: developer mode (docs/marktplatz.md).
+    await page.request.put(`${FLOW10_CORE_BASE_URL}/api/v1/addons/marketplace/developer-mode`, { data: { enabled: true } });
     test.setTimeout(120_000);
     const tracker = await trackRequests(page, FLOW10_CORE_BASE_URL);
     const pageErrors = collectPageErrors(page);

@@ -91,6 +91,7 @@ export const ADDON_ROUTE_RULES: readonly AddonRouteRule[] = [
   // --- add-on-own surfaces (always ownAddonOnly) -----------------------
   { method: 'GET', path: '/api/v1/addons/proxy', scope: null, note: 'Egress proxy; per-host net.fetch check in the handler' },
   { method: 'GET', path: '/api/v1/addons/:id/service', scope: null, ownAddonOnly: true, note: 'Own service/watchdog status' },
+  { method: 'GET', path: '/api/v1/addons/:id/license', scope: null, ownAddonOnly: true, note: 'Own license status (docs/marktplatz.md, SDK license.get)' },
   { method: 'GET', path: '/api/v1/addons/:id/storage/:key', scope: 'storage.own', ownAddonOnly: true, note: 'storage.own, own namespace only' },
   { method: 'PUT', path: '/api/v1/addons/:id/storage/:key', scope: 'storage.own', ownAddonOnly: true, note: 'storage.own, own namespace only' },
   { method: 'DELETE', path: '/api/v1/addons/:id/storage/:key', scope: 'storage.own', ownAddonOnly: true, note: 'storage.own, own namespace only' },

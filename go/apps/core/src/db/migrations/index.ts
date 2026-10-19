@@ -13,6 +13,7 @@ import { addonTokens } from './003_addon_tokens.js';
 import { addonMqttEnabled } from './004_addon_mqtt_enabled.js';
 import { profileDimensionsConfirmed } from './005_profile_dimensions_confirmed.js';
 import { profileTempo100Fuel } from './006_profile_tempo100_fuel.js';
+import { addonLicensing } from './007_addon_licensing.js';
 import { runMigrations as runMigrationsWith } from './runner.js';
 import type { Migration } from './types.js';
 
@@ -28,6 +29,7 @@ export const MIGRATIONS: readonly Migration[] = [
   addonMqttEnabled,
   profileDimensionsConfirmed,
   profileTempo100Fuel,
+  addonLicensing,
 ];
 
 /** Runs the full, real migration list against `db` (the `createDb` path). */

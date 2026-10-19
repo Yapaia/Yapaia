@@ -23,6 +23,7 @@ import { AddonTransportError, RemoteCallError, ScopeDeniedError, UnsupportedOnTr
 import { assertCoreCompatible } from './version.js';
 import { guardScope, toScopeAwareError } from './sdkMethods.js';
 import type {
+  AddonLicenseStatus,
   NavControlDestinationParams,
   NavControlDestinationResult,
   NavControlStartParams,
@@ -447,6 +448,10 @@ export async function connectServiceAddon(options: ServiceTransportOptions = {})
         guardScope('notify.send', async () => {
           await rest('POST', `/api/v1/addons/${encodeURIComponent(addonId)}/notifications`, { message, title });
         }),
+    },
+
+    license: {
+      get: async () => dataOf(await rest('GET', `/api/v1/addons/${encodeURIComponent(addonId)}/license`)) as AddonLicenseStatus,
     },
 
     fetch: async (url: string, init?: SdkFetchInit) => {

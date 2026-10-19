@@ -192,6 +192,8 @@ async function installAndEnableFixture(page: Page): Promise<void> {
     ],
   });
 
+  // Unsigned fixture package: developer mode (docs/marktplatz.md).
+  await page.request.put(`${ADDON_UI_CORE_BASE_URL}/api/v1/addons/marketplace/developer-mode`, { data: { enabled: true } });
   const beginResponse = await page.request.post(`${ADDON_UI_CORE_BASE_URL}/api/v1/addons/install`, {
     data: { source: 'upload', data: bytes.toString('base64') },
   });

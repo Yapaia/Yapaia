@@ -29,6 +29,10 @@
  *    out more prominently the moment a sync fails or nothing has ever been
  *    synced -- "the store must stay usable with cache + upload" holds even
  *    if a user never manually retries the sync button.
+ *  - Marketplace (docs/marktplatz.md, `MarktplatzSection.tsx`): address,
+ *    account token, developer mode. Catalog installs send only the id; the
+ *    Core verifies the signature. Entries show "Geprüft" or "Unsigniert",
+ *    paid ones their price; a revoked entry shows a notice, never a button.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -39,7 +43,8 @@ import { fetchAddons, type InstalledAddon } from '../addons/client.js';
 import {
   fetchRegistryCatalog,
   syncRegistry,
-  beginInstallFromUrl,
+  beginInstallFromCatalog,
+  activateLicense,
   beginInstallFromUpload,
   confirmPendingInstall,
   enableAddon,
@@ -54,6 +59,7 @@ import {
 } from './client.js';
 
 import { TOP_RIGHT_INSET_PX, topRightSlotPx } from '../shell/mapControlLayout.js';
+import MarktplatzSection from './MarktplatzSection.js';
 type InstallFlowState =
   | { kind: 'idle' }
   | { kind: 'beginning'; label: string }
@@ -118,6 +124,44 @@ function IncompatibleNotice({ entry }: { entry: RegistryEntryView }): React.Reac
       Nicht kompatibel mit dieser Core-Version (benötigt core_api {entry.core_api}).
     </p>
   );
+}
+
+/** Signature + price badges of a catalog entry (docs/marktplatz.md). */
+function TrustBadges({ entry }: { entry: RegistryEntryView }): React.ReactElement {
+  return (
+    <span className="inline-flex flex-wrap gap-1" data-testid={`trust-badges-${entry.id}`}>
+      {entry.verified ? (
+        <span className="rounded bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+          ✓ Geprüft{entry.publisher ? ` · ${entry.publisher}` : ''}
+        </span>
+      ) : (
+        <span className="rounded bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[11px] text-amber-800 dark:text-amber-300">
+          Unsigniert
+        </span>
+      )}
+      {entry.licensing === 'paid' && (
+        <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[11px]">
+          {entry.price_label ?? 'Kostenpflichtig'}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Notice INSTEAD of an install button: incompatible (W-11) or revoked. */
+function EntryBlocker({ entry }: { entry: RegistryEntryView }): React.ReactElement | null {
+  if (entry.revoked) {
+    return (
+      <p
+        className="text-xs rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1"
+        data-testid={`revoked-notice-${entry.id}`}
+      >
+        Vom Marktplatz gesperrt.
+      </p>
+    );
+  }
+  if (!entry.compatible) return <IncompatibleNotice entry={entry} />;
+  return null;
 }
 
 export default function StorePanel({ eingebettet = false }: { eingebettet?: boolean } = {}): React.ReactElement {
@@ -217,7 +261,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
 
   const handleInstallFromRegistry = useCallback(
     (entry: RegistryEntryView) => {
-      void runInstallFlow(entry.name, () => beginInstallFromUrl(entry.download_url, entry.sha256));
+      void runInstallFlow(entry.name, () => beginInstallFromCatalog(entry.id));
     },
     [runInstallFlow],
   );
@@ -285,6 +329,19 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
     [refresh],
   );
 
+  const handleActivateLicense = useCallback(
+    async (id: string) => {
+      setLifecycleError(null);
+      try {
+        await activateLicense(id);
+        await refresh();
+      } catch (err) {
+        setLifecycleError(err instanceof StoreApiError ? err.message : 'Lizenz konnte nicht aktiviert werden.');
+      }
+    },
+    [refresh],
+  );
+
   const handleUninstall = useCallback(
     async (id: string) => {
       setLifecycleError(null);
@@ -341,6 +398,8 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
               )}
             </section>
 
+            <MarktplatzSection gespeichert={() => void handleSync()} />
+
             {/* Upload-install: always available, called out when offline. */}
             <section
               className={
@@ -388,6 +447,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                     </div>
                   </div>
                 </div>
+                <TrustBadges entry={selectedEntry} />
                 <p className="text-xs" data-testid="store-detail-description">
                   {selectedEntry.description}
                 </p>
@@ -402,7 +462,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                     ))}
                   </div>
                 )}
-                {selectedEntry.compatible ? (
+                {EntryBlocker({ entry: selectedEntry }) ?? (
                   <button
                     onClick={() => handleInstallFromRegistry(selectedEntry)}
                     className="w-full px-2 py-1.5 rounded-md bg-blue-600 text-white text-xs hover:bg-blue-700"
@@ -410,8 +470,6 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                   >
                     Installieren
                   </button>
-                ) : (
-                  <IncompatibleNotice entry={selectedEntry} />
                 )}
               </section>
             ) : (
@@ -464,8 +522,9 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                               </span>
                             </span>
                           </button>
+                          <TrustBadges entry={entry} />
                           <ScopePreview scopes={entry.scopes} />
-                          {entry.compatible ? (
+                          {EntryBlocker({ entry }) ?? (
                             <button
                               onClick={() => handleInstallFromRegistry(entry)}
                               className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
@@ -473,8 +532,6 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                             >
                               Installieren
                             </button>
-                          ) : (
-                            <IncompatibleNotice entry={entry} />
                           )}
                         </li>
                       ))}
@@ -505,7 +562,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                           <div className="text-xs text-slate-500 dark:text-slate-400">
                             installiert {installedAddon.version} → verfügbar {entry.version}
                           </div>
-                          {entry.compatible ? (
+                          {EntryBlocker({ entry }) ?? (
                             <button
                               onClick={() => handleInstallFromRegistry(entry)}
                               className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
@@ -513,8 +570,6 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                             >
                               Update installieren
                             </button>
-                          ) : (
-                            <IncompatibleNotice entry={entry} />
                           )}
                         </li>
                       ))}
@@ -534,6 +589,8 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                                 <span className="font-medium block">{addon.name}</span>
                                 <span className="text-xs text-slate-500 dark:text-slate-400">
                                   v{addon.version} · {addon.enabled ? 'aktiv' : 'deaktiviert'}
+                                  {addon.licensing === 'paid' && ' · lizenzpflichtig'}
+                                  {addon.licensing === 'unsigned' && ' · unsigniert'}
                                 </span>
                               </span>
                               <span className="flex gap-1 shrink-0 flex-wrap justify-end">
@@ -552,6 +609,15 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                                     data-testid={`toggle-mqtt-${addon.id}`}
                                   >
                                     {addon.mqtt_enabled ? 'In Home Assistant verfügbar ✓' : 'In Home Assistant verfügbar'}
+                                  </button>
+                                )}
+                                {addon.licensing === 'paid' && !addon.enabled && (
+                                  <button
+                                    onClick={() => void handleActivateLicense(addon.id)}
+                                    className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs"
+                                    data-testid={`activate-license-${addon.id}`}
+                                  >
+                                    Lizenz aktivieren
                                   </button>
                                 )}
                                 <button
@@ -595,6 +661,25 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                     <p className="text-xs font-semibold">
                       {installFlow.pending.isUpdate ? 'Update bestätigen' : 'Installation bestätigen'}: {installFlow.pending.manifest.name} v{installFlow.pending.manifest.version}
                     </p>
+                    {installFlow.pending.release ? (
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400" data-testid="scope-confirm-signed">
+                        ✓ Vom Marktplatz signiert ({installFlow.pending.release.publisher})
+                        {installFlow.pending.release.licensing === 'paid' && ' · lizenzpflichtig'}
+                      </p>
+                    ) : (
+                      <p
+                        className="text-xs rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 px-2 py-1"
+                        data-testid="scope-confirm-unsigned"
+                      >
+                        Unsigniertes Paket (Entwicklermodus) – niemand hat geprüft, woher es stammt.
+                      </p>
+                    )}
+                    {installFlow.pending.license && !installFlow.pending.license.valid && (
+                      <p className="text-xs text-red-600 dark:text-red-400" data-testid="scope-confirm-license">
+                        Lizenz nicht aktiviert: {installFlow.pending.license.reason ?? 'unbekannt'}. Das Add-on lässt sich
+                        installieren, aber erst mit Lizenz aktivieren.
+                      </p>
+                    )}
                     <ScopePreview scopes={installFlow.pending.permissions} />
                     {installFlow.pending.warnings.map((warning) => (
                       <p

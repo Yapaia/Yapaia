@@ -147,3 +147,28 @@ export { UNTERWEGS_KATEGORIEN, unterwegsKategorie, type UnterwegsKategorie } fro
 
 // Kartenbeschriftung: 80 % bis 200 % (Kern und Oberfläche prüfen gleich)
 export { labelGroesse, LABEL_GROESSE_MIN, LABEL_GROESSE_MAX, LABEL_GROESSE_SCHRITT } from './labelGroesse';
+
+// Add-on-Marktplatz (docs/marktplatz.md): signierte Releases, Lizenzen und
+// Sperrliste im Format `ysig1`, geprüft per WebCrypto in Kern, Web und SDK.
+export {
+  YSIG_PREFIX,
+  base64UrlDecode,
+  base64UrlEncode,
+  keyIdOf,
+  isMarketplaceKey,
+  verifyYsig,
+  verifyRelease,
+  verifyLicenseToken,
+  verifyRevocations,
+  isRevoked,
+  type MarketplaceKey,
+  type AddonLicensing,
+  type ReleasePayload,
+  type LicensePayload,
+  type RevocationEntry,
+  type RevocationsPayload,
+  type YsigPayload,
+  type YsigResult,
+  type LicenseExpectation,
+} from './marketplace/ysig';
+export { OFFICIAL_MARKETPLACE_KEYS } from './marketplace/officialKeys';

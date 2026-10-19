@@ -86,6 +86,16 @@ export const SECURITY_VECTORS = [
   /** Tarball exceeded the compressed or uncompressed size cap. */
   'tarball.zip_bomb',
 
+  // --- marketplace trust (apps/core/src/addons/installService.ts, docs/marktplatz.md)
+  /** A package without a valid marketplace signature was refused (or one
+   *  whose signature covers other bytes, another id or version). */
+  'addon.signature',
+  /** A revoked add-on version was refused at install, or disabled. */
+  'addon.revoked',
+  /** A paid add-on without a valid license for this installation was
+   *  disabled at boot/sync. */
+  'addon.license',
+
   // --- sandboxed add-on UI, self-reported through the trusted host --------
   /** The add-on UI tried to reach the parent DOM / cookies / localStorage.
    *  See the "SELF-REPORTED VECTORS" note in `apps/core/src/security/routes.ts`. */

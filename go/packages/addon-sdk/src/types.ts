@@ -66,6 +66,20 @@ export interface SdkFetchInit {
   signal?: AbortSignal;
 }
 
+/** What the Core reports about an add-on's license. */
+export interface AddonLicenseStatus {
+  /** `free`/`paid` from the marketplace's signed release; `unsigned` for a
+   *  package installed in developer mode without a signature. */
+  licensing: 'free' | 'paid' | 'unsigned';
+  /** This Go installation's id -- the one a license is bound to. */
+  installation_id: string;
+  /** The `ysig1` license token, or `null` when none is stored. */
+  token: string | null;
+  /** The Core's own verdict over `token` (signature, add-on, installation,
+   *  expiry). Informational for the add-on: verify `token` yourself. */
+  valid: boolean;
+}
+
 export interface YapaiaAddon {
   /** Which wire protocol this client is actually speaking. */
   readonly transport: TransportKind;
@@ -163,6 +177,14 @@ export interface YapaiaAddon {
    *  -- no postMessage bridge equivalent exists. */
   notify: {
     send(message: string, title?: string): Promise<void>;
+  };
+
+  /** Licensing status of THIS add-on on THIS installation, as the Core sees
+   *  it (`GET /api/v1/addons/:id/license`, no scope needed, own id only).
+   *  SERVICE TRANSPORT ONLY. A paid add-on should additionally check
+   *  `token` itself with {@link verifyLicense} -- see `docs/marktplatz.md`. */
+  license: {
+    get(): Promise<AddonLicenseStatus>;
   };
 
   /** Egress via the Core's per-host allow-listed proxy (`net.fetch:<host>`,

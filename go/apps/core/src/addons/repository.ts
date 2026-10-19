@@ -23,6 +23,9 @@ export interface AddonRow {
   /** E09-T8, migration `004_addon_mqtt_enabled` -- "In Home Assistant
    *  verfügbar". */
   mqtt_enabled: number;
+  /** Migration `007_addon_licensing`. */
+  licensing: string;
+  publisher: string | null;
 }
 
 /** API/service-facing shape -- `manifest` parsed, `enabled`/`mqtt_enabled`
@@ -41,6 +44,17 @@ export interface AddonRecord {
    *  -- a disabled add-on has no running effects regardless (E09-T1's
    *  plausibility rule) and publishes nothing either way. */
   mqtt_enabled: boolean;
+  /** From the verified marketplace signature (`docs/marktplatz.md`):
+   *  `paid` add-ons need a license to be enabled; `unsigned` ones were
+   *  installed in developer mode. */
+  licensing: AddonLicensingState;
+  publisher: string | null;
+}
+
+export type AddonLicensingState = 'free' | 'paid' | 'unsigned';
+
+function licensingOf(value: unknown): AddonLicensingState {
+  return value === 'free' || value === 'paid' ? value : 'unsigned';
 }
 
 export function rowToAddonRecord(row: AddonRow): AddonRecord {
@@ -54,6 +68,8 @@ export function rowToAddonRecord(row: AddonRow): AddonRecord {
     created_at: row.created_at,
     updated_at: row.updated_at,
     mqtt_enabled: row.mqtt_enabled === 1,
+    licensing: licensingOf(row.licensing),
+    publisher: row.publisher ?? null,
   };
 }
 
@@ -78,12 +94,14 @@ export class AddonRepository {
     manifest: AddonManifest;
     enabled: boolean;
     installPath: string;
+    licensing?: AddonLicensingState;
+    publisher?: string | null;
   }): AddonRecord {
     const now = new Date().toISOString();
     this.db
       .prepare(
-        `INSERT INTO addons (id, name, version, manifest, enabled, install_path, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO addons (id, name, version, manifest, enabled, install_path, created_at, updated_at, licensing, publisher)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         params.id,
@@ -94,6 +112,8 @@ export class AddonRepository {
         params.installPath,
         now,
         now,
+        params.licensing ?? 'unsigned',
+        params.publisher ?? null,
       );
     const created = this.getById(params.id);
     if (!created) throw new Error(`AddonRepository.insert: row for "${params.id}" vanished after INSERT`);
@@ -104,13 +124,28 @@ export class AddonRepository {
    *  -- `enabled` is deliberately NOT touched here so an update preserves
    *  whatever the operator had it set to (see `installService.ts`'s
    *  `confirmInstall`). */
-  updateVersion(params: { id: string; name: string; version: string; manifest: AddonManifest }): AddonRecord {
+  updateVersion(params: {
+    id: string;
+    name: string;
+    version: string;
+    manifest: AddonManifest;
+    licensing?: AddonLicensingState;
+    publisher?: string | null;
+  }): AddonRecord {
     const now = new Date().toISOString();
     this.db
       .prepare(
-        `UPDATE addons SET name = ?, version = ?, manifest = ?, updated_at = ? WHERE id = ?`,
+        `UPDATE addons SET name = ?, version = ?, manifest = ?, updated_at = ?, licensing = ?, publisher = ? WHERE id = ?`,
       )
-      .run(params.name, params.version, JSON.stringify(params.manifest), now, params.id);
+      .run(
+        params.name,
+        params.version,
+        JSON.stringify(params.manifest),
+        now,
+        params.licensing ?? 'unsigned',
+        params.publisher ?? null,
+        params.id,
+      );
     const updated = this.getById(params.id);
     if (!updated) throw new Error(`AddonRepository.updateVersion: row for "${params.id}" vanished after UPDATE`);
     return updated;

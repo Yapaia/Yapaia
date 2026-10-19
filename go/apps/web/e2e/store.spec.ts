@@ -102,6 +102,8 @@ test.describe.serial('Add-on Store (E09-T7)', () => {
   test('store flows online: sync a fixture registry, incompatible entry blocks install, compatible entry installs', async ({
     page,
   }) => {
+    // Unsigned fixture packages: developer mode (docs/marktplatz.md).
+    await page.request.put(`${STORE_CORE_BASE_URL}/api/v1/addons/marketplace/developer-mode`, { data: { enabled: true } });
     const compatibleUrl = registryStub.setTarball('compatible.tar.gz', compatibleTarball);
     const incompatibleUrl = registryStub.setTarball('incompatible.tar.gz', incompatibleTarball);
     const lyingUrl = registryStub.setTarball('lying.tar.gz', lyingTarball);
@@ -218,6 +220,8 @@ test.describe.serial('Add-on Store (E09-T7)', () => {
   test('store flows offline (W-13): registry unreachable -> cache from the previous sync still renders, upload-install still works', async ({
     page,
   }) => {
+    // Unsigned fixture packages: developer mode (docs/marktplatz.md).
+    await page.request.put(`${STORE_CORE_BASE_URL}/api/v1/addons/marketplace/developer-mode`, { data: { enabled: true } });
     // The registry host goes down -- a real ECONNREFUSED, not a simulated
     // error response.
     await registryStub.goOffline();

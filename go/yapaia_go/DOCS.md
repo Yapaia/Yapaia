@@ -425,6 +425,28 @@ The routing graph from a package **replaces** the current one (there is
 only one graph). Valhalla picks it up within 30 seconds, no restart needed.
 The token is never shown again; leave the field empty to keep it.
 
+## Add-on marketplace
+
+Go installs add-ons from the **Yapaia marketplace** (repository
+`Yapaia/Addon-server`, a Docker container for a VPS). Every package there is
+signed; Go refuses packages without a valid signature. Paid add-ons also need
+a license, which is bound to this Go installation.
+
+1. In Go: **⚙ → Add-on-Store → Marktplatz**, enter the address (e.g.
+   `https://addons.example.org`) and, for purchased add-ons, the **account
+   token** from your marketplace account. Tap **Verbinden**.
+2. **Registry aktualisieren** loads the catalog. Entries show **✓ Geprüft**
+   when their signature is valid. **Installieren** downloads, checks and, for
+   a paid add-on, activates its license.
+
+The marketplace address must use `https`. Go itself and Home Assistant keep
+working over plain `http` on your local network — `https` only applies to the
+connection from Go to the marketplace.
+
+**Entwicklermodus** (same section) allows unsigned packages and a marketplace
+without `https` — for developing your own add-ons or testing a marketplace on
+your LAN. Leave it off otherwise.
+
 ## Data & updates (W-16)
 
 All map/routing/search/database data lives under `/share/yapaia/` on the
