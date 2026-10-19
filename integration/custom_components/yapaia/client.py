@@ -58,6 +58,26 @@ class YapaiaClient:
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             raise YapaiaFehler(f"nicht erreichbar: {err}") from err
 
+    async def bild(self, pfad: str) -> bytes | None:
+        """Ein Standbild (Kameras). `None`, wenn das Modul gerade keins hat."""
+        try:
+            async with self._session.get(
+                f"{self.url}{pfad}", headers=self._kopf, timeout=aiohttp.ClientTimeout(total=10)
+            ) as r:
+                if r.status != 200:
+                    return None
+                return await r.read()
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            return None
+
+    def strom(self, pfad: str):
+        """Die Anfrage für einen Live-Strom (MJPEG) -- zum Durchreichen mit
+        `async_aiohttp_proxy_web`. Ohne Gesamt-Zeitlimit: der Strom läuft, solange
+        jemand zusieht; nur ein Stocken über 30 s bricht ab."""
+        return self._session.get(
+            f"{self.url}{pfad}", headers=self._kopf, timeout=aiohttp.ClientTimeout(total=None, sock_read=30)
+        )
+
     async def live(self) -> AsyncIterator[dict[str, Any]]:
         """Nachrichten der Live-Verbindung, bis sie abreißt."""
         async with self._session.ws_connect(f"{self.url}{API}/live", headers=self._kopf, heartbeat=30) as ws:

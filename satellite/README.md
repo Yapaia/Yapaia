@@ -72,6 +72,8 @@ In Home Assistant erscheinen außerdem:
 - **Mikrofon stumm**, **Status-LED**, **Lautsprecher-Verstärker**
 - Mediaplayer „Yapaia Satellite“ – für Musik, Durchsagen und
   `tts.speak`-Ansagen aus Automationen.
+- **Mikrofon-Vorverstärkung** (0–24 dB) – zum Nachstellen ohne neues
+  Aufspielen, z. B. bei Fahrgeräuschen.
 - **Tonausgang** und **Mikrofon-Eingang** (Diagnose, siehe unten).
 
 ### Welches Aktivierungswort?
@@ -92,8 +94,14 @@ In Home Assistant erscheinen außerdem:
   „Tonausgang“ testweise auf LINE1 oder LINE2 stellen (Standard: BOTH). Die
   Auswahl gilt bis zum Neustart; dauerhaft über `speaker_output` (unten).
 - **Spracherkennung versteht nichts / Aktivierungswort reagiert nicht:**
-  „Mikrofon-Eingang“ testweise auf LINE2 oder DIFFERENCE stellen. Ist es zu
-  leise oder zu laut: `mic_gain` anpassen (Standard 4).
+  „Mikrofon-Eingang“ muss auf LINE2 stehen (dort hängen die Board-Mikrofone;
+  LINE1 ist die Line-In-Buchse). Ist es zu leise: „Mikrofon-Vorverstärkung“
+  höher stellen (Standard und Höchstwert: 24 dB). Übersteuert es bei lauter
+  Sprache aus der Nähe: niedriger stellen. Mehr Verstärkung hebt auch das
+  Rauschen an – gegen Lärm hilft nur ein Mikrofon näher am Sprecher.
+- **Bei lauter Musik reagiert das Aktivierungswort nicht:** das ist die
+  fehlende Echo-Unterdrückung (siehe Technik). KEY1 drücken – die Musik wird
+  dann sofort leiser – oder die Musik leiser stellen.
 - **LED leuchtet dauernd und geht beim Zuhören aus:** `led_inverted: "false"`.
 - **Protokoll ansehen:** Device Builder → beim Gerät **„Logs“** →
   „Wirelessly“.
@@ -106,8 +114,9 @@ substitutions:
   name: yapaia-satellite
   friendly_name: Yapaia Satellite
   speaker_output: LINE2   # LINE1 | LINE2 | BOTH
-  mic_input: LINE1        # LINE1 | LINE2 | DIFFERENCE
-  mic_gain: "6"
+  mic_input: LINE1        # LINE2 (Board) | LINE1 (Line-In) | DIFFERENCE
+  mic_pga_db: "18"        # Vorverstärkung im Codec, 0–24 dB in 3er-Schritten
+  mic_gain: "4"           # zusätzliche digitale Verstärkung
   led_inverted: "true"
 ```
 
@@ -121,9 +130,18 @@ substitutions:
 | Tasten | KEY1 GPIO36, KEY3 GPIO19, KEY4 GPIO23, KEY5 GPIO18, KEY6 GPIO5 |
 | LED D4 | GPIO22 |
 
-Mikrofon und Lautsprecher teilen sich einen I²S-Bus (der Codec macht beides);
-beide laufen deshalb mit 16 kHz. Musik wird darauf umgerechnet – für Sprache
-ideal, für Musik ausreichend.
+Mikrofon und Lautsprecher teilen sich die Taktleitungen des Codecs; beide
+laufen deshalb mit 16 kHz. Musik wird darauf umgerechnet – für Sprache ideal,
+für Musik ausreichend. Damit das Board Musik spielen UND zuhören kann, laufen
+zwei I²S-Busse auf denselben Taktleitungen: der Lautsprecher-Bus erzeugt den
+Takt und läuft dauernd, der Mikrofon-Bus liest ihn mit (Einzelheiten im Paket
+beim Abschnitt `i2s_audio`).
+
+Das Board hat **keine Echo-Unterdrückung**: die Mikrofone hören den eigenen
+Lautsprecher mit. Sobald der Assistent zuhört (Aktivierungswort erkannt oder
+KEY1), wird Musik deshalb stark abgesenkt (`zuhoeren_absenkung_db`, Standard
+40 dB). Das Aktivierungswort selbst muss aber gegen die Musik ankommen – bei
+lauter Musik wird es nicht erkannt, dann KEY1 drücken.
 
 - [`yapaia-satellite.yaml`](yapaia-satellite.yaml) – das Paket mit der ganzen
   Gerätelogik

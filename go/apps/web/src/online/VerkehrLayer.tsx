@@ -39,9 +39,22 @@ import { autobahnenAusRoute } from './autobahnenAusRoute.js';
 import { verkehrGeoJson } from './verkehrGeoJson.js';
 import { useVerkehrStore } from './verkehrStore.js';
 import { useRoutenMeldungen } from './useRoutenMeldungen.js';
+import { abschnitteGeoJson } from './stauAufRoute.js';
+import { START_MARKER_LAYER_ID } from '../routing/layerIds.js';
 
 export const VERKEHR_SOURCE_ID = 'yapaia-verkehr';
 export const VERKEHR_LAYER_ID = 'yapaia-verkehr-marken';
+export const VERKEHR_ABSCHNITTE_SOURCE_ID = 'yapaia-verkehr-abschnitte';
+export const VERKEHR_ABSCHNITTE_LAYER_ID = 'yapaia-verkehr-abschnitte';
+
+/**
+ * Wie oft die Lage während einer Fahrt neu geholt wird.
+ *
+ * Für Baustellen allein reichte der Abruf bei jeder neuen Route. Ein Stau
+ * wächst und löst sich in Minuten auf; der Kern hält seine Antwort fünf
+ * Minuten frisch (`verkehrCache.ts`), öfter zu fragen brächte nichts.
+ */
+export const VERKEHR_NEU_MS = 5 * 60 * 1000;
 
 const LEER = { type: 'FeatureCollection' as const, features: [] };
 
@@ -52,7 +65,7 @@ interface GeoJSONQuelle {
 export default function VerkehrLayer(): null {
   const map = useMapStore((state) => state.map);
   const route = useRoutingStore(selectActiveRoute);
-  const { entlang } = useRoutenMeldungen();
+  const { linie, entlang } = useRoutenMeldungen();
   const abrufen = useVerkehrStore((s) => s.abrufen);
 
   /**
@@ -69,9 +82,13 @@ export default function VerkehrLayer(): null {
   );
 
   // Abrufen — nur bei einer Änderung der Strecke, nie bei jeder Position.
+  // Danach alle fünf Minuten, solange die Route Autobahnen hat -- Staus.
   useEffect(() => {
     if (autobahnen.length === 0) return;
-    void abrufen(autobahnen.split(','));
+    const strassen = autobahnen.split(',');
+    void abrufen(strassen);
+    const wecker = setInterval(() => void abrufen(strassen), VERKEHR_NEU_MS);
+    return () => clearInterval(wecker);
   }, [autobahnen, abrufen]);
 
   // Quelle und Ebene anlegen, sobald der Stil sie annimmt.
@@ -82,6 +99,22 @@ export default function VerkehrLayer(): null {
       if (map.getSource(VERKEHR_SOURCE_ID)) return; // schon da
 
       map.addSource(VERKEHR_SOURCE_ID, { type: 'geojson', data: LEER });
+
+      // ─── STAUS UND SPERRUNGEN FÄRBEN DIE ROUTE ───────────────────────────
+      // Über der blauen Route, unter Start-/Zielpunkten und Marken. Gleich
+      // breit wie die Routenlinie, damit es wie EINE Linie aussieht, deren
+      // Farbe wechselt (`stauAufRoute.ts`).
+      map.addSource(VERKEHR_ABSCHNITTE_SOURCE_ID, { type: 'geojson', data: LEER });
+      map.addLayer(
+        {
+          id: VERKEHR_ABSCHNITTE_LAYER_ID,
+          type: 'line',
+          source: VERKEHR_ABSCHNITTE_SOURCE_ID,
+          layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'rang'] },
+          paint: { 'line-color': ['get', 'farbe'], 'line-width': 6 },
+        },
+        map.getLayer(START_MARKER_LAYER_ID) ? START_MARKER_LAYER_ID : undefined,
+      );
       map.addLayer({
         id: VERKEHR_LAYER_ID,
         type: 'symbol',
@@ -121,10 +154,12 @@ export default function VerkehrLayer(): null {
     // Nur was auf oder direkt an der Route liegt (`entlangDerRoute.ts`):
     // gemeldet war ein gelber Teppich ueber halb Deutschland.
     quelle.setData(verkehrGeoJson(entlang.map((e) => e.meldung)).geojson);
-  }, [map, entlang]);
+    const abschnitte = map.getSource(VERKEHR_ABSCHNITTE_SOURCE_ID) as unknown as GeoJSONQuelle | undefined;
+    abschnitte?.setData(abschnitteGeoJson(linie, entlang));
+  }, [map, linie, entlang]);
 
   return null;
 }
 
 /** Nur fuer Tests: der Typ, den die Ebene von der Karte braucht. */
-export type VerkehrKarte = Pick<MapLibreMap, 'getSource' | 'addSource' | 'addLayer'>;
+export type VerkehrKarte = Pick<MapLibreMap, 'getSource' | 'getLayer' | 'addSource' | 'addLayer'>;

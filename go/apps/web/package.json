@@ -1,8 +1,8 @@
 {
   "name": "@yapaia/web",
   "version": "0.0.1",
+  "license": "GPL-3.0-or-later",
   "description": "Yapaia Go web application",
-  "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",

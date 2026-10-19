@@ -614,6 +614,12 @@ comes back. Nothing is stopped or restarted. When Beat is not playing, Yapaia
 speaks as before (browser or Home Assistant TTS). Switch it off under
 **⚙ → Sprache & Home Assistant → Ansagen und Radio**; how far the music is
 turned down is set in Beat's add-on options (`announce_music_level`).
+**Choosing the speaker.** Under **⚙ → Sprache & Home Assistant → Ansagen
+über** you can send announcements to any media player Home Assistant knows —
+a voice satellite such as the Yapaia Satellite, for instance. Players that can
+overlay an announcement keep playing underneath; a player marked
+„unterbricht die Wiedergabe" stops what it was playing. *Automatisch* keeps
+the behaviour described here.
 With **Music Assistant**, choose a player under **Ansagen über** (or leave
 it on *Automatisch*): announcements then go to Music Assistant, which pauses
 the music briefly — or, with Snapcast and Sonos, mixes it under the voice —

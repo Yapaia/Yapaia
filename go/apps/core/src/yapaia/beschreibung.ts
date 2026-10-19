@@ -44,7 +44,7 @@ export const ENTITAETEN: readonly Entitaet[] = [
     name: { de: 'Nächste Anweisung', en: 'Next instruction' },
     symbol: 'mdi:navigation',
     symbol_aus: 'anweisung_symbol',
-    attribute: ['anweisung_typ', 'anweisung_strassen', 'anweisung_kreisel'],
+    attribute: ['anweisung_typ', 'anweisung_strassen', 'anweisung_kreisel', 'anweisung_spuren'],
   },
   {
     schluessel: 'anweisung_entfernung',
@@ -163,6 +163,19 @@ export const AKTIONEN = [
     felder: {
       ziel: { typ: 'text', titel: { de: 'Adresse oder Ort', en: 'Address or place' } },
       ort: { typ: 'ort', titel: { de: 'Oder: Koordinaten', en: 'Or: coordinates' } },
+      name: { typ: 'text', titel: { de: 'Name des Ziels (zu den Koordinaten)', en: 'Destination name (for coordinates)' } },
+    },
+  },
+  {
+    name: 'zwischenziel_einfuegen',
+    titel: { de: 'Zwischenziel einfügen', en: 'Add stop' },
+    beschreibung: {
+      de: 'Fügt den Ort als nächsten Halt in die laufende Navigation ein. Ohne laufende Navigation wird er das Ziel.',
+      en: 'Adds the place as the next stop of the running navigation. Without one it becomes the destination.',
+    },
+    felder: {
+      ort: { typ: 'ort', pflicht: true, titel: { de: 'Ort', en: 'Place' } },
+      name: { typ: 'text', titel: { de: 'Name', en: 'Name' } },
     },
   },
   { name: 'navigation_pausieren', titel: { de: 'Navigation pausieren', en: 'Pause navigation' } },
@@ -244,6 +257,7 @@ export function werte(z: GoZustand): Record<string, unknown> {
     anweisung_typ: anweisung.type ?? null,
     anweisung_strassen: anweisung.street_names ?? null,
     anweisung_kreisel: anweisung.roundabout ?? null,
+    anweisung_spuren: anweisung.lanes ?? null,
     anweisung_entfernung: zahl(st('sensor.yapaia_instruction_distance')),
     ankunft: textOderNull(st('sensor.yapaia_eta')),
     restweg: zahl(st('sensor.yapaia_distance_remaining')),

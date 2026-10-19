@@ -33,6 +33,9 @@ import RoutingInitializer from '../routing/RoutingInitializer.js';
 import ThemeController from '../theme/ThemeController.js';
 import ScreenAwakeController from '../shell/ScreenAwakeController.js';
 import NavFeed from './NavFeed.js';
+import EinbettungsAnker from './EinbettungsAnker.js';
+import AnkerGriff from '../shell/AnkerGriff.js';
+import { einbettungSteuerung } from './steuerung.js';
 import '../index.css';
 
 function EmbeddedMap(): React.ReactElement {
@@ -45,6 +48,10 @@ function EmbeddedMap(): React.ReactElement {
       {/* Ohne den Fahrzustand bliebe die Route aus: `RouteRestorer` holt sie
           nur, wenn der Browser weiss, dass gefahren wird (embed/NavFeed.tsx). */}
       <NavFeed />
+      {/* Die Position sitzt, wo sie in „Bildschirm anpassen“ hingeschoben wurde. */}
+      <EinbettungsAnker />
+      {/* Das Fadenkreuz dazu, solange das Dashboard die Einbettung einrichtet. */}
+      <AnkerGriff />
       <RoutingInitializer />
       {/* Auch hier: ein Dashboard, das die Fahrt zeigt, ist genau die Anzeige,
           vor der das Tablet nicht einschlafen soll. */}
@@ -52,6 +59,10 @@ function EmbeddedMap(): React.ReactElement {
     </div>
   );
 }
+
+// Ansicht wechseln und zentrieren von außen (embed/steuerung.ts) -- für
+// Dashboards, die ihren eigenen Kompass-Knopf neben die Kachel setzen.
+window.__yapaiaEinbettung = einbettungSteuerung();
 
 const root = document.getElementById('root');
 if (!root) {

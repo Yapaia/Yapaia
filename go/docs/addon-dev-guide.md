@@ -456,9 +456,9 @@ if (status.licensing === 'paid') {
 ```
 
 `verifyLicense` vertraut nur den offiziellen Marktplatz-Schlüsseln, die im SDK
-stecken – nicht denen, die in einem Go eingetragen sind. SDK und
-`@yapaia/shared` stehen unter Apache-2.0 und dürfen in Closed-Source-Add-ons
-gebündelt werden.
+stecken – nicht denen, die in einem Go eingetragen sind. Das SDK und
+der Ordner `packages/shared/src/marketplace` stehen unter Apache-2.0 und
+dürfen in Closed-Source-Add-ons gebündelt werden (siehe `DRITTLIZENZEN.md`).
 
 ## 9. Bekannte Lücken (ehrlich dokumentiert)
 

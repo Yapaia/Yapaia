@@ -8,7 +8,12 @@ from aiohttp import web
 
 from custom_components.yapaia.router.api import (
     GLiNetAuthError,
+    SWITCH_UI,
     GLiNetClient,
+    aktive_quelle,
+    parse_wlan,
+    wlan_balken,
+    GLiNetRpcError,
     build_switch_params,
     build_url,
     format_bands,
@@ -69,6 +74,8 @@ def test_render_template() -> None:
         "label": "SIM2",
         "n": [1, 2],
     }
+    # die Oberfläche des X3000 schickt die SIM als Text
+    assert render_template(SWITCH_UI, 2, BUS) == {"bus": BUS, "enable_switch": False, "current_sim": "2"}
 
 
 def test_signal_bars() -> None:
@@ -173,10 +180,14 @@ async def test_switch_sim_auto_and_template(socket_enabled) -> None:
     try:
         async with aiohttp.ClientSession() as session:
             client = GLiNetClient(session, url, "root", "secret")
-            called, params, _ = await client.switch_sim(2, BUS)
+            # wie die Router-Oberfläche: SIM als Text, Automatik aus
+            called, params, _ = await client.switch_sim(2, BUS, params_template=SWITCH_UI)
             assert called == "modem.set_slot_config"
-            assert params == {"bus": BUS, "slot": 2, "auto_switch": False}
+            assert params == {"bus": BUS, "enable_switch": False, "current_sim": "2"}
             assert router.current_sim == 2
+            # die ganze Slot-Konfiguration zurück lehnt der X3000 ab
+            with pytest.raises(GLiNetRpcError):
+                await client.switch_sim(1, BUS)
 
             await client.switch_sim(
                 1, BUS, params_template={"bus": "{bus}", "slot": "{sim}"}
@@ -219,3 +230,24 @@ def test_laender() -> None:
     assert land("232") == ("AT", "Österreich")
     assert land("999") == (None, None)
     assert codes("de, at;CH  it") == {"DE", "AT", "CH", "IT"}
+
+
+# ---- Internetquelle und WLAN (für die Anzeige im Dashboard) -----------------
+def test_aktive_quelle_nach_rangfolge() -> None:
+    konfig = {"interfaces": [{"interface": "wan", "metric": 10}, {"interface": "wwan", "metric": 20},
+                             {"interface": "modem_0001", "metric": 40}]}
+    def status(**online):
+        return {"interfaces": [{"interface": n, "status_v4": 0 if an else 1} for n, an in online.items()]}
+    assert aktive_quelle(status(wan=False, wwan=True, modem_0001=True), konfig) == "wlan"
+    assert aktive_quelle(status(wan=False, wwan=False, modem_0001=True), konfig) == "mobil"
+    assert aktive_quelle(status(wan=True, wwan=True, modem_0001=True), konfig) == "kabel"
+    assert aktive_quelle(status(wan=False, wwan=False, modem_0001=False), konfig) is None
+    assert aktive_quelle(None, None) is None
+
+
+def test_wlan_werte() -> None:
+    w = parse_wlan({"state_s": "connected", "ssid": "NoDramaLama", "signal": -55, "channel": 6,
+                    "ipv4": {"ip": "192.168.178.46/24", "gateway": "192.168.178.1"}, "connected": "1h"})
+    assert w["ssid"] == "NoDramaLama" and w["balken"] == 4 and w["ip"] == "192.168.178.46"
+    assert parse_wlan({"state_s": "disconnected", "ssid": "x"}) == {}
+    assert [wlan_balken(d) for d in (-50, -60, -70, -80, -90, None)] == [4, 3, 2, 1, 0, None]

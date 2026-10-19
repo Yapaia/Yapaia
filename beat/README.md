@@ -103,7 +103,7 @@ art/                            Logo (SVG/PNG)
 
 ## Lizenz & Credits
 
-MIT (eigener Code dieses Repositories). Verwendete Programme, Icons, Vorlagen
+GPL-3.0-or-later (eigener Code dieses Repositories, siehe [LICENSE](LICENSE)). Verwendete Programme, Icons, Vorlagen
 und ihre Lizenzen – u. a. [welle.io](https://github.com/AlbrechtL/welle.io),
 [redsea](https://github.com/windytan/redsea),
 [rtl-sdr](https://osmocom.org/projects/rtl-sdr) und die Google Material

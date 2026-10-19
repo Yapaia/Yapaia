@@ -7,7 +7,7 @@
  *
  *  - `GET  /api/v1/online/status`   -> was eingeschaltet ist, ohne etwas zu rufen
  *  - `POST /api/v1/online/diagnose` -> ruft die Dienste WIRKLICH und berichtet
- *  - `POST /api/v1/online/verkehr`  -> Baustellen und Sperrungen je Autobahn
+ *  - `POST /api/v1/online/verkehr`  -> Baustellen, Sperrungen und Staus je Autobahn
  *  - `GET  /api/v1/tanken/preise`    -> Spritpreise der Gegend (Tankerkönig)
  *
  * ─── WARUM DIAGNOSE EIN POST IST ────────────────────────────────────────────

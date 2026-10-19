@@ -8,7 +8,7 @@ import os
 import time
 
 from yapaia import radiodns
-from yapaia.logos import REFRESH, LogoManager, image_complete
+from yapaia.logos import LOOKUP_VERSION, REFRESH, LogoManager, image_complete
 
 SI = b"""<?xml version="1.0" encoding="UTF-8"?>
 <serviceInformation xmlns="http://www.worlddab.org/schemas/spi" version="1">
@@ -72,6 +72,8 @@ def test_kaputtes_und_altes_logo_werden_neu_gesucht_eigenes_nie(tmp_path):
     (tmp_path / "dab_d3d5.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 50)  # halb
     assert m.needs_lookup(st)
     (tmp_path / "dab_d3d5.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 50 + b"IEND\xaeB`\x82")
+    assert m.needs_lookup(st)  # vor 1.17.2 gesucht: einmal neu
+    st["logo_version"] = LOOKUP_VERSION
     assert not m.needs_lookup(st)
     alt = time.time() - REFRESH - 60
     os.utime(tmp_path / "dab_d3d5.png", (alt, alt))

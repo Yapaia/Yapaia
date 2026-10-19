@@ -18,6 +18,8 @@ from .const import CONF_TOKEN
 SCHWAERZEN = {
     CONF_PASSWORD, CONF_TOKEN, "imei", "imsi", "iccid", "phone", "phone_number", "msisdn",
     "sn", "sn_bak", "serial", "mac", "ddns", "cell_id", "pci", "tac", "lac", "enodeb", "instanz",
+    # WLAN, mit dem der Router verbunden ist
+    "wlan_bssid", "wlan_ip", "wlan_ssid", "wlan_gateway",
 }
 
 

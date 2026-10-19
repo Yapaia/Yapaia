@@ -73,6 +73,9 @@ export interface ValhallaClientLike {
   /** Tempolimits zu einer bereits berechneten Route. `null` = nicht zu haben;
    *  das ist ein normaler Ausgang, keine Ausnahme (siehe Implementierung). */
   traceAttributes?(body: Record<string, unknown>): Promise<unknown | null>;
+  /** Spuren zu einer bereits berechneten Route (`/trace_route`, OSRM-Format).
+   *  Wie `traceAttributes`: `null` statt Ausnahme. */
+  traceRoute?(body: Record<string, unknown>): Promise<unknown | null>;
 }
 
 /**
@@ -202,7 +205,21 @@ export class ValhallaClient implements ValhallaClientLike {
    * Abwaegung. Deshalb: `null` zurueck, Grund ins Protokoll, weiter.
    */
   async traceAttributes(body: Record<string, unknown>): Promise<unknown | null> {
-    const url = `${this.baseUrl}/trace_attributes`;
+    return this.zusatz('/trace_attributes', body, 'Tempolimits');
+  }
+
+  /** Spuren zu einer bereits berechneten Route -- siehe spurenAusTrace.ts.
+   *  Wirft aus demselben Grund nie wie `traceAttributes`. */
+  async traceRoute(body: Record<string, unknown>): Promise<unknown | null> {
+    return this.zusatz('/trace_route', body, 'Spuren');
+  }
+
+  private async zusatz(
+    pfad: string,
+    body: Record<string, unknown>,
+    was: string,
+  ): Promise<unknown | null> {
+    const url = `${this.baseUrl}${pfad}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -214,12 +231,12 @@ export class ValhallaClient implements ValhallaClientLike {
         signal: controller.signal,
       });
       if (!res.ok) {
-        this.logger.warn('Valhalla lieferte keine Tempolimits', { url, status: res.status });
+        this.logger.warn(`Valhalla lieferte keine ${was}`, { url, status: res.status });
         return null;
       }
       return await res.json();
     } catch (err) {
-      this.logger.warn('Tempolimit-Abfrage fehlgeschlagen -- Route bleibt ohne Limits', {
+      this.logger.warn(`${was}-Abfrage fehlgeschlagen -- Route bleibt ohne ${was}`, {
         url,
         reason: err instanceof Error ? err.message : String(err),
       });

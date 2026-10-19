@@ -1,0 +1,20 @@
+# Dashboard „Cockpit Sport“ – Rohkonfiguration
+# (Dashboard → ⋮ → Bearbeiten → ⋮ → Raw-Konfigurationseditor)
+views:
+  - title: Cockpit Sport
+    path: sport
+    icon: mdi:car-sports
+    type: panel
+    cards:
+      - type: custom:yapaia-cockpit-sport-card
+        door_entity: lock.door_aufbautur
+        light_entity: light.smartwomo_ausgang_out2
+        lights:
+          - { name: Dinette, entity: light.smartwomo_ausgang_out2 }
+          - { name: Außen, entity: light.smartwomo_ausgang_out1 }
+          - { name: Ambiente, entity: light.smartwomo_ausgang_out5 }
+          - { name: Ambiente Bett, entity: light.smartwomo_ausgang_out6 }
+          - { name: Bett, entity: light.smartwomo_ausgang_out4 }
+          - { name: Bad, entity: light.smartwomo_ausgang_out8 }
+          - { name: Eingang, entity: light.smartwomo_ausgang_out3 }
+          - { name: Nachtlicht, entity: light.smartwomo_ausgang_out7 }

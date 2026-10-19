@@ -61,6 +61,8 @@ export interface ResolveDestinationInput {
   latlng?: LatLng;
   /** Geocoded via `searchProvider` (top hit only) when `latlng` is absent. */
   query?: string;
+  /** Display name for an explicit `latlng` (e.g. the search hit picked in a dashboard). */
+  name?: string;
   /** Overrides the active profile for this request. */
   profileId?: string;
   /** Start navigating immediately once a route is computed. */
@@ -99,6 +101,7 @@ export async function resolveDestinationAndRoute(
   let destName: string | null = null;
   if (input.latlng !== undefined) {
     destLatLng = input.latlng;
+    destName = input.name?.trim() || null;
   } else {
     if (!searchProvider) {
       throw new DestinationError(

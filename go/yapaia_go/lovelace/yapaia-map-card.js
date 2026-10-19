@@ -275,11 +275,28 @@ function kartenKlasse() {
       if (addon !== undefined && typeof addon !== 'string') {
         throw new Error('addon muss der Slug des Add-ons sein (Text).');
       }
-      this._config = {
+      const neu = {
         height: height || DEFAULT_HEIGHT,
         title: (config && config.title) || null,
         addon: addon || null,
       };
+      // ─── NUR DIE HOEHE: DEN RAHMEN STEHEN LASSEN ─────────────────────────
+      // Gemeldet aus dem Cockpit Sport: „die Karte flackert, als ob sie neu
+      // geladen wird, und danach ist wieder Norden oben". Die Aufzeichnung
+      // zeigte „Kartenhoehe 720 → 668 px, Kachel wird neu aufgebaut": das
+      // Dashboard meldet eine neue Hoehe (etwa wenn die Kopfzeile von Home
+      // Assistant kommt oder geht), und hier wurde der Rahmen neu gebaut --
+      // die Karte startete von vorn. Eine andere Hoehe braucht aber nur eine
+      // andere Hoehe.
+      const alt = this._config;
+      const rahmen = this.shadowRoot && this.shadowRoot.querySelector('.frame');
+      if (this._rendered && this._frameUrl && rahmen && alt &&
+          alt.title === neu.title && alt.addon === neu.addon) {
+        this._config = neu;
+        rahmen.style.height = `${neu.height}px`;
+        return;
+      }
+      this._config = neu;
       this._rendered = false;
       this._render();
     }

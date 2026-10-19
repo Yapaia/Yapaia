@@ -151,29 +151,43 @@
     "height": 18,
     "pixelRatio": 1
   },
-  "poi-entsorgung": {
+  "verkehr-stau": {
     "x": 220,
     "y": 17,
     "width": 18,
     "height": 18,
     "pixelRatio": 1
   },
-  "poi-frischwasser": {
+  "verkehr-warnung": {
     "x": 240,
     "y": 17,
     "width": 18,
     "height": 18,
     "pixelRatio": 1
   },
-  "poi-dusche": {
+  "poi-entsorgung": {
     "x": 260,
     "y": 17,
     "width": 18,
     "height": 18,
     "pixelRatio": 1
   },
-  "poi-muell": {
+  "poi-frischwasser": {
     "x": 280,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-dusche": {
+    "x": 300,
+    "y": 17,
+    "width": 18,
+    "height": 18,
+    "pixelRatio": 1
+  },
+  "poi-muell": {
+    "x": 320,
     "y": 17,
     "width": 18,
     "height": 18,

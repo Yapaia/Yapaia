@@ -1,0 +1,138 @@
+{
+  "protokoll": 1,
+  "modul": "vision",
+  "instanz": "a1",
+  "name": "Yapaia Vision",
+  "version": "0.0.0",
+  "hersteller": "Yapaia",
+  "faehigkeiten": [
+    "kamera"
+  ],
+  "entitaeten": [
+    {
+      "schluessel": "kamera_1",
+      "plattform": "camera",
+      "name": {
+        "de": "Rückfahrkamera",
+        "en": "Rückfahrkamera"
+      },
+      "symbol": "mdi:cctv",
+      "bild": "/yapaia/v1/kamera/1/bild.jpg",
+      "stream": "/yapaia/v1/kamera/1/stream.mjpeg",
+      "attribute": [
+        "kamera_1_gewaehlt",
+        "kamera_1_live"
+      ]
+    },
+    {
+      "schluessel": "kamera_2",
+      "plattform": "camera",
+      "name": {
+        "de": "Kamera 2",
+        "en": "Kamera 2"
+      },
+      "symbol": "mdi:cctv",
+      "bild": "/yapaia/v1/kamera/2/bild.jpg",
+      "stream": "/yapaia/v1/kamera/2/stream.mjpeg",
+      "attribute": [
+        "kamera_2_gewaehlt",
+        "kamera_2_live"
+      ]
+    },
+    {
+      "schluessel": "kamera_3",
+      "plattform": "camera",
+      "name": {
+        "de": "Kamera 3",
+        "en": "Kamera 3"
+      },
+      "symbol": "mdi:cctv",
+      "bild": "/yapaia/v1/kamera/3/bild.jpg",
+      "stream": "/yapaia/v1/kamera/3/stream.mjpeg",
+      "attribute": [
+        "kamera_3_gewaehlt",
+        "kamera_3_live"
+      ]
+    },
+    {
+      "schluessel": "kamera_4",
+      "plattform": "camera",
+      "name": {
+        "de": "Kamera 4",
+        "en": "Kamera 4"
+      },
+      "symbol": "mdi:cctv",
+      "bild": "/yapaia/v1/kamera/4/bild.jpg",
+      "stream": "/yapaia/v1/kamera/4/stream.mjpeg",
+      "attribute": [
+        "kamera_4_gewaehlt",
+        "kamera_4_live"
+      ]
+    },
+    {
+      "schluessel": "kanal",
+      "plattform": "select",
+      "name": {
+        "de": "Kanal",
+        "en": "Channel"
+      },
+      "symbol": "mdi:video-switch",
+      "optionen_aus": "kanal_optionen",
+      "aktion": "kanal_waehlen"
+    },
+    {
+      "schluessel": "aufnahme",
+      "plattform": "binary_sensor",
+      "name": {
+        "de": "Aufnahme",
+        "en": "Recording"
+      },
+      "geraeteklasse": "running",
+      "kategorie": "diagnostic"
+    },
+    {
+      "schluessel": "geraet",
+      "plattform": "sensor",
+      "name": {
+        "de": "Grabber",
+        "en": "Grabber"
+      },
+      "symbol": "mdi:usb",
+      "kategorie": "diagnostic"
+    },
+    {
+      "schluessel": "meldung",
+      "plattform": "sensor",
+      "name": {
+        "de": "Meldung",
+        "en": "Message"
+      },
+      "symbol": "mdi:alert-circle-outline",
+      "kategorie": "diagnostic"
+    }
+  ],
+  "aktionen": [
+    {
+      "name": "kanal_waehlen",
+      "titel": {
+        "de": "Kanal wählen",
+        "en": "Select channel"
+      },
+      "beschreibung": {
+        "de": "Schaltet den Grabber auf diesen Kanal (Name oder Nummer), z. B. „Rückfahrkamera“.",
+        "en": "Switches the grabber to this channel (name or number)."
+      },
+      "felder": {
+        "kanal": {
+          "typ": "text",
+          "pflicht": true,
+          "titel": {
+            "de": "Kanal",
+            "en": "Channel"
+          }
+        }
+      }
+    }
+  ],
+  "ereignisse": []
+}

@@ -8,7 +8,7 @@ import {
   faehrtZuSchnell,
   type Tempoquelle,
 } from '../routing/fahrzeugTempo.js';
-import type { Maneuver, ManeuverType, NavInstructionPayload, NavState, Route } from '@yapaia/shared';
+import type { LaneInfo, Maneuver, ManeuverType, NavInstructionPayload, NavState, Route } from '@yapaia/shared';
 
 /**
  * `ManeuverType` -> mdi icon name for `yapaia/nav/instruction`'s `icon`
@@ -42,6 +42,16 @@ export interface MqttInstructionPayload {
   icon: string;
   /** Siehe {@link kreiselAttribut}. */
   roundabout: string;
+  /** Siehe {@link spurenAttribut}. */
+  lanes: LaneInfo[];
+}
+
+/**
+ * Die Spuren vor dem Manoever -- leer, wo es keine gibt, nie fehlend
+ * (warum, steht an {@link kreiselAttribut}).
+ */
+export function spurenAttribut(m: Maneuver): LaneInfo[] {
+  return Array.isArray(m.lanes) ? m.lanes : [];
 }
 
 /**
@@ -81,6 +91,7 @@ export function buildInstructionPayload(payload: NavInstructionPayload): MqttIns
     distance_m: payload.distance_m,
     icon: maneuverIcon(payload.maneuver.type),
     roundabout: kreiselAttribut(payload.maneuver),
+    lanes: spurenAttribut(payload.maneuver),
   };
 }
 
@@ -117,6 +128,7 @@ export function buildManeuverPayload(state: NavState): MqttInstructionPayload | 
     distance_m: state.distance_to_maneuver_m ?? 0,
     icon: maneuverIcon(state.next_maneuver.type),
     roundabout: kreiselAttribut(state.next_maneuver),
+    lanes: spurenAttribut(state.next_maneuver),
   };
 }
 

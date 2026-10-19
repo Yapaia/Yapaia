@@ -22,6 +22,7 @@ WERTE = {
     "anweisung_typ": "turn_right",
     "anweisung_strassen": ["Hauptstraße"],
     "anweisung_kreisel": None,
+    "anweisung_spuren": [{"directions": 2}, {"directions": 64, "active": 64}],
     "anweisung_entfernung": 350,
     "ankunft": "2026-10-11T18:42:00+02:00",
     "restweg": 132.4,

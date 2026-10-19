@@ -32,7 +32,19 @@ export interface Platz {
 export const MASSSTAB_MIN = 0.6;
 export const MASSSTAB_MAX = 2;
 
-const SCHLUESSEL = 'yapaia.anordnung';
+// ─── EIGENE ANORDNUNG FÜR DIE EINBETTUNG ───────────────────────────────────
+// Gewünscht: Anker und Fenster im Dashboard „getrennt vom Go screen
+// verschieben und resizen“. Die Kachel `embed.html` liegt unter derselben
+// Herkunft wie Yapaia Go; mit demselben Schlüssel verschöbe man immer beides.
+function istEinbettung(): boolean {
+  try {
+    return typeof location !== 'undefined' && /\/embed\.html$/.test(location.pathname);
+  } catch {
+    return false;
+  }
+}
+
+const SCHLUESSEL = istEinbettung() ? 'yapaia.anordnung.einbettung' : 'yapaia.anordnung';
 
 type Werte = Record<Modus, Record<string, Platz>>;
 
@@ -78,6 +90,13 @@ function schreibe(w: Werte): void {
 interface AnordnungState {
   /** Welcher Bildschirm gerade bearbeitet wird, oder null. */
   bearbeiten: Modus | null;
+  /**
+   * Zeigt diesen Bildschirm, egal ob gefahren wird -- nur für die Einbettung,
+   * deren Dashboard „Navigation“ einrichten will, ohne loszufahren. In Yapaia
+   * Go selbst immer null: dort bearbeitet man den Bildschirm, auf dem man ist.
+   */
+  vorschau: Modus | null;
+  vorschauen: (m: Modus | null) => void;
   werte: Werte;
   starte: (m: Modus) => void;
   beende: () => void;
@@ -87,6 +106,8 @@ interface AnordnungState {
 
 export const useAnordnungStore = create<AnordnungState>((set, get) => ({
   bearbeiten: null,
+  vorschau: null,
+  vorschauen: (vorschau) => set({ vorschau }),
   werte: lies(),
   starte: (bearbeiten) => set({ bearbeiten }),
   beende: () => set({ bearbeiten: null }),
@@ -101,6 +122,15 @@ export const useAnordnungStore = create<AnordnungState>((set, get) => ({
     schreibe(werte);
   },
 }));
+
+/** Schlüssel im localStorage -- für Fenster, die Änderungen aus einem
+ *  anderen Fenster derselben Herkunft mitbekommen wollen (`storage`-Ereignis). */
+export const ANORDNUNG_SCHLUESSEL = SCHLUESSEL;
+
+/** Liest die Anordnung neu, z. B. nachdem ein anderes Fenster sie geändert hat. */
+export function anordnungNeuLesen(): void {
+  useAnordnungStore.setState({ werte: lies() });
+}
 
 export const STANDARD: Platz = { dx: 0, dy: 0, s: 1 };
 export { LEER as LEERE_ANORDNUNG };

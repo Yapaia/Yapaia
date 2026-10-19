@@ -10,7 +10,7 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
-## 0.47.0
+## 0.56.0
 
 **Add-ons aus dem Yapaia-Marktplatz – geprüft, auch kostenpflichtige.**
 
@@ -26,6 +26,245 @@ steht die Meldung dabei, damit man sie wiedererkennt.
   (Add-on-Store → Marktplatz). Bereits installierte Add-ons laufen weiter.
 - Der Marktplatz braucht `https`. Go selbst und Home Assistant laufen
   weiterhin über `http` im lokalen Netz.
+
+---
+
+## 0.55.0
+
+**Neue Hinweise zur Nutzung – einmal neu zustimmen.** Beim nächsten Öffnen von
+Yapaia Go erscheint ein Fenster mit den überarbeiteten Hinweisen: Die
+Verantwortung bleibt bei der Person am Steuer, alle Anzeigen (Route,
+Durchfahrtshöhe, Tempolimit, Spuren, Kamera, Reifendruck …) sind Hinweise ohne
+Gewähr. Bis zur Zustimmung lässt sich in Yapaia Go keine neue Navigation
+starten; die übrige Einrichtung muss man nicht wiederholen.
+
+**Lizenz.** Yapaia steht jetzt unter der GNU General Public License 3.0 oder
+später.
+
+## 0.54.0
+
+**Flüssiger auf schwachen Geräten (Autoradio, ältere Tablets).** Der
+Leistungswächter greift jetzt dort, wo es wirklich etwas bringt:
+
+- Stufe 1: die Karte zeichnet mit höchstens 1,5-facher Pixeldichte.
+- Stufe 2: mit einfacher Pixeldichte – auf einem Bildschirm mit Dichte 2 ein
+  Viertel der Bildpunkte. Dazu weniger Sonderziele.
+- Stufe 3: 3D bleibt 3D, nur flacher (40° statt 55°) – weniger Kacheln bis
+  zum Horizont. Sonderziele aus. Die gewählte Ansicht wird nicht verändert.
+
+Vorher tat Stufe 1 nichts (sie sollte 3D-Gebäude abschalten, die es nicht
+gibt), und Stufe 3 schaltete auf 2D.
+
+## 0.53.2
+
+**Die Karte im Dashboard lädt nicht mehr neu, wenn sich ihre Höhe ändert.**
+Gemeldet: „die Karte flackert, als ob sie komplett neu geladen wird, und
+danach ist wieder Norden oben". Kam etwa die Kopfzeile von Home Assistant
+dazu oder ging weg, baute die Kartenkachel ihren Rahmen neu auf. Jetzt zieht
+sie nur die Höhe nach.
+
+**Flüssiger auf schwachen Geräten.** Die eingebettete Karte (Dashboard)
+verzichtet auf einen Grafikpuffer, den nur die Testsuite braucht und der auf
+Mobil-Grafikchips (z. B. Android-Autoradio) jedes Bild ein zweites Mal
+kopierte.
+
+## 0.53.1
+
+**Die Karte behält die gewählte Ansicht.** Wer 3D oder „in Fahrtrichtung"
+gewählt hatte, fand die Karte unterwegs immer wieder auf „Norden oben" –
+und dort blieb sie auch.
+
+- Ursache war der Leistungswächter: fiel das Tablet länger unter 25 Bilder
+  je Sekunde, stellte er auf 2D-Norden und speicherte das als eigene Wahl.
+  Jetzt drosselt er nur noch Sonderziele und Beschriftung; die Ansicht
+  bleibt. Wer ausdrücklich „niedrige Qualität" wählt, bekommt weiterhin 2D.
+
+## 0.53.0
+
+**Spurempfehlung vor dem Abbiegen.** Ab 500 m vor einer Abbiegung oder
+Ausfahrt zeigt die Anweisung die Fahrspuren, die richtige hell
+hervorgehoben – auf der Autobahn genauso wie in der Stadt, wo die Karte
+Spurpfeile kennt.
+
+- Die Leiste war schon länger eingebaut, blieb aber immer leer: Das
+  eingebaute Valhalla liefert die Spuren nicht mit der Route. Sie kommen
+  jetzt aus einer zweiten, schnellen Abfrage (unter 0,1 s). Ein Neubau der
+  Karten ist nicht nötig.
+- Spuren ohne Pfeil auf dem Asphalt (auf der Autobahn die durchgehenden)
+  erscheinen als Geradeaus-Spur, statt wegzufallen. Vorher sah man vor
+  einer Ausfahrt nur die Ausfahrtsspur.
+- Home Assistant: die Anweisung trägt die Spuren als Attribut
+  `anweisung_spuren` (MQTT: `lanes`), z. B. für das Dashboard Cockpit Sport.
+
+## 0.51.1
+
+**Anordnen auf älteren Android-Geräten.** Auf dem Autoradio (WebView mit
+Chrome 101) ließen sich Elemente wie „Verkehr auf der Route" im
+Bearbeitungsmodus nicht verschieben oder verkleinern. Jetzt geht es auch
+dort.
+
+## 0.51.0
+
+**Staus und Unfälle auf der Route.**
+
+- Neben Baustellen und Sperrungen kommen jetzt auch Staus, Unfälle und
+  sonstige Warnungen der Autobahn GmbH auf die Karte (neue Symbole).
+- Staus färben die Route ein: gelb (zähfließend), orange (Stau), rot
+  (Stillstand oder ab 15 Minuten Verlust). Vollsperrungen dunkelrot.
+- In „Verkehr auf der Route" steht bei Staus Länge und Zeitverlust,
+  z. B. „Stau · 2,4 km · +16 min".
+- Ankunft und Restzeit rechnen den Stauverlust mit ein und werden dann gelb,
+  ab 15 Minuten rot; daneben „Ankunft (+N min)".
+- Die Verkehrslage wird während der Fahrt alle 5 Minuten neu geholt.
+- Nur Autobahnen: Staus auf Bundes- und Landstraßen meldet die Quelle nicht.
+
+## 0.50.0
+
+**Sonderziele aus dem Dashboard als Zwischenziel.**
+Gewünscht fürs Cockpit: Tankstelle, Stell- oder Parkplatz in der Nähe
+antippen, auf der Karte ansehen, dann einfügen, wie „Unterwegs finden“ in Go.
+
+- Neue Aktion **`yapaia.go_zwischenziel_einfuegen`** (Ort, Name): fügt den Ort
+  während der Fahrt als nächsten Halt vor die übrigen Zwischenziele ein, ohne
+  die Fahrt neu zu starten. Ohne laufende Navigation wird er das Ziel.
+- Die eingebettete Karte (`__yapaiaEinbettung`, jetzt Version 3) kann Orte
+  zeigen: `orte(liste, aktiv, beiKlick)` markiert alle, hebt den gewählten
+  hervor und fliegt hin. Ein Klick auf eine Markierung meldet sich beim
+  Dashboard.
+- Bringt die Integration „Yapaia“ 0.4.3 mit (Yapaia Router 0.3.0: Internet
+  über WLAN oder Mobilfunk, WLAN-Signal).
+
+## 0.49.0
+
+**Die eingebettete Karte hat ihre eigene Anordnung.**
+Gewünscht: Anker und Fenster im Dashboard „getrennt vom Go screen
+verschieben und resizen“.
+
+- Die Kachel „Karte mit Route“ merkt sich die Position der eigenen Position
+  und den Platz der Verkehrsliste jetzt getrennt von Yapaia Go, für Ruhe und
+  Navigation. Was man in Go unter „Bildschirm anpassen“ verschiebt, bleibt
+  in Go.
+- Ein Dashboard kann das Einrichten selbst anstoßen: `__yapaiaEinbettung`
+  (Version 2) hat dafür `bearbeiten('ruhe' | 'fahrt' | null)` und
+  `zuruecksetzen(modus)`. Beim Einrichten zeigt die Kachel den gewählten
+  Bildschirm auch ohne Fahrt, mit dem Fadenkreuz für die Position.
+- Wer unter 0.48.3 schon einen Anker für die Kachel hatte: der galt dort
+  gemeinsam mit Go und ist in der Kachel jetzt wieder auf dem Standard.
+
+## 0.48.3
+
+**Der Ankerpunkt kommt jetzt wirklich in der eingebetteten Karte an.**
+0.48.2 versprach es, brachte den Teil dafür aber nur mit, ohne ihn in die
+Kachel „Karte mit Route“ einzubauen. Jetzt sitzt die Position im Dashboard
+dort, wo sie unter „Bildschirm anpassen“ in Yapaia Go hingeschoben wurde.
+
+## 0.48.2
+
+**Kein Dauerhinweis mehr bei ausgeschalteten Online-Diensten.**
+Gemeldet: „Die Online-Dienste sind ausgeschaltet. Einschalten in der
+Add-on-Konfiguration …“ stand während der ganzen Fahrt über der Karte.
+
+- Wer die Online-Dienste ausgeschaltet hat, weiß das. Ohne sie gibt es auf
+  der Karte einfach keine Verkehrsmeldungen, aber auch keinen Hinweis mehr
+  dazu. Fällt die Verkehrslage bei eingeschalteten Diensten aus, steht die
+  Warnung weiter da.
+
+**Die eingebettete Karte übernimmt den Ankerpunkt der Position.**
+Gemeldet aus einem Dashboard: „Das Meldungsfenster konnte ich verschieben,
+der Ankerpunkt wird nicht übernommen.“
+
+- Die Kachel „Karte mit Route“ setzt die eigene Position jetzt dorthin, wo
+  sie unter „Bildschirm anpassen“ in Yapaia Go hingeschoben wurde, für Fahrt
+  und Ruhe getrennt. Verschiebt man sie in Go, während das Dashboard offen
+  ist, rückt sie dort gleich mit.
+
+## 0.48.1
+
+**Die Karten-Kachel lässt sich von einem Dashboard aus bedienen.**
+Gemeldet bei einem eigenen Dashboard mit Kompass-Knopf neben der Kachel: beim
+Wechsel der Ansicht „zoomt die Karte erst kurz auf ganz Deutschland raus und
+dann wieder rein“.
+
+- Die Kachel „Karte mit Route“ (`custom:yapaia-map-card`) hat weiter keine
+  eigenen Knöpfe, lässt sich aber jetzt von außen umschalten: Ansicht (Norden
+  oben, in Fahrtrichtung, 3D) und „auf meine Position zentrieren“. Ein
+  Dashboard musste die Kachel dafür bisher neu laden – daher der Sprung auf
+  die Gesamtkarte.
+- Für eigene Karten: im Fenster der Kachel steht `__yapaiaEinbettung` mit
+  `stand()`, `ansicht(modus)` und `zentrieren()`. An Go selbst und an der
+  Kachel ändert sich sonst nichts.
+
+## 0.48.0
+
+**Ziele aus Dashboards tragen ihren Namen.**
+Wählt man in einem Dashboard einen Suchtreffer als Ziel, kam bisher nur die
+Koordinate bei Yapaia Go an – die Navigation lief, das Ziel hatte aber
+keinen Namen.
+
+- Die Aktion „Ziel setzen“ (`yapaia.go_ziel_setzen`) hat ein neues Feld
+  `name`: der Name zu den Koordinaten in `ort`, z. B. „Lidl“. Ohne `name`
+  bleibt alles wie bisher.
+
+## 0.47.1
+
+**Routing über mehrere Länder bricht nicht mehr ab.**
+Gemeldet: „Fehlendes bauen“ über Deutschland, Liechtenstein und die Schweiz
+lief gut eine Stunde und hörte dann einfach auf – kein Routing, keine Suche.
+
+- Der Routingbau stürzte ab, sobald mehrere Länder zusammen gebaut wurden,
+  die aneinander grenzen (im Protokoll: `Failed tile …:
+  vector::_M_range_check`). Die Länderdateien überlappen an der Grenze, und
+  das Bauwerkzeug kam mit doppelten Straßen nicht zurecht.
+- Jetzt werden die Länder vor dem Bau zu einer Datei zusammengeführt. Das
+  kostet ein paar Minuten und vorübergehend Platz in der Größe aller Länder
+  zusammen. Ein einzelnes Land baut wie bisher.
+- Der bisherige Graph blieb bei dem Abbruch unverändert; verloren ging nur die
+  Bauzeit.
+- Nach einem Routingbau lädt der Routingdienst den neuen Graphen sofort.
+  Bisher routete er bis zum nächsten Neustart des Add-ons mit dem alten
+  („unconnected regions“).
+- Die zusammengeführte Länderdatei bleibt nach dem Bau nicht mehr liegen
+  (bei Deutschland 5,4 GB).
+
+---
+
+## 0.47.0
+
+**Ansagen auf einen Lautsprecher deiner Wahl.**
+Gewünscht: das Ausgabegerät für Ansagen selbst auswählen können, zum Beispiel
+den Sprachsatelliten.
+
+- Unter **⚙ → Sprache & Home Assistant → Ansagen über** stehen jetzt alle
+  Lautsprecher aus Home Assistant zur Wahl, nicht mehr nur die von Music
+  Assistant. Navigationsansagen und Antworten auf Sprachbefehle gehen dann
+  dorthin.
+- Ein Lautsprecher, der Ansagen einblenden kann (etwa der Yapaia Satellite),
+  spielt dabei weiter, was gerade läuft. Bei den übrigen steht „unterbricht
+  die Wiedergabe“ dabei: dort beendet die Ansage, was lief.
+- „Automatisch“ verhält sich wie bisher: Yapaia Beat mischt ins Radio, ein
+  einzelner Player von Music Assistant wird von selbst genommen, sonst spricht
+  Yapaia selbst. Yapaia Beat steht nicht in der Liste – dafür gibt es weiter
+  den Schalter „Ansagen ins Radio einmischen“.
+
+---
+
+## 0.46.3
+
+**„Löschen“ räumt Suche und Straßendaten mit weg.**
+Gemeldet: Nach dem Löschen einer Karte stand sie als entfernt da, die Suche
+fand dort aber weiter Orte, und Routen dorthin wurden weiter berechnet.
+
+- Gelöscht wurde bisher nur die Kartendatei. Jetzt gehen der Suchindex der
+  Region und ihr OpenStreetMap-Extrakt mit. Die Suche vergisst die Region
+  sofort; der Extrakt gibt Platz frei (bei Deutschland rund 5 GB) und wird
+  beim nächsten Routingbau nicht mehr mitgebaut. Wer die Karte später wieder
+  installiert und dafür Routing baut, lädt den Extrakt neu.
+- Das Routing selbst bleibt bis zum nächsten Routingbau, wie es ist: es gibt
+  ein Straßennetz für alle Karten zusammen, eine einzelne lässt sich nicht
+  herausnehmen. Unter „Was ist gebaut?“ steht jetzt, welche gelöschte Karte
+  noch darin steckt.
+- Solange ein Bau läuft, lässt sich keine Karte löschen. Der Bau liest die
+  Extrakte, und einer, der mittendrin verschwindet, ließe ihn scheitern.
 
 ---
 

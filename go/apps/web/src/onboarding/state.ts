@@ -30,7 +30,10 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
  * below compares by exact version match) -- the mechanism a future wording
  * change would use to force re-consent.
  */
-export const DISCLAIMER_VERSION = '1.0';
+// 2.0 (Go 0.55.0): ausfuehrlicher -- Verantwortung des Fahrers, alle
+// Assistenzanzeigen nur Hinweise, Software ohne Gewaehr (GPL-3.0). Wer 1.0
+// zugestimmt hat, wird einmal erneut gefragt (`ZustimmungErneuern.tsx`).
+export const DISCLAIMER_VERSION = '2.0';
 
 export interface DisclaimerConsent {
   /** The `DISCLAIMER_VERSION` that was accepted (not necessarily today's). */

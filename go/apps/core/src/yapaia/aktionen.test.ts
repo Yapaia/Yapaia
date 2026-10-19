@@ -5,6 +5,7 @@ function deps(extra: Partial<AktionenDeps> = {}): AktionenDeps {
   return {
     zielSetzen: vi.fn(async () => ({ name: 'Magdeburg' })),
     faehrt: () => false,
+    zwischenzielVorn: vi.fn(),
     pause: vi.fn(),
     resume: vi.fn(),
     stop: vi.fn(),
@@ -25,7 +26,22 @@ describe('Aktionen von Yapaia Go', () => {
     expect(d.zielSetzen).toHaveBeenNthCalledWith(1, { query: 'Magdeburg' });
     expect(d.zielSetzen).toHaveBeenNthCalledWith(2, { query: 'Halle' });
     expect(d.zielSetzen).toHaveBeenNthCalledWith(3, { latlng: { lat: 52.1, lon: 11.6 } });
+    await a.ziel_setzen({ ort: { latitude: 49.2, longitude: 8.4 }, name: ' Lidl ' });
+    expect(d.zielSetzen).toHaveBeenNthCalledWith(4, { latlng: { lat: 49.2, lon: 8.4 }, name: 'Lidl' });
     await expect(a.ziel_setzen({})).rejects.toThrow(/Ziel angeben/);
+  });
+
+  it('zwischenziel_einfuegen: waehrend der Fahrt als naechster Halt, sonst als Ziel', async () => {
+    const fahrt = deps({ faehrt: () => true });
+    const ort = { latitude: 49.27, longitude: 8.34 };
+    expect(await goAktionen(fahrt).zwischenziel_einfuegen({ ort, name: 'Shell' })).toEqual({ ziel: 'Shell', als: 'zwischenziel' });
+    expect(fahrt.zwischenzielVorn).toHaveBeenCalledWith({ lat: 49.27, lon: 8.34 });
+    expect(fahrt.stop).not.toHaveBeenCalled();
+
+    const ruhe = deps();
+    expect(await goAktionen(ruhe).zwischenziel_einfuegen({ ort, name: 'Shell' })).toEqual({ ziel: 'Magdeburg', als: 'ziel' });
+    expect(ruhe.zielSetzen).toHaveBeenCalledWith({ latlng: { lat: 49.27, lon: 8.34 }, name: 'Shell' });
+    await expect(goAktionen(ruhe).zwischenziel_einfuegen({ name: 'x' })).rejects.toThrow(/Koordinaten/);
   });
 
   it('ziel_setzen waehrend einer Fahrt beendet die alte zuerst', async () => {

@@ -1,3 +1,5 @@
 pytest-homeassistant-custom-component
 # Gegenprobe für die eigene crypt-Umsetzung des Routers
 passlib
+# Die Kamera-Plattform von Home Assistant importiert es (Yapaia Vision)
+PyTurboJPEG

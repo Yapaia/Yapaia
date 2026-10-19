@@ -1,8 +1,8 @@
 {
   "name": "@yapaia/core",
   "version": "0.0.1",
+  "license": "GPL-3.0-or-later",
   "description": "Yapaia Go backend server",
-  "license": "GPL-3.0-only",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

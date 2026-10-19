@@ -61,6 +61,29 @@ einfach einstecken. Dann gilt (Option `second_stick`):
   Splitter für FM und DAB).
 - **`aus`**: der zweite Stick wird nicht benutzt.
 
+**Stick wählen:** Unter dem Sender steht bei zwei Sticks der Schalter
+„Stick“: **Auto** (Standard) misst jeden Sender, sobald er sich eingespielt
+hat, auch auf dem anderen Stick und wechselt ohne Pause dorthin, wenn der
+mindestens 10 Punkte besser empfängt. **Stick 1** und **Stick 2** spielen
+fest auf diesem Stick (die Namen stehen im Tooltip und dahinter). Der jeweils
+andere Stick sucht im Hintergrund.
+
+**DAB+ und die Verstärkungs-Automatik:** Manche Sticks (gesehen beim Nooelec
+NESDR SMArt v5) regelt die Automatik von welle-cli auf wenige dB herunter,
+dann findet DAB+ nichts. Beat erkennt das (unter 10 dB und kein Ensemble)
+und nimmt für diesen Stick ab dann eine feste Verstärkung von 37 dB. Der
+Hinweis neben dem Schalter zeigt, welche Sticks das betrifft. Eine feste
+Verstärkung in der Option `rtl_gain` hat immer Vorrang.
+
+**Antennen vergleichen:** Unter dem Suchlauf steht bei zwei Sticks der Knopf
+„Antennen vergleichen“. Er misst den laufenden Sender einige Sekunden auch auf
+dem freien Stick, ohne die Wiedergabe zu unterbrechen, und zeigt beide Werte mit
+Namen des Sticks (z. B. „Nooelec NESDR SMArt v5: 72 % · Realtek RTL2838UHIDIR:
+81 % → besser: Realtek …“). Liegen beide weniger als 5 Punkte auseinander, heißt
+es „etwa gleich gut“. Zum Vergleich zweier Antennen: am selben Ort mehrere Sender
+(UKW und DAB+) messen, Antennen tauschen und nochmal messen. Die Gegenprobe der
+Senderverfolgung landet ebenfalls in dieser Anzeige.
+
 „DAB-Empfang optimieren" läuft weiterhin auf dem Stick, auf dem gehört wird,
 und unterbricht die Wiedergabe.
 
@@ -198,6 +221,8 @@ Namen und Logo-URLs) u. a.
 - `yapaia.beat_ansage` – `message` (Text), optional `engine` (TTS-Entität,
   leer = Standard), `language`, `priority` (`navigation`, `hinweis`, `info`):
   spricht den Text **in das laufende Radio** – siehe „Ansagen einmischen"
+- `yapaia.beat_befehl` – `text`: ein gesprochener Satz („Spiel SWR3“); die
+  Antwort kommt als `antwort` zurück – siehe „Sprachbefehle"
 - sowie alle `media_player.*`-Aktionen, z. B. `media_player.select_source`
   mit dem Namen eines Favoriten oder `media_player.play_media` mit
   `media_content_id: "98.3"`
@@ -218,6 +243,28 @@ actions:
     data:
       volume_level: 0.3
 ```
+
+## Sprachbefehle
+
+Mit einem Sprachassistenten in Home Assistant (Sprachsatellit wie der Yapaia
+Satellite, oder der Assist-Knopf der App) lässt sich das Radio ansagen. Beat
+legt dafür beim Start die Automation **„Yapaia Beat Sprachbefehle“** an; sie
+reicht den Satz an Beat weiter, und Assist spricht die Antwort.
+
+| Sagen | Wirkung |
+|---|---|
+| „Spiel SWR3“, „Schalte auf DASDING“, „Sender Radio Bob“ | Sender nach Namen (Favoriten zuerst); „SWR drei“ geht auch |
+| „Radio an“, „Spiel Musik“ | macht da weiter, wo es zuletzt lief |
+| „Radio aus“, „Stoppe die Musik“ | Radio aus |
+| „Nächster Sender“, „Sender zurück“ | durch die Favoriten |
+| „Radio lauter“, „Musik leiser“, „Radio Lautstärke 40“ | Lautstärke des Radios |
+| „Was läuft gerade?“ | Sender und Titel |
+| „Wechsle die Ausgabe auf Wohnzimmer“, „… auf Mini-PC“ | Ausgabe: ein Mediaplayer aus Home Assistant oder der Mini-PC |
+
+Verstanden wird ohne KI, anhand der Senderliste: der Sender muss im Suchlauf
+gefunden sein. Ein bloßes „Lauter“ oder „Stopp“ gehört dem Sprachassistenten
+selbst – fürs Radio „Radio“ oder „Musik“ dazusagen. Abschalten über die
+Option `voice_commands`.
 
 ## Ausgabe wählen: Mini-PC, dieses Gerät oder andere Lautsprecher
 
@@ -426,6 +473,7 @@ Favoriten bleiben erhalten und werden automatisch zugeordnet.
 | `background_scan_minutes` | Mit zweitem Stick: Suchlauf im Hintergrund alle n Minuten (0 = aus) |
 | `resume_last_station` | Nach Neustart weiterspielen |
 | `install_integration` | Integration automatisch installieren/aktualisieren |
+| `voice_commands` | Automation „Yapaia Beat Sprachbefehle“ in Home Assistant anlegen (Standard: an) |
 
 ## Fehlersuche
 

@@ -88,6 +88,37 @@ export function lageAufRoute(
 export interface MeldungAufRoute {
   meldung: KartenMeldung;
   entlang_m: number;
+  /** Nur bei Meldungen mit Linie: wo der Abschnitt auf der Route endet. */
+  bis_m?: number;
+}
+
+/**
+ * Ein Abschnitt mit Linie auf der Route: Anfang und Ende entlang der Route.
+ *
+ * ─── DIE GEGENFAHRBAHN ──────────────────────────────────────────────────────
+ * Sie liegt dreißig Meter neben uns -- am Abstand ist sie nicht zu erkennen,
+ * wohl aber an der Richtung: ein Stau auf der Gegenseite läuft entlang der
+ * Route RÜCKWÄRTS. Staus liefert die Quelle in Fahrtrichtung, für sie wird
+ * die Richtung deshalb geprüft. Bei Sperrungen ist das nicht gesichert; dort
+ * lieber eine Markierung zu viel als eine fehlende.
+ */
+function abschnittAufRoute(
+  linie: RoutenLinie,
+  m: KartenMeldung,
+): { von: number; bis: number } | null | undefined {
+  const punkte = m.linie;
+  if (!punkte || punkte.length < 2) return undefined;
+  const a = lageAufRoute(linie, punkte[0]![1], punkte[0]![0]);
+  const b = lageAufRoute(linie, punkte[punkte.length - 1]![1], punkte[punkte.length - 1]![0]);
+  if (!a || !b || a.daneben_m > MAX_ABSTAND_M || b.daneben_m > MAX_ABSTAND_M) return null;
+  if (m.art === 'stau') {
+    const laenge = m.laenge_m ?? 0;
+    // Kurze Staus (< 150 m) geben keine verlässliche Richtung her; dann
+    // reicht, dass es nicht rückwärts geht.
+    if (b.entlang_m - a.entlang_m < (laenge >= 150 ? laenge * 0.3 : 0)) return null;
+    return { von: a.entlang_m, bis: b.entlang_m };
+  }
+  return { von: Math.min(a.entlang_m, b.entlang_m), bis: Math.max(a.entlang_m, b.entlang_m) };
 }
 
 /** Nur Meldungen, die auf oder direkt an der Route liegen. */
@@ -98,6 +129,12 @@ export function meldungenEntlang(
   if (!linie) return [];
   const raus: MeldungAufRoute[] = [];
   for (const m of meldungen) {
+    const abschnitt = abschnittAufRoute(linie, m);
+    if (abschnitt === null) continue; // Linie da, aber nicht auf unserer Fahrbahn
+    if (abschnitt) {
+      raus.push({ meldung: m, entlang_m: abschnitt.von, bis_m: abschnitt.bis });
+      continue;
+    }
     if (typeof m.lat !== 'number' || typeof m.lon !== 'number') continue;
     const lage = lageAufRoute(linie, m.lat, m.lon);
     if (lage && lage.daneben_m <= MAX_ABSTAND_M) raus.push({ meldung: m, entlang_m: lage.entlang_m });
@@ -118,7 +155,8 @@ export function naechsteMeldungen(
 ): VorausMeldung[] {
   return entlang
     .map((e) => ({ ...e, voraus_m: e.entlang_m - positionEntlang_m }))
-    .filter((e) => e.voraus_m >= -HINTER_UNS_M)
+    // Ein Stau, in dem man gerade steht, ist noch nicht vorbei: es zählt sein Ende.
+    .filter((e) => (e.bis_m ?? e.entlang_m) - positionEntlang_m >= -HINTER_UNS_M)
     .sort((a, b) => a.voraus_m - b.voraus_m)
     .slice(0, n);
 }

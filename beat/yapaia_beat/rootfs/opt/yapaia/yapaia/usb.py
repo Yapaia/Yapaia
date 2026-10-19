@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
 import fcntl
 import logging
 import os
@@ -29,6 +31,22 @@ def find_sticks() -> list[Path]:
             continue
         nodes.append(Path(f"/dev/bus/usb/{bus:03d}/{num:03d}"))
     return nodes
+
+
+def stick_names() -> dict[int, str]:
+    """Manufacturer and product of each stick, by librtlsdr index (the order
+    the receivers use -- not necessarily the sysfs order)."""
+    try:
+        lib = ctypes.CDLL(ctypes.util.find_library("rtlsdr") or "librtlsdr.so.0")
+        names = {}
+        for i in range(lib.rtlsdr_get_device_count()):
+            maker, product, serial = (ctypes.create_string_buffer(256) for _ in range(3))
+            if lib.rtlsdr_get_device_usb_strings(i, maker, product, serial) == 0:
+                names[i] = " ".join(b.value.decode(errors="replace") for b in (maker, product) if b.value)
+        return names
+    except (OSError, AttributeError) as err:
+        _LOGGER.debug("Stick names not available: %s", err)
+        return {}
 
 
 def reset_sticks() -> int:

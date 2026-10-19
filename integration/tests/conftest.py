@@ -67,6 +67,9 @@ class FakeModul:
         app.router.add_get("/yapaia/v1/live", self._live)
         app.router.add_post("/yapaia/v1/aktion/{name}", self._aktion)
         app.router.add_post("/yapaia/v1/partner", self._partner)
+        # Kameras (Vision): Pfad → JPEG; Strom = dasselbe Bild als MJPEG-Teil
+        self.bilder: dict[str, bytes] = {}
+        app.router.add_get("/yapaia/v1/kamera/{nummer}/{datei}", self._kamera)
         self.app = app
 
     @property
@@ -106,6 +109,19 @@ class FakeModul:
             return web.json_response({"ok": False}, status=401)
         self.partner.append((await request.json())["partner"])
         return web.json_response({"ok": True})
+
+    async def _kamera(self, request: web.Request) -> web.StreamResponse:
+        if not self._ok(request):
+            return web.json_response({"ok": False}, status=401)
+        daten = self.bilder.get(request.match_info["nummer"])
+        if daten is None:
+            return web.Response(status=503)
+        if request.match_info["datei"] == "bild.jpg":
+            return web.Response(body=daten, content_type="image/jpeg")
+        antwort = web.StreamResponse(headers={"Content-Type": "multipart/x-mixed-replace; boundary=b"})
+        await antwort.prepare(request)
+        await antwort.write(b"--b\r\nContent-Type: image/jpeg\r\n\r\n" + daten + b"\r\n")
+        return antwort
 
     async def senden(self, nachricht: dict[str, Any]) -> None:
         for ws in list(self.ws):

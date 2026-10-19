@@ -6,7 +6,7 @@
  * ist es umgekehrt.
  */
 import { describe, it, expect } from 'vitest';
-import { formatBuiltAt } from './buildStatus';
+import { formatBuiltAt, routingOhneKarte, type BuildStatus } from './buildStatus';
 
 const NOW = new Date('2026-09-04T12:00:00Z');
 const ago = (ms: number): string => new Date(NOW.getTime() - ms).toISOString();
@@ -52,5 +52,25 @@ describe('formatBuiltAt', () => {
     expect(out).toMatch(/\d{1,2}\.\d{1,2}\.\d{4}/);
     expect(out).not.toContain('gerade eben');
     expect(out).not.toContain('-');
+  });
+});
+
+describe('routingOhneKarte', () => {
+  const status = (tiles: string[], regions?: string[]): BuildStatus => ({
+    tiles: tiles.map((region) => ({ region, present: true })),
+    routing: { present: true, ...(regions ? { regions } : {}) },
+    search: [],
+  });
+
+  it('nennt, was im Graphen steckt, obwohl die Karte gelöscht ist', () => {
+    expect(routingOhneKarte(status(['germany'], ['germany', 'lielux']))).toEqual(['lielux']);
+  });
+
+  it('sagt nichts, solange jede Region im Graphen auch installiert ist', () => {
+    expect(routingOhneKarte(status(['germany', 'lielux'], ['lielux']))).toEqual([]);
+  });
+
+  it('sagt nichts bei einem Graphen, der seine Regionen nicht nennt', () => {
+    expect(routingOhneKarte(status(['germany']))).toEqual([]);
   });
 });

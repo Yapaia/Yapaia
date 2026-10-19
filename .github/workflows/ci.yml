@@ -6,6 +6,8 @@ name: CI
 # Doku-Änderung gar nichts. Der Job „changes“ schaut, welche Ordner betroffen
 # sind; nur deren Workflows laufen.
 #
+# „Geheimnisse“ (gitleaks) läuft immer.
+#
 # „Gate“ ist der EINE Check, an dem das Mergen hängt: grün, wenn alle
 # gelaufenen Module grün sind -- übersprungene zählen als erledigt. (Hinge der
 # Merge direkt an den Modul-Checks, blockierte jeder übersprungene.)
@@ -34,6 +36,7 @@ jobs:
       go: ${{ steps.filter.outputs.go }}
       go_addon: ${{ steps.filter.outputs.go_addon }}
       beat: ${{ steps.filter.outputs.beat }}
+      vision: ${{ steps.filter.outputs.vision }}
       satellite: ${{ steps.filter.outputs.satellite }}
       integration: ${{ steps.filter.outputs.integration }}
     steps:
@@ -62,6 +65,13 @@ jobs:
               # Beats Image enthält die Integration, Beats Tests prüfen ihren Beat-Teil
               - 'integration/custom_components/yapaia/**'
               - '.github/workflows/beat.yml'
+            vision:
+              - *shared
+              - 'vision/**'
+              # Visions Image enthält die Integration, Visions Test prüft ihre Testbeschreibung
+              - 'integration/custom_components/yapaia/**'
+              - 'integration/tests/fixtures/vision_beschreibung.json'
+              - '.github/workflows/vision.yml'
             satellite:
               - *shared
               - 'satellite/**'
@@ -89,6 +99,12 @@ jobs:
     if: needs.changes.outputs.beat == 'true' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/beat.yml
 
+  vision:
+    name: Vision
+    needs: changes
+    if: needs.changes.outputs.vision == 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/vision.yml
+
   satellite:
     name: Satellite
     needs: changes
@@ -101,10 +117,39 @@ jobs:
     if: needs.changes.outputs.integration == 'true' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/integration.yml
 
+  secrets:
+    # Läuft bei JEDEM Pull Request, egal was sich geändert hat: Das Repo ist
+    # öffentlich, Schlüssel und Passwörter dürfen nie hinein. Geprüft werden
+    # die Commits des PRs (Regeln und Platzhalter in .gitleaks.toml). Echte
+    # Werte gehören in die secrets.yaml bzw. die Add-on-Optionen.
+    name: Geheimnisse
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks installieren
+        env:
+          VERSION: 8.21.2
+          SHA256: 5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+        run: |
+          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          echo "${SHA256}  gitleaks.tgz" | sha256sum -c -
+          tar xzf gitleaks.tgz gitleaks
+      - name: Commits nach Geheimnissen durchsuchen
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Ohne PR (workflow_dispatch): die ganze Historie.
+          if [ -n "$BASE" ]; then RANGE="$BASE..$HEAD"; else RANGE="--all"; fi
+          ./gitleaks git . --config .gitleaks.toml --log-opts="$RANGE" --redact --no-banner
+
   gate:
     name: Gate
     if: always()
-    needs: [changes, go, go-addon, beat, satellite, integration]
+    needs: [changes, secrets, go, go-addon, beat, vision, satellite, integration]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

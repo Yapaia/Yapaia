@@ -5,7 +5,7 @@ Vielen Dank an alle Autorinnen und Autoren!
 
 Der eigene Quellcode dieses Repositories (Radio-Dienst, Web-Oberfläche,
 Home-Assistant-Integration, Lovelace-Karte, Skripte) wurde für Yapaia Beat neu
-geschrieben und steht unter der [MIT-Lizenz](LICENSE). Code aus fremden
+geschrieben und steht unter der [GPL-3.0-or-later](LICENSE). Code aus fremden
 Repositories wurde nicht kopiert – die folgenden Projekte werden als
 eigenständige Programme/Bibliotheken genutzt bzw. dienten als Vorlage.
 
@@ -77,5 +77,5 @@ Die oben genannten Programme werden nicht im Quellcode dieses Repositories
 mitgeliefert, sondern beim Bauen des Add-on-Images aus ihren offiziellen
 Quellen geladen (welle.io und redsea werden aus dem Quellcode kompiliert, die
 übrigen stammen aus den Debian-Paketquellen). Für sie gelten ausschließlich
-ihre eigenen Lizenzen; die MIT-Lizenz von Yapaia Beat bezieht sich nur auf den
+ihre eigenen Lizenzen; die GPL von Yapaia Beat bezieht sich nur auf den
 Code in diesem Repository.

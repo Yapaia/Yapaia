@@ -9,7 +9,7 @@ import signal
 
 from aiohttp import web
 
-from . import ha, protokoll
+from . import befehl, ha, protokoll
 from .audio import AudioOutput
 from .config import DATA_DIR, VERSION, load_options
 from .logos import LogoManager
@@ -66,6 +66,8 @@ async def main() -> None:
         except OSError as err:
             log.error("Could not install integration: %s", err)
     await ha.announce(PORT, ident.instanz, ident.token, VERSION)
+    if await befehl.einrichten(opts.voice_commands):
+        log.info("Sprachbefehle in Home Assistant: %s", "eingerichtet" if opts.voice_commands else "entfernt")
 
     await radio.start()
 

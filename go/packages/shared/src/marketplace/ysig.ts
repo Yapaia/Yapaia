@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * `ysig1` -- the signed-token format of the add-on marketplace
  * (`docs/marktplatz.md`). One format for three payload types: a signed

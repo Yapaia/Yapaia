@@ -12,7 +12,7 @@
 
 import type { NavState, Position } from '@yapaia/shared';
 import { EIGENER_FAHRZEUG_TRACKER } from './eigeneEntitaeten.js';
-import { buildSpeedPayload, kreiselAttribut, maneuverIcon } from '../mqtt/mapping.js';
+import { buildSpeedPayload, kreiselAttribut, maneuverIcon, spurenAttribut } from '../mqtt/mapping.js';
 import { tempoAusPosition, hoeheAusPosition } from './ausPosition.js';
 import {
   fahrzeugGrenze,
@@ -208,6 +208,11 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
           // Fuer den Kreisel auf dem Display -- IMMER gesetzt, auch leer.
           // Warum, steht an `kreiselAttribut`.
           roundabout: kreiselAttribut(manoever),
+          // Die Spuren vor dem Abbiegen, links nach rechts (Masken, siehe
+          // `SPUR`). IMMER gesetzt, leer statt fehlend -- aus demselben
+          // Grund wie `roundabout`: sonst bliebe die Leiste des letzten
+          // Manoevers stehen.
+          lanes: spurenAttribut(manoever),
         }
       : { icon: 'mdi:navigation' },
   );

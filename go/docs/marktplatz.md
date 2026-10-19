@@ -155,8 +155,8 @@ Verbindung von Go zum Marktplatz.
 
 | Teil | Lizenz | Warum |
 |---|---|---|
-| Yapaia Go (`go/`) | GPL-3.0 | Open-Source-Kern |
-| `@yapaia/addon-sdk`, `@yapaia/shared` | Apache-2.0 | werden in Add-ons gebündelt; erlaubt Closed-Source-Add-ons |
+| Yapaia (ganzes Repo) | GPL-3.0-or-later | Open-Source-Kern |
+| `@yapaia/addon-sdk`, `packages/shared/src/marketplace` | Apache-2.0 | werden in Add-ons gebündelt; erlaubt Closed-Source-Add-ons (siehe `DRITTLIZENZEN.md`) |
 | Marktplatz-Server | proprietär | privates Repo |
 | Add-ons | Sache des Herausgebers | z. B. proprietär |
 

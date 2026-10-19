@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yapaia Vision</title>
+<style>
+  :root { --bg: #111418; --karte: #1b2028; --rand: #2c3340; --text: #e8eaed; --blass: #9aa3b2; --akzent: #c8794a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; }
+  h1 small { color: var(--blass); font-weight: 400; font-size: 13px; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .knoepfe button { background: var(--karte); color: var(--text); border: 1px solid var(--rand); border-radius: 8px;
+    padding: 8px 14px; font: inherit; cursor: pointer; }
+  .knoepfe button.an { background: var(--akzent); border-color: var(--akzent); color: #14161b; font-weight: 600; }
+  .raster { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  figure { margin: 0; background: #000; border: 1px solid var(--rand); border-radius: 10px; overflow: hidden; }
+  figure img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #000; }
+  figcaption { padding: 8px 12px; background: var(--karte); display: flex; justify-content: space-between; gap: 8px; }
+  figcaption span:last-child { color: var(--blass); }
+  .hinweis { background: #3a2a14; border: 1px solid #6b4a1e; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+  details { margin-top: 16px; color: var(--blass); }
+  pre { white-space: pre-wrap; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Yapaia Vision <small id="geraet"></small></h1>
+  <div id="hinweise"></div>
+  <form class="hinweis" id="firmware" hidden>
+    <b>Firmware für den EasyCAP</b><br>
+    Treiberdatei von der CD zum Stick wählen: <code>SmiUsbGrabber3F.sys</code>,
+    <code>SmiUsbGrabber3E.sys</code> oder das ganze <code>Setup.exe</code>.<br>
+    <input type="file" id="fw-datei"> <button type="submit">Hochladen</button>
+    <div id="fw-antwort"></div>
+  </form>
+  <div class="knoepfe" id="knoepfe"></div>
+  <div class="raster" id="raster"></div>
+  <details><summary>Technik</summary><pre id="technik"></pre></details>
+</main>
+<script>
+  // Relative Pfade: die Seite läuft hinter dem Ingress von Home Assistant.
+  const $ = (id) => document.getElementById(id);
+  let gezeigt = '';
+  let stroeme = [];
+
+  // ─── WARUM EINZELBILDER STATT MJPEG-STROM ───────────────────────────────
+  // Zwei Hürden, beide am 2026-10-16 am echten Gerät gesehen:
+  // 1. Der Ingress von Home Assistant reicht vom Content-Type nur den Teil vor
+  //    dem „;“ weiter -- die `boundary` fehlt, ein <img> mit dem Strom bleibt
+  //    schwarz.
+  // 2. Den Strom selbst per fetch() zu lesen, klappt in Chrome, aber nicht in
+  //    der Companion-App auf dem iPad: dort kommt kein einziges Stück an.
+  // Einzelbilder (bild.jpg, mit Länge) gehen überall durch. Das jeweils
+  // nächste wird geholt, sobald das vorige da ist -- im lokalen Netz sind das
+  // 10–25 Bilder pro Sekunde.
+  function zeigeStrom(img, url) {
+    const abbruch = new AbortController();
+    stroeme.push(abbruch);
+    let alt = null;
+    (async () => {
+      while (!abbruch.signal.aborted) {
+        try {
+          const antwort = await fetch(`${url}?t=${Date.now()}`, { signal: abbruch.signal, cache: 'no-store' });
+          if (!antwort.ok) throw new Error(antwort.status);
+          const bild = URL.createObjectURL(await antwort.blob());
+          img.src = bild;
+          if (alt) URL.revokeObjectURL(alt);
+          alt = bild;
+          await new Promise((r) => setTimeout(r, 40));
+        } catch (e) {
+          if (abbruch.signal.aborted) return;
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+    })();
+  }
+
+  async function laden() {
+    let st;
+    try { st = await (await fetch('api/status', { cache: 'no-store' })).json(); } catch { return; }
+    $('geraet').textContent = `${st.geraet} · ${st.version}`;
+    $('technik').textContent = JSON.stringify(st, null, 2);
+    $('firmware').hidden = !st.firmware_fehlt;
+
+    const meldungen = [...st.hinweise, ...st.kanaele.map((k) => k.fehler).filter(Boolean)];
+    $('hinweise').replaceChildren(...[...new Set(meldungen)].map((t) => {
+      const d = document.createElement('div'); d.className = 'hinweis'; d.textContent = t; return d;
+    }));
+
+    // Kanäle, die sich einen Grabber teilen: Knöpfe und EIN Live-Bild.
+    // Kanäle mit eigenem Gerät: jeder sein eigenes Live-Bild.
+    const proGeraet = {};
+    for (const k of st.kanaele) if (k.geraet) (proGeraet[k.geraet] ||= []).push(k);
+    const geteilt = Object.values(proGeraet).filter((l) => l.length > 1).flat();
+    const live = st.kanaele.filter((k) => k.geraet && (!geteilt.includes(k) || k.gewaehlt));
+
+    $('knoepfe').replaceChildren(...geteilt.map((k) => {
+      const b = document.createElement('button');
+      b.textContent = k.name;
+      b.className = k.gewaehlt ? 'an' : '';
+      b.onclick = async () => {
+        await fetch('api/kanal', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kanal: k.nummer }) });
+        laden();
+      };
+      return b;
+    }));
+
+    const schluessel = live.map((k) => k.nummer).join(',');
+    if (schluessel !== gezeigt) {
+      gezeigt = schluessel;
+      for (const a of stroeme) a.abort();
+      stroeme = [];
+      $('raster').replaceChildren(...live.map((k) => {
+        const f = document.createElement('figure');
+        const img = document.createElement('img');
+        img.alt = k.name;
+        zeigeStrom(img, `api/kamera/${k.nummer}/bild.jpg`);
+        const c = document.createElement('figcaption');
+        c.innerHTML = '<span></span><span></span>';
+        c.firstChild.textContent = k.name;
+        c.lastChild.textContent = `${k.geraet} · Eingang ${k.eingang}`;
+        f.append(img, c);
+        return f;
+      }));
+    }
+  }
+  $('firmware').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const datei = $('fw-datei').files[0];
+    if (!datei) return;
+    const form = new FormData();
+    form.append('datei', datei);
+    $('fw-antwort').textContent = 'Lade hoch …';
+    try {
+      const r = await (await fetch('api/firmware', { method: 'POST', body: form })).json();
+      $('fw-antwort').textContent = r.ok ? r.text : r.fehler;
+    } catch (e) {
+      $('fw-antwort').textContent = String(e);
+    }
+  };
+  laden();
+  setInterval(laden, 3000);
+</script>
+</body>
+</html>

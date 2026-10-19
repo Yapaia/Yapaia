@@ -255,12 +255,21 @@ class GLiNetClient:
 
 # ---- SIM-Umschaltung: bekannte Wege -----------------------------------------
 #
+# Am GL-X3000 (Firmware 4.x) nachgesehen, was die Router-Oberfläche beim
+# „Anwenden“ im Dialog „SIM-Kartensteckplatz-Einstellungen“ schickt:
+# `modem.set_slot_config {bus, enable_switch: false, current_sim: "2"}` --
+# die SIM als Text, der automatische Wechsel aus. Die ganze Slot-Konfiguration
+# zurückzuschicken lehnt der Router ab („Invalid params“), `slot` nimmt er an
+# und tut nichts.
+SWITCH_UI = {"bus": "{bus}", "enable_switch": False, "current_sim": "{sim_text}"}
+#
 # GL.iNet dokumentiert den Aufruf nicht. Die Router-Oberfläche kann es, also
 # gibt es ihn -- nur nicht unter einem bekannten Namen. Deshalb werden diese
 # Wege der Reihe nach probiert, und als gelernt gilt nur, was der Router
 # danach WIRKLICH meldet (`current_sim`). `None` als Vorlage heißt: die
 # aktuelle Slot-Konfiguration mit ersetzter SIM-Nummer zurückschicken.
 SWITCH_CANDIDATES: tuple[tuple[str, Any], ...] = (
+    ("modem.set_slot_config", SWITCH_UI),
     ("modem.set_slot_config", None),
     ("modem.set_slot_config", {"bus": "{bus}", "slot": "{sim}"}),
     ("modem.set_sim_slot", {"bus": "{bus}", "slot": "{sim}"}),
@@ -300,7 +309,7 @@ def build_switch_params(
 
 
 def render_template(template: Any, target: int, bus: str | None) -> Any:
-    """Replace ``"{sim}"`` (as number) and ``"{bus}"`` placeholders."""
+    """Replace ``"{sim}"`` (as number), ``"{sim_text}"`` and ``"{bus}"`` placeholders."""
     if isinstance(template, dict):
         return {k: render_template(v, target, bus) for k, v in template.items()}
     if isinstance(template, list):
@@ -308,7 +317,11 @@ def render_template(template: Any, target: int, bus: str | None) -> Any:
     if template == "{sim}":
         return target
     if isinstance(template, str):
-        return template.replace("{sim}", str(target)).replace("{bus}", bus or "")
+        return (
+            template.replace("{sim_text}", str(target))
+            .replace("{sim}", str(target))
+            .replace("{bus}", bus or "")
+        )
     return template
 
 
@@ -421,6 +434,66 @@ def format_bands(cells_info: Any) -> str | None:
     return " + ".join(bands) or None
 
 
+# ---- Internetquelle (Multi-WAN) und WLAN-Repeater ---------------------------
+#
+# `kmwan.get_status`: je Schnittstelle `status_v4` (0 = online, wie mwan3),
+# `kmwan.get_config`: ihre Rangfolge (`metric`, kleiner = bevorzugt). Genutzt
+# wird die erreichbare mit der kleinsten Metrik -- am X3000 standardmäßig
+# Kabel (10) vor WLAN-Repeater (20) vor Tethering (30) vor Mobilfunk (40).
+QUELLEN = {"wan": "kabel", "secondwan": "kabel", "wwan": "wlan", "tethering": "tethering"}
+
+
+def quelle_der_schnittstelle(name: str) -> str | None:
+    if name.startswith("modem"):
+        return "mobil"
+    return QUELLEN.get(name)
+
+
+def aktive_quelle(kmwan_status: Any, kmwan_config: Any) -> str | None:
+    """Über welche Quelle der Router gerade ins Internet geht."""
+    online = [
+        str(i.get("interface")) for i in _dict(kmwan_status).get("interfaces") or []
+        if isinstance(i, dict) and _to_int(i.get("status_v4")) == 0
+    ]  # fmt: skip
+    if not online:
+        return None
+    metrik = {
+        str(i.get("interface")): _to_int(i.get("metric")) for i in _dict(kmwan_config).get("interfaces") or []
+        if isinstance(i, dict)
+    }  # fmt: skip
+    online.sort(key=lambda n: metrik.get(n) if metrik.get(n) is not None else 999)
+    return next((q for q in map(quelle_der_schnittstelle, online) if q), None)
+
+
+def wlan_balken(dbm: float | None) -> int | None:
+    """WLAN-Signal (dBm) in 0-4 Balken, wie ein Telefon."""
+    if dbm is None:
+        return None
+    for balken, grenze in ((4, -55), (3, -67), (2, -75), (1, -85)):
+        if dbm >= grenze:
+            return balken
+    return 0
+
+
+def parse_wlan(repeater: Any) -> dict[str, Any]:
+    """Die wichtigen Werte aus `repeater.get_status` (leer ohne Verbindung)."""
+    r = _dict(repeater)
+    if r.get("state_s") != "connected" and _to_int(r.get("state")) != 2:
+        return {}
+    signal = _to_float(r.get("signal"))
+    ipv4 = _dict(r.get("ipv4"))
+    return {
+        "ssid": r.get("ssid") or None,
+        "signal": signal,
+        "balken": wlan_balken(signal),
+        "kanal": _to_int(r.get("channel")),
+        "bssid": r.get("bssid") or None,
+        "ip": str(ipv4.get("ip") or "").split("/")[0] or None,
+        "gateway": ipv4.get("gateway") or None,
+        "verbunden": r.get("connected") or None,
+    }
+
+
 @dataclass
 class CellularState:
     """Parsed view of the modem."""
@@ -444,6 +517,9 @@ class CellularState:
     sim_mcc: str | None = None
     roaming: bool | None = None
     slot_config: Any = None
+    # wlan | mobil | kabel | tethering (None = unbekannt / offline)
+    quelle: str | None = None
+    wlan: dict[str, Any] = field(default_factory=dict)
     raw: dict[str, Any] = field(default_factory=dict)
 
     @property

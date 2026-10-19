@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Die offiziellen Signaturschlüssel des Yapaia-Marktplatzes
  * (`docs/marktplatz.md`).

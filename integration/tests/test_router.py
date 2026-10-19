@@ -18,7 +18,9 @@ from custom_components.yapaia import router as r
 from custom_components.yapaia.const import DOMAIN, EREIGNIS
 from custom_components.yapaia.diagnostics import async_get_config_entry_diagnostics
 
-from .glinet import FakeRouter
+from custom_components.yapaia.router.api import SWITCH_UI
+
+from .glinet import BUS, FakeRouter
 
 DATEN = {CONF_HOST: "192.168.8.1", CONF_USERNAME: "root", CONF_PASSWORD: "secret",
          "modul": "router", "instanz": "9483c4aabbcc"}
@@ -105,6 +107,29 @@ async def test_umschalten_lernt_den_weg(hass: HomeAssistant, patch_router: FakeR
     await warten(lambda: patch_router.current_sim == 1)
     versuche = [c for c in patch_router.calls[vorher:] if c[1] not in ("get_status", "get_cells_info", "get_slot_config")]
     assert [f"{s}.{m}" for s, m, _ in versuche] == ["modem.set_sim_slot"]
+
+
+async def test_internet_ueber_wlan_oder_mobilfunk(hass: HomeAssistant, patch_router: FakeRouter) -> None:
+    """Für die Anzeige im Dashboard: worüber der Router gerade ins Internet geht."""
+    await einrichten(hass)
+    s = hass.states.get("sensor.yapaia_router_internet")
+    assert s.state == "WLAN"
+    assert s.attributes["quelle"] == "wlan" and s.attributes["wlan_ssid"] == "NoDramaLama"
+    assert s.attributes["wlan_balken"] == 4
+    assert float(zustand(hass, "sensor.yapaia_router_wlan_signal")) == -55
+
+
+async def test_umschalten_wie_die_router_oberflaeche(hass: HomeAssistant, patch_router: FakeRouter) -> None:
+    """Gemeldet: Werte stimmen, die Umschaltung geht nicht. Der X3000 will
+    `current_sim` als Text und `enable_switch: false` -- gleich der erste Weg."""
+    entry = await einrichten(hass)
+    ereignisse = async_capture_events(hass, EREIGNIS)
+    vorher = len(patch_router.calls)
+    await hass.services.async_call("yapaia", "router_sim_waehlen", {"sim": "2"}, blocking=True)
+    await warten(lambda: [e for e in ereignisse if e.data["name"] == "sim_gewechselt"])
+    versuche = [c for c in patch_router.calls[vorher:] if c[1] not in ("get_status", "get_cells_info", "get_slot_config")]
+    assert versuche == [("modem", "set_slot_config", {"bus": BUS, "enable_switch": False, "current_sim": "2"})]
+    assert entry.data[r.DATA_WEG] == {"methode": "modem.set_slot_config", "parameter": SWITCH_UI}
 
 
 async def test_umschalten_ohne_wirkung_meldet_es(hass: HomeAssistant, patch_router: FakeRouter) -> None:
@@ -210,6 +235,7 @@ async def test_diagnose_schwaerzt(hass: HomeAssistant, patch_router: FakeRouter)
     d = await async_get_config_entry_diagnostics(hass, entry)
     text = str(d)
     assert "secret" not in text and "94:83:C4" not in text and "9483c4aabbcc" not in text
+    assert "NoDramaLama" not in text  # das WLAN, an dem der Router hängt
     assert d["router"]["mcc"] == "262"
     assert d["router"]["roh"]["modem_status"]["modems"][0]["current_sim"] == "1"
 

@@ -63,7 +63,7 @@ describe('was NICHT erfunden wird', () => {
   it('ohne Navigationszustand ebenfalls', () => {
     for (const state of [null, undefined]) {
       const labels = tripInfoLabels(state);
-      expect(labels).toEqual({ distance: MISSING, duration: MISSING, eta: MISSING });
+      expect(labels).toEqual({ distance: MISSING, duration: MISSING, eta: MISSING, verzug: null });
     }
   });
 
@@ -82,5 +82,24 @@ describe('was NICHT erfunden wird', () => {
     const labels = tripInfoLabels(nav({ distance_remaining_m: 0, duration_remaining_s: 0 }));
     expect(labels.distance).not.toBe(MISSING);
     expect(labels.duration).not.toBe(MISSING);
+  });
+});
+
+describe('Staus verschieben die Ankunft', () => {
+  it('ohne Verzug bleibt alles wie vom Core', () => {
+    expect(tripInfoLabels(nav(), 0)).toEqual({ ...tripInfoLabels(nav()), verzug: null });
+  });
+
+  it('Verzug kommt auf Ankunft und Restzeit, gelb oder rot', () => {
+    const ohne = tripInfoLabels(nav());
+    const gelb = tripInfoLabels(nav(), 10);
+    expect(gelb.verzug).toEqual({ min: 10, stufe: 'gelb' });
+    expect(gelb.eta).not.toBe(ohne.eta);
+    expect(gelb.duration).not.toBe(ohne.duration);
+    expect(tripInfoLabels(nav(), 25).verzug?.stufe).toBe('rot');
+  });
+
+  it('ohne Ankunftszeit wird keine erfunden', () => {
+    expect(tripInfoLabels(nav({ eta: null as unknown as string }), 20).eta).toBe(MISSING);
   });
 });

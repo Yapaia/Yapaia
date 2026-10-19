@@ -1,0 +1,330 @@
+substitutions:
+  name: heizung
+
+esphome:
+  name: ${name}
+  friendly_name: ${name}
+
+esp32:
+  board: wemos_d1_mini32
+  framework:
+    type: esp-idf
+
+external_components:
+  # Fork, der mit aktuellem ESPHome läuft (nur ESP-IDF, kein Arduino mehr)
+  - source: github://skrebber/esphome-truma_inetbox
+    components: [truma_inetbox]
+
+uart:
+  - id: lin_uart_bus
+    baud_rate: 9600
+    stop_bits: 2
+    tx_pin: 17
+    rx_pin: 16
+
+# Enable logging
+logger:
+  level: DEBUG
+  logs:
+    scheduler: DEBUG
+  #hardware_uart: UART1
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret heizung_api_key
+
+ota:
+  - platform: esphome
+    password: !secret heizung_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  domain: .lan
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+#  ap:
+#    ssid: "Heizung Fallback Hotspot"
+#    password: "<entfernt>"
+
+captive_portal:
+
+#web_server:
+#  port: 80
+
+
+# Example configuration entry
+i2c:
+  sda: 18
+  scl: 19
+  scan: false
+  id: bus_a
+
+truma_inetbox:
+  uart_id: lin_uart_bus
+  #cs_pin: 5
+  #fault_pin: 18
+  # Advanced users can use `on_heater_message` action. The heater data is in the `message` variable.
+  on_heater_message:
+    then:
+    - logger.log: "Message from CP Plus."
+    - if:
+        condition:
+          lambda: return message->operating_status == truma_inetbox::OperatingStatus::OPERATING_STATUS_OFF;
+        then:
+          - logger.log: "Heater is off."
+
+binary_sensor:
+  - platform: truma_inetbox
+    name: "CP Plus alive"
+    type: CP_PLUS_CONNECTED
+
+  - platform: truma_inetbox
+    name: "Room Heater active"
+    type: HEATER_ROOM
+    id: HEATER_ROOM
+  - platform: truma_inetbox
+    name: "Water Heater active"
+    type: HEATER_WATER
+    id: HEATER_WATER
+  - platform: truma_inetbox
+    name: "Heater mode Gas"
+    type: HEATER_GAS
+  - platform: truma_inetbox
+    name: "Heater mode Mix 1"
+    type: HEATER_MIX_1
+  - platform: truma_inetbox
+    name: "Heater mode Mix 2"
+    type: HEATER_MIX_2
+  - platform: truma_inetbox
+    name: "Heater mode Elec"
+    type: HEATER_ELECTRICITY
+  - platform: truma_inetbox
+    name: "Heater has error"
+    type: HEATER_HAS_ERROR
+
+  - platform: truma_inetbox
+    name: "Timer active"
+    type: TIMER_ACTIVE
+    id: TIMER_ACTIVE
+  - platform: truma_inetbox
+    name: "Timer Room Heater active"
+    type: TIMER_ROOM
+  - platform: truma_inetbox
+    name: "Timer Water Heater active"
+    type: TIMER_WATER
+
+
+climate:
+  - platform: truma_inetbox
+    name: "Truma Room"
+    type: ROOM
+  - platform: truma_inetbox
+    name: "Truma Water"
+    type: WATER
+
+number:
+  - platform: truma_inetbox
+    name: "Target Room Temperature"
+    type: TARGET_ROOM_TEMPERATURE
+  - platform: truma_inetbox
+    name: "Target Water Temperature"
+    type: TARGET_WATER_TEMPERATURE
+  - platform: truma_inetbox
+    name: "electric power level"
+    type: ELECTRIC_POWER_LEVEL
+
+sensor:
+  - platform: truma_inetbox
+    name: "Current Room Temperature"
+    type: CURRENT_ROOM_TEMPERATURE
+  - platform: truma_inetbox
+    name: "Current Water Temperature"
+    type: CURRENT_WATER_TEMPERATURE
+  - platform: truma_inetbox
+    name: "Target Room Temperature Reported"
+    type: TARGET_ROOM_TEMPERATURE
+  - platform: truma_inetbox
+    name: "Target Water Temperature Reported"
+    type: TARGET_WATER_TEMPERATURE
+  - platform: truma_inetbox
+    name: "Heating mode"
+    type: HEATING_MODE
+  - platform: truma_inetbox
+    name: "electric power level Reported"
+    type: ELECTRIC_POWER_LEVEL
+  - platform: truma_inetbox
+    name: "Energy mix"
+    type: ENERGY_MIX
+  - platform: truma_inetbox
+    name: "Operating status"
+    type: OPERATING_STATUS
+  - platform: truma_inetbox
+    name: "Heater error code"
+    type: HEATER_ERROR_CODE
+
+
+#MPU6050 accel & gyro for spirit level
+  - platform: mpu6050
+    address: 0x68
+    accel_x:
+      id: accel_x
+      name: "MPU6050 Accel X"
+    accel_y:
+      id: accel_y
+      name: "MPU6050 Accel Y"
+    accel_z:
+      id: accel_z
+      name: "MPU6050 Accel z"
+    gyro_x:
+      name: "MPU6050 Gyro X"
+    gyro_y:
+      name: "MPU6050 Gyro Y"
+    gyro_z:
+      name: "MPU6050 Gyro z"
+    temperature:
+      name: "MPU6050 Temperature"
+    update_interval: 2s
+
+#offset -0.1  LR -1.7 VH degrees
+  - platform: template
+    id: angle_roll
+    name: "Neigung Links Rechts"
+    unit_of_measurement: "deg"
+    lambda: |-
+      return ((-atan2((id(accel_x).state/4096.0)/9.8 , (id(accel_z).state/4096.0)/9.8)/2/3.141592656 * 360)-0.1)*-1;
+    accuracy_decimals: 1
+    update_interval: 2s
+
+  - platform: template
+    id: angle_tilt
+    name: "Neigung vorne hinten"
+    unit_of_measurement: "deg"
+    lambda: |-
+      return ((-atan2((id(accel_y).state/4096.0)/9.8 , (id(accel_z).state/4096.0)/9.8)/2/3.141592656 * -360)-1.7)*-1;
+    accuracy_decimals: 1
+    update_interval: 2s
+
+  - platform: template
+    id: mm_front_back
+    name: "Höhe vorne hinten mm"
+    unit_of_measurement: "mm"
+    lambda: |-
+      const float radstand_mm = 3800;    // Radstand in mm
+      return (sin(id(angle_tilt).state*M_PI/180)*radstand_mm);
+    accuracy_decimals: 0
+    update_interval: 2s
+
+  - platform: template
+    id: mm_left_right
+    name: "Höhe links rechts mm"
+    unit_of_measurement: "mm"
+    lambda: |-
+      const float achsbreite_mm = 2300;    // Radstand in mm
+      return (sin(id(angle_roll).state*M_PI/180)* achsbreite_mm);
+    accuracy_decimals: 0
+    update_interval: 2s
+
+switch:
+  - platform: template
+    name: "Activate Room Heater"
+    lambda: |-
+      return id(HEATER_ROOM).state;
+    turn_on_action:
+      - truma_inetbox.heater.set_target_room_temperature:
+          # You can use lambda functions
+          temperature: !lambda |-
+            return 16;
+          # Optional set heating mode: `"OFF"`, `ECO`, `HIGH`, `BOOST`
+          heating_mode: ECO
+    turn_off_action:
+      - truma_inetbox.heater.set_target_room_temperature:
+          # Disable heater by setting temperature to `0`.
+          temperature: 0
+  - platform: template
+    name: "Activate Water Heater"
+    lambda: |-
+      return id(HEATER_WATER).state;
+    turn_on_action:
+      - truma_inetbox.heater.set_target_water_temperature:
+          # Set water temp as number: `0`, `40`, `60`, `80`
+          temperature: 40
+    turn_off_action:
+      - truma_inetbox.heater.set_target_water_temperature:
+          # Disable heater by setting temperature to `0`.
+          temperature: 0
+  - platform: template
+    name: "Activate Water Heater (enum)"
+    lambda: |-
+      return id(HEATER_WATER).state;
+    turn_on_action:
+      - truma_inetbox.heater.set_target_water_temperature_enum:
+          # Set water temp as text: `"OFF"`, `ECO`, `HIGH`, `BOOST`
+          temperature: ECO
+    turn_off_action:
+      # You can also use the simplified syntax.
+      - truma_inetbox.heater.set_target_water_temperature_enum: "OFF"
+  - platform: template
+    name: "Active Timer"
+    lambda: |-
+      return id(TIMER_ACTIVE).state;
+    turn_on_action:
+      - truma_inetbox.timer.activate:
+          start: 7:00
+          stop: 9:30
+          # Required: Set room temp to a number between 5 and 30
+          room_temperature: 13
+          # Optional: Set heating mode: `"OFF"`, `ECO`, `HIGH`, `BOOST`
+          heating_mode: ECO
+          # Optional: Set water temp as number: `0`, `40`, `60`, `80`
+          water_temperature: 0
+          # Optional: Set energy mix to: `GAS`, `MIX`, `ELECTRICITY`
+          energy_mix: GAS
+          # Optional: Set electricity level to `0`, `900`, `1800`
+          watt: 0
+
+    turn_off_action:
+      # You can also use the simplified syntax.
+      - truma_inetbox.timer.disable
+
+
+
+button:
+  - platform: template
+    name: "Energy mix GAS only"
+    on_press:
+      - truma_inetbox.heater.set_energy_mix:
+          # Set energy mix to: `GAS`, `MIX`, `ELECTRICITY`
+          energy_mix: GAS
+  - platform: template
+    name: "Energy mix MIX 1"
+    on_press:
+      - truma_inetbox.heater.set_energy_mix:
+          energy_mix: MIX
+          # Set electricity level to `0`, `900`, `1800`
+          watt: 900W
+  - platform: template
+    name: "Energy mix MIX 2"
+    on_press:
+      - truma_inetbox.heater.set_energy_mix:
+          energy_mix: MIX
+          watt: 1800
+  - platform: template
+    name: "Energy mix ELECTRICITY only"
+    on_press:
+      - truma_inetbox.heater.set_energy_mix:
+          energy_mix: ELECTRICITY
+          watt: 1800W
+  - platform: template
+    name: "Set electric power level to 0 Watt"
+    on_press:
+      - truma_inetbox.heater.set_electric_power_level: 0
+  - platform: template
+    name: "Set electric power level to 900 Watt"
+    on_press:
+      - truma_inetbox.heater.set_electric_power_level: 900
+  - platform: template
+    name: "Set electric power level to 1800 Watt"
+    on_press:
+      - truma_inetbox.heater.set_electric_power_level: 1800

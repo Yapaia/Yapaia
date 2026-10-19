@@ -1,5 +1,88 @@
 # Changelog
 
+## 1.17.2
+
+**Die richtigen Senderlogos.** Gemeldet: Die richtigen Logos werden nicht
+gefunden oder geladen.
+
+- Hauptursache: Logos wurden nur bis zum ersten Netzwerkstück gelesen
+  (`content.read(n)` liefert nur, was gerade angekommen ist). Fast jedes
+  echte Logo kam so halb an und wurde, richtig, als unvollständig verworfen.
+  Übrig blieben kleine Bilder, die in einem Stück kommen, meist Favicons.
+  Das offizielle SWR3-Logo von RadioDNS hat 24 KB, angekommen waren 2 KB.
+  Dasselbe galt für die Senderverzeichnisse von RadioDNS.
+- Kein fremdes Logo mehr: Gibt es bei radio-browser einen Sender mit genau
+  dem Namen (auch ohne Logo), zählt kein Unterkanal mit längerem Namen.
+  „Beats Radio“ bekam bisher das Logo von „Beats Radio – Nu Disco“. Zusätze
+  wie „Livestream“, „National“ oder ein Bundesland gelten weiter als
+  derselbe Sender („Radio Bob! Livestream Hessen“ für RADIO BOB!).
+- Mehrere Treffer werden der Reihe nach probiert, nicht nur der erste.
+- Nach dem Update sucht Beat einmal für alle Sender (ohne eigenes Logo) neu.
+  Am Gerät waren das 63 Logos in etwa 2½ Minuten. SWR3 und DASDING haben
+  jetzt das offizielle Logo des SWR.
+
+## 1.17.1
+
+- Bringt die Integration „Yapaia“ 0.4.2 mit: Yapaia Router schaltet die SIM
+  jetzt wirklich um (siehe Router 0.2.1).
+
+## 1.17.0
+
+**DAB+ geht wieder, und du wählst den Stick.** Gemeldet: kein DAB+-Sender
+ließ sich mehr richtig empfangen.
+
+- Ursache: Die Verstärkungs-Automatik von welle-cli regelte den neuen Stick
+  (Nooelec NESDR SMArt v5) auf 3,7 dB herunter. Er fand so kein Ensemble,
+  obwohl er mit fester Verstärkung bestens empfängt (37 dB: SNR 13, wie der
+  andere Stick). Seit dem Einstecken hat er Index 0, deshalb lief jeder
+  DAB-Sender auf ihm.
+- Beat erkennt das jetzt selbst: bleibt die Automatik auf einem Stick unter
+  10 dB, ohne Ensemble, bekommt dieser Stick für DAB+ eine feste
+  Verstärkung (37 dB). Das gilt dann dauerhaft für ihn, auch beim Suchlauf,
+  beim Antennenvergleich und bei der Senderverfolgung. Das Log meldet es
+  einmal als Warnung.
+- Neuer Schalter **„Stick“** unter dem Sender: **Auto**, **Stick 1** oder
+  **Stick 2**. Von Hand gewählt, zieht der Sender ohne Pause auf diesen
+  Stick um, und alle weiteren Sender spielen dort. **Auto**: Hat sich ein
+  Sender eingespielt, misst Beat ihn auch auf dem anderen Stick. Empfängt
+  der andere mindestens 10 Punkte besser, wechselt die Wiedergabe ohne Pause
+  dorthin. Die Wahl wird gespeichert.
+- Der Antennenvergleich misst DAB+ länger (bis 20 s). Ein Stick mit fester
+  Verstärkung braucht etwa 10 s, bis er sich synchronisiert hat.
+
+## 1.16.0
+
+**Welche Antenne ist besser?** Gewünscht: eine kleine Anzeige, welcher Stick
+den besseren Empfang hat.
+
+- Neuer Knopf **„Antennen vergleichen“** unter dem Suchlauf (nur mit zwei
+  Sticks): misst den laufenden Sender kurz auch auf dem freien Stick, die
+  Wiedergabe läuft weiter. Angezeigt werden beide Werte mit dem Namen des
+  Sticks (Hersteller und Modell) und welcher besser empfängt.
+- Die Gegenprobe vor einer Verfolgungs-Suche erscheint ebenfalls dort.
+- Ein Suchlauf, der während des Vergleichs gestartet wird, wartet die paar
+  Sekunden ab und läuft dann wie gewohnt auf dem zweiten Stick.
+
+## 1.15.0
+
+**Das Radio hört aufs Wort.** Gemeldet: Über den Sprachsatelliten wurde „Spiel
+SWR3“ zwar verstanden, es passierte aber nichts.
+
+- Beat legt in Home Assistant die Automation **„Yapaia Beat Sprachbefehle“**
+  an. Der Sprachassistent (Sprachsatellit oder Assist in der App) versteht
+  damit zum Beispiel:
+  - „Spiel SWR3“, „Schalte auf DASDING“, „Radio an“
+  - „Radio aus“, „Stoppe die Musik“
+  - „Nächster Sender“, „Sender zurück“
+  - „Radio lauter“, „Musik leiser“
+  - „Was läuft gerade?“
+  - „Wechsle die Ausgabe auf Wohnzimmer“ (ein Mediaplayer aus Home Assistant)
+    oder „… auf Mini-PC“
+- Die Antwort wird gesprochen („SWR3 läuft.“). Verstanden wird ohne KI,
+  anhand der Senderliste – der Sender muss also im Suchlauf gefunden sein.
+- Abschalten: Add-on-Option **Sprachbefehle**. Voraussetzung ist die
+  Integration „Yapaia“ mit eingerichtetem Yapaia Beat.
+
 ## 1.14.2
 
 - Bringt die Integration „Yapaia“ 0.4.1 mit: Unter Home Assistant 2026.10

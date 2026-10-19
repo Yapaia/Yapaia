@@ -134,3 +134,7 @@ curl -s -X POST http://localhost:8080/api/v1/addons/com.yapaia.track-recorder/en
 npx vitest run addons-examples/track-recorder   # Unit: GPX/Distanz/Segment-Split
 cd ../../apps/web && npx playwright test e2e/addon-examples-recorder.spec.ts
 ```
+
+## Lizenz
+
+Apache-2.0 (siehe `LICENSE`) – frei zum Abschauen und Weiterverwenden, auch in geschlossenen oder kostenpflichtigen Add-ons.

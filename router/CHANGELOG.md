@@ -1,5 +1,38 @@
 # Änderungen
 
+## 0.3.0
+
+**Worüber geht der Router ins Internet?** Für die Anzeige im Cockpit-Dashboard.
+
+- Neuer Sensor **„Internet über“** (`sensor.yapaia_router_internet`): WLAN,
+  Mobilfunk, Kabel oder Tethering, also die erreichbare Quelle mit dem
+  höchsten Rang im Multi-WAN des Routers. Als Attribute die Daten des WLANs,
+  mit dem der Router verbunden ist: SSID, Balken, Kanal, BSSID, IP, Gateway
+  und Verbindungsdauer.
+- Neuer Sensor **„WLAN-Signal“** (dBm).
+- Der Router wird alle 15 s abgefragt (bisher 30 s), damit Anzeigen den
+  Empfang live zeigen. In den Einstellungen änderbar.
+- Die Diagnose schwärzt SSID, BSSID und IPs des WLANs.
+- Kommt mit der Integration 0.4.3 (in Yapaia Go 0.50.0).
+
+## 0.2.1
+
+**SIM-Umschaltung am GL-X3000 geht.** Gemeldet: Die Werte stimmen, die
+Umschaltung geht nicht.
+
+- In der Oberfläche des Routers nachgesehen, was „Anwenden“ im Dialog
+  „SIM-Kartensteckplatz-Einstellungen“ schickt:
+  `modem.set_slot_config {bus, enable_switch: false, current_sim: "2"}`.
+  Die SIM geht als Text raus, der automatische Wechsel des Routers wird
+  dabei ausgeschaltet. Das ist jetzt der erste Umschaltweg und wird beim
+  ersten erfolgreichen Wechsel eingelernt.
+- Bisher schickte die Integration die ganze Slot-Konfiguration zurück (der
+  Router antwortet „Invalid params“) oder `slot: 2` (angenommen, aber ohne
+  Wirkung).
+- Am echten Router geprüft: Der Aufruf mit der schon aktiven SIM wird ohne
+  Fehler angenommen.
+- Kommt mit der Integration 0.4.2 (in Yapaia Beat 1.17.1).
+
 ## 0.2.0
 
 **Yapaia Router: Gerät in der Integration „Yapaia“, SIM nach Land.**

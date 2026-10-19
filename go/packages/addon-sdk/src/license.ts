@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * `verifyLicense()` -- the check a PAID add-on runs on its own license
  * (`docs/marktplatz.md`). It trusts only the official marketplace keys that

@@ -110,6 +110,11 @@ both Valhalla's and Photon's footprint scale with the size of the region.
 Disk: budget roughly 10 GB for one region, more if you install several.
 CPU: x86-64 or ARM64; an N100-class mini-PC is the reference machine.
 
+Measured on the reference machine (N100, Germany + Switzerland + Liechtenstein,
+2026-10): with Photon **off** (lite search) the whole add-on uses about
+**330 MB** (Valhalla ~300 MB resident, Core ~110 MB). Building the map data on
+the device needs far more than running it — see the installation guide.
+
 Tight on RAM? Turning off the `photon_enabled` option drops the single biggest
 consumer and falls back to a built-in lightweight search index — you keep place
 and street names, you lose house numbers. The
@@ -117,18 +122,26 @@ and street names, you lose house numbers. The
 
 ---
 
-## Licence — not yet chosen
+## Licence
 
-**Yapaia Go does not have a licence yet, and that is deliberate, not an
-oversight.** Until one is published here, standard copyright applies: all
-rights reserved. Please do not build on this code, redistribute it or ship it
-in a product yet — the terms that will govern that have not been decided.
+Yapaia Go is free software under the **GNU General Public License v3.0 or
+later** (see [`LICENSE`](../LICENSE) at the repository root). It comes
+**without any warranty**; liability is excluded to the extent permitted by law
+(GPL-3.0, sections 15 and 16). All guidance it shows — routes, clearance
+heights, speed limits, lanes — is advisory; the driver remains responsible.
 
-Reading the code, running it yourself and reporting problems are welcome.
+**Exception:** the add-on SDK (`packages/addon-sdk`) and the example add-ons
+(`addons-examples/poi-campsites`, `addons-examples/track-recorder`) are under the
+**Apache License 2.0**, so add-ons built on them can use any licence, including
+proprietary ones.
 
-> **If you are thinking of contributing code:** please open an issue first. A
-> pull request merged before the licence exists would tie the project's hands,
-> because the licence can then no longer be chosen freely.
+Third-party components and data (OpenStreetMap/ODbL, Valhalla, MapLibre …):
+[`DRITTLIZENZEN.md`](../DRITTLIZENZEN.md). The name and logo are not covered by
+the licence: [`NAME-UND-LOGO.md`](../NAME-UND-LOGO.md).
+
+> **Contributing code:** please open an issue first. Contributions are only
+> accepted together with a contributor agreement that lets the project keep
+> offering Yapaia under other terms as well (e.g. to manufacturers).
 
 ## Documentation
 

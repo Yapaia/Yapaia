@@ -1,0 +1,50 @@
+# Dashboard „Rangieren“ – Rohkonfiguration
+# (Dashboard → ⋮ → Bearbeiten → ⋮ → Raw-Konfigurationseditor)
+# Einspielen geht auch mit: python3 dashboards/deploy.py --dashboard rangieren
+title: Rangieren
+views:
+  - title: Rangieren
+    path: rangieren
+    icon: mdi:car-brake-parking
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:yapaia-kamera-card
+            name: Rückfahrkamera
+            entity: camera.yapaia_vision_kamera_1
+            aspect_ratio: "3:2"
+          - type: custom:yapaia-reifen-card
+            name: Reifendruck
+            target_front: 4.5
+            target_rear: 5.0
+            grid_options: { columns: full }
+      - type: grid
+        cards:
+          - type: custom:yapaia-nivellierung-card
+            name: Steht Holmes im Wasser?
+            pitch_entity: sensor.heizung_neigung_vorne_hinten
+            roll_entity: sensor.heizung_neigung_links_rechts
+            pitch_mm_entity: sensor.heizung_hohe_vorne_hinten_mm
+            roll_mm_entity: sensor.heizung_hohe_links_rechts_mm
+            invert_pitch: false
+            invert_roll: false
+            wheelbase: 3800
+            track: 2300
+            tolerance: 0.5
+            exaggeration: 4
+          - type: tile
+            entity: light.smartwomo_ausgang_out2
+            name: Licht Dinette
+            icon: mdi:ceiling-light
+            features_position: bottom
+            vertical: false
+          - type: tile
+            entity: lock.door_aufbautur
+            name: Aufbau
+            features:
+              - type: lock-commands
+            features_position: bottom
+            vertical: false

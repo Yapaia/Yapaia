@@ -4,8 +4,8 @@
  *   const a = useAnordnung('trip-info');
  *   <div ref={a.ref} …>… {a.griff}</div>
  *
- * Verschoben wird über die CSS-Eigenschaften `translate` und `scale`, NICHT
- * über `transform`: viele Elemente zentrieren sich mit Tailwinds
+ * Verschoben wird über die CSS-Eigenschaften `translate` und `scale` (ohne
+ * sie, vor Chrome 104, siehe `setzeVersatz`), NICHT über `transform`: viele Elemente zentrieren sich mit Tailwinds
  * `-translate-x-1/2`, und das IST ein `transform`. Ein eigener `transform`
  * hätte es überschrieben; `translate`/`scale` setzen sich darauf.
  *
@@ -26,6 +26,33 @@ function sichtRahmen(): DOMRect {
   return sicht ? sicht.getBoundingClientRect() : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
 }
 
+/** Ob der Browser die einzelnen Transform-Eigenschaften `translate`/`scale` kennt. */
+const EINZELN = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('translate', '1px 1px');
+
+/**
+ * Verschiebung und Größe setzen.
+ *
+ * ─── CHROME 101 (AUTORADIO) ────────────────────────────────────────────────
+ * `translate`/`scale` gibt es erst ab Chrome 104. Die WebView des Autoradios
+ * (Eonon UX6K Pro Max) hat 101: dort ließ sich im Bearbeitungsmodus nichts
+ * verschieben -- die Werte änderten sich, zu sehen war nichts. Ohne die
+ * Eigenschaften wird die eigene Transformation des Elements (etwa Tailwinds
+ * `-translate-x-1/2`) gemessen und unsere davor gesetzt -- genau die
+ * Reihenfolge, in der der Browser `translate`/`scale` anwenden würde.
+ */
+export function setzeVersatz(el: HTMLElement, v: { dx: number; dy: number; s: number } | null, einzeln = EINZELN): void {
+  if (einzeln) {
+    el.style.translate = v ? `${v.dx}px ${v.dy}px` : '';
+    el.style.scale = v ? String(v.s) : '';
+    return;
+  }
+  el.style.transform = '';
+  if (!v) return;
+  const eigen = getComputedStyle(el).transform;
+  const basis = eigen && eigen !== 'none' ? ` ${eigen}` : '';
+  el.style.transform = `translate(${v.dx}px, ${v.dy}px) scale(${v.s})${basis}`;
+}
+
 export interface Anordnung {
   ref: (el: HTMLElement | null) => void;
   griff: React.ReactNode;
@@ -35,7 +62,8 @@ export interface Anordnung {
 
 export function useAnordnung(id: string, modusFest?: Modus): Anordnung {
   const fahrt = useFahrtAnsicht();
-  const modus: Modus = modusFest ?? (fahrt ? 'fahrt' : 'ruhe');
+  const vorschau = useAnordnungStore((s) => s.vorschau);
+  const modus: Modus = modusFest ?? vorschau ?? (fahrt ? 'fahrt' : 'ruhe');
   const platz = useAnordnungStore((s) => s.werte[modus][id]) ?? STANDARD;
   const bearbeiten = useAnordnungStore((s) => s.bearbeiten === modus);
   const setze = useAnordnungStore((s) => s.setze);
@@ -66,8 +94,7 @@ export function useAnordnung(id: string, modusFest?: Modus): Anordnung {
     const el = element.current;
     if (!el) return;
     const veraendert = dx !== 0 || dy !== 0 || platz.s !== 1;
-    el.style.translate = veraendert ? `${dx}px ${dy}px` : '';
-    el.style.scale = veraendert ? String(platz.s) : '';
+    setzeVersatz(el, veraendert ? { dx, dy, s: platz.s } : null);
     el.style.zIndex = bearbeiten ? '60' : '';
     if (bearbeiten) el.style.pointerEvents = 'auto';
     else el.style.pointerEvents = '';

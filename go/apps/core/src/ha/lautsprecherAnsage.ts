@@ -43,6 +43,44 @@ export function maLautsprecher(zustaende: readonly HaEntityState[]): Lautspreche
     .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
+/** `MediaPlayerEntityFeature.MEDIA_ANNOUNCE`: der Player legt eine Ansage über das, was läuft. */
+export const MERKMAL_ANSAGE = 1 << 20;
+
+export interface AnsageLautsprecher extends Lautsprecher {
+  /** Player von Music Assistant oder ein anderer aus Home Assistant. */
+  art: 'ma' | 'ha';
+  /** Kann Ansagen einblenden; sonst unterbricht eine Ansage, was dort läuft. */
+  ansage: boolean;
+}
+
+/**
+ * Alle Lautsprecher, die man für Ansagen WÄHLEN kann.
+ *
+ * Gewünscht: „dass man das Ausgabegerät auswählen kann“ -- die in Home
+ * Assistant verfügbaren Ausgaben, nicht nur die von Music Assistant (z. B.
+ * der Yapaia Satellite). Automatisch gewählt wird weiterhin nur ein Player
+ * von Music Assistant (`lautsprecherWahl`); alles andere ist eine
+ * ausdrückliche Entscheidung.
+ *
+ * Yapaia Beat fehlt hier: dorthin mischt Beat selbst (`ansagen_beat`).
+ * Vorn steht, was Ansagen einblenden kann.
+ */
+export function ansageLautsprecher(zustaende: readonly HaEntityState[]): AnsageLautsprecher[] {
+  return zustaende
+    .filter((z) => z.entity_id.startsWith('media_player.') && z.entity_id !== BEAT_ENTITAET && z.state !== 'unavailable')
+    .map((z): AnsageLautsprecher => {
+      const ma = MA_ATTRIBUT in (z.attributes ?? {});
+      const merkmale = Number(z.attributes?.supported_features ?? 0);
+      return {
+        id: z.entity_id,
+        name: String(z.attributes?.friendly_name ?? z.entity_id),
+        art: ma ? 'ma' : 'ha',
+        ansage: ma || (merkmale & MERKMAL_ANSAGE) !== 0,
+      };
+    })
+    .sort((a, b) => Number(b.ansage) - Number(a.ansage) || a.name.localeCompare(b.name, 'de'));
+}
+
 /**
  * Welcher Lautsprecher die Ansage bekommt -- oder keiner.
  *
@@ -375,7 +413,7 @@ export class LautsprecherAnsage implements AnsageZiel {
       });
       const stimmeText = `${stimme.engine}${stimme.language ? `, ${stimme.language}` : ''}`;
       return r.ok
-        ? { ok: true, zustaendig: true, grund: `Die Ansage ging an ${ziel} (Music Assistant, Stimme ${stimmeText}).` }
+        ? { ok: true, zustaendig: true, grund: `Die Ansage ging an ${ziel} (Stimme ${stimmeText}).` }
         : {
             ok: false,
             zustaendig: true,

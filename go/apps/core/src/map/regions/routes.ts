@@ -17,7 +17,7 @@
  */
 
 import { existsSync } from 'fs';
-import { unlink } from 'fs/promises';
+import { rm, unlink } from 'fs/promises';
 import type { FastifyPluginAsync } from 'fastify';
 import type { ApiError } from '@yapaia/shared';
 import {
@@ -29,6 +29,7 @@ import {
 import {
   abdeckungNachBau,
   abdeckungSatz,
+  extraktPfad,
   graphRegionenJetzt,
   type GraphAbdeckung,
   pbfLagerPfad,
@@ -53,7 +54,7 @@ import { JobRegistry, type JobSnapshot } from './jobs.js';
 import { bestandAus, noetigerPlan, starteGesamtbau } from './gesamtbau.js';
 import { collectBuildStatus } from '../buildStatus.js';
 import { readLiteIndexMeta } from '../../search/lite/reader.js';
-import { resolveLiteSearchDir } from '../../search/lite/paths.js';
+import { liteSearchDbPathForRegion, resolveLiteSearchDir } from '../../search/lite/paths.js';
 import { LITE_INDEX_FORMAT } from '../../search/lite/buildIndex.js';
 import { bauzeitenPfad } from './bauzeitSpeicher.js';
 import type { SettingsService } from '../../settings/service.js';
@@ -799,6 +800,16 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
   );
 
   // DELETE /api/v1/map/regions/:id -- refuses to remove the last region.
+  //
+  // Gemeldet: nach „Löschen" stand die Karte als entfernt da, die Suche fand
+  // dort aber weiter Orte, und geroutet wurde auch noch. Gelöscht wurde nur
+  // die Kartendatei. Jetzt gehen Suchindex und OSM-Extrakt der Region mit --
+  // der Extrakt, weil der nächste Routingbau sonst jede gelöschte Region
+  // wieder einsammelt (er baut über alles, was im Zwischenlager liegt).
+  //
+  // Der Routinggraph bleibt: es gibt EINEN für alle Regionen, eine einzelne
+  // lässt sich nicht herausnehmen. „Was ist gebaut?" nennt, was darin noch
+  // steckt; der nächste Routingbau lässt es weg.
   fastify.delete<{ Params: IdParams; Reply: ApiError | undefined }>(
     '/api/v1/map/regions/:id',
     async (request, reply) => {
@@ -819,7 +830,32 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           .send(createErrorResponse('LAST_REGION', 'Cannot delete the only installed region'));
       }
 
+      // Ein laufender Bau liest die Extrakte im Zwischenlager. Einen davon
+      // unter ihm wegzulöschen, ließe ihn nach Stunden scheitern.
+      const running = jobs.findUnfinished(BUILD_JOB_KIND);
+      if (running) {
+        return reply.code(409).send(
+          createErrorResponse(
+            'BUILD_IN_PROGRESS',
+            'Es läuft gerade ein Bau, der die Daten dieser Karte verwenden kann. ' +
+              'Warten Sie das Ende ab oder brechen Sie den laufenden Bau ab.',
+            { jobId: running.id },
+          ),
+        );
+      }
+
       await unlink(filePath);
+      // Die Karte ist weg; scheitert das Aufräumen, bleibt das Löschen
+      // trotzdem gelungen -- aber nicht stillschweigend.
+      const zubehoer = [
+        liteSearchDbPathForRegion(resolveLiteSearchDir(), regionId),
+        extraktPfad(pbfLagerPfad(resolveGraphDir()), regionId),
+      ];
+      for (const pfad of zubehoer) {
+        await rm(pfad, { force: true }).catch((err: unknown) => {
+          fastify.log.warn({ pfad, error: (err as Error).message }, 'Region gelöscht, Zubehör blieb liegen');
+        });
+      }
       return reply.code(204).send(undefined);
     },
   );

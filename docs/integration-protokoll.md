@@ -189,7 +189,7 @@ Beat heute):
 | Feld | Bedeutung |
 |---|---|
 | `schluessel` | Dauerhafte Kennung im Modul. **Nie umbenennen** – daraus wird die Unique-ID `yapaia_<modul>_<instanz>_<schluessel>`; Umbenennen erzeugt in HA eine neue Entität. |
-| `plattform` | `sensor`, `binary_sensor`, `switch`, `select`, `number`, `button`, `text`, `device_tracker`, `image`, `event` – oder `spezial` (unten). |
+| `plattform` | `sensor`, `binary_sensor`, `switch`, `select`, `number`, `button`, `text`, `device_tracker`, `camera`, `image`, `event` – oder `spezial` (unten). |
 | `name` | Anzeigename je Sprache; die Integration nimmt die HA-Sprache, sonst `en`, sonst den ersten. |
 | `geraeteklasse`, `einheit`, `zustandsklasse`, `symbol` | wie in Home Assistant. |
 | `symbol_aus` | Zustandsschlüssel, dessen Wert das Symbol ersetzt (z. B. der Pfeil der nächsten Abbiegung); ohne Wert gilt `symbol`. |
@@ -203,6 +203,12 @@ Beat heute):
 Bei `device_tracker` ist der Wert ein Objekt
 `{"breite": 52.1, "laenge": 11.6, "genauigkeit": 5}` (Genauigkeit in m) oder
 `null`, solange kein Standort bekannt ist.
+
+Bei `camera` nennt die Entität zwei Pfade am Modul: `bild` (ein JPEG,
+`503`, solange es keins gibt) und `stream` (MJPEG,
+`multipart/x-mixed-replace`). Die Integration holt beides mit dem Token und
+reicht es an Home Assistant durch. `<schluessel>_live` (`true`/`false`) im
+Zustand sagt, ob die Kamera gerade aufnimmt.
 
 `spezial` steht für Entitäten, die sich nicht allgemein beschreiben lassen
 (Beats Mediaplayer mit Senderliste, Logos und Lautsprecher-Weiterleitung). Die

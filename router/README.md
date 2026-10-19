@@ -9,10 +9,11 @@ Land** beim Grenzübertritt. Alles läuft lokal über die Schnittstelle des Rout
 Der Code liegt in der gemeinsamen Integration:
 [`integration/custom_components/yapaia/router/`](../integration/custom_components/yapaia/router/).
 
-> **Status:** noch nicht am echten Router getestet. Anmeldung und Statusabfrage
-> folgen Projekten, die am X3000 laufen. Den Befehl zum SIM-Umschalten hat
-> GL.iNet nicht dokumentiert – deshalb lernt die Integration ihn selbst ein
-> (unten).
+> **Status:** am GL-X3000 (Firmware 4.x) im Einsatz: Anmeldung, Statuswerte und
+> der Umschaltbefehl (`modem.set_slot_config` mit `current_sim` als Text, wie
+> ihn die Router-Oberfläche schickt) sind dort geprüft. GL.iNet hat den
+> Befehl nicht dokumentiert. Für andere Modelle probiert die Integration
+> weitere bekannte Wege und lernt den, der wirkt (unten).
 
 ## Einrichten
 
@@ -42,6 +43,8 @@ diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
 | `sensor.yapaia_router_aktive_sim`, `…_anbieter`, `…_netztyp`, `…_baender` | aktive SIM, Netzbetreiber, LTE/5G, Frequenzbänder |
 | `sensor.yapaia_router_signalbalken`, `…_rsrp`, `…_rsrq`, `…_sinr`, `…_rssi` | Signal (RSSI zunächst deaktiviert) |
 | `sensor.yapaia_router_datenverbrauch` | Datenzähler des Routers |
+| `sensor.yapaia_router_internet` | **Internet über** WLAN / Mobilfunk / Kabel / Tethering, mit den WLAN-Daten als Attribute |
+| `sensor.yapaia_router_wlan_signal` | Signal des WLANs, mit dem der Router verbunden ist (dBm) |
 | `binary_sensor.yapaia_router_verbunden` | Mobilfunkverbindung |
 | `sensor.yapaia_router_umschaltung` | Stand der SIM-Umschaltung (Diagnose) |
 | `button.yapaia_router_neu_verbinden`, `…_neustart` | neu verbinden, Router-Neustart (deaktiviert) |
@@ -121,4 +124,4 @@ entities:
   Vergleich mit der IMSI der SIM.
 - Tests: `integration/tests/test_router*.py` mit einem nachgebauten Router.
 
-Lizenz: MIT (siehe `LICENSE`).
+Lizenz: GPL-3.0-or-later (siehe `LICENSE`).

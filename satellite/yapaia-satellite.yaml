@@ -14,10 +14,17 @@ substitutions:
   # Kopfhörerbuchse hängen je nach Board-Revision an verschiedenen Ausgängen –
   # BOTH trifft beide).
   speaker_output: BOTH
-  # Woher das Mikrofon kommt: LINE1 = Board-Mikrofone, LINE2 = Line-In-Buchse
-  mic_input: LINE1
-  # Verstärkung der Mikrofone für Spracherkennung und Aktivierungswort
+  # Woher das Mikrofon kommt: LINE2 = Board-Mikrofone, LINE1 = Line-In-Buchse
+  mic_input: LINE2
+  # Vorverstärkung der Mikrofone im Codec in dB (0–24, in 3er-Schritten).
+  # Startwert für „Mikrofon-Vorverstärkung" in Home Assistant.
+  mic_pga_db: "24"
+  # Zusätzliche digitale Verstärkung für Spracherkennung und Aktivierungswort
   mic_gain: "4"
+  # Um wie viel dB Musik leiser wird, solange der Assistent zuhört. Das Board
+  # hat keine Echo-Unterdrückung: die Mikrofone hören den eigenen Lautsprecher
+  # mit, bei lauter Musik geht Sprache darin unter.
+  zuhoeren_absenkung_db: "40"
   # Status-LED (D4 an GPIO22) leuchtet bei LOW
   led_inverted: "true"
 
@@ -27,7 +34,7 @@ esphome:
   min_version: 2025.5.0
   project:
     name: yapaia.satellite
-    version: "0.1.0"
+    version: "0.3.0"
   on_boot:
     priority: -100
     then:
@@ -37,6 +44,11 @@ esphome:
       - select.set:
           id: mic_input_select
           option: ${mic_input}
+      - script.execute: codec_mikrofon
+      - script.execute: takt_teilen
+      # Lautsprecher-Bus starten – er liefert den Takt fürs Mikrofon.
+      - lambda: id(i2s_spk).start();
+      - delay: 500ms
       - script.execute: zuhoeren
 
 esp32:
@@ -74,18 +86,28 @@ audio_dac:
   - platform: es8388
     id: es8388_dac
 
-# Ein I2S-Bus für Mikrofon UND Lautsprecher (der Codec macht beides). Deshalb
-# laufen beide mit 16 kHz; Musik und Ansagen werden darauf umgerechnet.
+# Der Codec hat EINEN Satz Taktleitungen für Mikrofon und Lautsprecher. ESPHome
+# lässt auf einem I2S-Bus aber immer nur eines von beiden laufen – solange das
+# Board aufs Aktivierungswort hörte, blieb der Lautsprecher deshalb stumm
+# („Parent bus is busy“). Darum zwei Busse auf denselben Taktleitungen: der
+# Lautsprecher-Bus erzeugt den Takt und läuft dauernd (`timeout: never`, er
+# spielt dann Stille), der Mikrofon-Bus liest ihn nur mit (`secondary`).
+# ESPHome erlaubt einen Pin nicht in zwei Bussen; der Mikrofon-Bus bekommt
+# deshalb hier keine Taktpins – das Skript `takt_teilen` legt GPIO27/GPIO25
+# beim Start zusätzlich auf seine Takteingänge.
+# Beide laufen mit 16 kHz; Musik und Ansagen werden darauf umgerechnet.
 i2s_audio:
   - id: i2s_bus
     i2s_lrclk_pin: GPIO25
     i2s_bclk_pin: GPIO27
     i2s_mclk_pin: GPIO0
+  - id: i2s_mic_bus
 
 microphone:
   - platform: i2s_audio
     id: board_mic
-    i2s_audio_id: i2s_bus
+    i2s_audio_id: i2s_mic_bus
+    i2s_mode: secondary
     i2s_din_pin: GPIO35
     adc_type: external
     pdm: false
@@ -103,6 +125,8 @@ speaker:
     bits_per_sample: 16bit
     channel: stereo
     buffer_duration: 100ms
+    # Nie anhalten: ohne laufenden Lautsprecher-Bus hat das Mikrofon keinen Takt.
+    timeout: never
     audio_dac: es8388_dac
   # Ansagen und Musik mischen: eine Ansage (Antwort, Durchsage) wird über die
   # laufende Musik gelegt statt sie abzubrechen.
@@ -186,16 +210,29 @@ voice_assistant:
   media_player: media_player_id
   micro_wake_word: mww
   use_wake_word: false
-  noise_suppression_level: 2
+  # Höchste Stufe: die Board-Mikrofone rauschen deutlich (Sprache liegt aus
+  # 50 cm nur rund 18 dB über dem Grundrauschen).
+  noise_suppression_level: 4
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   on_listening:
+    # Ab hier läuft eine echte Anfrage (nicht nur das Warten aufs
+    # Aktivierungswort) – KEY1 bricht sie dann ab, statt eine neue zu starten.
+    - lambda: |-
+        id(anfrage_laeuft) = true;
+        id(taste_startet) = false;
     - light.turn_on:
         id: status_led
         effect: none
     - mixer_speaker.apply_ducking:
         id: media_mixer_input
-        decibel_reduction: 20
+        decibel_reduction: ${zuhoeren_absenkung_db}
+        duration: 0.0s
+  on_wake_word_detected:
+    # Sofort leiser, nicht erst wenn die Spracherkennung anläuft.
+    - mixer_speaker.apply_ducking:
+        id: media_mixer_input
+        decibel_reduction: ${zuhoeren_absenkung_db}
         duration: 0.0s
   on_stt_vad_end:
     - light.turn_on:
@@ -206,16 +243,26 @@ voice_assistant:
         id: status_led
         effect: none
   on_end:
-    - wait_until:
-        not:
-          media_player.is_announcing:
-    - light.turn_off: status_led
-    - mixer_speaker.apply_ducking:
-        id: media_mixer_input
-        decibel_reduction: 0
-        duration: 1.0s
-    - script.execute: zuhoeren
+    # Startet KEY1 gerade eine Anfrage, gehört dieses Ende noch zum
+    # abgebrochenen Warten aufs Aktivierungswort – dann nichts anfassen.
+    - if:
+        condition:
+          lambda: return !id(taste_startet);
+        then:
+          - lambda: id(anfrage_laeuft) = false;
+          - wait_until:
+              not:
+                media_player.is_announcing:
+          - light.turn_off: status_led
+          - mixer_speaker.apply_ducking:
+              id: media_mixer_input
+              decibel_reduction: 0
+              duration: 1.0s
+          - script.execute: zuhoeren
   on_error:
+    - lambda: |-
+        id(anfrage_laeuft) = false;
+        id(taste_startet) = false;
     - light.turn_on:
         id: status_led
         effect: Schnell blinken
@@ -226,7 +273,115 @@ voice_assistant:
   on_client_disconnected:
     - voice_assistant.stop:
 
+globals:
+  # Eine echte Anfrage läuft (Zuhören, Verarbeiten oder Antworten)
+  - id: anfrage_laeuft
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  # KEY1 hat das Warten aufs Aktivierungswort beendet und startet eine Anfrage
+  - id: taste_startet
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
 script:
+  # Stellt die Mikrofonseite des Codecs ein. Der ES8388-Treiber schaltet eine
+  # Pegelautomatik mit Rauschsperre ein, die leise Sprache stummschaltet, und
+  # lässt die Vorverstärkung auf 0 dB – damit kam Sprache nur bei lautem
+  # Reden an. Hier: Automatik und Sperre aus, feste Vorverstärkung.
+  - id: codec_mikrofon
+    then:
+      - lambda: |-
+          uint8_t stufe = (uint8_t) (id(mic_vorverstaerkung).state / 3.0f);
+          if (stufe > 8) stufe = 8;
+          id(es8388_dac).write_byte(0x12, 0x02);  // ADCCONTROL10: Pegelautomatik aus
+          id(es8388_dac).write_byte(0x16, 0xc2);  // ADCCONTROL14: Rauschsperre aus
+          id(es8388_dac).write_byte(0x09, (stufe << 4) | stufe);  // ADCCONTROL1: links/rechts
+  # Legt die Taktleitungen des Lautsprecher-Busses (BCLK GPIO27, LRCK GPIO25)
+  # zusätzlich auf die Takteingänge des Mikrofon-Busses. Die Nummern sind die
+  # Eingangssignale des ESP32 (soc/gpio_sig_map.h): I2S0 27/28, I2S1 164/165.
+  - id: takt_teilen
+    then:
+      - lambda: |-
+          // Ohne Angabe bleibt der LRCK-Pin des Busses in ESPHome uninitialisiert
+          // (= GPIO0, der MCLK-Pin): jeder Mikrofonstart legte den Takteingang
+          // dann dorthin. Ausdrücklich „unbenutzt“ setzen.
+          id(i2s_mic_bus).set_lrclk_pin(-1);
+          const bool port1 = id(i2s_mic_bus).get_port() == 1;
+          gpio_input_enable(GPIO_NUM_27);
+          esp_rom_gpio_connect_in_signal(GPIO_NUM_27, port1 ? 164 : 27, false);
+          gpio_input_enable(GPIO_NUM_25);
+          esp_rom_gpio_connect_in_signal(GPIO_NUM_25, port1 ? 165 : 28, false);
+  # KEY1: Anfrage starten – auch wenn gerade aufs Aktivierungswort gewartet
+  # wird (dann läuft der Sprachassistent schon, aber ohne Anfrage).
+  - id: sprechen
+    mode: restart
+    then:
+      - if:
+          condition:
+            # `is_running` dazu: reißt die Verbindung mitten in einer Anfrage
+            # ab, kommt kein Ende mehr, und der Merker bliebe sonst stehen.
+            lambda: return id(anfrage_laeuft) && id(va).is_running();
+          then:
+            - voice_assistant.stop:
+            - wait_until:
+                condition:
+                  not:
+                    voice_assistant.is_running:
+                timeout: 5s
+            - script.execute: zuhoeren
+          else:
+            - lambda: |-
+                id(anfrage_laeuft) = false;
+                id(taste_startet) = true;
+            # Musik sofort leiser – die Frage kommt gleich nach dem Tastendruck.
+            - mixer_speaker.apply_ducking:
+                id: media_mixer_input
+                decibel_reduction: ${zuhoeren_absenkung_db}
+                duration: 0.0s
+            - media_player.stop:
+                announcement: true
+            - micro_wake_word.stop:
+            - if:
+                condition:
+                  voice_assistant.is_running:
+                then:
+                  - voice_assistant.stop:
+                  - wait_until:
+                      condition:
+                        not:
+                          voice_assistant.is_running:
+                      timeout: 3s
+            - lambda: id(va).set_use_wake_word(false);
+            - voice_assistant.start:
+            # Kommt die Anfrage nicht zustande, wieder normal zuhören.
+            - wait_until:
+                condition:
+                  lambda: return !id(taste_startet);
+                timeout: 8s
+            - lambda: id(taste_startet) = false;
+            # Eine Anfrage per Taste läuft einmal und endet dann – anders als
+            # das Warten aufs Aktivierungswort, das sich selbst neu startet.
+            # Ihr `on_end` kommt, während die Antwort noch gesprochen wird;
+            # `zuhoeren` findet den Assistenten dann noch beschäftigt und
+            # startet nichts. Deshalb hier warten, bis er wirklich fertig ist.
+            - wait_until:
+                condition:
+                  lambda: return !id(anfrage_laeuft);
+                timeout: 90s
+            - wait_until:
+                condition:
+                  not:
+                    voice_assistant.is_running:
+                timeout: 30s
+            # Falls die Anfrage nie zustande kam, hat auch niemand die Musik
+            # wieder lauter gestellt.
+            - mixer_speaker.apply_ducking:
+                id: media_mixer_input
+                decibel_reduction: 0
+                duration: 1.0s
+            - script.execute: zuhoeren
   # Wartet aufs Aktivierungswort – je nach Einstellung auf dem Gerät oder in
   # Home Assistant, nie bei stummem Mikrofon oder während einer Anfrage.
   - id: zuhoeren
@@ -298,6 +453,22 @@ select:
       - delay: 300ms
       - script.execute: zuhoeren
 
+number:
+  - platform: template
+    id: mic_vorverstaerkung
+    name: Mikrofon-Vorverstärkung
+    icon: mdi:microphone-plus
+    entity_category: config
+    unit_of_measurement: dB
+    min_value: 0
+    max_value: 24
+    step: 3
+    optimistic: true
+    restore_value: true
+    initial_value: ${mic_pga_db}
+    on_value:
+      - script.execute: codec_mikrofon
+
 switch:
   - platform: template
     id: mikrofon_stumm
@@ -360,16 +531,7 @@ binary_sensor:
     filters:
       - delayed_on: 20ms
     on_press:
-      - if:
-          condition:
-            voice_assistant.is_running:
-          then:
-            - voice_assistant.stop:
-          else:
-            - media_player.stop:
-                announcement: true
-            - micro_wake_word.stop:
-            - voice_assistant.start:
+      - script.execute: sprechen
   - platform: gpio
     id: taste_stumm
     name: Taste Mikrofon stumm

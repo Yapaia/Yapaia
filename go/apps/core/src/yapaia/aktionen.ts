@@ -10,9 +10,11 @@ import { AktionsFehler, type Aktion } from './protokoll.js';
 
 export interface AktionenDeps {
   /** Ziel suchen, Route rechnen, Navigation starten. */
-  zielSetzen: (ziel: { query?: string; latlng?: LatLng }) => Promise<{ name: string | null }>;
+  zielSetzen: (ziel: { query?: string; latlng?: LatLng; name?: string }) => Promise<{ name: string | null }>;
   /** Laeuft gerade eine Fahrt (dann wird sie fuer ein neues Ziel beendet)? */
   faehrt: () => boolean;
+  /** Als nächsten Halt in die laufende Fahrt einschieben. */
+  zwischenzielVorn: (punkt: LatLng) => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -64,11 +66,30 @@ export function goAktionen(d: AktionenDeps): Record<string, Aktion> {
       // `wert` kommt vom Textfeld „Ziel eingeben"
       const roh = daten.ziel ?? daten.wert;
       const query = typeof roh === 'string' ? roh.trim() : '';
+      // Name zu den Koordinaten, z. B. der in einem Dashboard gewaehlte Suchtreffer
+      const name = typeof daten.name === 'string' ? daten.name.trim() : '';
       if (!latlng && !query) throw new AktionsFehler('Bitte ein Ziel angeben (Adresse, Ort oder Koordinaten).');
       try {
         if (d.faehrt()) d.stop();
-        const { name } = await d.zielSetzen(latlng ? { latlng } : { query });
-        return { ziel: name ?? query };
+        const ergebnis = await d.zielSetzen(latlng ? { latlng, ...(name ? { name } : {}) } : { query });
+        return { ziel: ergebnis.name ?? query };
+      } catch (err) {
+        throw uebersetze(err);
+      }
+    },
+    zwischenziel_einfuegen: async (daten) => {
+      const latlng = ortAus(daten.ort);
+      const name = typeof daten.name === 'string' ? daten.name.trim() : '';
+      if (!latlng) throw new AktionsFehler('Bitte den Ort als Koordinaten angeben.');
+      try {
+        // Ohne laufende Fahrt gibt es nichts, wo es dazwischen käme: dann
+        // ist es eben das Ziel.
+        if (!d.faehrt()) {
+          const ergebnis = await d.zielSetzen({ latlng, ...(name ? { name } : {}) });
+          return { ziel: ergebnis.name ?? name, als: 'ziel' };
+        }
+        d.zwischenzielVorn(latlng);
+        return { ziel: name || null, als: 'zwischenziel' };
       } catch (err) {
         throw uebersetze(err);
       }

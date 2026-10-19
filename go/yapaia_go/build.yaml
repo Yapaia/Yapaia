@@ -31,7 +31,7 @@ labels:
   org.opencontainers.image.title: "Yapaia Go"
   org.opencontainers.image.description: "Offline motorhome navigation, packaged as a Home Assistant add-on"
   org.opencontainers.image.source: "https://github.com/Yapaia/yapaia"
-  org.opencontainers.image.licenses: "MIT"
+  org.opencontainers.image.licenses: "GPL-3.0-or-later"
 args:
   # Threaded through to the Dockerfile's `ARG S6_OVERLAY_VERSION` so a
   # security/bugfix bump only needs to change one place.
