@@ -124,4 +124,4 @@ entities:
   Vergleich mit der IMSI der SIM.
 - Tests: `integration/tests/test_router*.py` mit einem nachgebauten Router.
 
-Lizenz: MIT (siehe `LICENSE`).
+Lizenz: GPL-3.0-or-later (siehe `LICENSE`).

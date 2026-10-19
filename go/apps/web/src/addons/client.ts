@@ -17,6 +17,11 @@ export interface InstalledAddon {
    *  `events.publish` output is ALSO republished to MQTT. Only meaningful
    *  for an add-on that declares the `events.publish` permission. */
   mqtt_enabled: boolean;
+  /** From the verified marketplace signature (docs/marktplatz.md): `paid`
+   *  needs a license to be enabled, `unsigned` was installed in developer
+   *  mode. */
+  licensing?: 'free' | 'paid' | 'unsigned';
+  publisher?: string | null;
 }
 
 function apiUrl(path: string): string {

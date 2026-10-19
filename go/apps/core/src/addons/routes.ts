@@ -30,7 +30,13 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { Buffer } from 'node:buffer';
 import type { ApiError } from '@yapaia/shared';
-import { InstallService, MAX_TARBALL_COMPRESSED_BYTES, type AddonLifecycleListener } from './installService.js';
+import {
+  InstallService,
+  MAX_TARBALL_COMPRESSED_BYTES,
+  type AddonLifecycleListener,
+  type AddonTrustPolicy,
+  type BeginInstallResult,
+} from './installService.js';
 import { AddonError } from './errors.js';
 import { downloadTarball } from './download.js';
 import type { AddonRecord } from './repository.js';
@@ -46,7 +52,7 @@ function createErrorResponse(code: string, message: string): ApiError {
 /** Maps an `AddonError.code` to an HTTP status. Every branch is deliberate
  *  (see the comment on each) -- nothing falls through to a generic 500 for
  *  an error this module itself threw. */
-function statusForAddonError(err: AddonError): number {
+export function statusForAddonError(err: AddonError): number {
   switch (err.code) {
     case 'PENDING_NOT_FOUND':
     case 'NOT_FOUND':
@@ -56,10 +62,29 @@ function statusForAddonError(err: AddonError): number {
       return 413; // Payload Too Large
     case 'INCOMPATIBLE_CORE_API':
       return 409; // Conflict with the running Core's declared API version
+    case 'SIGNATURE_REQUIRED':
+    case 'SIGNATURE_INVALID':
+    case 'ADDON_REVOKED':
+    case 'DOWNLOAD_FORBIDDEN':
+    case 'NOT_ENTITLED':
+    case 'MARKETPLACE_TOKEN_REJECTED':
+      return 403; // docs/marktplatz.md: refused by the trust rules
+    case 'LICENSE_REQUIRED':
+    case 'MARKETPLACE_NO_ACCOUNT':
+    case 'ACTIVATION_LIMIT':
+      return 409; // needs an operator action first (license, account)
+    case 'MARKETPLACE_URL_INVALID':
+    case 'MARKETPLACE_NOT_CONFIGURED':
+      return 400;
+    case 'MARKETPLACE_UNREACHABLE':
+    case 'MARKETPLACE_ERROR':
+    case 'MARKETPLACE_INVALID':
+    case 'LICENSE_INVALID':
+    case 'REVOCATIONS_INVALID':
+    case 'DOWNLOAD_FAILED':
+      return 502; // Upstream (registry/URL/marketplace) failed
     case 'ADDON_START_FAILED':
       return 422; // Well-formed package, but not actually startable
-    case 'DOWNLOAD_FAILED':
-      return 502; // Upstream (registry/URL) fetch failed
     case 'UPDATE_SWAP_FAILED':
       return 500; // Rolled back internally, but still a server-side failure
     // SHA256_REQUIRED, SHA256_MISMATCH, INVALID_MANIFEST, TARBALL_REJECTED
@@ -70,7 +95,7 @@ function statusForAddonError(err: AddonError): number {
   }
 }
 
-function sendAddonError(reply: { code: (n: number) => { send: (b: ApiError) => void } }, err: unknown): void {
+export function sendAddonError(reply: { code: (n: number) => { send: (b: ApiError) => void } }, err: unknown): void {
   if (err instanceof AddonError) {
     reply.code(statusForAddonError(err)).send(createErrorResponse(err.code, err.message));
     return;
@@ -84,13 +109,30 @@ interface InstallBodyUpload {
   source: 'upload';
   data: unknown; // base64 string
   sha256?: unknown;
+  /** `ysig1` release signature (docs/marktplatz.md); optional in developer mode. */
+  signature?: unknown;
 }
 interface InstallBodyUrl {
   source: 'url';
   url: unknown;
   sha256: unknown;
+  signature?: unknown;
 }
 type InstallBody = InstallBodyUpload | InstallBodyUrl | Record<string, unknown>;
+
+/** The step-1 reply, shared with `marketplaceRoutes.ts`. */
+export function pendingReply(result: BeginInstallResult): Record<string, unknown> {
+  return {
+    pending_id: result.pendingId,
+    manifest: result.manifest,
+    permissions: result.permissions,
+    warnings: result.warnings,
+    is_update: result.isUpdate,
+    sha256: result.sha256,
+    expires_at: result.expiresAt,
+    release: result.release,
+  };
+}
 
 interface ConfirmParams {
   pendingId: string;
@@ -116,6 +158,8 @@ export interface AddonsPluginOptions {
   coreVersion?: string;
   /** E09-T3: the service runtime, tied to enable/disable/uninstall. */
   lifecycle?: AddonLifecycleListener;
+  /** docs/marktplatz.md -- required in production, see `index.ts`. */
+  trust?: AddonTrustPolicy;
 }
 
 export const addonsPlugin: FastifyPluginAsync<AddonsPluginOptions> = async (fastify, opts) => {
@@ -123,7 +167,8 @@ export const addonsPlugin: FastifyPluginAsync<AddonsPluginOptions> = async (fast
     throw new Error('addonsPlugin: either `service` or `coreVersion` must be provided');
   }
   const service =
-    opts.service ?? new InstallService({ coreVersion: opts.coreVersion as string, lifecycle: opts.lifecycle });
+    opts.service ??
+    new InstallService({ coreVersion: opts.coreVersion as string, lifecycle: opts.lifecycle, trust: opts.trust });
 
   fastify.get<{ Reply: AddonListReply }>('/addons', async (_request, reply) => {
     reply.code(200).send({ data: service.listAddons() });
@@ -155,7 +200,11 @@ export const addonsPlugin: FastifyPluginAsync<AddonsPluginOptions> = async (fast
             reply.code(400).send(createErrorResponse('VALIDATION_ERROR', '"data" is not valid base64'));
             return;
           }
-          result = await service.beginInstallFromUpload(tarballBytes, sha256);
+          result = await service.beginInstallFromUpload(
+            tarballBytes,
+            sha256,
+            typeof upload.signature === 'string' ? upload.signature : undefined,
+          );
         } else if (body.source === 'url') {
           const urlBody = body as InstallBodyUrl;
           if (typeof urlBody.url !== 'string' || urlBody.url.length === 0) {
@@ -170,23 +219,17 @@ export const addonsPlugin: FastifyPluginAsync<AddonsPluginOptions> = async (fast
             url: urlBody.url,
             maxBytes: MAX_TARBALL_COMPRESSED_BYTES,
           });
-          result = await service.beginInstallFromUrl(tarballBytes, urlBody.sha256);
+          result = await service.beginInstallFromUrl(
+            tarballBytes,
+            urlBody.sha256,
+            typeof urlBody.signature === 'string' ? urlBody.signature : undefined,
+          );
         } else {
           reply.code(400).send(createErrorResponse('VALIDATION_ERROR', '"source" must be "upload" or "url"'));
           return;
         }
 
-        reply.code(202).send({
-          data: {
-            pending_id: result.pendingId,
-            manifest: result.manifest,
-            permissions: result.permissions,
-            warnings: result.warnings,
-            is_update: result.isUpdate,
-            sha256: result.sha256,
-            expires_at: result.expiresAt,
-          },
-        });
+        reply.code(202).send({ data: pendingReply(result) });
       } catch (err) {
         sendAddonError(reply, err);
       }
@@ -209,7 +252,7 @@ export const addonsPlugin: FastifyPluginAsync<AddonsPluginOptions> = async (fast
     '/addons/:id/enable',
     async (request, reply) => {
       try {
-        reply.code(200).send({ data: service.enable(request.params.id) });
+        reply.code(200).send({ data: await service.enableChecked(request.params.id) });
       } catch (err) {
         sendAddonError(reply, err);
       }

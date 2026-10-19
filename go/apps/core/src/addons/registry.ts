@@ -25,13 +25,12 @@
  * `installService.ts`'s module doc). Re-implementing that check here would
  * be exactly the kind of duplication the task spec warns against.
  *
- * `signature` is a RESERVED field (docs/05 §5: "Signierung (minisign) ist ab
- * v1.1 vorgesehen, Feld `signature` im Index von Anfang an reserviert"): its
- * SHAPE is validated (optional string or null) so a registry author can
- * start populating it now, but its VALUE IS NEVER VERIFIED by this module or
- * by the install pipeline. An entry with a `signature` is not one bit more
- * trusted than one without -- do not treat its presence as any kind of
- * guarantee until a future task actually implements minisign verification.
+ * `signature` carries the marketplace's `ysig1` release signature
+ * (`docs/marktplatz.md`). This module only checks its SHAPE; it is VERIFIED
+ * by the install pipeline (`installService.ts#checkRelease`), which is the
+ * one place that decides, and for display by `registryRoutes.ts`. The
+ * unsigned `licensing`/`publisher`/`price_label` fields are display hints
+ * only -- whether an add-on needs a license comes from the signature.
  */
 
 import { URL } from 'node:url';
@@ -106,8 +105,13 @@ export interface RegistryEntry {
    *  implementation, never duplicated. */
   core_api: string;
   screenshots: string[];
-  /** RESERVED, NEVER VERIFIED -- see the module doc. `null` when absent. */
+  /** `ysig1` release signature, shape-checked only -- see the module doc.
+   *  `null` when absent. */
   signature: string | null;
+  /** Marketplace display hints (unsigned!), `null` when absent. */
+  licensing: 'free' | 'paid' | null;
+  publisher: string | null;
+  price_label: string | null;
 }
 
 export interface RegistryValidationResult {
@@ -213,6 +217,10 @@ export function validateEntry(raw: unknown): { entry: RegistryEntry } | { reason
     signature = e.signature;
   }
 
+  const licensing = e.licensing === 'free' || e.licensing === 'paid' ? e.licensing : null;
+  const shortText = (v: unknown): string | null =>
+    typeof v === 'string' && v.trim() !== '' && v.length <= MAX_NAME_LENGTH ? v.trim() : null;
+
   return {
     entry: {
       id: e.id,
@@ -226,6 +234,9 @@ export function validateEntry(raw: unknown): { entry: RegistryEntry } | { reason
       core_api: e.core_api,
       screenshots,
       signature,
+      licensing,
+      publisher: shortText(e.publisher),
+      price_label: shortText(e.price_label),
     },
   };
 }
@@ -323,6 +334,9 @@ export interface RegistryServiceOptions {
    *  "bounded GET, buffer fully, enforce a byte cap while streaming"
    *  requirements a tarball fetch does. */
   fetchIndexBytes?: (url: string) => Promise<Buffer>;
+  /** The configured marketplace's index URL (`marketplace.ts`), or `null`.
+   *  Wins over the `addons.registry.url` setting, loses to the env var. */
+  marketplaceIndexUrl?: () => string | null;
 }
 
 /**
@@ -336,20 +350,25 @@ export class RegistryService {
   private readonly settings: RegistrySettingsLookup;
   private readonly env: Record<string, string | undefined>;
   private readonly fetchIndexBytes: (url: string) => Promise<Buffer>;
+  private readonly marketplaceIndexUrl: () => string | null;
 
   constructor(opts: RegistryServiceOptions = {}) {
     this.settings = opts.settings ?? new SettingsService();
     this.env = opts.env ?? process.env;
     this.fetchIndexBytes =
       opts.fetchIndexBytes ?? ((url) => downloadTarball({ url, maxBytes: MAX_REGISTRY_INDEX_BYTES }));
+    this.marketplaceIndexUrl = opts.marketplaceIndexUrl ?? (() => null);
   }
 
-  /** `ADDONS_REGISTRY_URL` (env) wins over the `addons.registry.url` setting,
-   *  which wins over {@link DEFAULT_REGISTRY_URL} -- same precedence
-   *  convention `authGuard.ts` documents for `API_AUTH_TOKEN`/`auth.token`. */
+  /** `ADDONS_REGISTRY_URL` (env) wins over the configured marketplace, which
+   *  wins over the `addons.registry.url` setting, which wins over
+   *  {@link DEFAULT_REGISTRY_URL} -- same precedence convention
+   *  `authGuard.ts` documents for `API_AUTH_TOKEN`/`auth.token`. */
   resolveUrl(): string {
     const envUrl = this.env.ADDONS_REGISTRY_URL;
     if (typeof envUrl === 'string' && envUrl.trim() !== '') return envUrl.trim();
+    const marketplaceUrl = this.marketplaceIndexUrl();
+    if (marketplaceUrl) return marketplaceUrl;
     const settingsUrl = this.settings.get(REGISTRY_URL_SETTINGS_KEY);
     if (typeof settingsUrl === 'string' && settingsUrl.trim() !== '') return settingsUrl.trim();
     return DEFAULT_REGISTRY_URL;
@@ -362,7 +381,14 @@ export class RegistryService {
     if (!isRegistryCacheSnapshotShape(raw)) {
       return { entries: [], fetchedAt: null, ageMs: null, sourceUrl: this.resolveUrl(), errors: [] };
     }
-    const entries = Array.isArray(raw.entries) ? (raw.entries as RegistryEntry[]) : [];
+    const entries = Array.isArray(raw.entries)
+      ? (raw.entries as RegistryEntry[]).map((e) => ({
+          ...e,
+          licensing: e.licensing ?? null,
+          publisher: e.publisher ?? null,
+          price_label: e.price_label ?? null,
+        }))
+      : [];
     const fetchedAt = typeof raw.fetchedAt === 'string' ? raw.fetchedAt : null;
     const sourceUrl = typeof raw.sourceUrl === 'string' ? raw.sourceUrl : this.resolveUrl();
     const errors = Array.isArray(raw.errors) ? (raw.errors as string[]) : [];

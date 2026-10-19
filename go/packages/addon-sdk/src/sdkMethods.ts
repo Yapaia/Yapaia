@@ -45,6 +45,7 @@ export type SdkMethod =
   | 'storage.set'
   | 'storage.delete'
   | 'notify.send'
+  | 'license.get'
   | 'fetch';
 
 /**
@@ -78,6 +79,7 @@ export const SDK_METHOD_SCOPES: Record<SdkMethod, AddonScope | null> = {
   'storage.set': 'storage.own',
   'storage.delete': 'storage.own',
   'notify.send': 'ha.notify',
+  'license.get': null,
   fetch: null,
 };
 

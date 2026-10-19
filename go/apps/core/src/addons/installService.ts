@@ -40,7 +40,8 @@ import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { Buffer } from 'node:buffer';
 import type { AddonManifest } from '@yapaia/shared';
-import { validateAddonManifest, getValidationErrorsAddonManifest, satisfies } from '@yapaia/shared';
+import { validateAddonManifest, getValidationErrorsAddonManifest, satisfies, verifyRelease } from '@yapaia/shared';
+import type { MarketplaceKey, RevocationEntry } from '@yapaia/shared';
 import { extractAddonTarball } from './extract.js';
 import { AddonError, TarballSecurityError } from './errors.js';
 import { securityEventLog, type SecurityVector } from '../security/securityEvents.js';
@@ -52,7 +53,8 @@ import {
   resolveEntryPath,
 } from './paths.js';
 import { AddonRepository, type AddonRecord } from './repository.js';
-import { PendingInstallStore, type PendingInstall } from './pendingStore.js';
+import { PendingInstallStore, type PendingInstall, type VerifiedRelease } from './pendingStore.js';
+import type { LicenseStatus } from './marketplace.js';
 import { AddonStorageService } from './storageService.js';
 
 /** Compressed upload/download size cap (E09-T1 §2 step 2). */
@@ -69,6 +71,23 @@ export interface BeginInstallResult {
   isUpdate: boolean;
   sha256: string;
   expiresAt: string;
+  /** The verified marketplace signature, `null` for an unsigned package
+   *  (only possible in developer mode or without a trust policy). */
+  release: VerifiedRelease | null;
+}
+
+/**
+ * Who Go trusts (`docs/marktplatz.md`). `MarketplaceService` satisfies this
+ * structurally; without a policy (tests, tools) no signature is required and
+ * no license is checked -- the production wiring in `index.ts` always passes
+ * one.
+ */
+export interface AddonTrustPolicy {
+  trustedKeys(): MarketplaceKey[];
+  /** Unsigned packages are accepted only while this is `true`. */
+  developerMode(): boolean;
+  revocationFor(id: string, version: string): RevocationEntry | null;
+  licenseStatus(addonId: string, licensing: LicenseStatus['licensing']): Promise<LicenseStatus>;
 }
 
 /**
@@ -208,6 +227,8 @@ export interface InstallServiceOptions {
    *  serves `GET/PUT/DELETE /addons/:id/storage/:key` from); injectable so a
    *  test can use an in-memory fake instead of the process-global settings DB. */
   addonStorage?: AddonStorageClearer;
+  /** Signature, revocation and license rules -- see {@link AddonTrustPolicy}. */
+  trust?: AddonTrustPolicy;
 }
 
 export class InstallService {
@@ -220,6 +241,7 @@ export class InstallService {
   private readonly maxUncompressedBytes: number;
   private readonly lifecycle?: AddonLifecycleListener;
   private readonly addonStorage: AddonStorageClearer;
+  private readonly trust?: AddonTrustPolicy;
 
   constructor(opts: InstallServiceOptions) {
     this.repository = opts.repository ?? new AddonRepository();
@@ -231,6 +253,7 @@ export class InstallService {
     this.maxUncompressedBytes = opts.maxUncompressedBytes ?? MAX_TARBALL_UNCOMPRESSED_BYTES;
     this.lifecycle = opts.lifecycle;
     this.addonStorage = opts.addonStorage ?? new AddonStorageService();
+    this.trust = opts.trust;
   }
 
   /** A lifecycle listener must never be able to break the lifecycle itself:
@@ -256,19 +279,20 @@ export class InstallService {
    * spec) -- an operator who bothers to pass a digest clearly wants it
    * checked, so a mismatch is still a hard reject, not a soft warning.
    */
-  async beginInstallFromUpload(tarballBytes: Buffer, expectedSha256?: string): Promise<BeginInstallResult> {
-    return this.beginInstall(tarballBytes, expectedSha256, false);
+  async beginInstallFromUpload(tarballBytes: Buffer, expectedSha256?: string, signature?: string): Promise<BeginInstallResult> {
+    return this.beginInstall(tarballBytes, expectedSha256, false, signature);
   }
 
   /** Step 1 (URL/registry path): a digest is MANDATORY (E09-T1 §2 step 1). */
-  async beginInstallFromUrl(tarballBytes: Buffer, expectedSha256: string): Promise<BeginInstallResult> {
-    return this.beginInstall(tarballBytes, expectedSha256, true);
+  async beginInstallFromUrl(tarballBytes: Buffer, expectedSha256: string, signature?: string): Promise<BeginInstallResult> {
+    return this.beginInstall(tarballBytes, expectedSha256, true, signature);
   }
 
   private async beginInstall(
     tarballBytes: Buffer,
     expectedSha256: string | undefined,
     sha256Required: boolean,
+    signature: string | undefined,
   ): Promise<BeginInstallResult> {
     if (tarballBytes.length > this.maxCompressedBytes) {
       // A compressed payload over the cap is the same class of attack as the
@@ -337,6 +361,8 @@ export class InstallService {
       );
     }
 
+    const release = await this.checkRelease(manifest, actualSha256, signature);
+
     const existing = this.repository.getById(manifest.id);
     const warnings = computeScopeWarnings(manifest.permissions);
 
@@ -345,6 +371,7 @@ export class InstallService {
       tarballBytes,
       isUpdate: existing !== null,
       warnings,
+      release,
     });
 
     return {
@@ -355,7 +382,56 @@ export class InstallService {
       isUpdate: pending.isUpdate,
       sha256: actualSha256,
       expiresAt: new Date(pending.expiresAt).toISOString(),
+      release,
     };
+  }
+
+  /**
+   * The marketplace rules (`docs/marktplatz.md`) for one package:
+   *  - a revoked id/version is refused, signed or not;
+   *  - a signature that is present must be valid AND match these exact bytes,
+   *    id and version -- a bad signature is never "downgraded" to unsigned;
+   *  - no signature is accepted only in developer mode.
+   * The decision is recorded as a security event when it refuses.
+   */
+  private async checkRelease(
+    manifest: AddonManifest,
+    actualSha256: string,
+    signature: string | undefined,
+  ): Promise<VerifiedRelease | null> {
+    if (!this.trust) return null;
+
+    const revoked = this.trust.revocationFor(manifest.id, manifest.version);
+    if (revoked) {
+      securityEventLog.record('addon.revoked', manifest.id, `install of revoked ${manifest.id}@${manifest.version} refused`);
+      throw new AddonError(
+        'ADDON_REVOKED',
+        `„${manifest.name}" ${manifest.version} wurde vom Marktplatz gesperrt${revoked.reason ? `: ${revoked.reason}` : ''}.`,
+      );
+    }
+
+    if (signature === undefined || signature === '') {
+      if (this.trust.developerMode()) return null;
+      securityEventLog.record('addon.signature', manifest.id, 'unsigned package refused outside developer mode');
+      throw new AddonError(
+        'SIGNATURE_REQUIRED',
+        'Dieses Paket ist nicht vom Marktplatz signiert. Unsignierte Add-ons lassen sich nur im Entwicklermodus installieren.',
+      );
+    }
+
+    const res = await verifyRelease(signature, this.trust.trustedKeys());
+    const problem = !res.ok
+      ? res.reason
+      : res.payload.sha256 !== actualSha256
+        ? 'signature is for different bytes'
+        : res.payload.id !== manifest.id || res.payload.version !== manifest.version
+          ? 'signature is for another add-on or version'
+          : null;
+    if (problem || !res.ok) {
+      securityEventLog.record('addon.signature', manifest.id, `invalid release signature: ${problem}`);
+      throw new AddonError('SIGNATURE_INVALID', `Die Signatur dieses Pakets ist ungültig (${problem}).`);
+    }
+    return { licensing: res.payload.licensing, publisher: res.payload.publisher, kid: res.payload.kid };
   }
 
   /**
@@ -415,6 +491,9 @@ export class InstallService {
 
     const existing = this.repository.getById(manifest.id);
 
+    const licensing = pending.release?.licensing ?? 'unsigned';
+    const publisher = pending.release?.publisher ?? null;
+
     if (existing) {
       await this.swapUpdatedVersion(finalDir, tempDir);
       return this.repository.updateVersion({
@@ -422,6 +501,8 @@ export class InstallService {
         name: manifest.name,
         version: manifest.version,
         manifest,
+        licensing,
+        publisher,
       });
     }
 
@@ -439,6 +520,8 @@ export class InstallService {
       manifest,
       enabled: false,
       installPath: finalDir,
+      licensing,
+      publisher,
     });
   }
 
@@ -491,6 +574,63 @@ export class InstallService {
     // E09-T3: issue the scoped token + spawn the service process (if any).
     this.notify((l) => l.onEnabled(record));
     return record;
+  }
+
+  /**
+   * Why `record` may not run right now (revoked, or paid without a valid
+   * license for this installation), or `null` when it may.
+   */
+  async blockReason(record: AddonRecord): Promise<{ code: string; message: string } | null> {
+    if (!this.trust) return null;
+    const revoked = this.trust.revocationFor(record.id, record.version);
+    if (revoked) {
+      return {
+        code: 'ADDON_REVOKED',
+        message: `„${record.name}" ${record.version} wurde vom Marktplatz gesperrt${revoked.reason ? `: ${revoked.reason}` : ''}.`,
+      };
+    }
+    if (record.licensing === 'paid') {
+      const status = await this.trust.licenseStatus(record.id, 'paid');
+      if (!status.valid) {
+        return {
+          code: 'LICENSE_REQUIRED',
+          message: `„${record.name}" braucht eine Lizenz für diese Installation (${status.reason ?? 'ungültig'}).`,
+        };
+      }
+    }
+    return null;
+  }
+
+  /** The operator's enable: refuses a revoked or unlicensed add-on, then
+   *  {@link enable}. */
+  async enableChecked(id: string): Promise<AddonRecord> {
+    const record = this.repository.getById(id);
+    if (!record) throw new AddonError('NOT_FOUND', `No add-on installed with id "${id}"`);
+    const blocked = await this.blockReason(record);
+    if (blocked) throw new AddonError(blocked.code, blocked.message);
+    return this.enable(id);
+  }
+
+  /**
+   * Disables every enabled add-on that may no longer run (revoked, license
+   * missing or expired). Runs at boot before the service host starts
+   * anything, and after each registry sync. Returns the ids it disabled.
+   */
+  async reconcile(): Promise<string[]> {
+    const disabled: string[] = [];
+    for (const record of this.repository.listAll()) {
+      if (!record.enabled) continue;
+      const blocked = await this.blockReason(record);
+      if (!blocked) continue;
+      securityEventLog.record(
+        blocked.code === 'ADDON_REVOKED' ? 'addon.revoked' : 'addon.license',
+        record.id,
+        `disabled: ${blocked.message}`,
+      );
+      this.disable(record.id);
+      disabled.push(record.id);
+    }
+    return disabled;
   }
 
   disable(id: string): AddonRecord {

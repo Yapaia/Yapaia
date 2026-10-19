@@ -51,6 +51,8 @@ async function buildInstallAndEnable(page: Page): Promise<void> {
   execFileSync('node', ['build.mjs'], { cwd: ADDON_DIR, stdio: 'inherit' });
   const tarball = readFileSync(join(ADDON_DIR, 'dist', 'poi-campsites.tgz'));
 
+  // Unsigned fixture package: developer mode (docs/marktplatz.md).
+  await page.request.put(`${ADDON_EXAMPLES_CORE_BASE_URL}/api/v1/addons/marketplace/developer-mode`, { data: { enabled: true } });
   const beginResponse = await page.request.post(`${ADDON_EXAMPLES_CORE_BASE_URL}/api/v1/addons/install`, {
     data: { source: 'upload', data: tarball.toString('base64') },
   });

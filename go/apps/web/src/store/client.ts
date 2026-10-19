@@ -23,9 +23,17 @@ export interface RegistryEntryView {
   /** Semver range (Wargame W-11). */
   core_api: string;
   screenshots: string[];
-  /** RESERVED, never verified client- or server-side yet -- see
-   *  `docs/registry-guide.md`. */
+  /** `ysig1` release signature -- verified by the Core, see `verified`. */
   signature: string | null;
+  /** The Core verified the signature for exactly this id/version/sha256
+   *  (docs/marktplatz.md). */
+  verified: boolean;
+  /** Revoked by the marketplace: a notice instead of a button. */
+  revoked: boolean;
+  /** From the signature when `verified`, otherwise an unsigned hint. */
+  licensing: 'free' | 'paid' | null;
+  publisher: string | null;
+  price_label: string | null;
   /** Computed by the Core against the RUNNING Core's version, BEFORE any
    *  install attempt (Wargame W-11) -- the Store renders a blocking notice
    *  instead of an install/update button whenever this is `false`. */
@@ -60,6 +68,10 @@ export interface PendingInstall {
   isUpdate: boolean;
   sha256: string;
   expiresAt: string;
+  /** The verified signature, `null` for an unsigned package (developer mode). */
+  release: { licensing: 'free' | 'paid'; publisher: string; kid: string } | null;
+  /** For a paid catalog install: whether the license was activated. */
+  license: { valid: boolean; reason?: string } | null;
 }
 
 interface ApiErrorBody {
@@ -149,6 +161,8 @@ interface RawPendingInstall {
   is_update: boolean;
   sha256: string;
   expires_at: string;
+  release?: PendingInstall['release'];
+  license?: PendingInstall['license'];
 }
 
 function normalizePending(raw: RawPendingInstall): PendingInstall {
@@ -160,7 +174,69 @@ function normalizePending(raw: RawPendingInstall): PendingInstall {
     isUpdate: raw.is_update,
     sha256: raw.sha256,
     expiresAt: raw.expires_at,
+    release: raw.release ?? null,
+    license: raw.license ?? null,
   };
+}
+
+/** Step 1 of a CATALOG install (docs/marktplatz.md): only the id goes to the
+ *  Core, which takes download URL, sha256 and signature from its own cache
+ *  and, for a paid add-on, activates the license. */
+export async function beginInstallFromCatalog(id: string): Promise<PendingInstall> {
+  const res = await fetch(apiUrl('api/v1/addons/registry/install'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) throw await toApiError(res);
+  const body = (await res.json()) as { data: RawPendingInstall };
+  return normalizePending(body.data);
+}
+
+/** The marketplace connection as the Core reports it -- never the token. */
+export interface MarktplatzStand {
+  url: string;
+  name: string;
+  token_gesetzt: boolean;
+  keys: string[];
+  developer_mode: boolean;
+  installation_id: string;
+}
+
+export async function fetchMarktplatz(): Promise<MarktplatzStand | null> {
+  try {
+    const res = await fetch(apiUrl('api/v1/addons/marketplace'));
+    if (!res.ok) return null;
+    return ((await res.json()) as { data: MarktplatzStand }).data;
+  } catch {
+    return null;
+  }
+}
+
+/** Empty `url` removes the marketplace; empty `token` keeps the stored one. */
+export async function saveMarktplatz(url: string, token: string): Promise<MarktplatzStand> {
+  const res = await fetch(apiUrl('api/v1/addons/marketplace'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, ...(token ? { token } : {}) }),
+  });
+  if (!res.ok) throw await toApiError(res);
+  return ((await res.json()) as { data: MarktplatzStand }).data;
+}
+
+export async function setEntwicklermodus(enabled: boolean): Promise<MarktplatzStand> {
+  const res = await fetch(apiUrl('api/v1/addons/marketplace/developer-mode'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw await toApiError(res);
+  return ((await res.json()) as { data: MarktplatzStand }).data;
+}
+
+export async function activateLicense(id: string): Promise<void> {
+  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/license/activate`), { method: 'POST' });
+  if (!res.ok) throw await toApiError(res);
 }
 
 /** Step 1 of a registry (or arbitrary URL) install: the `url` + `sha256`

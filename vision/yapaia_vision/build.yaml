@@ -5,4 +5,4 @@ labels:
   org.opencontainers.image.title: "Home Assistant Add-on: Yapaia Vision"
   org.opencontainers.image.description: "Analog cameras via a USB video grabber"
   org.opencontainers.image.source: "https://github.com/Yapaia/yapaia"
-  org.opencontainers.image.licenses: "MIT"
+  org.opencontainers.image.licenses: "GPL-3.0-or-later"

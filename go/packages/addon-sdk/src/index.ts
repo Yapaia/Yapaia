@@ -51,12 +51,17 @@ export { SDK_METHOD_SCOPES, type SdkMethod } from './sdkMethods.js';
 
 // --- the public client surface ---------------------------------------------
 export type {
+  AddonLicenseStatus,
   NavControlDestinationParams,
   NavControlDestinationResult,
   NavControlStartParams,
   SdkFetchInit,
   YapaiaAddon,
 } from './types.js';
+
+// --- licensing (docs/marktplatz.md) ------------------------------------------
+export { verifyLicense, type VerifyLicenseOptions, type VerifyLicenseResult } from './license.js';
+export { OFFICIAL_MARKETPLACE_KEYS, type LicensePayload, type MarketplaceKey } from '@yapaia/shared';
 
 // --- transports --------------------------------------------------------------
 export { connectPostMessage, type PostMessageTransportOptions } from './postMessageTransport.js';

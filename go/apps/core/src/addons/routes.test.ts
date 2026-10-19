@@ -53,6 +53,10 @@ describe('Add-on install/lifecycle routes (E09-T1)', () => {
     closeDb();
     server = await buildServer();
     coreVersion = await readPackageVersion();
+    // These suites exercise the install pipeline with UNSIGNED fixture
+    // tarballs -- that is developer mode (docs/marktplatz.md). The signature
+    // rules themselves are covered in `marketplaceTrust.test.ts`.
+    await server.inject({ method: 'PUT', url: '/api/v1/addons/marketplace/developer-mode', payload: { enabled: true } });
   });
 
   afterEach(async () => {

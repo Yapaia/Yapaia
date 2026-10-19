@@ -78,6 +78,7 @@ import { systemPlugin } from './system/routes.js';
 import { readAddonVersion, readPackageVersion } from './version.js';
 import { addonsPlugin } from './addons/routes.js';
 import { addonRegistryPlugin } from './addons/registryRoutes.js';
+import { RegistryService } from './addons/registry.js';
 import { addonUiHostPlugin } from './addons/ui-host.js';
 import { addonStoragePlugin } from './addons/storageRoutes.js';
 import { AddonAuthService, AddonTokenService } from './addons/tokens.js';
@@ -85,6 +86,9 @@ import { AddonServiceHost } from './addons/service-host.js';
 import { addonServicePlugin } from './addons/serviceRoutes.js';
 import { addonProxyPlugin } from './addons/proxy.js';
 import { AddonRepository } from './addons/repository.js';
+import { InstallService } from './addons/installService.js';
+import { MarketplaceService } from './addons/marketplace.js';
+import { addonMarketplacePlugin } from './addons/marketplaceRoutes.js';
 import { securityPlugin } from './security/routes.js';
 import { securityEventLog } from './security/securityEvents.js';
 import { securityHeadersPlugin } from './security/headers.js';
@@ -520,19 +524,44 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     addonServiceHost.stopAll();
   });
 
-  await fastify.register(addonsPlugin, {
-    prefix: '/api/v1',
+  // Add-on marketplace (docs/marktplatz.md): the ONE trust policy for every
+  // install -- valid release signature (or developer mode), revocations, and
+  // a license before a paid add-on may be enabled. Shared by the install
+  // routes, the registry routes and the boot path (`reconcile()` runs before
+  // `startAll()`, see `start()` below).
+  const marketplace = new MarketplaceService({ settings: settingsService });
+  const addonInstallService = new InstallService({
     coreVersion,
     lifecycle: addonServiceHost,
+    trust: marketplace,
   });
+  fastify.decorate('addonInstallService', addonInstallService);
+
+  await fastify.register(addonsPlugin, {
+    prefix: '/api/v1',
+    service: addonInstallService,
+  });
+  await fastify.register(addonMarketplacePlugin, { prefix: '/api/v1', marketplace });
 
   // Add-on REGISTRY plugin (E09-T7, docs/05 §5, W-11/W-13): `GET
   // /addons/registry` (cached catalog + age, offline-safe) + `POST
-  // /addons/registry/sync` (fetch/validate/persist a fresh one). Additive --
-  // installing FROM a registry entry reuses `POST /addons/install
-  // {source:'url', ...}` above unchanged, so sha256/core_api enforcement
-  // stays in the ONE place it already lived (`installService.ts`).
-  await fastify.register(addonRegistryPlugin, { prefix: '/api/v1', coreVersion });
+  // /addons/registry/sync` (fetch/validate/persist a fresh one) + `POST
+  // /addons/registry/install {id}` (the Core takes URL, hash and signature
+  // from its own cache). sha256/signature/core_api enforcement stays in the
+  // ONE place it already lived (`installService.ts`).
+  await fastify.register(addonRegistryPlugin, {
+    prefix: '/api/v1',
+    coreVersion,
+    service: new RegistryService({
+      settings: settingsService,
+      marketplaceIndexUrl: () => {
+        const c = marketplace.connection();
+        return c ? `${c.url}/v1/index.json` : null;
+      },
+    }),
+    marketplace,
+    installService: addonInstallService,
+  });
 
   // E09-T2 (docs/05 §1A, Wargame W-10): serve an ENABLED add-on's UI assets
   // under `/addons/{id}/ui/**` behind a strict CSP (no external hosts,
@@ -1237,7 +1266,20 @@ async function main(): Promise<void> {
     logger.info(`Server running at http://${host}:${port}`);
     // E09-T3: start every ENABLED add-on service AFTER the server is
     // listening, so each child gets a `YAPAIA_API_URL` that already works.
-    (fastify as unknown as { addonServiceHost: { startAll(): void } }).addonServiceHost.startAll();
+    // docs/marktplatz.md: a revoked or unlicensed add-on is disabled BEFORE
+    // anything is started.
+    const booted = fastify as unknown as {
+      addonServiceHost: { startAll(): void };
+      addonInstallService: { reconcile(): Promise<string[]> };
+    };
+    // Fails closed: if the check itself fails, no add-on service is started.
+    try {
+      const disabled = await booted.addonInstallService.reconcile();
+      if (disabled.length) logger.warn(`Add-ons deaktiviert (gesperrt oder ohne Lizenz): ${disabled.join(', ')}`);
+      booted.addonServiceHost.startAll();
+    } catch (e) {
+      logger.error(e, 'Add-on-Prüfung fehlgeschlagen -- keine Add-on-Dienste gestartet');
+    }
   } catch (err) {
     logger.error(err);
     process.exit(1);

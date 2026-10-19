@@ -118,8 +118,10 @@ zu Core-Widgets. Dadurch: keine Core-Änderung pro Add-on.
 - **Updates:** Store zeigt Updates beim Registry-Sync; ein-Klick-Update mit
   Rollback (alte Version bleibt bis erfolgreichem Start erhalten).
 - **Kuratierung v1:** PR ins Registry-Repo + Review-Checkliste (Scopes minimal,
-  Lizenz, kein obfuskierter Code). Signierung (minisign) ist ab v1.1 vorgesehen,
-  Feld `signature` im Index von Anfang an reserviert.
+  Lizenz, kein obfuskierter Code). **Seit Go 0.47.0:** Release-Signaturen
+  (Ed25519, `ysig1`), Lizenzen pro Installation und Sperrliste über den
+  Marktplatz — siehe [`marktplatz.md`](marktplatz.md). Unsignierte Pakete nur
+  im Entwicklermodus.
 
 ## 6. Referenz-Add-ons (Teil von E09, dienen als lebende Doku)
 

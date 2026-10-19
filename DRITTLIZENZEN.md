@@ -14,13 +14,18 @@ Diese Teile stehen **nicht** unter der GPL, sondern unter der freizügigen
   eingebaut wird,
 - `go/addons-examples/poi-campsites` und `go/addons-examples/track-recorder` –
   die Beispiel-Add-ons zum Abschauen.
+- `go/packages/shared/src/marketplace` – die Prüfung von Signaturen und
+  Lizenzen des Add-on-Marktplatzes (`ysig1`) und die offiziellen
+  Marktplatz-Schlüssel. Das SDK baut sie für `verifyLicense()` in jedes
+  Add-on ein (siehe [`go/docs/marktplatz.md`](go/docs/marktplatz.md)).
 
 Grund: Wer ein Add-on schreibt, baut das SDK mit ein. Stünde es unter der GPL,
 müsste jedes Add-on ebenfalls GPL sein. So entscheidet jeder Add-on-Autor
 selbst über die Lizenz seines Add-ons – auch geschlossen oder kostenpflichtig.
 Yapaia Go selbst (Navigation, Karte, Routing) bleibt GPL-3.0-or-later. Das SDK
-übernimmt aus dem GPL-Teil nur Typbeschreibungen der Schnittstelle, keinen
-ausführbaren Code.
+übernimmt aus dem GPL-Teil nur Typbeschreibungen der Schnittstelle; der
+einzige ausführbare Code aus `go/packages/shared`, den es einbaut, ist der
+Apache-lizenzierte Ordner `marketplace`.
 
 ## Kartendaten
 

@@ -97,6 +97,10 @@ describe('Add-on registry routes (E09-T7)', () => {
     tarballPort = tarballAddress.port;
 
     server = await buildServer();
+    // These suites exercise the install pipeline with UNSIGNED fixture
+    // tarballs -- that is developer mode (docs/marktplatz.md). The signature
+    // rules themselves are covered in `marketplaceTrust.test.ts`.
+    await server.inject({ method: 'PUT', url: '/api/v1/addons/marketplace/developer-mode', payload: { enabled: true } });
     coreVersion = await readPackageVersion();
   });
 

@@ -34,13 +34,16 @@ export interface DownloadTarballOptions {
    *  50 MB"). */
   maxBytes: number;
   timeoutMs?: number;
+  /** Extra request headers -- the marketplace's account token and
+   *  installation id for a paid download (`marketplace.ts`). */
+  headers?: Record<string, string>;
 }
 
 /** Downloads `url` fully into memory, enforcing `maxBytes` while streaming.
  *  Throws {@link AddonError} (`DOWNLOAD_FAILED`/`DOWNLOAD_TOO_LARGE`) on any
  *  failure -- never returns a partial/truncated buffer. */
 export function downloadTarball(opts: DownloadTarballOptions): Promise<Buffer> {
-  const { url, maxBytes, timeoutMs = DOWNLOAD_TIMEOUT_MS } = opts;
+  const { url, maxBytes, timeoutMs = DOWNLOAD_TIMEOUT_MS, headers } = opts;
 
   return new Promise((resolvePromise, rejectPromise) => {
     let settled = false;
@@ -69,11 +72,16 @@ export function downloadTarball(opts: DownloadTarballOptions): Promise<Buffer> {
       return;
     }
 
-    const req = requestFn(url)(url, { timeout: timeoutMs }, (res: IncomingMessage) => {
+    const req = requestFn(url)(url, { timeout: timeoutMs, ...(headers ? { headers } : {}) }, (res: IncomingMessage) => {
       const status = res.statusCode ?? 0;
       if (status !== 200) {
         res.resume();
-        settleErr(new AddonError('DOWNLOAD_FAILED', `Unexpected HTTP status ${status} fetching add-on tarball`));
+        settleErr(
+          new AddonError(
+            status === 401 || status === 403 ? 'DOWNLOAD_FORBIDDEN' : 'DOWNLOAD_FAILED',
+            `Unexpected HTTP status ${status} fetching add-on tarball`,
+          ),
+        );
         return;
       }
 
