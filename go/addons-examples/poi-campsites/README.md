@@ -100,3 +100,7 @@ curl -s -X POST http://localhost:8080/api/v1/addons/com.yapaia.poi-campsites/ena
 npx vitest run addons-examples/poi-campsites   # Unit: Kategorie-Filter
 cd ../../apps/web && npx playwright test e2e/addon-examples-poi.spec.ts
 ```
+
+## Lizenz
+
+Apache-2.0 (siehe `LICENSE`) – frei zum Abschauen und Weiterverwenden, auch in geschlossenen oder kostenpflichtigen Add-ons.

@@ -130,6 +130,11 @@ later** (see [`LICENSE`](../LICENSE) at the repository root). It comes
 (GPL-3.0, sections 15 and 16). All guidance it shows — routes, clearance
 heights, speed limits, lanes — is advisory; the driver remains responsible.
 
+**Exception:** the add-on SDK (`packages/addon-sdk`) and the example add-ons
+(`addons-examples/poi-campsites`, `addons-examples/track-recorder`) are under the
+**Apache License 2.0**, so add-ons built on them can use any licence, including
+proprietary ones.
+
 Third-party components and data (OpenStreetMap/ODbL, Valhalla, MapLibre …):
 [`DRITTLIZENZEN.md`](../DRITTLIZENZEN.md). The name and logo are not covered by
 the licence: [`NAME-UND-LOGO.md`](../NAME-UND-LOGO.md).
