@@ -61,6 +61,9 @@ Quelltext bleibt.
   (GPL-3.0, Abschnitte 15 und 16). Alle Anzeigen – Route, Durchfahrtshöhe,
   Tempolimit, Spuren, Kamera, Reifendruck, Füllstände – sind Hinweise; die
   Verantwortung für das Fahrzeug liegt immer bei der Person am Steuer.
+- **Ausnahme Add-ons:** Das Add-on-SDK von Go und die Beispiel-Add-ons stehen
+  unter Apache-2.0, damit Add-ons frei lizenziert werden können – auch
+  kommerziell. Details in [`DRITTLIZENZEN.md`](DRITTLIZENZEN.md).
 - **Fremde Bausteine und Daten** (OpenStreetMap, welle.io, Valhalla …):
   [`DRITTLIZENZEN.md`](DRITTLIZENZEN.md).
 - **Name und Logo** sind nicht Teil der Lizenz: [`NAME-UND-LOGO.md`](NAME-UND-LOGO.md).

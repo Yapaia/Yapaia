@@ -5,6 +5,23 @@ Yapaia selbst steht unter der **GNU General Public License 3.0 oder später**
 anderer, die unter eigenen Lizenzen stehen. Diese Datei nennt sie – und wo der
 Quelltext zu finden ist, wo eine Lizenz das verlangt.
 
+## Ausnahme: Add-on-SDK und Beispiel-Add-ons (Apache-2.0)
+
+Diese Teile stehen **nicht** unter der GPL, sondern unter der freizügigen
+**Apache License 2.0** (jeweils eigene `LICENSE`-Datei):
+
+- `go/packages/addon-sdk` – das SDK, das in jedes Add-on für Yapaia Go
+  eingebaut wird,
+- `go/addons-examples/poi-campsites` und `go/addons-examples/track-recorder` –
+  die Beispiel-Add-ons zum Abschauen.
+
+Grund: Wer ein Add-on schreibt, baut das SDK mit ein. Stünde es unter der GPL,
+müsste jedes Add-on ebenfalls GPL sein. So entscheidet jeder Add-on-Autor
+selbst über die Lizenz seines Add-ons – auch geschlossen oder kostenpflichtig.
+Yapaia Go selbst (Navigation, Karte, Routing) bleibt GPL-3.0-or-later. Das SDK
+übernimmt aus dem GPL-Teil nur Typbeschreibungen der Schnittstelle, keinen
+ausführbaren Code.
+
 ## Kartendaten
 
 | Daten | Lizenz | Pflicht |
