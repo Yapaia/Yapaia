@@ -1,6 +1,7 @@
 {
   "name": "@yapaia/monorepo",
   "version": "0.0.1",
+  "license": "GPL-3.0-or-later",
   "description": "Yapaia Go - Browser-based offline navigation app for motorhomes",
   "type": "module",
   "private": true,

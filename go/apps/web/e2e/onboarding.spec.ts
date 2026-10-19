@@ -264,7 +264,7 @@ test.describe('Onboarding wizard (E08-T5)', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('disclaimer gate: without a valid consent, "Navigation starten" is disabled and does not start navigation', async ({
+  test('disclaimer gate: without a valid consent the consent dialog blocks the app until accepted', async ({
     page,
   }) => {
     const pageErrors = collectPageErrors(page);
@@ -286,26 +286,28 @@ test.describe('Onboarding wizard (E08-T5)', () => {
 
     await page.goto(ONBOARDING_CORE_BASE_URL + '/');
 
-    // Onboarding is "completed" -> the wizard does NOT auto-show, the app
-    // underneath is reachable.
+    // Onboarding is "completed" -> the wizard does NOT auto-show. Seit Go
+    // 0.55.0 erscheint stattdessen nur der Zustimmungsdialog
+    // (`ZustimmungErneuern.tsx`) -- vorher blieb „Navigation starten" still
+    // gesperrt, ohne dass man irgendwo zustimmen konnte.
     await expect(page.getByTestId('onboarding-wizard')).toHaveCount(0);
+    const dialog = page.getByTestId('zustimmung-erneuern');
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+    expect(await navStatus(page)).not.toBe('navigating');
+
+    // Zustimmen schliesst den Dialog und gibt die Navigation frei.
+    await dialog.getByTestId('onboarding-disclaimer-checkbox').check();
+    await dialog.getByTestId('onboarding-disclaimer-accept-button').click();
+    await expect(dialog).toHaveCount(0);
     await waitForMapReady(page);
 
     await zielAufKartenmitte(page);
     await expect(page.getByTestId('route-here-button')).toBeEnabled({ timeout: 10_000 });
     await page.getByTestId('route-here-button').click();
     await expect(page.getByTestId('route-summary-panel')).toBeVisible({ timeout: 10_000 });
-
-    // The gate: disabled, with an explicit reason shown, and clicking it
-    // (even forced) never starts navigation.
     const startButton = page.getByTestId('start-navigation-button');
-    await expect(startButton).toBeDisabled();
-    await expect(startButton).toHaveAttribute('data-disclaimer-gated', 'true');
-    await expect(page.getByTestId('start-navigation-disclaimer-gate')).toBeVisible();
-
-    await startButton.click({ force: true });
-    await page.waitForTimeout(500);
-    expect(await navStatus(page)).not.toBe('navigating');
+    await expect(startButton).toHaveAttribute('data-disclaimer-gated', 'false');
+    await expect(page.getByTestId('start-navigation-disclaimer-gate')).toHaveCount(0);
 
     expect(pageErrors).toEqual([]);
   });

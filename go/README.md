@@ -122,18 +122,21 @@ and street names, you lose house numbers. The
 
 ---
 
-## Licence — not yet chosen
+## Licence
 
-**Yapaia Go does not have a licence yet, and that is deliberate, not an
-oversight.** Until one is published here, standard copyright applies: all
-rights reserved. Please do not build on this code, redistribute it or ship it
-in a product yet — the terms that will govern that have not been decided.
+Yapaia Go is free software under the **GNU General Public License v3.0 or
+later** (see [`LICENSE`](../LICENSE) at the repository root). It comes
+**without any warranty**; liability is excluded to the extent permitted by law
+(GPL-3.0, sections 15 and 16). All guidance it shows — routes, clearance
+heights, speed limits, lanes — is advisory; the driver remains responsible.
 
-Reading the code, running it yourself and reporting problems are welcome.
+Third-party components and data (OpenStreetMap/ODbL, Valhalla, MapLibre …):
+[`DRITTLIZENZEN.md`](../DRITTLIZENZEN.md). The name and logo are not covered by
+the licence: [`NAME-UND-LOGO.md`](../NAME-UND-LOGO.md).
 
-> **If you are thinking of contributing code:** please open an issue first. A
-> pull request merged before the licence exists would tie the project's hands,
-> because the licence can then no longer be chosen freely.
+> **Contributing code:** please open an issue first. Contributions are only
+> accepted together with a contributor agreement that lets the project keep
+> offering Yapaia under other terms as well (e.g. to manufacturers).
 
 ## Documentation
 
