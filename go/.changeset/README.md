@@ -20,9 +20,9 @@ We have a quick list of common questions to get you started engaging with this p
   `major` auf `@yapaia/core` **oder** `@yapaia/addon-sdk` (die
   Add-on-API-Grenze, siehe `docs/addon-dev-guide.md` §0) MUSS im Fließtext
   einen `## Breaking Change`-Abschnitt haben — geprüft von
-  `scripts/changeset-breaking-check.mjs`, CI-Gate in `.github/workflows/
-  ci.yml` (Job `docs-freshness`) und erneut in `.github/workflows/
-  release.yml`. Ein Changeset ohne diesen Abschnitt lässt beide Workflows
+  `scripts/changeset-breaking-check.mjs`, CI-Gate in
+  `.github/workflows/go-ci.yml` (Job `docs-freshness`) und erneut in
+  `.github/workflows/go-release.yml`. Ein Changeset ohne diesen Abschnitt lässt beide Workflows
   fehlschlagen — das ist mit "erzwungen" statt "dokumentiert" gemeint
   (Plausibilitätskriterium aus `tasks/E10-qualitaet-release.md` §E10-T5).
 - **Root-`CHANGELOG.md`** fasst den generierten `apps/core/CHANGELOG.md`

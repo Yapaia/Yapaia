@@ -33,14 +33,14 @@ Valhalla"); ADR-014 ist eine Verfeinerung auf Image-Ebene für E03-T1.
 data/valhalla/
 ├── tiles/       # LIVE-Stand — von docker-compose als /custom_files gemountet
 ├── tiles.new/   # Build-Staging (nur waehrend build-tiles.sh laeuft)
-└── tiles.old/   # transient waehrend des atomischen Swaps, danach entfernt
+└── tiles.old/   # transient waehrend des atomaren Swaps, danach entfernt
 ```
 
 `docker-compose.yml` mountet **`./data/valhalla/tiles`** (nicht das
 Elternverzeichnis) nach `/custom_files` — der Container sieht ausschließlich
 den fertigen, geschwenkten Live-Stand, nie die Build-Staging-Verzeichnisse.
 
-## Graph-(Neu-)Bau mit atomischem Swap (W-17)
+## Graph-(Neu-)Bau mit atomarem Swap (W-17)
 
 ```bash
 services/valhalla/build-tiles.sh https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
@@ -52,7 +52,7 @@ Ablauf (Details/Kommentare im Skript):
 
 1. Baut den Graphen über das gis-ops-Image in `data/valhalla/tiles.new`
    (temporäres Verzeichnis, eigener Host-Port `8099`, damit ein parallel
-   laufender Live-Service auf Port 8002 ungestört weiterserviert — **kein
+   laufender Live-Service auf Port 8002 ungestört weiterserviert — **keine
    Downtime während des Builds**).
 2. Übernimmt die vom Image generierte `valhalla.json` **unverändert**
    (`service_limits`-Tuning ist bewusst vertagt — siehe unten).
@@ -121,9 +121,9 @@ Endpoint (innerhalb des Compose-Netzwerks bzw. via Port-Mapping):
 
 ## CI-Nachweis (`valhalla-li-build`)
 
-`.github/workflows/ci.yml` Job `valhalla-li-build` baut den
+`.github/workflows/go-ci.yml` Job `valhalla-li-build` baut den
 Liechtenstein-Graphen (winzig, gesamter Job ~25 s laut Spike) bei jedem PR:
-ruft `build-tiles.sh` mit der LI-PBF-URL auf, prüft den atomischen Swap auf
+ruft `build-tiles.sh` mit der LI-PBF-URL auf, prüft den atomaren Swap auf
 Dateisystemebene, startet Valhalla exakt wie `docker-compose.yml` es im
 Normalbetrieb tut (serve-only), wartet auf `/status` und verifiziert eine
 LKW-Route Vaduz→Schaan gegen einen Plausibilitäts-Korridor (2–8 km / 3–20 min).
@@ -178,7 +178,7 @@ ungetestet-lokal.
 
 ### CI-Nachweis (`lite-search-li-build`)
 
-`.github/workflows/ci.yml` Job `lite-search-li-build`: installiert
+`.github/workflows/go-ci.yml` Job `lite-search-li-build`: installiert
 `osmium-tool`, lädt die LI-PBF, ruft `build-lite-index.sh` auf (getimt, sollte
 für LI deutlich unter 1 Minute bleiben), und verifiziert direkt gegen die
 gebaute SQLite-Datei per FTS5-`MATCH`, dass "Vaduz" (kind `city`) gefunden

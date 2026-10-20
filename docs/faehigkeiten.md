@@ -1,7 +1,7 @@
 # Fähigkeiten der Yapaia-Module
 
 Eine **Fähigkeit** ist ein Vertrag zwischen Modulen (siehe
-`integration-protokoll.md`, Abschnitt 8): Ein Modul meldet sie in seiner
+[`integration-protokoll.md`](integration-protokoll.md#8-module-untereinander), Abschnitt 8): Ein Modul meldet sie in seiner
 Beschreibung, die Integration gibt sie in der Partnerliste weiter, und andere
 Module nutzen sie **nur, wenn der Partner sie meldet** – nie anhand des
 Modulnamens.
@@ -20,7 +20,8 @@ Modulnamens.
 ## `navigation`
 
 - **Aufruf:** Home-Assistant-Aktionen `yapaia.go_ziel_setzen` (Felder `ziel`
-  als Text oder `ort` mit `latitude`/`longitude`), `yapaia.go_navigation_pausieren`,
+  als Text oder `ort` mit `latitude`/`longitude`), `yapaia.go_zwischenziel_einfuegen`
+  (`ort`, optional `name`), `yapaia.go_navigation_pausieren`,
   `…_fortsetzen`, `…_beenden`, `yapaia.go_profil_waehlen` (`wert`) und
   `yapaia.go_befehl` (`text`; Antwort im Ergebnis als `antwort`).
 - **Zustände:** `ankunft`, `restweg`, `ziel`, `zustand`, `tempo`,

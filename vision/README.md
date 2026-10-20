@@ -3,8 +3,9 @@
 Analoge Kameras über einen USB-Video-Grabber als Kameras in Home Assistant –
 Teil von [Yapaia](../README.md).
 
-- `yapaia_vision/` – das Add-on (Python, ffmpeg, v4l2)
-- `tests/` – `pytest -q tests` (ohne Hardware und ohne ffmpeg; den echten
+- [`yapaia_vision/`](yapaia_vision/) – das Add-on (Python, ffmpeg, v4l2);
+  Anleitung in [`DOCS.md`](yapaia_vision/DOCS.md)
+- [`tests/`](tests/) – `pytest -q tests` (ohne Hardware und ohne ffmpeg; den echten
   ffmpeg-Lauf mit Testbild prüft der Image-Bau in `.github/workflows/vision.yml`)
 
 ## Grabber
@@ -18,8 +19,8 @@ Gerät und Eingänge ins Protokoll und auf seine Seite (*Technik*).
 Der **EasyCAP002 „4CH USB DVR“** (Somagic SMI2021CBE, `1c88:0007`) hat
 keinen Kernel-Treiber. Vision bringt dafür `somagic-init`/`somagic-capture`
 von [easycap-somagic-linux](https://github.com/pimartos/easycap-somagic-linux)
-(GPL) mit (`yapaia/somagic.py`); die Firmware stellt der Nutzer aus dem
-Windows-Treiber bereit (siehe `DOCS.md`).
+(GPL-2.0) mit (`yapaia/somagic.py`); die Firmware stellt der Nutzer aus dem
+Windows-Treiber bereit (siehe [`DOCS.md`](yapaia_vision/DOCS.md)).
 
 Bei den meisten 4-Kanal-Sticks läuft unter Linux nur ein Eingang zur selben
-Zeit. Vision schaltet dann um (siehe `DOCS.md`).
+Zeit. Vision schaltet dann um (siehe [`DOCS.md`](yapaia_vision/DOCS.md#umschalten)).

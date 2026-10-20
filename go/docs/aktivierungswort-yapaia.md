@@ -14,8 +14,8 @@ Wort sofort geht und wie man „Yapaia“ als eigenes Aktivierungswort trainiert
 ## Sofort, ohne Training
 
 1. In Yapaia: **⚙ → Sprache & Home Assistant → In Home Assistant einrichten**.
-   Yapaia legt den Helfer „Yapaia Sprachbefehl“ und die Automation
-   „Yapaia Sprachbefehle“ an.
+   Yapaia legt die Automation „Yapaia Sprachbefehle“ an; sie gibt die Sätze
+   über die Integration „Yapaia“ an Yapaia Go weiter.
 2. Am Satelliten das vorhandene Aktivierungswort verwenden („Okay Nabu“,
    „Hey Jarvis“ …) und danach den Befehl sprechen — mit oder ohne „Yapaia“:
    - „Okay Nabu — Yapaia, fahre mich nach Magdeburg.“

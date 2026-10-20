@@ -1,19 +1,21 @@
 # Yapaia Go — Home Assistant Add-on
 
 Offline-capable motorhome navigation (maps, truck/RV-aware routing, GPS,
-search) running as a Home Assistant add-on, with a full MQTT + Auto-Discovery
-integration into HA (docs/04-home-assistant.md §1–2 in the main repo).
+search) running as a Home Assistant add-on. It connects to Home Assistant
+through the **Yapaia** integration, which the add-on brings along (see "Home
+Assistant: the Yapaia integration" below); MQTT is optional.
 
 ## Installation
 
-1. Settings → Add-ons → Add-on Store → ⋮ → Repositories → add this
-   repository's URL.
-2. Find "Yapaia Go" in the store, click Install.
-3. **Before starting it the first time**, open the add-on's Configuration
-   tab and set at least `region` (see "Configuration options" below) —
-   without it the add-on starts into an onboarding-ish idle state rather
-   than crashing (routing/search simply have nothing to serve yet), but you
-   won't get a usable app until a region is set and its map data installed.
+1. Settings → Add-ons → Add-on Store → ⋮ → Repositories → add
+   `https://github.com/Yapaia/yapaia`.
+2. Find "Yapaia Go" in the store section "Yapaia" and click Install. The
+   Supervisor downloads a ready-made image for your architecture; nothing is
+   built on your device.
+3. Optional: read "RAM recommendation" below before the first start if your
+   Home Assistant VM is short on memory. Setting `region` beforehand is not
+   necessary — with it empty, the setup wizard inside Yapaia lets you choose
+   and install a map region.
 4. Start the add-on, then open it from the HA sidebar (Ingress — no
    separate login, HA's own auth/session covers it, including over Nabu
    Casa remote access).
@@ -109,8 +111,8 @@ need to be ticked — these receivers are USB 2 serial devices.
 3. Check the add-on log: the internal `gpsd` service logs which device it
    picked and why, or why it picked none (retried every 15 s, never crashes
    the add-on).
-4. In the Yapaia Go UI, Settings → GPS should show a live fix once gpsd has
-   one.
+4. In Yapaia Go, **⚙ → 🩺 Installation prüfen** shows under *Position*
+   whether gpsd delivers a fix.
 
 ### Which device gets used
 
@@ -216,7 +218,7 @@ someone else's phone, and a navigation that silently follows it is worse than
 one that asks.
 
 **Since 0.7.1 you pick it in the app, not in a text field.** Open Yapaia Go →
-🩺 **Installationsprüfung**; below the checks is a drop-down listing the
+**⚙ → 🩺 Installation prüfen**; below the checks is a drop-down listing the
 `device_tracker` entities your Home Assistant actually has. Picking one
 **takes effect immediately** — no add-on restart. The `ha_device_tracker`
 option below still works and acts as the default; the pick in the UI wins.
@@ -240,14 +242,18 @@ minimum so the Supervisor says so plainly instead of drawing half a page.
 
 | Group | Option | Type | Default | Meaning |
 |---|---|---|---|---|
-| (open) | `region` | string (optional) | *(empty)* | Which map region to use. Empty = onboarding/no-data state (E08-T5 builds the full setup wizard; this add-on version simply doesn't crash without one). |
+| (open) | `region` | string (optional) | *(empty)* | Which map region to use, e.g. `germany`. Empty = the setup wizard inside Yapaia lets you choose one. Regions are downloaded and built inside Yapaia (**⚙ → 🗺️ Karten verwalten**), not here. |
 |  | `gps_source` | `usb` \| `network` \| `companion_app` \| `none` | `none` | Where the Core's position service gets a GPS fix from. `usb`/`network` start gpsd; `companion_app` reads a Home Assistant `device_tracker` fed by the Companion App; `none` leaves the browser as the source. Browser positions are accepted at **every** value. The old value `ha_tracker` was removed in 0.8.8 — pick `companion_app` once if you had it. (`Position.source` in the API still says `ha_tracker`; that is the wire format, not a setting.) |
 |  | `gps_device` | string (optional) | *(empty)* | Which serial device is the GPS receiver, e.g. `/dev/serial/by-id/usb-u-blox_AG_…-if00` — **with** the leading slash. Only needed when several serial devices are present and none identifies itself as a GNSS receiver — see "Which device gets used" above. |
 |  | `ha_device_tracker` | string (optional) | *(empty)* | Which `device_tracker` entity to read, e.g. `device_tracker.my_phone`. Only needed with `gps_source: companion_app` **and** more than one candidate. With exactly one, Yapaia picks it itself; with several you can also choose in the app's health check, which takes effect immediately. |
 | `search` | `photon_enabled` | bool | `true` | Full-text search via Photon. `false` = RAM-saver, falls back to the offline lite-search index (W-12). |
 |  | `photon_xmx_mb` | int 256–4096 | `1024` | Photon JVM heap cap (`-Xmx`). See the RAM table above. |
-| `routing` | `valhalla_memory_mb` | int 512–8192 | `2048` | Documented RAM budget for Valhalla; informational (Valhalla's actual runtime cache size is set at graph-build time, not per-start — see `yapaia_go/rootfs/.../valhalla/run`'s comment). |
+| `routing` | `valhalla_memory_mb` | int 512–8192 | `2048` | Documented RAM budget for Valhalla; informational only (Valhalla's actual runtime cache size is set at graph-build time, not per start — see the comment in `yapaia_go/rootfs/etc/s6-overlay/s6-rc.d/valhalla/run`). |
 | `display` | `theme` | `light` \| `dark` \| `system` \| `sun` | `light` | Light/dark for the interface **and** the map. `system` follows the device's own light/dark setting; `sun` follows sunrise/sunset at the current position — usually the better one in a vehicle. This is a **default**, not a remote control: it applies only to devices that have not picked a mode in the app under "Design". See "How the theme default works" below. |
+| `online` | `enabled` | bool | `false` | Allows optional online services while a connection exists: roadworks, closures and warnings from the German motorway authority (Autobahn GmbH), and details from OpenStreetMap, Wikipedia and Wikimedia Commons for a place you tap. Only the request goes out (for a place: its coordinates and name) — never your position, route or a device identifier. Navigation itself stays fully offline. |
+|  | `tankerkoenig_api_key` | password (optional) | *(empty)* | Free key from creativecommons.tankerkoenig.de: the fuel station search then shows current prices for the active profile's fuel type (German stations). Sends the area of the stations found, rounded to about 5 km, to Tankerkönig. Only with `online.enabled`. |
+| `bord` | `grauwasser`, `frischwasser`, `batterie`, `aussentemperatur` | entity ID (optional) | *(empty)* | Home Assistant sensors for grey water, fresh water and house battery (percent) and outside temperature (°C). Empty = that note is off. See "On-board sensors" in the user manual. |
+|  | `grauwasser_ab`, `frischwasser_bis`, `batterie_bis`, `frost_bis` | int | `80`, `20`, `30`, `1` | Thresholds: grey water at or above, fresh water and battery at or below (percent), frost at or below (°C). |
 | `home_assistant` | `mqtt_enabled` | bool | `false` | Additionally publishes the values over MQTT (Mosquitto add-on). Not needed — Home Assistant gets everything through the Yapaia integration. |
 |  | `mqtt_prefix` | string | `yapaia` | MQTT topic prefix (docs/03-api-spec.md §4). |
 | `advanced` | `gps_simulator` | bool | `false` | Unlocks the built-in test driver (see below). **Off by default on purpose** — it can inject arbitrary positions and displaces the real receiver. |
@@ -301,11 +307,10 @@ To unlock it:
 2. Tick `gps_simulator`, save
 3. **Restart** the add-on
 
-A flask button (🧪) then appears on the right-hand side of the map. Without
-the tick the button is not shown at all — a button that always fails is worse
-than no button.
+The entry **🧪 Testfahrt** then appears in the ⚙ menu. Without the tick it
+is not shown at all — a button that always fails is worse than no button.
 
-Plan a route first, then press **Route abfahren**. The panel shows how many
+Plan a route first, then press **▶ Route abfahren**. The panel shows how many
 sections are being driven with a *substitute* speed because no limit is known
 for them (`3/120 Abschnitte ohne Limit`) — a partly guessed run must not look
 like a fully known one.
@@ -414,7 +419,7 @@ builds map tiles, search index and routing graph exactly like Go does.
 
 1. Install the map server (see its README), build a package and copy the
    **download token** shown in its web interface.
-2. In Go: **Manage maps → Kartenserver**, enter the address (e.g.
+2. In Go: **⚙ → 🗺️ Karten verwalten → Kartenserver**, enter the address (e.g.
    `https://maps.example.org`) and the token, tap **Verbinden**. Go checks
    the connection right away.
 3. The packages appear in the map list. **Installieren** / **Update**
@@ -427,21 +432,34 @@ The token is never shown again; leave the field empty to keep it.
 
 ## Add-on marketplace
 
-Go installs add-ons from the **Yapaia marketplace** (repository
-`Yapaia/Addon-server`, a Docker container for a VPS). Every package there is
-signed; Go refuses packages without a valid signature. Paid add-ons also need
-a license, which is bound to this Go installation.
+Since 0.56.0 Go installs add-ons from a **Yapaia marketplace**. Every package
+there is signed; Go refuses packages without a valid signature. Paid add-ons
+also need a license, which is bound to this Go installation.
 
-1. In Go: **⚙ → Add-on-Store → Marktplatz**, enter the address (e.g.
-   `https://addons.example.org`) and, for purchased add-ons, the **account
-   token** from your marketplace account. Tap **Verbinden**.
-2. **Registry aktualisieren** loads the catalog. Entries show **✓ Geprüft**
-   when their signature is valid. **Installieren** downloads, checks and, for
-   a paid add-on, activates its license.
+1. In Go: **⚙ → 🧩 Add-on-Store → Marktplatz**, enter the address (e.g.
+   `https://addons.example.org`) and, for purchased add-ons, the
+   **Konto-Token** from your marketplace account (optional for free
+   add-ons). Tap **Verbinden**.
+2. Go then loads the catalog; **Registry aktualisieren** reloads it later.
+   Entries show **✓ Geprüft**
+   when their signature is valid, otherwise **Unsigniert**.
+3. **Installieren** downloads and checks the package, then shows the
+   permissions it asks for — confirm with **Bestätigen & installieren**. For
+   a paid add-on Go activates its license during installation; if that fails,
+   the add-on is installed but stays disabled until you tap **Lizenz
+   aktivieren** under *Updates → Installierte Add-ons*.
+
+Versions the marketplace has revoked are disabled at the next sync and can no
+longer be installed or enabled.
 
 The marketplace address must use `https`. Go itself and Home Assistant keep
 working over plain `http` on your local network — `https` only applies to the
 connection from Go to the marketplace.
+
+**Installing from a file** (*Add-on-Datei installieren*, a `.tar.gz` from a
+USB stick or download) works without a marketplace, but such a package
+carries no signature: it is accepted only with **Entwicklermodus** switched
+on. Add-ons installed before 0.56.0 keep running.
 
 **Entwicklermodus** (same section) allows unsigned packages and a marketplace
 without `https` — for developing your own add-ons or testing a marketplace on
@@ -472,7 +490,7 @@ E08-T4 that per-PR CI structurally cannot:
    fast test cycle — see the main repo's `services/valhalla/build-tiles.sh`
    for how a region's tiles get built; for this manual protocol, pre-stage
    a built region's data under `/share/yapaia/` before starting the
-   add-on, OR extend the wizard once E08-T5 ships).
+   add-on, or install the region through the setup wizard).
 3. Start the add-on. Confirm the add-on log shows, in order: valhalla
    ready → core listening on :8099 → (if configured) MQTT connected.
 4. Open the add-on from the HA sidebar. Confirm:
@@ -487,7 +505,8 @@ E08-T4 that per-PR CI structurally cannot:
 
 ### 2. MQTT auto-configuration (acceptance #2)
 
-1. With the Mosquitto add-on installed and running, start Yapaia Go.
+1. With the Mosquitto add-on installed and running, switch on
+   `mqtt_enabled` (group `home_assistant`) and start Yapaia Go.
 2. In HA: Settings → Devices & Services → MQTT → confirm a "Yapaia Go"
    device appears with the full entity table from
    `docs/04-home-assistant.md` §1, populated with live values during a

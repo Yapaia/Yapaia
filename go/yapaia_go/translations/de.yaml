@@ -24,8 +24,8 @@ configuration:
     description: 'Welche Kartenregion Yapaia benutzt (zum Beispiel „germany" oder
       „liechtenstein"). Leer lassen: dann führt Sie der Einrichtungsassistent in
       Yapaia durch die Auswahl. Regionen herunterladen und bauen können Sie nicht
-      hier, sondern in Yapaia selbst unter „Regionen" — das ist ein Vorgang mit
-      Fortschritt, keine Einstellung.'
+      hier, sondern in Yapaia selbst unter ⚙ → „Karten verwalten" — das ist ein
+      Vorgang mit Fortschritt, keine Einstellung.'
   gps_source:
     name: Quelle
     description: 'Woher die Position kommt. „usb": ein GPS-Empfänger am USB-Anschluss.
@@ -46,8 +46,8 @@ configuration:
     name: Gerät der Companion App
     description: Welches Gerät die Position liefert, zum Beispiel „device_tracker.mein_telefon".
       Nur nötig, wenn mehrere Geräte die Companion App benutzen — bei genau einem
-      wählt Yapaia es selbst. Sie können es auch direkt in Yapaia auswählen (Installationsprüfung
-      → „Gerät der Companion App"); das gilt sofort und ohne Neustart.
+      wählt Yapaia es selbst. Sie können es auch direkt in Yapaia auswählen (⚙ → „Installation
+      prüfen" → „Gerät der Companion App"); das gilt sofort und ohne Neustart.
   search:
     name: Suche
     description: Adresssuche und ihr Arbeitsspeicher. Nur anfassen, wenn der Speicher
@@ -67,8 +67,9 @@ configuration:
     description: Wie viel Arbeitsspeicher die Routenberechnung bekommt.
     valhalla_memory_mb:
       name: Arbeitsspeicher für Valhalla (MB)
-      description: Obergrenze für den Speicher der Routenberechnung. Wächst mit
-        der Größe der Region; für ein Land sind 2048 ein guter Ausgangswert.
+      description: Richtwert für den Speicherbedarf der Routenberechnung, zur
+        eigenen Planung. Yapaia begrenzt Valhalla damit derzeit nicht. Der Bedarf
+        wächst mit der Größe der Region; für ein Land sind 2048 ein guter Ausgangswert.
   display:
     name: Erscheinungsbild
     description: Hell oder dunkel — für die Oberfläche und die Karte gemeinsam.
@@ -121,12 +122,15 @@ configuration:
       description: Bei dieser Außentemperatur und darunter erinnert Yapaia an den Frostschutz der Wasseranlage.
   home_assistant:
     name: Home Assistant
-    description: Auf welchen Wegen Yapaia seine Werte an Home Assistant meldet.
+    description: Der Weg zu Home Assistant ist die Integration „Yapaia", die das
+      Add-on mitbringt; dafür ist hier nichts einzustellen. MQTT kommt auf Wunsch
+      hinzu.
     mqtt_enabled:
       name: Werte über MQTT melden
-      description: Dasselbe über einen MQTT-Broker. Nützlich, wenn andere Geräte
-        mithören sollen (ESPHome, eigene Automatisierungen). Beide Wege dürfen gleichzeitig
-        an sein; fällt der Broker aus, laufen die Werte über den direkten Weg weiter.
+      description: Meldet die Werte zusätzlich zur Integration „Yapaia" über einen
+        MQTT-Broker (Mosquitto-Add-on). Nützlich, wenn andere Geräte mithören sollen
+        (ESPHome, eigene Automatisierungen). Aus als Vorgabe; fällt der Broker aus,
+        laufen die Werte über die Integration weiter.
     mqtt_prefix:
       name: MQTT-Themenpräfix
       description: Unter welchem Präfix die Themen veröffentlicht werden, etwa „yapaia/nav/eta".

@@ -60,8 +60,9 @@ Parkhäusern oder unter Brücken.
 3. Prüfe, ob eine **externe** USB-GPS-Antenne mit Fensterhalterung verbaut
    ist statt einer im Gehäuse verbauten Antenne — die häufigste Ursache für
    dauerhaft schlechten Empfang im Fahrzeug.
-4. In den Einstellungen → Position → Quelle prüfen, ob wirklich `gpsd`
-   (die USB-Antenne) aktiv ist und nicht versehentlich `browser`.
+4. Prüfen, ob wirklich der USB-Empfänger liefert: in der Add-on-Konfiguration
+   muss `gps_source` auf `usb` stehen, und **⚙ → 🩺 Installation prüfen**
+   zeigt unter *Position*, welche Quelle gerade liefert.
 5. Sobald wieder ein Fix vorliegt, läuft die Navigation automatisch weiter —
    kein manueller Neustart nötig.
 
@@ -96,16 +97,26 @@ obwohl ein GPS-Empfänger vorhanden ist; keine Positionsanzeige.
 Context" (HTTPS oder `localhost`). Ein Zugriff über eine reine
 HTTP-LAN-Adresse (z. B. `http://192.168.1.50:8080`) wird deshalb blockiert.
 
-**Lösung:** Die App erkennt diesen Fall **bevor** sie überhaupt fragt, und
-schlägt in genau dieser Reihenfolge vor:
-1. **Empfohlen im Fahrzeug:** Positionsquelle in den Einstellungen auf
-   `gpsd` (die USB-GPS-Antenne) umstellen — funktioniert unabhängig vom
+Das gilt auch für den Aufruf über Home Assistant: Ingress erbt das Protokoll
+von Home Assistant. Wer Home Assistant über `http://…:8123` öffnet, bekommt
+auch Yapaia nur über HTTP.
+
+**Lösung:** Die App erkennt diesen Fall, **bevor** sie überhaupt fragt, und
+zeigt den Hinweis „Standortzugriff nicht verfügbar (unsicherer Kontext)".
+Was wirklich hilft:
+1. **Empfohlen im Fahrzeug:** ein USB-GPS-Empfänger am Gerät
+   (Add-on-Option `gps_source: usb`) — funktioniert unabhängig vom
    Browser-Sicherheitskontext.
-2. Über den **HA-Ingress-Link** zugreifen (Home Assistant → Add-ons →
-   Yapaia Go → „Weboberfläche öffnen") — der ist immer HTTPS-abgesichert.
-3. Zugriff über `http://localhost:8080` (nicht die LAN-IP) funktioniert
-   ausnahmsweise auch ohne HTTPS, weil Browser `localhost` als sicher
-   einstufen.
+2. Die **Home-Assistant-Companion-App** als Quelle (`gps_source:
+   companion_app`) — sie meldet die Position an Home Assistant statt an den
+   Browser, auch bei gesperrtem Bildschirm. Siehe
+   [Manual](manual.md#using-the-home-assistant-companion-app).
+3. Home Assistant selbst über HTTPS erreichbar machen (eigenes Zertifikat
+   oder Nabu Casa) — dann ist auch Ingress HTTPS. Hintergrund:
+   [GPS vom eigenen Endgerät](gps-endgeraete.md).
+4. Nur zum Ausprobieren: Aufruf direkt auf dem Gerät über
+   `http://localhost:8080` (Compose-Installation) — Browser stufen
+   `localhost` als sicher ein.
 
 ---
 
@@ -131,12 +142,19 @@ vorsorglich zu umfahren.
 ## W-06 — HA-Entitäten werden „nicht verfügbar"
 
 **Symptom:** Home-Assistant-Entitäten von Yapaia Go zeigen „nicht
-verfügbar"; die App zeigt einen MQTT-Health-Badge als „down"/„degraded" an.
+verfügbar".
 
-**Ursache:** Der MQTT-Broker (meist das Mosquitto-Add-on) ist gerade nicht
-erreichbar — häufig während eines HA-Updates/-Neustarts.
+**Ursache:** Die Entitäten des Geräts „Yapaia Go" kommen über die
+Integration „Yapaia". Sie werden „nicht verfügbar", solange das Add-on nicht
+läuft (Update, Neustart) oder die Integration noch nicht eingerichtet ist. Wer
+zusätzlich MQTT nutzt: die MQTT-Entitäten hängen am Broker (meist das
+Mosquitto-Add-on), der z. B. während eines HA-Updates kurz nicht erreichbar
+ist.
 
-**Lösung:** **Die App selbst bleibt voll funktionsfähig** — MQTT ist
+**Lösung:** Prüfen, ob das Add-on läuft und unter *Einstellungen → Geräte &
+Dienste* das Gerät „Yapaia Go" in der Integration „Yapaia" eingerichtet ist
+(„Yapaia Go gefunden" bestätigen). Für MQTT gilt: **Die App selbst bleibt voll
+funktionsfähig** — MQTT ist
 bewusst nie im Kernpfad der Navigation. Broker neu starten (Home Assistant
 → Add-ons → Mosquitto → Neu starten); Yapaia Go verbindet sich automatisch
 mit exponentiellem Backoff neu und veröffentlicht alle Zustände (Discovery
@@ -149,8 +167,7 @@ Datenverlust, kein manuelles Eingreifen an der App nötig.
 
 **Symptom:** Die berechnete Route führt an einer Stelle vorbei, die dem
 eingestellten Fahrzeugprofil eigentlich physisch nicht erlaubt sein sollte
-(z. B. eine niedrige Unterführung bei einem hohen Fahrzeug) — **oder** die
-App zeigt das Banner „Maßangaben auf Teilstrecke unvollständig".
+(z. B. eine niedrige Unterführung bei einem hohen Fahrzeug).
 
 **Ursache:** Nicht jede reale Höhen-, Gewichts- oder Breitenbeschränkung ist
 in den zugrunde liegenden OpenStreetMap-Daten erfasst. Yapaia Go kann nur
@@ -159,11 +176,11 @@ Datenquelle, kein Software-Fehler, und wird bewusst offen kommuniziert statt
 verschwiegen.
 
 **Lösung:**
-1. **Das Banner „Maßangaben unvollständig" immer ernst nehmen** — an
-   solchen Streckenabschnitten selbst auf Beschilderung, Schranken und
-   Höhenwarner achten. Verlasse dich dort nicht blind auf die Route.
-2. Den Disclaimer bei der Ersteinrichtung und den dezenten Warnhinweis bei
-   Profilen über 2,7 m Höhe lesen — er beschreibt genau diesen Fall.
+1. **Immer selbst auf Beschilderung, Schranken und Höhenwarner achten** —
+   besonders auf kleinen Straßen, wo Maßangaben in OpenStreetMap oft fehlen.
+   Verlasse dich dort nicht blind auf die Route.
+2. Die Hinweise zur Nutzung bei der Ersteinrichtung und den Warnhinweis bei
+   Profilen über 2,7 m Höhe lesen — sie beschreiben genau diesen Fall.
 3. Bekannte, fehlende Beschränkungen kannst du selbst in OpenStreetMap
    nachtragen (`maxheight`, `maxweight`, `maxwidth`-Tags auf
    openstreetmap.org) — das kommt allen Nutzern der Karte zugute, nicht nur
@@ -184,11 +201,11 @@ außerhalb der installierten Kartenregion liegt.
 Kartenregion(en), oder es fehlt ein zusammenhängender Extrakt für eine
 grenzüberschreitende Route.
 
-**Lösung:** Der Meldung folgen — sie verlinkt direkt zur Regionsverwaltung
-(Einstellungen → Kartenregionen). Dort die fehlende Region herunterladen.
-Bei Routen über mehrere Länder/Regionen: sicherstellen, dass **alle**
-benötigten Regionen installiert sind und lückenlos aneinander angrenzen
-(die Regionsverwaltung zeigt die Abdeckung auf der Karte an).
+**Lösung:** Unter **⚙ → 🗺️ Karten verwalten** die fehlende Region
+installieren und danach einmal **„Fehlendes bauen"** tippen, damit auch
+Routing und Suche sie abdecken. Bei Routen über mehrere Länder/Regionen:
+sicherstellen, dass **alle** benötigten Regionen installiert sind und
+lückenlos aneinander angrenzen.
 
 ---
 
@@ -205,15 +222,18 @@ Berechtigungen (Scoped Tokens, iframe-Sandbox, Default-Deny für alle
 API-Aufrufe).
 
 **Lösung:**
-1. **Sofortmaßnahme:** Add-on deaktivieren — Store → betroffenes Add-on →
-   „Deaktivieren". Der Kill-Switch wirkt sofort.
-2. Unter Einstellungen → Sicherheit → Ereignisse nachsehen, welche
-   Zugriffsversuche protokolliert und blockiert wurden — jeder verbotene
-   Versuch (fremde API-Aufrufe, DOM-Zugriff, undeklarierte Hosts) wird
-   automatisch geblockt **und** geloggt, nichts kommt unbemerkt durch.
-3. Für die Zukunft: bevorzugt Add-ons aus der offiziellen Registry
-   installieren (durchlaufen eine Review-Checkliste) und beim Installieren
-   die angezeigten Berechtigungen tatsächlich lesen, bevor du bestätigst.
+1. **Sofortmaßnahme:** Add-on deaktivieren — **⚙ → 🧩 Add-on-Store →
+   Reiter „Updates" → Installierte Add-ons → „Deaktivieren"**. Der
+   Kill-Switch wirkt sofort.
+2. Jeder verbotene Versuch (fremde API-Aufrufe, DOM-Zugriff, undeklarierte
+   Hosts) wird automatisch geblockt **und** protokolliert. Eine eigene Ansicht
+   dafür gibt es in der Oberfläche noch nicht; abrufbar ist das Protokoll
+   über `GET /api/v1/security/events`.
+3. Für die Zukunft: nur signierte Add-ons aus dem Marktplatz installieren
+   (im Katalog „✓ Geprüft"), den **Entwicklermodus** ausgeschaltet lassen und
+   beim Installieren die angezeigten Berechtigungen tatsächlich lesen, bevor
+   du bestätigst. Versionen, die der Marktplatz sperrt, schaltet Go beim
+   nächsten Abgleich selbst ab.
 
 ---
 
@@ -246,8 +266,10 @@ kleinen Geräten (z. B. einer 4-GB-Proxmox-LXC) mehr Arbeitsspeicher, als
 verfügbar ist.
 
 **Lösung:**
-- **HA-Add-on:** Option `photon: false` setzen (Add-on-Konfiguration) oder
-  den JVM-Speicher über die Add-on-Optionen reduzieren.
+- **HA-Add-on:** in der Add-on-Konfiguration, Gruppe **Suche**,
+  „Adresssuche mit Photon" (`photon_enabled`) ausschalten oder
+  „Arbeitsspeicher für Photon (MB)" (`photon_xmx_mb`) verkleinern, dann das
+  Add-on neu starten.
 - **Compose/Proxmox:** in der `.env`-Datei `PHOTON_XMX` verkleinern, z. B.
   auf `512m` oder `256m`, und `docker compose up -d photon` neu starten.
 
@@ -260,17 +282,18 @@ bleiben durchsuchbar, nur mit etwas geringerer Toleranz bei Tippfehlern.
 ## W-14 — App ruckelt, während ein Add-on aktiv ist
 
 **Symptom:** Die App reagiert spürbar langsamer, während ein bestimmtes
-Add-on aktiv ist; ein Hinweis „Add-on gedrosselt" erscheint.
+Add-on aktiv ist.
 
 **Ursache:** Ein Add-on (z. B. eine rechenintensive Bilderkennung) nutzt
 dauerhaft zu viel CPU (mehr als 25 % über 60 Sekunden) auf demselben
 Mini-PC, auf dem auch die Navigation läuft.
 
-**Lösung:** Die App drosselt ein solches Add-on bereits automatisch und
-warnt sichtbar; nach wiederholten Abstürzen (mehr als 5) wird es sogar
-automatisch dauerhaft deaktiviert — Navigation und Kartendarstellung bleiben
-davon unberührt. Zusätzlich kannst du das betroffene Add-on manuell
-deaktivieren (Store → Add-on → „Deaktivieren") oder, falls angeboten, die
+**Lösung:** Die App drosselt ein solches Add-on bereits automatisch; nach
+wiederholten Abstürzen (mehr als 5) wird es sogar automatisch dauerhaft
+deaktiviert — Navigation und Kartendarstellung bleiben davon unberührt.
+Zusätzlich kannst du das betroffene Add-on manuell deaktivieren
+(**⚙ → 🧩 Add-on-Store → Reiter „Updates" → „Deaktivieren"**) oder, falls
+angeboten, die
 `runtime: external`-Variante wählen (läuft dann auf einem eigenen
 Gerät/Container statt auf dem Navi-Mini-PC).
 
@@ -285,7 +308,7 @@ Assistant (weiße Seite, fehlende Kartenkacheln, hängender Ladebalken).
 **Ursache:** Ein klassischer HA-Add-on-Fehler: Ressourcen (Skripte, Karten-
 Kacheln, WebSocket-Verbindung) werden mit absoluten statt relativen Pfaden
 angefragt und landen dadurch am falschen Ingress-Sub-Pfad
-(`/hassio_ingress/<token>/…`).
+(`/api/hassio_ingress/<token>/…`).
 
 **Lösung:**
 1. Add-on einmal neu starten: Home Assistant → Add-ons → Yapaia Go → Neu
@@ -307,7 +330,7 @@ leeren Konfiguration.
 
 **Ursache:** Dieser Fall sollte durch die Architektur ausgeschlossen sein —
 alle Nutzdaten liegen bewusst **außerhalb** des Containers (HA-Add-on:
-`/share/yapaia`; Compose: eigenständiges Docker-Volume), und jede
+`/share/yapaia`; Compose: das Verzeichnis `./data/`), und jede
 SQLite-Migration legt vorher automatisch eine Sicherungsdatei an. Tritt der
 Fall dennoch auf, deutet das auf einen Fehler in der Update-/Migrationslogik
 hin.
@@ -342,9 +365,10 @@ eine „halb" installierte, kaputte Region zu hinterlassen.
 
 **Lösung:** Die Fehlermeldung nennt exakt „benötigt vs. frei" — daran
 lässt sich ablesen, wie viel zusätzlicher Platz fehlt.
-- Nicht mehr benötigte Regionen löschen (Regionsverwaltung).
+- Nicht mehr benötigte Regionen löschen (**⚙ → 🗺️ Karten verwalten**).
 - Oder das Datenverzeichnis auf einen größeren Datenträger verlegen:
-  Compose → Volume-Pfad in `.env` anpassen; Proxmox-LXC → Datenträger
+  Compose → die Volume-Pfade (`./data/…`) in einer
+  `docker-compose.override.yml` umbiegen; Proxmox-LXC → Datenträger
   (`pct resize` bzw. über die Proxmox-Oberfläche) vergrößern.
 
 Danach den Download erneut starten.
@@ -391,34 +415,31 @@ Geräte-Zeitzone dauerhaft falsch: bitte als Fehler melden.
 
 ## I-01 — Die Add-on-Installation bricht ab
 
-Kein Wargame-Fall, sondern zwei konkrete Fehlermeldungen aus dem
-Supervisor-Protokoll, die beim Einrichten auftreten können. Beide sind am
-2026-09-02 auf einer echten HAOS-Instanz aufgetreten.
+Kein Wargame-Fall, sondern konkrete Fehlermeldungen aus dem
+Supervisor-Protokoll, die beim Einrichten auftreten können.
+
+> **Heutiger Stand:** Das Add-on wird nicht mehr auf dem Gerät gebaut. Der
+> Supervisor lädt das fertige Image `ghcr.io/yapaia/yapaia-go-<arch>:<version>`,
+> das für jede Version in CI gebaut wird. Die Abschnitte zu Fehlern **beim Bauen**
+> (`BUILD_FROM`, apt-Lock, `CACHED`) stammen aus der Zeit, als das Add-on noch
+> auf dem Gerät gebaut wurde; sie stehen hier für alle, die das Image selbst
+> bauen.
 
 ### „403 denied" beim Herunterladen des Images
 
 ```
-Failed to fetch manifest for ghcr.io/yapaia/yapaia-go-amd64:0.1.0 - 401
-Can't install ghcr.io/yapaia/yapaia-go-amd64:0.1.0:
-[403] Head "https://ghcr.io/v2/yapaia/yapaia-go-amd64/manifests/0.1.0": denied
+Failed to fetch manifest for ghcr.io/yapaia/yapaia-go-amd64:<version> - 401
+Can't install ghcr.io/yapaia/yapaia-go-amd64:<version>:
+[403] Head "https://ghcr.io/v2/yapaia/yapaia-go-amd64/manifests/<version>": denied
 ```
 
-**Ursache (behoben):** `yapaia_go/config.yaml` deklarierte einen
-`image:`-Schlüssel. Steht dort ein `image:`, **zieht** der Supervisor dieses
-Image aus einer Registry und baut nichts selbst. Das genannte Image hat aber
-nie existiert — `yapaia` ist nicht einmal der Namensraum dieses Repositories,
-und kein Workflow hat das Add-on-Image je gebaut oder veröffentlicht.
+**Ursache:** Der Supervisor findet das Image genau dieser Version nicht oder
+darf es nicht lesen — etwa, weil eine gerade veröffentlichte Version noch
+gebaut wird.
 
-**Lösung:** Der Schlüssel ist entfernt. Der Supervisor baut das Add-on jetzt
-**auf dem Gerät** aus dem `Dockerfile` — was `DOCS.md` und
-[Installations-Guide §A](installation.md#a-home-assistant-add-on) Schritt 2
-ohnehin immer beschrieben haben. Rechne mit **10–30 Minuten**; auf einem
-Raspberry Pi länger. Das ist normal und kein Hänger.
-
-Tritt der Fehler weiterhin auf: **⋮ → Nach Updates suchen** im Add-on-Store,
-damit der Supervisor die aktuelle `config.yaml` liest. Ein zuvor
-fehlgeschlagenes Add-on muss unter Umständen einmal entfernt und neu
-hinzugefügt werden.
+**Lösung:** Einige Minuten warten und im Add-on-Store **⋮ → Nach Updates
+suchen**, dann erneut installieren. Bleibt der Fehler bei einer Version
+bestehen, bitte als Fehler melden (mit Version und Architektur).
 
 ### „base name (${BUILD_FROM}) should not be blank"
 

@@ -413,8 +413,8 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                 {registryUnreachable ? 'Registry nicht erreichbar — per Datei installieren' : 'Add-on-Datei installieren'}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Add-on-Paket (.tar.gz) von USB-Stick oder Download installieren — funktioniert immer, auch ohne
-                Internet.
+                Add-on-Paket (.tar.gz) von USB-Stick oder Download installieren — auch ohne Internet. Pakete vom
+                Marktplatz sind signiert; unsignierte gehen nur im Entwicklermodus.
               </p>
               <input
                 type="file"

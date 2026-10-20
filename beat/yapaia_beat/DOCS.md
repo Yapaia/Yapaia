@@ -90,12 +90,12 @@ und unterbricht die Wiedergabe.
 ## Installation
 
 1. Repository hinzufügen:
-   [![Repository hinzufügen](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fapfelsafft%2Fradio)
+   [![Repository hinzufügen](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FYapaia%2Fyapaia)
    oder *Einstellungen → Add-ons → Add-on-Store → ⋮ → Repositories* →
-   `https://github.com/apfelsafft/radio`
-   (alternativ das Skript `install.sh` aus dem Repository verwenden).
-2. **Yapaia Beat** installieren und starten. Das Image wird lokal gebaut –
-   auf einem Raspberry Pi dauert das beim ersten Mal 15–30 Minuten.
+   `https://github.com/Yapaia/yapaia`
+   (alternativ das Skript `beat/install.sh` aus dem Repository verwenden).
+2. **Yapaia Beat** installieren und starten. Home Assistant lädt dafür ein
+   fertiges Image herunter; gebaut werden muss nichts.
 3. Beim ersten Start installiert das Add-on die gemeinsame **Yapaia-Integration**
    nach `/config/custom_components/yapaia` (dieselbe für alle Yapaia-Module) und
    zeigt eine Benachrichtigung.
@@ -472,8 +472,11 @@ Favoriten bleiben erhalten und werden automatisch zugeordnet.
 | `second_stick` | Zweiter Stick: `suche` (Standard), `gleichwertig` oder `aus` — siehe „Zweiter Stick" |
 | `background_scan_minutes` | Mit zweitem Stick: Suchlauf im Hintergrund alle n Minuten (0 = aus) |
 | `resume_last_station` | Nach Neustart weiterspielen |
+| `standby_minutes` | Empfang nach n Minuten ohne Zuhörer stoppen (0 = nie) — siehe „Standby" |
+| `announce_music_level` | Lautstärke der Musik während einer Ansage in % — siehe „Ansagen einmischen" |
 | `install_integration` | Integration automatisch installieren/aktualisieren |
 | `voice_commands` | Automation „Yapaia Beat Sprachbefehle“ in Home Assistant anlegen (Standard: an) |
+| `log_level` | Ausführlichkeit des Add-on-Logs: `debug`, `info`, `warning`, `error` |
 
 ## Fehlersuche
 
@@ -514,4 +517,4 @@ Favoriten bleiben erhalten und werden automatisch zugeordnet.
 - [rtl-sdr](https://osmocom.org/projects/rtl-sdr) (GPL-2.0), LAME, mpg123, PulseAudio-Tools
 
 Eine vollständige Liste aller verwendeten Projekte, Icons und Lizenzen steht in
-[CREDITS.md](https://github.com/apfelsafft/radio/blob/main/CREDITS.md).
+[CREDITS.md](https://github.com/Yapaia/yapaia/blob/main/beat/CREDITS.md).

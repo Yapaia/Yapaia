@@ -143,6 +143,10 @@ Schweregrade: 🔴 sicherheitsrelevant · 🟠 funktionskritisch · 🟡 Komfort
   Check ⇒ inkompatible Add-ons werden **deaktiviert mit Hinweis**, nie geladen-und-
   gecrasht; CI-Job „Referenz-Add-ons gegen neuen Core" in jeder Release-Pipeline;
   deprecation policy: v1-API lebt mindestens bis v2+1.
+- **Stand Go 0.56.0:** `core_api` wird bei der Installation und im
+  Store-Katalog geprüft; der Kompatibilitäts-Check beim Core-Start ist noch
+  nicht umgesetzt. Der Job „Referenz-Add-ons gegen neuen Core" läuft als
+  `addon-compat-check` in `go-release.yml`.
 - **Test:** E09-T7.
 
 ### W-13 🟡 Store ohne Internet / Registry nicht erreichbar

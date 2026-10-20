@@ -12,6 +12,7 @@ configuration:
     description: '"auto" or a value in dB (e.g. 29.7). Reduce if strong transmitters overload the stick.'
   ppm_correction:
     name: Frequency correction (ppm)
+    description: Crystal correction of the RTL-SDR stick.
   auto_follow:
     name: Automatic station following
     description: >-
@@ -19,10 +20,13 @@ configuration:
       list, PI code) or another DAB channel of the same station.
   follow_threshold:
     name: Station following threshold (%)
+    description: Below this reception quality Beat looks for an alternative.
   follow_delay_s:
     name: Station following delay (s)
+    description: How long reception must stay poor before Beat searches.
   follow_cross_band:
     name: Allow switching between FM and DAB+
+    description: If no better frequency is found in the same band, look for the same station in the other band.
   follow_full_search:
     name: Band search while following
     description: As a last resort, search the whole band for the station (PI code / service ID).
@@ -36,6 +40,7 @@ configuration:
     name: FM channel step (kHz)
   fm_scan_threshold_db:
     name: FM scan sensitivity (dB)
+    description: Minimum distance of a station above the noise. Lower = more (also weak) stations.
   fm_deemphasis_us:
     name: FM de-emphasis (µs)
     description: 50 µs in Europe, 75 µs in North America.
@@ -63,6 +68,7 @@ configuration:
       playing, so the station list follows you on the road. 0 = off.
   resume_last_station:
     name: Resume last station
+    description: After a restart, play the last station again.
   standby_minutes:
     name: Standby after (minutes)
     description: >-
@@ -78,7 +84,7 @@ configuration:
       Afterwards it comes back. 0 = music silent.
   install_integration:
     name: Install integration automatically
-    description: Installs/updates the Yapaia Beat integration (entities and Lovelace card) in /config/custom_components.
+    description: Installs/updates the shared "Yapaia" integration (entities and radio card) in /config/custom_components/yapaia.
   voice_commands:
     name: Voice commands
     description: >-

@@ -39,6 +39,7 @@ configuration:
     description: Zweistelliger Ländercode für die Logosuche (z. B. DE, AT, CH).
   fm_step_khz:
     name: FM-Kanalraster (kHz)
+    description: 100 kHz in Europa, 50 kHz für ein feineres Raster.
   fm_scan_threshold_db:
     name: FM-Suchlauf Empfindlichkeit (dB)
     description: Mindestabstand eines Senders zum Rauschen. Kleiner = mehr (auch schwache) Sender.
@@ -86,8 +87,8 @@ configuration:
   install_integration:
     name: Integration automatisch installieren
     description: >-
-      Installiert/aktualisiert die Yapaia Beat Integration (Entitäten und
-      Lovelace-Karte) in /config/custom_components.
+      Installiert bzw. aktualisiert die gemeinsame Integration „Yapaia“
+      (Entitäten und Radio-Karte) in /config/custom_components/yapaia.
   voice_commands:
     name: Sprachbefehle
     description: >-

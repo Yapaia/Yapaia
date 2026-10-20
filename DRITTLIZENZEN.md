@@ -71,7 +71,12 @@ Die YAML-Dateien unter `devices/` und `satellite/` gehören zu Yapaia
 (GPL-3.0-or-later). Die Firmware, die ESPHome daraus baut, enthält ESPHome
 selbst (GPL-3.0 / MIT) und wird von jedem Nutzer selbst erzeugt.
 
-## Home Assistant
+## Home Assistant und Integration „Yapaia“
 
 Die Integration unter `integration/` läuft in Home Assistant (Apache-2.0) und
-nutzt nur dessen öffentliche Schnittstellen.
+nutzt nur dessen öffentliche Schnittstellen. Sie enthält außerdem:
+
+| Baustein | Lizenz | Quelltext |
+|---|---|---|
+| sendspin-js mit noble-ciphers/-curves/-hashes und opus-encdec (Browser-Player für Music Assistant in der Radio-Karte) | Apache-2.0, MIT, BSD-3-Clause | [github.com/Sendspin/sendspin-js](https://github.com/Sendspin/sendspin-js); alle Lizenztexte in [`sendspin.LICENSES.txt`](integration/custom_components/yapaia/beat/www/sendspin.LICENSES.txt) |
+| crypt(3)-Verfahren für die Anmeldung am GL.iNet-Router (Yapaia Router), angepasst aus ha-glinet | MIT, © 2026 jpranathar | [github.com/metril/ha-glinet](https://github.com/metril/ha-glinet), Fassung in [`router/crypt.py`](integration/custom_components/yapaia/router/crypt.py) |

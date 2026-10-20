@@ -7,6 +7,13 @@ Suchindex — **ohne** dass eine OSM-Regression unbemerkt in ein Fahrzeug gelang
 Wartezeit), LI ca. 15 min. **Wargames:** W-08 (fehlende Höhen-/Gewichtsangaben),
 W-17 (veraltete Kartendaten), W-18 (Platte voll).
 
+> **Für Betreiber des Home-Assistant-Add-ons:** Dieses Runbook beschreibt den
+> Ablauf mit Abnahmeprüfung für alle, die Kartendaten für mehrere Fahrzeuge
+> bauen und ausrollen. Im Alltag genügt in Yapaia **⚙ → 🗺️ Karten verwalten**:
+> bei der Karte **„Update"** tippen, danach **„Fehlendes bauen"** — oder ein
+> Paket vom eigenen Kartenserver installieren. Die bisherigen Daten bleiben
+> stehen, bis die neuen fertig sind.
+
 > **Die eine Regel, die dieses Runbook durchsetzt:**
 > **Ein Datenupdate, dessen Golden-Route-Suite nicht grün ist, wird nicht
 > ausgerollt.** Nicht „mit Vorbehalt", nicht „der eine Fall ist bekannt rot" —
@@ -298,4 +305,5 @@ Was **nicht** bewiesen ist, sind die *Daten*: kein einziges deutsches OSM-Tag
 wurde gelesen, keine DE-Distanz wurde geroutet. Deshalb sind alle DE-Fälle
 weiterhin `unverified: true` und der Job `golden-routes-de` bleibt
 `continue-on-error`. Die Bedingungen, unter denen das aufgehoben werden darf,
-stehen als Checkliste im Kopf dieses Jobs in `.github/workflows/nightly.yml`.
+stehen als Checkliste im Kopf dieses Jobs in `.github/workflows/go-nightly.yml`
+(Repository-Wurzel).

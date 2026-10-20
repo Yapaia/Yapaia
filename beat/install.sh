@@ -5,7 +5,7 @@
 # Ausführen im Add-on "Terminal & SSH" / "Advanced SSH & Web Terminal"
 # (dort ist die "ha" CLI verfügbar):
 #
-#   curl -fsSL https://raw.githubusercontent.com/apfelsafft/radio/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Yapaia/yapaia/main/beat/install.sh | bash
 #
 # Optionen:
 #   (ohne)            Repository in den Add-on-Store eintragen und Add-on installieren
@@ -22,7 +22,7 @@
 # ==============================================================================
 set -euo pipefail
 
-REPO_URL="https://github.com/apfelsafft/radio"
+REPO_URL="https://github.com/Yapaia/yapaia"
 BRANCH="main"
 MODE="repo"
 ACTION="install"
@@ -106,7 +106,7 @@ install_or_update() {
         cur="$(addon_field "${slug}" version)"
         new="$(addon_field "${slug}" version_latest)"
         if [[ -n "${new}" && "${cur}" != "${new}" ]]; then
-            info "Aktualisiere ${slug} ${cur} → ${new} (das Bauen kann auf einem Raspberry Pi 15–30 Minuten dauern) …"
+            info "Aktualisiere ${slug} ${cur} → ${new} (das Herunterladen kann einige Minuten dauern) …"
             ha addons update "${slug}"
             ok "Aktualisiert auf ${new}"
         elif [[ "${MODE}" == "local" ]]; then
@@ -118,7 +118,7 @@ install_or_update() {
         fi
     else
         [[ "${ACTION}" == "update" ]] && die "Yapaia Beat ist nicht installiert."
-        info "Installiere ${slug} (das Bauen kann auf einem Raspberry Pi 15–30 Minuten dauern) …"
+        info "Installiere ${slug} (das Herunterladen kann einige Minuten dauern) …"
         ha addons install "${slug}"
         ok "Installiert"
         ha addons options "${slug}" --boot auto >/dev/null 2>&1 || true
@@ -152,7 +152,7 @@ if [[ "${ACTION}" == "uninstall" ]]; then
         ha addons uninstall "${SLUG}" --remove-config >/dev/null 2>&1 || ha addons uninstall "${SLUG}"
     fi
     [[ "${MODE}" == "local" ]] && rm -rf "${ADDONS_DIR:?}/${ADDON_DIR_NAME}"
-    warn "Die Integration unter /config/custom_components/yapaia_beat kann manuell entfernt werden."
+    warn "Die Integration unter /config/custom_components/yapaia wird auch von anderen Yapaia-Modulen genutzt und bleibt deshalb erhalten."
     ok "Fertig"
     exit 0
 fi
@@ -205,5 +205,5 @@ Nächste Schritte:
   5. Dashboard-Karte hinzufügen: "Yapaia Beat" im Kartenauswahl-Dialog suchen.
 
 Update später einfach über Home Assistant (Einstellungen → Add-ons) oder mit:
-  curl -fsSL https://raw.githubusercontent.com/apfelsafft/radio/${BRANCH}/install.sh | bash -s -- --update$( [[ "${MODE}" == "local" ]] && echo " --local")
+  curl -fsSL https://raw.githubusercontent.com/Yapaia/yapaia/${BRANCH}/beat/install.sh | bash -s -- --update$( [[ "${MODE}" == "local" ]] && echo " --local")
 EOF

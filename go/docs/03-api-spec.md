@@ -7,7 +7,7 @@
 
 
 **Single Source of Truth:** Alle Payload-Schemata werden als JSON-Schema in
-`packages/shared/schemas/` gepflegt und generieren daraus TypeScript-Typen,
+`packages/shared/src/schemas/` gepflegt und generieren daraus TypeScript-Typen,
 Fastify-Validierung, OpenAPI-Doku und die MQTT-Payload-Doku. Dieses Dokument
 definiert die Verträge; bei Konflikt gewinnt `packages/shared`.
 
@@ -100,12 +100,17 @@ interface NavState {
 
 ## 2. REST-API (Core)
 
+Die Tabellen sind ein Auszug. Vollständig und maschinell aktuell gehalten ist
+[`openapi.json`](openapi.json) (aus den registrierten Fastify-Routen
+generiert, CI-Gate `pnpm openapi:check`).
+
 ### System
 | Methode & Pfad | Zweck |
 |---|---|
 | `GET /api/v1/health` | Liveness: `{status, version, services:{valhalla, photon, gpsd, mqtt}}` je `ok|degraded|down` |
-| `GET /api/v1/system/info` | Versionen, Kartenregion(en), Datenstand (OSM-Timestamp), Disk-Frei |
-| `GET/PATCH /api/v1/settings` | App-Einstellungen (Einheiten, Sprache, Tag/Nacht-Auto, GPS-Priorität, MQTT-Config …) |
+| `GET /api/v1/system/resources` | RAM/Disk frei vs. gesamt (W-12/W-18) |
+| `GET /api/v1/system/preflight` | Installationsprüfung (🩺): Kacheln, Routing, Suche, Position, RAM, Platz, MQTT — je mit Handlungsanweisung |
+| `GET/PATCH /api/v1/settings` | App-Einstellungen (Einheiten, Sprache, Tag/Nacht-Auto, GPS-Priorität, MQTT-Config …); dazu `GET /settings/defaults` und `GET /settings/{key}` |
 
 ### Karten & Tiles
 | Methode & Pfad | Zweck |
@@ -113,7 +118,7 @@ interface NavState {
 | `GET /tiles/{region}.pmtiles` | PMTiles mit HTTP-Range-Support |
 | `GET /api/v1/map/styles` | verfügbare Styles (id, name, preview) |
 | `GET /api/v1/map/styles/{id}` | MapLibre-Style-JSON (URLs auf lokale Tiles umgeschrieben) |
-| `GET/POST/DELETE /api/v1/map/regions` | installierte Regionen; POST startet Download-Job (`202` + job_id) |
+| `GET/POST /api/v1/map/regions` · `DELETE /api/v1/map/regions/{id}` | installierte Regionen; POST startet Download-Job (`202` + job_id); Katalog unter `GET /api/v1/map/regions/catalog` |
 | `GET /api/v1/jobs/{id}` | Download-/Import-Job-Status (progress, eta, error) |
 
 ### Position
@@ -145,20 +150,31 @@ interface NavState {
 ### Suche & Favoriten
 | Methode & Pfad | Zweck |
 |---|---|
-| `GET /api/v1/search?q=&limit=&lat=&lon=` | Geocoding (Photon → Fallback Nominatim); bias auf Position |
+| `GET /api/v1/search?q=&limit=&lat=&lon=` | Geocoding (Photon → Offline-Index `lite` → Nominatim nur mit `online_fallback`); bias auf Position |
 | `GET /api/v1/search/reverse?lat=&lon=` | Reverse-Geocoding |
 | `GET/POST /api/v1/favorites` | Favoriten (name, latlng, icon, category: home|campsite|poi|custom, sort_order) |
 | `PUT/DELETE /api/v1/favorites/{id}` | Ändern/Löschen |
-| `GET/DELETE /api/v1/history` | Suchverlauf/Zielverlauf (löschen: alles oder einzeln) |
+| `GET/POST/DELETE /api/v1/history` · `DELETE /api/v1/history/{id}` | Such-/Zielverlauf (löschen: alles oder einzeln) |
 
 ### Add-ons (Details in docs/05)
 | Methode & Pfad | Zweck |
 |---|---|
 | `GET /api/v1/addons` | installierte Add-ons + Status |
-| `POST /api/v1/addons/install` | `{registry_id | url}` → Installation (Job) |
-| `POST /api/v1/addons/{id}/enable|disable` · `DELETE .../{id}` | Lifecycle |
+| `POST /api/v1/addons/install` | Schritt 1: `{source:'upload', data, sha256?, signature?}` oder `{source:'url', url, sha256, signature?}` → prüft Paket, Manifest, `core_api`, Signatur und liefert `pending_id` + Scopes/Warnungen; installiert noch nichts |
+| `POST /api/v1/addons/install/{pendingId}/confirm` | Schritt 2: Scopes bestätigt → entpacken, DB-Eintrag (deaktiviert) |
+| `POST /api/v1/addons/{id}/enable` \| `disable` · `DELETE /api/v1/addons/{id}` | Lifecycle; `enable` verweigert gesperrte oder unlizenzierte Add-ons |
+| `POST /api/v1/addons/{id}/mqtt/enable` \| `disable` | Add-on-Events nach MQTT ein/aus (E09-T8) |
 | `GET /api/v1/addons/registry` | Store-Katalog (lokaler Cache der Registry) |
 | `POST /api/v1/addons/registry/sync` | Katalog aktualisieren (braucht Internet) |
+| `POST /api/v1/addons/registry/install` | `{id}` → Schritt 1 für einen Katalog-Eintrag |
+| `GET/PUT /api/v1/addons/marketplace` · `PUT .../marketplace/developer-mode` | Marktplatz-Verbindung, Entwicklermodus ([`marktplatz.md`](marktplatz.md)) |
+| `GET /api/v1/addons/{id}/license` · `POST .../license/activate` | Lizenzstatus / Lizenz für diese Installation holen |
+
+Von Add-ons selbst (scoped Token, `apps/core/src/addons/scopeMatrix.ts`)
+genutzt: `POST /addons/{id}/events`, `POST /addons/{id}/notifications`,
+`GET/PUT/DELETE /addons/{id}/storage/{key}`, `GET /addons/proxy?url=` sowie
+`GET /addons/{id}/service` und `GET /addons/{id}/license` (jeweils nur die
+eigene Id); nur für den Betreiber: `POST /addons/{id}/token`.
 
 ### Sicherheit / Sandbox-Audit (E09-T6, W-10; Details in `e2e/security/README.md`)
 | Methode & Pfad | Zweck |

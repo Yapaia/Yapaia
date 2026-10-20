@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "core_api": "*",
   "author": "Yapaia Go",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "description": "Zeichnet die gefahrene Strecke als GPX auf (mit Segment-Split bei GPS-Verlust) -- Start/Stop, Distanz, Export.",
   "requires_online": false,
   "ui": {

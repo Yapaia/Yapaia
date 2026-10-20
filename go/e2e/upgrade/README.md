@@ -15,7 +15,7 @@ nur ein Neustart-Test). Laut Task-Spec (`tasks/E08-home-assistant.md`
 E08-T6) läuft dieser Test daher in der **Release-Pipeline**
 (docs/07-testing-qa.md §6 "Release": "Nightly-Suite + ... + Update von
 Vorversion ohne Kartendaten-Verlust", siehe auch §7 Release-Gate-Checkliste
-G4) -- er ist NICHT in `.github/workflows/ci.yml` als Merge-Blocker verdrahtet
+G4) -- er ist NICHT in `.github/workflows/go-ci.yml` als Merge-Blocker verdrahtet
 und soll das auch nicht sein, solange kein n-1-Image existiert.
 
 Ab dem ersten getaggten Release (`vX.Y.Z`-Image in der Registry) kann eine
@@ -24,16 +24,16 @@ Release-Pipeline-Stage wie folgt aussehen:
 ```yaml
 - name: Upgrade-E2E (n-1 -> n)
   env:
-    PREV_IMAGE: ghcr.io/<org>/yapaia-core:${{ steps.prev_tag.outputs.tag }}
-    NEW_IMAGE: ghcr.io/<org>/yapaia-core:${{ github.ref_name }}
+    PREV_IMAGE: ghcr.io/<owner>/<repo>/core:${{ steps.prev_tag.outputs.tag }}
+    NEW_IMAGE: ghcr.io/<owner>/<repo>/core:${{ github.ref_name }}
   run: e2e/upgrade/run-upgrade-test.sh
 ```
 
 ## Manuell ausführen
 
 ```bash
-PREV_IMAGE=ghcr.io/<org>/yapaia-core:v0.9.0 \
-NEW_IMAGE=ghcr.io/<org>/yapaia-core:v1.0.0 \
+PREV_IMAGE=ghcr.io/<owner>/<repo>/core:v0.9.0 \
+NEW_IMAGE=ghcr.io/<owner>/<repo>/core:v1.0.0 \
   ./e2e/upgrade/run-upgrade-test.sh
 ```
 

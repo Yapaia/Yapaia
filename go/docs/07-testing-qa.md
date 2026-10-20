@@ -17,14 +17,14 @@ zugehörigen Tests **lokal grün** laufen und in CI reproduzierbar sind.
 |---|---|---|---|
 | Unit | Vitest | reine Logik: ETA-Berechnung, Map-Matching, Formatter, Schema-Validierung, Ansage-Schwellen | ≥ 90 % auf `packages/shared` + Services-Logik |
 | Integration | Vitest + Testcontainers/Docker | Core ↔ Valhalla/Photon/gpsd-Mock/MQTT-Broker (mosquitto im Container) | jeder REST-/WS-/MQTT-Vertrag |
-| Contract | JSON-Schema-Validierung | jede Bus-/WS-/MQTT-Payload gegen `packages/shared/schemas` | 100 % der Topics |
+| Contract | JSON-Schema-Validierung | jede Bus-/WS-/MQTT-Payload gegen `packages/shared/src/schemas` | 100 % der Topics |
 | E2E | Playwright (Chromium) | reale UI-Flows gegen `docker compose` mit **Liechtenstein/Monaco-Extrakt** (klein, schnell in CI) | Kern-Flows (s. §5) |
 | Performance | Playwright-Traces + eigene fps-/RSS-Probes | Budgets aus docs/00 | jede Release-Pipeline |
 | Hardware/Manuell | Checkliste | echtes GPS, echter Mini-PC, echte Fahrt | vor jedem Release durch Menschen |
 
 ## 2. GPS-Simulator (zentrales Testwerkzeug, gebaut in E02-T4)
 
-- Modul `apps/core/src/position/simulator.ts` + CLI/REST-Steuerung
+- Modul `apps/core/src/position/simulator/` + CLI/REST-Steuerung
   (`PUT /position/source {simulator}`, `POST /simulator/play {track, speed_factor}`).
 - Spielt Tracks ab: (a) GPX-Dateien, (b) **Routen-Geometrien aus Valhalla selbst**
   (perfekte Fahrt), (c) mutierte Varianten: Rauschen (±3–25 m), GPS-Aussetzer,
@@ -146,5 +146,6 @@ Fixture-Datei `e2e/golden-routes.json` mit Fällen gegen den CI-Kartenextrakt
       [`docs/licenses.md`](licenses.md), generiert von `scripts/generate-licenses.mjs`.
       CI prüft im Job `dependency-audit`, dass das Inventar zum Abhängigkeitsstand
       passt, und lässt **Copyleft im ausgelieferten Bundle fehlschlagen** (GPL-
-      Abhängigkeit ⇒ rot). Die ODbL-Attribution ist zusätzlich per E2E-Assertion
+      Drittabhängigkeit ⇒ rot; das Gate prüft Abhängigkeiten, Yapaia selbst
+      steht unter GPL-3.0-or-later). Die ODbL-Attribution ist zusätzlich per E2E-Assertion
       abgesichert (Nachweise in `docs/licenses.md` §1).

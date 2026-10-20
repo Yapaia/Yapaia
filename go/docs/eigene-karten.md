@@ -83,14 +83,22 @@ anderem Schema lädt ohne Fehler und zeigt trotzdem nichts.
 
 Für jede Region aus der Kartenliste — ohne eine einzige Datei anzufassen:
 
-1. In Yapaia **„Karten verwalten"** (🗺️ rechts oben) öffnen.
+1. In Yapaia **⚙ → 🗺️ Karten verwalten** öffnen.
 2. Bei der Region **„Installieren"** drücken — das baut die Karte.
 3. Danach einmal **„Fehlendes bauen"** — das baut Routinggraph und Suchindex für
    alle installierten Karten.
-4. Mit **„Installation prüfen"** (🩺) kontrollieren: Karte, Routing und Suche
+4. Mit **⚙ → 🩺 Installation prüfen** kontrollieren: Karte, Routing und Suche
    sollten grün sein.
 
 Mehr dazu: [installation.md §C.3 und §C.3a](installation.md#c3-kleine-region--direkt-auf-dem-gerät).
+
+**Noch einfacher mit einem eigenen Kartenserver:** Wer einen Yapaia-Kartenserver
+betreibt (er baut Karte, Suche und Routing auf einem stärkeren Rechner), trägt
+unter **⚙ → 🗺️ Karten verwalten → Kartenserver** dessen Adresse und
+Download-Token ein. Seine Pakete erscheinen dann in der Kartenliste und lassen
+sich mit „Installieren" übernehmen, ohne auf dem Gerät zu bauen. Details:
+[`yapaia_go/DOCS.md`](../yapaia_go/DOCS.md), Abschnitt „Maps from your own map
+server".
 
 ---
 
@@ -189,8 +197,9 @@ services/photon/download-index.sh de   # vorgebauter Index für ein Land
 
 Das Ergebnis landet in `data/photon/photon_data/`. Dessen Inhalt nach
 `/share/yapaia/photon/photon_data/` legen (dort muss danach ein Ordner
-`elasticsearch/` liegen), in der Add-on-Konfiguration
-`photon_enabled: true` setzen und das Add-on neu starten. Auf einer 8-GB-VM
+`elasticsearch/` liegen), in der Add-on-Konfiguration (Gruppe „Suche")
+„Adresssuche mit Photon" (`photon_enabled`) einschalten und das Add-on neu
+starten. Auf einer 8-GB-VM
 lieber beim Lite-Index bleiben —
 [installation.md §C.6](installation.md#c6-empfehlung-bei-8-gb-photon-abschalten).
 
@@ -198,7 +207,7 @@ lieber beim Lite-Index bleiben —
 
 ## 6. Kontrolle
 
-1. **„Installation prüfen"** (🩺) in Yapaia: meldet getrennt, ob Karte,
+1. **⚙ → 🩺 Installation prüfen** in Yapaia: meldet getrennt, ob Karte,
    Routing und Suche bereit sind, und bei einem Fehler, was fehlt.
 2. **Add-on-Protokoll** (Einstellungen → Add-ons → Yapaia Go → Protokoll):
    - `Skipping .pmtiles file with an invalid region name` → Dateiname prüfen (§5.1).
@@ -217,9 +226,10 @@ lieber beim Lite-Index bleiben —
 - Die Speicher- und Zeitangaben sind Größenordnungen (siehe
   [installation.md §C.5](installation.md#c5-ganzes-land-deutschland--nicht-auf-der-haos-vm)),
   keine Messungen auf eurer Hardware.
-- Eine fertige `.pmtiles`-Datei per **Download-Adresse** eintragen, statt sie
-  per Samba abzulegen, ist im Kern vorbereitet (`custom-sources.json`), aber
-  noch nicht in der Oberfläche erreichbar.
+- Eine einzelne fertige `.pmtiles`-Datei per **Download-Adresse** eintragen,
+  statt sie per Samba abzulegen, ist im Kern vorbereitet
+  (`custom-sources.json`), aber noch nicht in der Oberfläche erreichbar. Fertige
+  Komplettpakete gibt es über einen eigenen Kartenserver (§4).
 
 Verwandt: [Runbook: Kartendaten aktualisieren](data-update-runbook.md) — der
 Ablauf mit Abnahmeprüfung für ein Update auf neue OSM-Daten.

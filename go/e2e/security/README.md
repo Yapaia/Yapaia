@@ -101,6 +101,17 @@ zum Zeitpunkt dieses Commits). *Event* = die `vector`-Id, die die Suite über
 | 19 | `bridge.source_spoofed` | Ein **zweites, fremdes** iframe schickt eine protokollkorrekte `widgets.update`-Nachricht *und* eine gefälschte `security-violation` an den Host | `apps/web/src/addons/bridge.ts:190` — Source-Pinning `event.source === iframe.contentWindow` | Der Widget-Text bleibt `armed` (die gespoofte Methode lief nie); die gefälschte Selbstmeldung taucht **nicht** im Log auf — ein Add-on kann keinem anderen etwas anhängen | `bridge.source_spoofed` |
 | — | (Teardown) | Disable des Add-ons | `apps/core/src/addons/ui-host.ts` (Live-`enabled`-Gate) + `bridge.destroy()` | iframe **und** Widget verschwinden rückstandsfrei | — |
 
+### Marktplatz-Vektoren (seit Go 0.56.0) — nicht Teil dieser Suite
+
+`securityEvents.ts` kennt zusätzlich `addon.signature`, `addon.revoked` und
+`addon.license` (Signatur, Sperrliste, Lizenz, [`docs/marktplatz.md`](../../docs/marktplatz.md)).
+Diese Suite schaltet vor jeder Installation den Entwicklermodus ein
+(`support/helpers.ts#installTarball`), damit die unsignierten Angriffs-Pakete
+die Tarball- und Sandbox-Prüfungen überhaupt erreichen. Die drei
+Marktplatz-Vektoren prüft sie deshalb nicht; das Verhalten (Ablehnen,
+Deaktivieren) decken die Unit-Tests in
+`apps/core/src/addons/marketplaceTrust.test.ts` ab.
+
 ### Selbstmeldung — was sie beweist und was nicht
 
 Die Vektoren 12 und 13 sind die **einzigen**, deren Verstoß der Core prinzipiell
@@ -177,8 +188,8 @@ waren.
 
 ## Release-Pipeline (Akzeptanzkriterium 3)
 
-`.github/workflows/ci.yml`, Job **`Security Suite (Sandbox-Escape, E09-T6, W-10)`** —
-läuft bei jedem Push/PR und ist damit Teil jeder Release-Pipeline. Der Job
+`.github/workflows/go-ci.yml`, Job **`Security Suite (Sandbox-Escape, E09-T6, W-10)`** —
+läuft bei jedem Pull Request und ist damit Teil jeder Release-Pipeline. Der Job
 führt aus: Typecheck der Suite, `pnpm e2e:security`, und den
 Mutations-Nachweis.
 

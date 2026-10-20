@@ -24,6 +24,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
+      "@yapaia/shared/marketplace": ["packages/shared/src/marketplace"],
       "@yapaia/shared": ["packages/shared/src"],
       "@yapaia/ui": ["packages/ui/src"],
       "@yapaia/addon-sdk": ["packages/addon-sdk/src"],

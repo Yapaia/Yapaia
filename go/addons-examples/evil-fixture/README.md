@@ -63,5 +63,5 @@ cd addons-examples/evil-fixture && node build.mjs   # -> dist/evil-fixture.tgz
 ```
 
 Die Suite selbst ruft `build.mjs` **nicht** auf, sondern baut den Tarball
-in-process aus denselben Dateien (`e2e/security/support/evilFixture.ts`), damit
+in-process aus denselben Dateien (`e2e/security/support/helpers.ts#buildEvilFixtureTarball`), damit
 der Lauf ohne System-`tar` und ohne Vorab-Build-Schritt reproduzierbar ist.

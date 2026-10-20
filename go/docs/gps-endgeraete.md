@@ -3,6 +3,14 @@
 **Stand:** 2026-09-02. Vorbereitung, damit die Umsetzung zusammen mit dem
 Ergebnis des 0.1.6-Tests eingebaut werden kann.
 
+> **Inzwischen umgesetzt.** Diese Seite ist die Analyse von damals. Der unten
+> vorgeschlagene zweite Weg (B-05) ist gebaut: die Positionsquelle
+> **`gps_source: companion_app`** (bis 0.8.2 `ha_tracker`), auswählbar unter
+> **⚙ → 🩺 Installation prüfen**. Auch das Wachhalten des Bildschirms (§7)
+> gibt es inzwischen. Für die Einrichtung gilt das
+> [User Manual](manual.md#where-your-position-comes-from) (englisch) bzw.
+> [`yapaia_go/DOCS.md`](../yapaia_go/DOCS.md).
+
 Die Ausgangsfrage: Telefon, iPad und Android-Autoradio haben alle einen
 GPS-Sensor. Yapaia wird ohnehin per Browser bedient. Wie kommen diese Daten
 in die Navigation?
@@ -25,8 +33,9 @@ Notbehelf:
 * Die Prioritätskette ist `gpsd > browser > simulator` (ADR-007). Ohne
   angeschlossenes USB-GPS **gewinnt der Browser automatisch** — es muss
   nichts umgestellt werden.
-* Die Add-on-Option `gps_source` (`usb|network|ha_tracker|none`) schaltet den
-  gpsd-Dienst im Container an oder aus und wählt seit 0.3.1 zusätzlich die
+* Die Add-on-Option `gps_source` (heute `usb|network|companion_app|none`;
+  `companion_app` hieß damals `ha_tracker`) schaltet den gpsd-Dienst im
+  Container an oder aus und wählt seit 0.3.1 zusätzlich die
   HA-Tracker-Quelle. Sie hat in **keinem** Fall Einfluss darauf, ob
   Browser-Positionen angenommen werden — der Browser-Weg funktioniert bei
   jedem Wert.

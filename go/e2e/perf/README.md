@@ -99,7 +99,7 @@ der 200-ms-Verschlechterung, die das Gate fangen muss (Unit-Test
 ### ⚠️ Wo das Regressions-Gate heute NICHT scharf ist
 
 Klartext, damit niemand mehr Schutz annimmt als da ist: **im per-PR-CI-Job
-gatet derzeit nur das absolute Budget-Tor.** Der Job (`.github/workflows/ci.yml`,
+gatet derzeit nur das absolute Budget-Tor.** Der Job (`.github/workflows/go-ci.yml`,
 „Performance-Budgets") lädt das Ergebnis als Artefakt **hoch**, holt aber
 keines herunter — es wird also kein `PERF_BASELINE` gesetzt, und ohne Referenz
 meldet `trend.ts` „keine Referenzmessung" statt zu gaten.
@@ -155,7 +155,7 @@ Gemessen **nach** der Last der übrigen Specs (`90-rss.spec.ts` läuft zuletzt).
 
 **Nicht messbar: Valhalla, Photon, gpsd, und damit auch die Summe.** In der
 per-PR-Pipeline läuft keiner dieser Dienste als langlebiger Container:
-`.github/workflows/ci.yml` startet in `valhalla-li-build`/`golden-routes-li`
+`.github/workflows/go-ci.yml` startet in `valhalla-li-build`/`golden-routes-li`
 kurzzeitig einen Valhalla auf dem winzigen Liechtenstein-Graphen für einen
 Routing-Smoke-Test, `photon-setup` startet Photon ohne echten Index, gpsd kommt
 überhaupt nicht vor. Selbst dort, wo ein Container läuft, wäre sein RSS auf
@@ -165,8 +165,9 @@ einem LI-Extrakt keine Aussage über ein Budget, das `docs/01 §4` für den
 Diese vier Zeilen erscheinen deshalb als ⚪ `not_measured` **mit Begründung** im
 Artefakt und im Trend-Kommentar. Sie werden nicht geschätzt und nicht
 hochgerechnet. Wo sie hingehören: der nightly-Job `photon-li-nightly` gibt
-bereits `docker stats` unter Last aus; die DE-Zahlen gehören an den nightly
-DE-Job bzw. auf die manuelle Hardware-Checkliste (`docs/07 §7`).
+`docker stats` unter Last aus (derzeit zurückgestellt, nur per
+`workflow_dispatch`, siehe `docs/backlog.md` B-02); die DE-Zahlen gehören an
+den DE-Job bzw. auf die manuelle Hardware-Checkliste (`docs/07 §7`).
 
 ---
 
@@ -216,7 +217,7 @@ PERF_SOAK=1 PERF_SOAK_DURATION_S=86400 npx playwright test -c e2e/perf/playwrigh
 Der Lauf ist **parametrisiert**: der Kurzlauf beweist den Mechanismus, der
 24-h-Lauf beweist die Aussage. Im Repository ist bisher nur der Kurzlauf
 ausgeführt worden; der 24-h-Lauf hängt am Wochen-Cron
-(`.github/workflows/nightly.yml`, Job `perf-soak-24h`, sonntags) -- aber nur,
+(`.github/workflows/go-nightly.yml`, Job `perf-soak-24h`, sonntags) -- aber nur,
 wenn die Repo-Variable `PERF_SOAK_RUNNER` einen Runner nennt, der 24 h
 durchhält. Auf `ubuntu-latest` bricht GitHub nach 6 h ab; dort lief er bis
 2026-10-04 jede Woche sechs Stunden lang ins Leere. Manuell:

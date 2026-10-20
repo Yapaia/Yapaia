@@ -94,5 +94,5 @@ LABEL \
     io.hass.type="addon" \
     io.hass.version="${BUILD_VERSION}" \
     org.opencontainers.image.title="Yapaia Beat" \
-    org.opencontainers.image.source="https://github.com/apfelsafft/radio" \
+    org.opencontainers.image.source="https://github.com/Yapaia/yapaia" \
     org.opencontainers.image.licenses="GPL-3.0-or-later"

@@ -61,7 +61,7 @@ export type {
 
 // --- licensing (docs/marktplatz.md) ------------------------------------------
 export { verifyLicense, type VerifyLicenseOptions, type VerifyLicenseResult } from './license.js';
-export { OFFICIAL_MARKETPLACE_KEYS, type LicensePayload, type MarketplaceKey } from '@yapaia/shared';
+export { OFFICIAL_MARKETPLACE_KEYS, type LicensePayload, type MarketplaceKey } from '@yapaia/shared/marketplace';
 
 // --- transports --------------------------------------------------------------
 export { connectPostMessage, type PostMessageTransportOptions } from './postMessageTransport.js';

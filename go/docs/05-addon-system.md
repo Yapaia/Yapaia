@@ -21,8 +21,9 @@ einen Store; klare API; begrenzte Rechte (Sandbox + Scopes).
 
 ### Typ B: Service-Add-on (Backend-Plugin)
 - Eigenständiger Prozess: entweder **Node-Prozess, vom Core gestartet**
-  (Manifest `runtime: node18`, läuft mit `--experimental-permission`-Flags,
-  eingeschränkter FS-Zugriff auf eigenes Datenverzeichnis) oder **externer
+  (Manifest `runtime: node18`/`node20`, läuft mit Nodes Permission-Modell
+  `--permission` bzw. `--experimental-permission`, eingeschränkter FS-Zugriff
+  auf eigenes Datenverzeichnis) oder **externer
   Container/Dienst**, der sich mit Add-on-Token verbindet (`runtime: external`).
 - Spricht Core-**REST + WebSocket** mit einem **scoped Token** – exakt dieselbe
   öffentliche API wie alle anderen Clients. Keine internen Importe, keine
@@ -40,7 +41,7 @@ Ein Add-on-Paket darf beide Teile enthalten (z. B. Stauwarner: Service + Overlay
   "id": "com.example.traffic-warner",
   "name": "Stauwarner",
   "version": "1.2.0",
-  "core_api": "^1.0",
+  "core_api": "*",
   "author": "…", "license": "MIT",
   "description": "Live-Verkehrslage als Overlay + Umfahrungsvorschläge",
   "requires_online": true,
@@ -58,6 +59,11 @@ Ein Add-on-Paket darf beide Teile enthalten (z. B. Stauwarner: Service + Overlay
 }
 ```
 
+`core_api` ist eine Semver-Range gegen die Version von `@yapaia/core`
+(derzeit 0.0.x), nicht gegen die Add-on-Version von Yapaia Go in Home
+Assistant. Bis zum ersten Release der Add-on-API: `"*"`. Details:
+[`addon-dev-guide.md`](addon-dev-guide.md#3-manifest-referenz-yapaia-addonjson).
+
 ### Permission-Scopes (v1, erweiterbar)
 | Scope | Erlaubt |
 |---|---|
@@ -68,7 +74,7 @@ Ein Add-on-Paket darf beide Teile enthalten (z. B. Stauwarner: Service + Overlay
 | `widget.register` | UI-Widgets in Slots anbieten |
 | `events.publish` | Events unter `addon/{id}/*` publizieren (auch → MQTT `yapaia/addon/{id}/*`, E09-T8: Rate-Limit 5 msg/s pro Add-on, Payload ≤ 16 KB, pro Add-on abschaltbar) |
 | `storage.own` | Key-Value + Dateien im eigenen Datenverzeichnis |
-| `net.fetch:<host>` | Outbound-HTTP nur zu deklarierten Hosts (Service-Typ; Core erzwingt via Proxy) |
+| `net.fetch:<host>` | Outbound-HTTP nur zu deklarierten Hosts (Service-Typ; Core erzwingt via Proxy). Roher Socket-Egress eines vom Core gestarteten Node-Services wird **nicht** eingedämmt — dafür `runtime: external` (siehe `e2e/security/README.md`) |
 | `ha.notify` | Notification über HA senden |
 | `camera.view` | Kamera-Streams einbetten (nur UI-seitig, URLs aus Nutzer-Config) |
 
@@ -79,14 +85,16 @@ ein Add-on darf das Fahrzeug niemals „still" umleiten (Wargame W-10).
 
 ## 3. Add-on-SDK (`@yapaia/addon-sdk`)
 
-TypeScript-Paket, kapselt postMessage (UI) bzw. REST/WS (Service) hinter einer API:
+TypeScript-Paket, kapselt postMessage (UI) bzw. REST/WS (Service) hinter einer API
+(Skizze; die vollständige Oberfläche steht im
+[Entwicklungsleitfaden §6](addon-dev-guide.md#6-sdk-oberfläche-im-überblick)):
 
 ```ts
-const yapaia = await YapaiaAddon.connect();          // handshake, prüft Scopes
+const yapaia = await connectAddon();                 // erkennt den Transport, Handshake
 yapaia.position.subscribe(pos => …);                 // pos.read
 yapaia.nav.state();                                  // nav.read
-yapaia.map.addLayer({ id, type:'geojson', data });   // map.layer.write
-yapaia.map.addMarkers('campsites', markers);         // inkl. Klick-Callbacks
+yapaia.map.addLayer({ id, data, render: 'line' });   // map.layer.write
+yapaia.map.addMarkers(…);                            // ohne Klick-Rückmeldung (siehe Leitfaden §9)
 yapaia.widgets.update('traffic-status', { text, severity });
 yapaia.events.publish('jam-detected', payload);      // → WS + MQTT
 yapaia.storage.set('lastSync', ts);
@@ -94,8 +102,9 @@ yapaia.route.propose({ waypoints, reason: 'Stau A8' }); // UI fragt Nutzer
 ```
 
 Der SDK-Vertrag ist Teil der versionierten Core-API (`core_api` im Manifest,
-semver-Check bei Installation und bei Core-Updates; inkompatible Add-ons werden
-deaktiviert statt zu crashen — Wargame W-11).
+Semver-Check bei der Installation und im Store-Katalog — Wargame W-11). Ein
+erneuter Abgleich bereits installierter Add-ons nach einem Core-Update, wie ihn
+W-11 vorsieht, ist noch nicht umgesetzt.
 
 ## 4. Widget-Slots & Map-Layer (Frontend-Integrationspunkte)
 
@@ -118,7 +127,7 @@ zu Core-Widgets. Dadurch: keine Core-Änderung pro Add-on.
 - **Updates:** Store zeigt Updates beim Registry-Sync; ein-Klick-Update mit
   Rollback (alte Version bleibt bis erfolgreichem Start erhalten).
 - **Kuratierung v1:** PR ins Registry-Repo + Review-Checkliste (Scopes minimal,
-  Lizenz, kein obfuskierter Code). **Seit Go 0.47.0:** Release-Signaturen
+  Lizenz, kein obfuskierter Code). **Seit Go 0.56.0:** Release-Signaturen
   (Ed25519, `ysig1`), Lizenzen pro Installation und Sperrliste über den
   Marktplatz — siehe [`marktplatz.md`](marktplatz.md). Unsignierte Pakete nur
   im Entwicklermodus.

@@ -23,7 +23,8 @@ stop there. The rest is here for when you need it.
 8. [Home Assistant](#home-assistant)
 9. [Making it yours](#making-it-yours)
 10. [Maps and regions](#maps-and-regions)
-11. [When something is wrong](#when-something-is-wrong)
+11. [Add-ons](#add-ons)
+12. [When something is wrong](#when-something-is-wrong)
 
 ---
 
@@ -45,6 +46,8 @@ and needs no internet connection. It has two halves:
 > receiver or the Companion App if that is your situation.
 
 Nothing you do leaves the vehicle. There is no account, no cloud, no telemetry.
+The only exceptions are things you switch on yourself: the optional online
+services (off by default, see [Optional online services](#optional-online-services)) and downloads of maps or add-ons.
 
 ### The two modes
 
@@ -74,12 +77,9 @@ This is the recommended route and needs no terminal.
 
 1. **Settings → Add-ons → Add-on Store → ⋮ (top right) → Repositories**
 2. Paste `https://github.com/Yapaia/yapaia` and add it.
-3. Find **Yapaia Go** in the store and install it.
-
-> **The progress bar will sit at 0 % for several minutes.** This is normal.
-> Your Home Assistant is building the add-on on your own machine rather than
-> downloading a finished image. Leave it alone; it is not stuck.
-
+3. Find **Yapaia Go** in the store (section "Yapaia") and install it. Home
+   Assistant downloads a ready-made image for your machine; depending on your
+   connection this takes a few minutes.
 4. Start the add-on, then open it from the sidebar.
 
 ### Standalone
@@ -113,20 +113,23 @@ build it on a desktop and drop the finished file in.
 
 ## Getting started
 
-On first open, a wizard walks you through five decisions. None of them are
-permanent — everything can be changed later in settings.
+On first open, a wizard walks you through a few steps. None of the decisions
+are permanent — everything can be changed later in settings.
 
 | Step | What it asks | Notes |
 |---|---|---|
 | **Language and units** | German or English; metric or imperial | Affects the interface and spoken distances |
+| **Notes on use** | That you have read the safety notes | Cannot be skipped — see below |
 | **Map region** | Which part of the world to download | See [Maps and regions](#maps-and-regions) |
 | **Vehicle profile** | Your camper's dimensions | **Take your time here** — see below |
 | **Position** | Where GPS comes from | See [Where your position comes from](#where-your-position-comes-from) |
-| **Home Assistant** | Whether to publish your trip to HA | Skippable; you can enable it later |
+| **MQTT** | An optional MQTT broker | As a Home Assistant add-on nothing to enter; the connection to Home Assistant runs through the integration — see [Home Assistant](#home-assistant) |
 
-There is also a disclaimer to acknowledge. It is worth actually reading: it
-says that map data on height and weight limits is incomplete, and that you
-remain the driver. More on that in the next section.
+The notes on use are worth actually reading: they say that map data on height
+and weight limits is incomplete, that every indication is advisory, and that
+you remain the driver. More on that in the next section. When the notes are
+revised, Yapaia asks you once to agree again; until then no new navigation
+can be started.
 
 ---
 
@@ -258,8 +261,9 @@ who drives it, so nothing here is guessed.
 
 ### Favourites
 
-Save a place as a favourite and it appears in the drawer at the bottom of
-Explore mode. Categories: home, campsite, point of interest, or your own. Your
+Save a place as a favourite (**⭐ Als Favorit speichern** in the route
+panel) and it appears in the drawer at the bottom of Explore mode. Categories:
+*Zuhause*, *Stellplatz*, *Sehenswürdigkeit*, *Sonstiges*. Your
 recent destinations are kept as history too — the drawer has a tab for each.
 
 ![The favourites and history drawer, before anything is saved](media/favoriten.png)
@@ -312,6 +316,19 @@ the map settings.
 minutes old" shows for ten seconds and then gets out of the way; it comes back
 only if a different road is affected. A warning that data is *missing* for a
 road stays until you tap it away.
+
+### Optional online services
+
+Navigation never needs the internet. If you want extras while a connection
+exists, switch on **Online-Dienste → Online-Dienste erlauben** in the add-on
+configuration (off by default). Yapaia may then fetch roadworks, closures and
+warnings from the German motorway authority (Autobahn GmbH), and details about
+a place you tap from OpenStreetMap, Wikipedia and Wikimedia Commons. Only the
+request goes out — for a place, its coordinates and name — never your own
+position, your route or a device identifier. With a free key from
+creativecommons.tankerkoenig.de (option **Tankerkönig-Schlüssel**), the fuel
+station search also shows current prices for German stations. Without a
+connection, only these extras are missing.
 
 ### On-board sensors
 
@@ -447,7 +464,7 @@ pocket.
 
 1. Set `gps_source: companion_app` in the add-on options. (It was called
    `ha_tracker` up to 0.8.2, and that value was removed in 0.8.8.)
-2. Open Yapaia Go → **🩺 Installationsprüfung**.
+2. Open Yapaia Go → **⚙ → 🩺 Installation prüfen**.
 3. Below the check list is a drop-down of the `device_tracker` entities your
    Home Assistant actually knows. Pick your phone.
 
@@ -460,7 +477,7 @@ asks.
 
 ### The health check
 
-**🩺 Installationsprüfung** inside the app is worth knowing about. It checks
+**⚙ → 🩺 Installation prüfen** inside the app is worth knowing about. It checks
 maps, routing, search, position, memory, disk and the Home Assistant
 connection, and tells you in plain language what is wrong and what to do about
 it. It is the first place to look when something behaves oddly.
@@ -533,9 +550,8 @@ is full of "entity not found", the answer is in there.
 
 ## Making it yours
 
-**Move the widgets.** Long-press an empty area in either mode to enter edit
-mode, then drag widgets between slots and choose their size (S/M/L). "Reset to
-default" is in the same menu.
+**Arrange the screen.** Buttons and panels can be moved and resized — see
+[Arranging the screen](#arranging-the-screen) below.
 
 **Left- or right-hand drive.** Under **Lenkrad (LHD/RHD)** in the map
 settings. It decides which lower quarter your position sits in while driving:
@@ -572,9 +588,8 @@ alt="Drive mode on a phone in portrait"></p>
 **Install it as an app.** Yapaia is a progressive web app: "Add to home
 screen" gives it its own icon and no browser chrome.
 
-**Add-ons.** Yapaia has its own add-on system with a sandbox and a git-based
-registry — a second layer of extensibility inside the Home Assistant add-on.
-See the [Add-on Development Guide](addon-dev-guide.md) (German).
+**Add-ons.** Yapaia can be extended with its own add-ons — see
+[Add-ons](#add-ons) below.
 
 ---
 
@@ -599,7 +614,8 @@ Browsers only allow the microphone on **HTTPS** pages; over plain
 
 **Speaking through Home Assistant Assist** works without HTTPS: open
 **⚙ → Sprache & Home Assistant → In Home Assistant einrichten**. Yapaia
-creates a helper, an answer sensor and the automation „Yapaia Sprachbefehle".
+creates the automation „Yapaia Sprachbefehle", which hands your sentences to
+Yapaia Go through the „Yapaia" integration.
 Then talk to a voice satellite or the Assist button of the Home Assistant app
 („Yapaia, fahre mich nach Magdeburg"); Assist speaks Yapaia's answer. On the
 same page you can pick a Home Assistant conversation agent (AI) for free-form
@@ -656,9 +672,17 @@ button. An automatic return (off by default) can be set under
 Maps are OpenStreetMap data, converted into a single compressed file per region
 (PMTiles) that lives on your disk.
 
-Install and remove regions from within the app. A download runs as a background
-job with progress, so you can leave the page. Several regions can be installed
-at once — useful if you cross a border.
+Install, update and remove regions from within the app, under
+**⚙ → 🗺️ Karten verwalten**. A download or build runs as a background job with
+progress, so you can leave the page. Several regions can be installed at once —
+useful if you cross a border. After installing, tap **Fehlendes bauen** once so
+that routing and search cover the new region.
+
+If you run your own **Yapaia map server**, enter its address and token under
+**Kartenserver** in the same place; its ready-made packages (map, search and
+routing) then appear in the list and install without building anything on
+your device. Details: the add-on documentation (`yapaia_go/DOCS.md`, "Maps
+from your own map server").
 
 **Maps go stale.** Yours are a snapshot from the day you built them. New roads
 and changed restrictions will not appear until you rebuild. For a vehicle whose
@@ -668,9 +692,51 @@ habit. The procedure is in the
 
 ---
 
+## Add-ons
+
+Yapaia has its own add-on system — a second layer of extensibility inside the
+Home Assistant add-on. Add-ons run in a sandbox and only get the permissions
+you confirm when installing them. Everything happens under
+**⚙ → 🧩 Add-on-Store**.
+
+**Connecting a marketplace (since 0.56.0).** Add-ons come from a Yapaia
+marketplace. Under **Marktplatz**, enter its address (it must start with
+`https://`) and, if you have bought add-ons there, the **Konto-Token** from
+your marketplace account, then tap **Verbinden**. The catalog loads;
+**Registry aktualisieren** reloads it later. Go itself keeps working over
+plain `http` on your local network — `https` only concerns the connection to
+the marketplace.
+
+**Checked or unsigned.** Every package from the marketplace is signed. A
+catalog entry shows **✓ Geprüft** when its signature is valid, otherwise
+**Unsigniert**. Go installs only signed packages; a version the marketplace
+has revoked is disabled and cannot be installed again.
+
+**Installing.** Tap **Installieren**, read the permissions the add-on asks
+for, then **Bestätigen & installieren**. Updates appear on the **Updates** tab,
+which also lists your installed add-ons with **Aktivieren**/**Deaktivieren**
+and **Deinstallieren**.
+
+**Paid add-ons** need a licence for this installation. Go fetches it from the
+marketplace while installing (that is what the Konto-Token is for). If that
+fails, the add-on is installed but stays off until you tap **Lizenz
+aktivieren**.
+
+**Developer mode and installing from a file.** **Add-on-Datei installieren**
+takes a `.tar.gz` package from a USB stick or a download, without any
+marketplace. Such a package carries no signature, so it is only accepted with
+**Entwicklermodus** switched on (in the Marktplatz section). Developer mode
+also allows a marketplace without `https`. It is meant for developing and
+testing your own add-ons — leave it off otherwise.
+
+Writing your own add-on: [Add-on Development Guide](addon-dev-guide.md)
+(German).
+
+---
+
 ## When something is wrong
 
-**Start with 🩺 Installationsprüfung inside the app.** It names the failing
+**Start with ⚙ → 🩺 Installation prüfen inside the app.** It names the failing
 component and what to do.
 
 Common cases:
@@ -682,7 +748,7 @@ Common cases:
 | Search finds nothing | `photon_enabled` is off and the lightweight index has no house numbers; or the region is not installed |
 | Screen keeps sleeping | Tap the map once — some browsers only permit it after a touch |
 | Route ignores my dimensions | Check that the right profile is **active** — only one is at a time |
-| A helper button does nothing | You have MQTT running; the MQTT buttons are the live ones |
+| An add-on will not install ("nicht vom Marktplatz signiert") | Unsigned packages need **Entwicklermodus** — see [Add-ons](#add-ons) |
 
 For anything else: [Troubleshooting](troubleshooting.md) (German) works through
 symptom → cause → fix, and the [FAQ](faq.md) (German) covers the rest.

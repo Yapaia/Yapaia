@@ -29,10 +29,11 @@ Yapaia Go is the third option: the routing engine that professional logistics
 uses (**Valhalla**), fed with your vehicle's real dimensions, running on
 hardware you already own.
 
-**It genuinely works offline.** Not "works offline once cached" — there is no
-online mode to fall back to. Map tiles, the routing graph and the address index
-all live on your disk. The end-to-end test suite asserts that the app makes
-**zero foreign network requests** while navigating.
+**It genuinely works offline.** Not "works offline once cached" — navigation
+never depends on a connection. Map tiles, the routing graph and the address
+index all live on your disk. A few online extras exist, but they are off by
+default and nothing breaks without them. The end-to-end test suite asserts
+that the app makes **zero foreign network requests** while navigating.
 
 ## What it does
 
@@ -45,7 +46,7 @@ all live on your disk. The end-to-end test suite asserts that the app makes
 | 🏠 **Deep Home Assistant integration** | Position, ETA, remaining distance and the next instruction become HA entities. Automate on them: *"ETA under 30 minutes → switch on the boiler."* |
 | 🔆 **Screen stays awake** | No more tapping the tablet at every junction to keep the display on. |
 | 👋 **Built for a moving vehicle** | 64 px touch targets, mirrored controls for left- or right-hand drive, and settings that lock themselves above 10 km/h. |
-| 🧩 **Extensible** | A sandboxed add-on system with its own SDK and a git-based registry. |
+| 🧩 **Extensible** | A sandboxed add-on system with its own SDK and a marketplace of signed add-ons. |
 
 | | |
 |:--:|:--:|
@@ -60,8 +61,10 @@ Being straight about this saves you an evening:
 
 - **It is not a phone app.** It runs on a mini-PC in your vehicle and is used
   through a browser. There is no App Store download.
-- **It does not have live traffic or online POI data.** That is the price of
-  working offline. Roadworks from last week are not in your map.
+- **It does not have live traffic.** That is the price of working offline.
+  Roadworks from last week are not in your map — unless you switch on the
+  optional online services (off by default), which add roadworks and closures
+  on German motorways while a connection exists.
 - **Map data is only as complete as OpenStreetMap.** Height and weight limits
   are well mapped on main roads and patchy on small ones. Yapaia warns you
   about this when your profile is over 2.70 m — it is a real limit of the data,
@@ -79,13 +82,14 @@ Being straight about this saves you an evening:
 2. Add `https://github.com/Yapaia/yapaia`.
 3. Install **Yapaia Go** from the store, then start it.
 4. Open it from the Home Assistant sidebar. A setup wizard walks you through
-   language and units, your map region, your vehicle's dimensions, where the
-   position comes from, and the Home Assistant connection.
+   language and units, the notes on use, your map region, your vehicle's
+   dimensions and where the position comes from.
+5. Restart Home Assistant once when the notification asks you to, then
+   confirm **"Yapaia Go discovered"** under *Settings → Devices & Services*.
 
-The first start builds the container on your own machine and takes a while; the
-progress bar sitting at 0 % is normal and not a stuck install. The full
-walkthrough — every decision the wizard asks you to make, and what happens if
-you get it wrong — is in the [**User Manual**](docs/manual.md).
+Home Assistant downloads a ready-made image for your machine; nothing is
+built on your device. The full walkthrough — every decision the wizard asks
+you to make, and what happens if you get it wrong — is in the [**User Manual**](docs/manual.md).
 
 **Standalone with Docker Compose** (without Home Assistant), or on a Proxmox
 LXC: see the [Installation Guide](docs/installation.md).
@@ -147,7 +151,7 @@ the licence: [`NAME-UND-LOGO.md`](../NAME-UND-LOGO.md).
 
 | For | Document |
 |---|---|
-| 🧭 **Using the app** | [**User Manual**](docs/manual.md) — every feature, in plain language |
+| 🧭 **Using the app** | [**User Manual**](docs/manual.md) — every feature, in plain language, including [installing add-ons](docs/manual.md#add-ons) |
 | 🔧 **Installing it** | [Installation Guide](docs/installation.md) (German) · [First Steps](docs/erste-schritte.md) (German) · [Own maps, routing and search](docs/eigene-karten.md) (German) |
 | ❓ **Something is wrong** | [Troubleshooting](docs/troubleshooting.md) (German) · [FAQ](docs/faq.md) (German) |
 | 💻 **Contributing code** | [**Developer Guide**](docs/developers.md) — architecture, interfaces, CI/CD |
@@ -173,20 +177,21 @@ Architecture, module boundaries and the reasoning behind these choices:
 
 ## Project status
 
-Yapaia Go is at **0.8.1** and in active use. The CI pipeline runs 3300+ unit
-tests, 170 browser tests, a sandbox-escape security suite, performance budgets,
-a dependency and licence gate, and a routing safety gate on every pull request
+Yapaia Go is at **0.56.0** and in active use. The CI pipeline runs unit
+tests, browser tests, a sandbox-escape security suite, performance budgets, a
+dependency and licence gate, and a routing safety gate on every pull request
 — all of them blocking. What is still open is tracked in
 [`docs/backlog.md`](docs/backlog.md).
 
 ## Contributing
 
-Issues and pull requests are welcome. Start with the
+Issues are welcome; for code, please open an issue first (see the note on
+the contributor agreement under [Licence](#licence)). Start with the
 [Developer Guide](docs/developers.md) — it covers the repository layout, how to
 run the test suites, and the pitfalls that have cost time before.
 
 ## Naming
 
-The product is **Yapaia Go**. The technical name is `yapaia-go` (npm scope
-`@yapaia`) — an early transliteration that Home Assistant entity IDs still
-carry, because HA never renames an ID once it is assigned.
+The product is **Yapaia Go**. Technical identifiers use `yapaia_go` — the
+add-on slug and the Home Assistant entity IDs such as `sensor.yapaia_go_tempo`
+— and the npm scope is `@yapaia`.
