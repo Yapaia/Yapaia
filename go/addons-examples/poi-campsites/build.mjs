@@ -50,7 +50,8 @@ function bundleUi() {
     loader: { '.geojson': 'json' },
     alias: {
       '@yapaia/addon-sdk': join(REPO_ROOT, 'packages', 'addon-sdk', 'src', 'index.ts'),
-      '@yapaia/shared': join(REPO_ROOT, 'packages', 'shared', 'src', 'index.ts'),
+      // Ordner statt index.ts, damit auch `@yapaia/shared/marketplace` aufgeloest wird.
+      '@yapaia/shared': join(REPO_ROOT, 'packages', 'shared', 'src'),
     },
     logLevel: 'info',
   });

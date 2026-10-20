@@ -149,6 +149,8 @@ Schnittstellen an, nie direkt an die internen Services.
   Git-Repo mit `index.json`; Store-UI im Frontend. Details in `docs/05-addon-system.md`.
 - **Begründung:** Core bleibt unangetastet (Open/Closed-Prinzip); Sandbox begrenzt
   Schadpotenzial; statische Registry funktioniert mit sporadischem Internet.
+- **Nachtrag (Go 0.56.0):** ergänzt um den signierten Marktplatz (Release-Signaturen,
+  Lizenzen, Sperrliste) — [`marktplatz.md`](marktplatz.md).
 
 ### ADR-010: Echtzeit-Verteilung = ein interner Event-Bus
 - **Entscheidung:** Der Core führt einen internen, typisierten Event-Bus
@@ -173,10 +175,10 @@ yapaia-go/
 │   ├── valhalla/        # Dockerfile, valhalla.json-Template, Daten-Download-Skripte
 │   ├── photon/          # Dockerfile, Index-Download-Skripte
 │   └── gpsd/            # Setup-/udev-Doku, Container-Variante
-├── yapaia_go/           # Home-Assistant-Add-on (config.yaml, Dockerfile, s6) --
-│                        # liegt bewusst auf oberster Ebene, damit der HA-Supervisor
-│                        # es zusammen mit repository.yaml (Wurzel) findet
-├── repository.yaml      # HA-Add-on-Repository-Deskriptor (Store-Weg via ⋮ -> Repositories)
+├── yapaia_go/           # Home-Assistant-Add-on (config.yaml, Dockerfile, s6)
+│                        # (heute: go/yapaia_go/ im Monorepo; repository.yaml liegt
+│                        # in der Monorepo-Wurzel, der Supervisor durchsucht alle
+│                        # Unterordner nach config.yaml, siehe docs/04 §3)
 ├── addons-examples/     # Referenz-Add-ons (POI-Overlay, Track-Recorder)
 ├── e2e/                 # Playwright-Tests + GPS-Simulator (NMEA/Fixture-Replay)
 └── docs/                # dieses Verzeichnis

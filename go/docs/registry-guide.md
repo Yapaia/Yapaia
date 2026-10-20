@@ -51,7 +51,7 @@ Ein JSON-**Array** von Einträgen (kein umschließendes Objekt). Jeder Eintrag:
   "download_url": "https://github.com/.../releases/download/v1.2.0/poi-campsites-1.2.0.tar.gz",
   "sha256": "3f2504e04f8964...",
   "scopes": ["pos.read", "map.layer.write", "route.propose", "storage.own"],
-  "core_api": "^1.0",
+  "core_api": "*",
   "screenshots": [
     "https://raw.githubusercontent.com/.../shot1.png",
     "https://raw.githubusercontent.com/.../shot2.png"
@@ -70,9 +70,10 @@ Ein JSON-**Array** von Einträgen (kein umschließendes Objekt). Jeder Eintrag:
 | `download_url` | ja | `http(s)`-URL auf den Release-Tarball |
 | `sha256` | ja | **64 Hex-Zeichen**, sha256 des exakten Tarballs unter `download_url` |
 | `scopes` | ja | Array der im Manifest deklarierten Permission-Scopes (docs/05 §2) — die "Scope-Vorschau" im Store |
-| `core_api` | ja | Semver-Range, identisch zum Manifest-Feld |
+| `core_api` | ja | Semver-Range, identisch zum Manifest-Feld; geprüft gegen `@yapaia/core` (derzeit 0.0.x, daher `"*"`) |
 | `screenshots` | nein | Array von `http(s)`-URLs |
 | `signature` | nein (ohne: nur im Entwicklermodus installierbar) | `ysig1`-Release-Signatur, siehe §3 |
+| `licensing`, `publisher`, `price_label` | nein | Anzeige-Hinweise des Marktplatzes (unsigniert); ob eine Lizenz nötig ist, entscheidet allein die Signatur ([`marktplatz.md`](marktplatz.md)) |
 
 ### Validierung durch den Core (`apps/core/src/addons/registry.ts`)
 
@@ -107,7 +108,7 @@ herunterladen, sha256 bilden, vergleichen) passiert ausschließlich dort
 Registry-Eintrag kann diese Prüfung **nicht umgehen**: `sha256` ist für
 einen URL-Install serverseitig ohnehin Pflicht.
 
-## 3. Das `signature`-Feld (seit Go 0.47.0 geprüft)
+## 3. Das `signature`-Feld (seit Go 0.56.0 geprüft)
 
 `signature` ist eine `ysig1`-Release-Signatur des Marktplatzes (Ed25519,
 Format und Schlüssel: [`marktplatz.md`](marktplatz.md)). Der Core prüft sie
@@ -161,6 +162,7 @@ Review-Gedächtnisstütze, kein Selbstzertifizierungsformular.
 ## 5. Core-Konfiguration & Caching (W-13)
 
 - **Registry-URL**: `ADDONS_REGISTRY_URL` (Env, höchste Priorität) →
+  `…/v1/index.json` des eingetragenen Marktplatzes ([`marktplatz.md`](marktplatz.md)) →
   Settings-Key `addons.registry.url` → eingebauter Default (offizielles
   Registry-Repo). Für lokale Entwicklung/Tests: `ADDONS_REGISTRY_URL` auf
   eine lokale Fixture-`index.json` zeigen lassen (z. B. `http://127.0.0.1:<port>/index.json`,

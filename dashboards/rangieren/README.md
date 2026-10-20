@@ -23,13 +23,13 @@ Sensoren je Rad, Solldruck vorne/hinten, Toleranzen, Batterie-Warnschwelle,
 ab wann Werte als alt gelten.
 
 **`custom:yapaia-kamera-card`** (`kamera-card.js`): Livebild einer
-`camera.*`-Entität. Ohne Kamera (noch der Fall) steht ein Platzhalter da.
+`camera.*`-Entität. Ohne Kamera oder ohne Bild steht ein Platzhalter da.
 Im Editor: Kamera, Seitenverhältnis, Bild spiegeln, Platzhaltertext.
 
-## Offen
+## Kamera
 
 - Die Rückfahrkamera kommt von Yapaia Vision (`camera.yapaia_vision_kamera_1`,
-  NTSC 720x480, daher 3:2).
+  hier NTSC 720x480, daher 3:2).
 
 ## Einspielen
 

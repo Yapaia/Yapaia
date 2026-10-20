@@ -2,7 +2,8 @@
 
 Packages Yapaia Go — offline motorhome navigation (`apps/core` + `apps/web`
 in the parent repo) — as a Home Assistant add-on: single container, s6-overlay-
-supervised, MQTT-integrated, served through HA Ingress.
+supervised, connected to Home Assistant through the "Yapaia" integration
+(MQTT optional), served through HA Ingress.
 
 For install steps, RAM sizing, USB-GPS setup, and the manual/nightly VM test
 protocol, see [`DOCS.md`](./DOCS.md) (this is also what HA shows in the
@@ -17,10 +18,10 @@ For everything else, the parent repo has three entry points:
 
 ```
 yapaia_go/
-├── config.yaml   # HA add-on manifest: name/slug/version, arch, ingress,
-│                 # map (share:rw, W-16), services (mqtt:want), usb+udev,
-│                 # options/schema (region, mqtt_prefix, photon_enabled,
-│                 # gps_source, log_level, memory tuning)
+├── config.yaml   # HA add-on manifest: name/slug/version, prebuilt image,
+│                 # arch, ingress, map (share:rw, W-16), services (mqtt:want),
+│                 # uart+usb+udev, options/schema (see DOCS.md
+│                 # "Configuration options")
 ├── build.yaml    # per-arch base image for the Supervisor's multi-arch builder
 ├── Dockerfile    # builds apps/core+web, bundles Valhalla/Photon/gpsd, s6-overlay
 ├── rootfs/
@@ -39,7 +40,7 @@ init-yapaia-config (oneshot)   -- bashio config + MQTT creds -> container env
         │
         ├── valhalla (longrun)  -- routing, :8002 (idles if no graph installed)
         │       │
-        │       └── core (longrun) -- Fastify app, :8099 (config.yaml ingress_port)
+        │       └── core (longrun) -- Fastify app, :8099 (Supervisor's default ingress port)
         ├── photon (longrun)    -- search, :2322 (idles if disabled/no index)
         └── gpsd (longrun)      -- USB-GPS bridge, :2947 (idles if gps_source != usb)
 ```
@@ -54,31 +55,23 @@ env vars get set and why (cross-checked against the actual `process.env.*`
 reads in `apps/core/src/index.ts`, `apps/core/src/mqtt/config.ts`, and
 `apps/core/src/map/paths.ts`).
 
-## What was NOT verified here
+## How the image is built
 
-This add-on could not be built/run against a live Docker daemon inside the
-sandbox this was authored in (no daemon available). Two things most likely
-to need a one-line fix once actually built for real:
+The Supervisor does not build this add-on on the device: `config.yaml`
+names a prebuilt image (`ghcr.io/yapaia/yapaia-go-{arch}`), which the
+repository's `images.yml` workflow builds and publishes for every version
+(base image per `build.yaml`: `ghcr.io/gis-ops/docker-valhalla/valhalla`).
+The image is also built and checked inside the container in CI (tools,
+build scripts, services, a running Core).
 
-1. `Dockerfile`'s `photon-src` stage assumes `photon.jar` lives at
-   `/photon/photon.jar` in `rtuszik/photon-docker:latest`.
-2. The final stage assumes `valhalla_service` is already on `PATH` in
-   `ghcr.io/gis-ops/docker-valhalla/valhalla:latest` (the base per
-   `build.yaml`).
+## Where this folder sits in the repository
 
-Everything else (the s6-rc.d service tree itself, bashio config plumbing,
-env-var wiring against the real Core code, `config.yaml`'s schema) does not
-depend on those two specifics and was cross-checked directly against
-`apps/core/src/`.
-
-## Why this folder sits at the repository root
-
-The HA Supervisor only recognizes a Git repository as an *add-on repository*
-if a `repository.yaml` sits in its ROOT, and it then looks for add-ons in
-directories one level below that root, each containing a `config.yaml`. So
-this package lives at `yapaia_go/` (repo root), not two levels deep — that
-is what makes **Settings → Add-ons → Add-on Store → ⋮ → Repositories →
-`https://github.com/Yapaia/yapaia`** actually list "Yapaia Go".
+The HA Supervisor recognizes a Git repository as an *add-on repository* when
+a `repository.yaml` sits in its root, and then searches all subfolders for a
+`config.yaml`. So this package can live at `go/yapaia_go/`, next to the other
+Yapaia add-ons — that is what makes **Settings → Add-ons → Add-on Store → ⋮ →
+Repositories → `https://github.com/Yapaia/yapaia`** list "Yapaia Go" in the
+store section "Yapaia".
 
 ## CI strategy
 

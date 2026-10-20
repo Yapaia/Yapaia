@@ -17,8 +17,8 @@ Der Code liegt in der gemeinsamen Integration:
 
 ## Einrichten
 
-Die Integration „Yapaia“ kommt mit Yapaia Go oder Yapaia Beat (Add-on starten,
-Home Assistant einmal neu starten). Dann:
+Die Integration „Yapaia“ kommt mit jedem Yapaia-Add-on – Go, Beat oder Vision
+(Add-on starten, Home Assistant einmal neu starten). Dann:
 
 *Einstellungen → Geräte & Dienste → Integration hinzufügen → **Yapaia** →
 „GL.iNet-Router“*
@@ -47,6 +47,7 @@ diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
 | `sensor.yapaia_router_wlan_signal` | Signal des WLANs, mit dem der Router verbunden ist (dBm) |
 | `binary_sensor.yapaia_router_verbunden` | Mobilfunkverbindung |
 | `sensor.yapaia_router_umschaltung` | Stand der SIM-Umschaltung (Diagnose) |
+| `sensor.yapaia_router_modem` | Modem des Routers (Diagnose) |
 | `button.yapaia_router_neu_verbinden`, `…_neustart` | neu verbinden, Router-Neustart (deaktiviert) |
 
 **Aktionen:** `yapaia.router_sim_waehlen` (`sim: 1|2`), `…_neu_verbinden`,
@@ -124,4 +125,6 @@ entities:
   Vergleich mit der IMSI der SIM.
 - Tests: `integration/tests/test_router*.py` mit einem nachgebauten Router.
 
-Lizenz: GPL-3.0-or-later (siehe `LICENSE`).
+Lizenz: GPL-3.0-or-later (siehe [`LICENSE`](LICENSE)). Die crypt-Verfahren sind aus
+[ha-glinet](https://github.com/metril/ha-glinet) (MIT) angepasst, siehe
+[`DRITTLIZENZEN.md`](../DRITTLIZENZEN.md).

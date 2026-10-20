@@ -10,7 +10,7 @@
  * travel with your code.
  */
 
-import { OFFICIAL_MARKETPLACE_KEYS, verifyLicenseToken, type LicensePayload, type MarketplaceKey } from '@yapaia/shared';
+import { OFFICIAL_MARKETPLACE_KEYS, verifyLicenseToken, type LicensePayload, type MarketplaceKey } from '@yapaia/shared/marketplace';
 
 export interface VerifyLicenseOptions {
   addonId: string;

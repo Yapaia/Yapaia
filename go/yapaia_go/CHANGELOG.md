@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.56.1
+
+**Add-ons bleiben klein und frei lizenzierbar.**
+
+- Das Add-on-SDK band seit 0.56.0 zur Lizenzprüfung versehentlich große
+  Teile von Yapaia Go mit ein (ein Beispiel-Add-on wuchs von 155 auf 487 KB).
+  Jetzt nur noch den Apache-lizenzierten Prüfteil – damit dürfen Add-ons
+  wieder unter jeder Lizenz stehen, auch geschlossen. Ein Test wacht darüber.
+- Der Add-on-Store sagt beim Installieren per Datei jetzt, dass unsignierte
+  Pakete den Entwicklermodus brauchen.
+- Die Dokumentation ist durchgesehen und auf den Stand von 0.56 gebracht.
+
+---
+
 ## 0.56.0
 
 **Add-ons aus dem Yapaia-Marktplatz – geprüft, auch kostenpflichtige.**
@@ -41,6 +55,8 @@ starten; die übrige Einrichtung muss man nicht wiederholen.
 **Lizenz.** Yapaia steht jetzt unter der GNU General Public License 3.0 oder
 später.
 
+---
+
 ## 0.54.0
 
 **Flüssiger auf schwachen Geräten (Autoradio, ältere Tablets).** Der
@@ -55,6 +71,8 @@ Leistungswächter greift jetzt dort, wo es wirklich etwas bringt:
 Vorher tat Stufe 1 nichts (sie sollte 3D-Gebäude abschalten, die es nicht
 gibt), und Stufe 3 schaltete auf 2D.
 
+---
+
 ## 0.53.2
 
 **Die Karte im Dashboard lädt nicht mehr neu, wenn sich ihre Höhe ändert.**
@@ -68,6 +86,8 @@ verzichtet auf einen Grafikpuffer, den nur die Testsuite braucht und der auf
 Mobil-Grafikchips (z. B. Android-Autoradio) jedes Bild ein zweites Mal
 kopierte.
 
+---
+
 ## 0.53.1
 
 **Die Karte behält die gewählte Ansicht.** Wer 3D oder „in Fahrtrichtung"
@@ -78,6 +98,8 @@ und dort blieb sie auch.
   je Sekunde, stellte er auf 2D-Norden und speicherte das als eigene Wahl.
   Jetzt drosselt er nur noch Sonderziele und Beschriftung; die Ansicht
   bleibt. Wer ausdrücklich „niedrige Qualität" wählt, bekommt weiterhin 2D.
+
+---
 
 ## 0.53.0
 
@@ -96,12 +118,16 @@ Spurpfeile kennt.
 - Home Assistant: die Anweisung trägt die Spuren als Attribut
   `anweisung_spuren` (MQTT: `lanes`), z. B. für das Dashboard Cockpit Sport.
 
+---
+
 ## 0.51.1
 
 **Anordnen auf älteren Android-Geräten.** Auf dem Autoradio (WebView mit
 Chrome 101) ließen sich Elemente wie „Verkehr auf der Route" im
 Bearbeitungsmodus nicht verschieben oder verkleinern. Jetzt geht es auch
 dort.
+
+---
 
 ## 0.51.0
 
@@ -118,6 +144,8 @@ dort.
 - Die Verkehrslage wird während der Fahrt alle 5 Minuten neu geholt.
 - Nur Autobahnen: Staus auf Bundes- und Landstraßen meldet die Quelle nicht.
 
+---
+
 ## 0.50.0
 
 **Sonderziele aus dem Dashboard als Zwischenziel.**
@@ -133,6 +161,8 @@ antippen, auf der Karte ansehen, dann einfügen, wie „Unterwegs finden“ in G
   Dashboard.
 - Bringt die Integration „Yapaia“ 0.4.3 mit (Yapaia Router 0.3.0: Internet
   über WLAN oder Mobilfunk, WLAN-Signal).
+
+---
 
 ## 0.49.0
 
@@ -151,12 +181,16 @@ verschieben und resizen“.
 - Wer unter 0.48.3 schon einen Anker für die Kachel hatte: der galt dort
   gemeinsam mit Go und ist in der Kachel jetzt wieder auf dem Standard.
 
+---
+
 ## 0.48.3
 
 **Der Ankerpunkt kommt jetzt wirklich in der eingebetteten Karte an.**
 0.48.2 versprach es, brachte den Teil dafür aber nur mit, ohne ihn in die
 Kachel „Karte mit Route“ einzubauen. Jetzt sitzt die Position im Dashboard
 dort, wo sie unter „Bildschirm anpassen“ in Yapaia Go hingeschoben wurde.
+
+---
 
 ## 0.48.2
 
@@ -178,6 +212,8 @@ der Ankerpunkt wird nicht übernommen.“
   und Ruhe getrennt. Verschiebt man sie in Go, während das Dashboard offen
   ist, rückt sie dort gleich mit.
 
+---
+
 ## 0.48.1
 
 **Die Karten-Kachel lässt sich von einem Dashboard aus bedienen.**
@@ -194,6 +230,8 @@ dann wieder rein“.
   `stand()`, `ansicht(modus)` und `zentrieren()`. An Go selbst und an der
   Kachel ändert sich sonst nichts.
 
+---
+
 ## 0.48.0
 
 **Ziele aus Dashboards tragen ihren Namen.**
@@ -204,6 +242,8 @@ keinen Namen.
 - Die Aktion „Ziel setzen“ (`yapaia.go_ziel_setzen`) hat ein neues Feld
   `name`: der Name zu den Koordinaten in `ort`, z. B. „Lidl“. Ohne `name`
   bleibt alles wie bisher.
+
+---
 
 ## 0.47.1
 
@@ -295,6 +335,8 @@ Gemeldet: Go fand das Paket auf dem Kartenserver, das Laden brach aber mit
 - Klappt ein Download nicht, sagt die Meldung auf Deutsch, welche Datei unter
   welcher Adresse fehlt.
 
+---
+
 ## 0.46.0
 
 **Karten vom eigenen Kartenserver.** Ein eigener Yapaia-Kartenserver (Repo
@@ -312,6 +354,8 @@ mit einem Tipp, statt stundenlang selbst zu bauen.
 - Das Routing aus dem Paket **ersetzt** den bisherigen Routinggraphen (es
   gibt nur einen). Valhalla übernimmt ihn binnen 30 Sekunden von allein.
 - Das Token wird nie wieder angezeigt; ein leeres Feld behält es.
+
+---
 
 ## 0.45.0
 

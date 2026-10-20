@@ -13,6 +13,11 @@ einen eigenen Ordner mit
 | [Rangieren](rangieren/) | Parkmanöver: Rückfahrkamera, Nivellierung, Licht Dinette, Aufbautür |
 | [Stellplatz](stellplatz/) | Stellplatz/Camping: Heizung, Licht, Tür, Batterie, Gas, Wasser, Radio |
 
+Rangieren, Stellplatz und Teile von Cockpit Sport zeigen auch Werte der
+ESPHome-Geräte aus [`devices/esphome/`](../devices/esphome/) (Heizung, Tür,
+Licht, Bluetooth-Sammler). Wer andere Geräte hat, passt die Entitäten im
+grafischen Editor bzw. in `dashboard.yaml` an.
+
 ## Einspielen
 
 Auf dem Mini-PC (im Entwicklungs-Add-on):

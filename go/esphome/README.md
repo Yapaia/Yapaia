@@ -137,7 +137,7 @@ Platz leer.
    **`ota:` braucht nichts.** Der Device Builder vergibt kein OTA-Passwort,
    und OTA ist bereits durch den API-Schlüssel geschützt.
 2. **Zeitzone und Pins** oben in `substitutions` eintragen.
-2b. **Digitale Wasserwaage** (optional). Bei 0 km/h wechselt die Anzeige auf
+3. **Digitale Wasserwaage** (optional). Bei 0 km/h wechselt die Anzeige auf
    eine runde Libelle — beim Parken die einzige Frage, die zählt. Dafür
    braucht es zwei Neigungssensoren in Grad (etwa ein MPU6050). Alles dazu
    steht in `substitutions`:
@@ -146,7 +146,7 @@ Platz leer.
    | --- | --- |
    | `entity_neigung_lr` | Entität für links/rechts |
    | `entity_neigung_vh` | Entität für vorne/hinten |
-   | `wasserwaage_ab_kmh` | Ab welchem Tempo sie erscheint (Vorgabe 2) |
+   | `wasserwaage_ab_kmh` | Bis zu welchem Tempo sie erscheint (Vorgabe 0; gegen GPS-Rauschen z. B. 2) |
    | `wasserwaage_gerade_grad` | Ab wann „steht gerade" (Vorgabe 0,5°) |
    | `wasserwaage_bereich_grad` | Vollausschlag am Rand (Vorgabe 5°) |
    | `neigung_lr_vorzeichen` | `1` oder `-1` |
@@ -164,9 +164,9 @@ Platz leer.
    Fehlen die Neigungswerte, zeigt das Gerät **„Keine Neigungswerte"** statt
    einer Blase in der Mitte. Eine mittige Blase hieße „steht gerade" — und das
    wäre ausgerechnet die beruhigende Behauptung, bei der niemand nachsieht.
-3. Für dieses Board ist nichts weiter zu tun. Für ein anderes den
+4. Für dieses Board ist nichts weiter zu tun. Für ein anderes den
    `display:`-Block und `rund` anpassen — siehe unten.
-4. Übersetzen und flashen: in Home Assistant über das ESPHome-Add-on, oder
+5. Übersetzen und flashen: in Home Assistant über das ESPHome-Add-on, oder
    `esphome run esphome/yapaia-nav-display.yaml`.
 
 Die Werte kommen vom Gerät „Yapaia Go" der Integration „Yapaia"
@@ -316,13 +316,14 @@ substitutions:
 ```
 
 **Findet der Filter gar nichts**, liegt es nicht am Namen: dann veröffentlicht
-Yapaia die Entitäten noch nicht. Prüfen Sie im Add-on, ob MQTT oder der
-HA-interne Kanal eingeschaltet ist.
+Yapaia die Entitäten noch nicht. Prüfen Sie, ob das Add-on läuft und unter
+*Einstellungen → Geräte & Dienste* das Gerät „Yapaia Go" in der Integration
+„Yapaia" eingerichtet ist („Yapaia Go gefunden" bestätigen).
 
-### Die Waage: zwei Ansichten und zwei Schalter
+### Die Waage: zwei Ansichten und drei Schalter
 
 Beim Parken wechselt die Anzeige auf eine Wasserwaage. Dafür gibt es zwei
-Darstellungen und zwei Schalter — beide erscheinen in Home Assistant als
+Darstellungen und drei Schalter — alle erscheinen in Home Assistant als
 gewöhnliche Schalter und lassen sich damit auch aus einer **Automatisierung**
 heraus stellen.
 
@@ -343,8 +344,8 @@ vergleichen.
 Die Restzeit wird dabei **auf dem Gerät aus derselben Ankunftszeit gerechnet**
 (`eta − jetzt`) und nicht als eigener Sensor geholt. Das hat drei Gründe:
 
-- Es gibt in Home Assistant gar keinen solchen Sensor — nur `eta` und
-  `distance_remaining`.
+- Es gibt in Home Assistant gar keinen solchen Sensor — nur die Ankunftszeit
+  (`sensor.yapaia_go_ankunft`) und den Restweg (`sensor.yapaia_go_restweg`).
 - Zwei getrennt aktualisierte Sensoren stünden zwangsläufig irgendwann
   verschieden. Abgeleitet ist ein Widerspruch unmöglich.
 - Das Display hat eine eigene Uhr (aus Home Assistant), die Anzeige läuft also
@@ -371,7 +372,7 @@ substitutions:
 ```
 
 > **Das Bild übertreibt, die Zahl nicht.** Bei 1,5 Grad wäre die Neigung über
-> neunzig Bildpunkte gerade zwei Punkte hoch — massstabsgetreu gezeichnet
+> neunzig Bildpunkte gerade zwei Punkte hoch — maßstabsgetreu gezeichnet
 > sähe ein schiefes Fahrzeug aus wie ein gerades. Der *Bildwinkel* wird
 > deshalb gestreckt, genau wie bei der Libelle die Blase schon am Rand steht,
 > sobald `wasserwaage_bereich_grad` erreicht ist. Die **Zahlen daneben bleiben
@@ -446,10 +447,10 @@ Die Hintergrundbeleuchtung ist als Licht ausgeführt (`light.helligkeit`), also
 von Home Assistant dimmbar. Im Fahrerhaus ist ein Display auf voller
 Helligkeit nachts blendend.
 
-Naheliegend ist, sie an Yapaias Hell/Dunkel-Umschaltung zu hängen — eine
-Automation auf `sun.sun` oder auf die Add-on-Option **Erscheinungsbild →
-Design** (seit 0.8.6). Sagen Sie Bescheid, wenn ich die Automation dazulegen
-soll.
+Naheliegend ist, sie an Yapaias Hell/Dunkel-Umschaltung zu hängen — etwa mit
+einer Automation auf `sun.sun`, passend zur Add-on-Option **Erscheinungsbild →
+Design** mit der Einstellung `sun` (seit 0.8.6). Eine fertige Automation
+liegt nicht bei.
 
 ---
 
@@ -463,11 +464,11 @@ Routengeometrie und die Position; daraus ein PNG mit Streckenlinie,
 Fahrzeugpunkt und Ziel zu rastern ist überschaubar — keine Kachel, kein
 Browser, kein Chromium. Ein neuer Endpunkt, etwa
 `GET /api/v1/map/preview.png?w=240&h=240`, den `online_image` alle paar
-Sekunden holt. Das bliebe vollständig offline. **Das ist der Weg, den ich
-empfehlen würde**, wenn Sie das Kartenbild wirklich wollen — es ist
-überschaubare Arbeit im Core, und ich würde es auf Zuruf bauen.
+Sekunden holt. Das bliebe vollständig offline. **Das ist der empfohlene
+Weg**, wenn es wirklich ein Kartenbild sein soll — überschaubare Arbeit im
+Core, aber bisher nicht gebaut.
 
-**2. Ein Kopfloser Browser macht Bildschirmfotos.** Technisch möglich
+**2. Ein kopfloser Browser macht Bildschirmfotos.** Technisch möglich
 (Playwright und Chromium laufen in der CI dieses Projekts), aber Chromium
 wiegt einige hundert Megabyte im Add-on-Image und belegt dauerhaft
 Arbeitsspeicher auf der HAOS-VM — für ein Bild von 320 × 240 Bildpunkten ein

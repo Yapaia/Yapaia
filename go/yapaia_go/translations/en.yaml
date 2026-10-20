@@ -9,8 +9,8 @@ configuration:
     name: Region
     description: Which map region Yapaia uses (for example "germany" or "liechtenstein").
       Leave empty and the setup wizard inside Yapaia walks you through it. Downloading
-      and building regions does not happen here but in Yapaia itself, under "Regions"
-      — that is a job with progress, not a setting.
+      and building regions does not happen here but in Yapaia itself, under ⚙ →
+      "Karten verwalten" — that is a job with progress, not a setting.
   gps_source:
     name: Source
     description: 'Where your position comes from. "usb": a GPS receiver on the USB
@@ -31,8 +31,8 @@ configuration:
     name: Companion App device
     description: Which device supplies the position, e.g. "device_tracker.my_phone".
       Only needed when several devices run the Companion App — with exactly one,
-      Yapaia picks it itself. You can also choose it inside Yapaia (health check
-      → "Companion App device"); that takes effect immediately.
+      Yapaia picks it itself. You can also choose it inside Yapaia (⚙ → "Installation
+      prüfen" → "Gerät der Companion App"); that takes effect immediately.
   search:
     name: Search
     description: Address search and its memory. Only touch this when memory is tight.
@@ -52,8 +52,9 @@ configuration:
     description: How much memory route calculation gets.
     valhalla_memory_mb:
       name: Memory for Valhalla (MB)
-      description: Upper limit for route calculation. Grows with the size of the
-        region; 2048 is a good starting point for one country.
+      description: A guide value for the memory route calculation needs, for your
+        own planning. Yapaia does not currently limit Valhalla with it. The need grows
+        with the size of the region; 2048 is a good starting point for one country.
   display:
     name: Appearance
     description: Light or dark — for the interface and the map together.
@@ -69,7 +70,7 @@ configuration:
     description: Extras that need an internet connection. Yapaia navigates fully without them.
     enabled:
       name: Allow online services
-      description: 'Off by default. When on, Yapaia may fetch roadworks, closures and warnings from the German motorway authority and, for a place you tap, details from OpenStreetMap, Wikipedia and Wikimedia Commons. Only the request leaves the house, plus the tapped place''s coordinates and name — never your own position, route or a device identifier. Without a connection only this is lost; navigation keeps working offline.'
+      description: 'Off by default. When on, Yapaia may fetch roadworks, closures and warnings from the German motorway authority and, for a place you tap, details from OpenStreetMap, Wikipedia and Wikimedia Commons. Only the request goes out, plus the tapped place''s coordinates and name — never your own position, route or a device identifier. Without a connection only this is lost; navigation keeps working offline.'
     tankerkoenig_api_key:
       name: Tankerkönig key (fuel prices)
       description: 'Optional. With a free key from creativecommons.tankerkoenig.de, the fuel station search shows the current price for the active profile''s fuel type (German stations). For this, the area of the stations found, rounded to about 5 km, is sent to Tankerkönig. Only works with online services switched on. Empty or without a connection, no price is shown. Data: MTS-K via Tankerkönig, CC BY 4.0.'
@@ -105,12 +106,15 @@ configuration:
       description: At this outside temperature and below, Yapaia reminds you to protect the water system from frost.
   home_assistant:
     name: Home Assistant
-    description: How Yapaia reports its values to Home Assistant.
+    description: The way to Home Assistant is the "Yapaia" integration, which the
+      add-on brings along; nothing needs setting here for it. MQTT can be added if
+      you want it.
     mqtt_enabled:
       name: Report values over MQTT
-      description: The same over an MQTT broker. Useful when other devices should
-        listen in (ESPHome, your own automations). Both channels may be on at once;
-        if the broker fails, values keep flowing over the direct one.
+      description: Also publishes the values over an MQTT broker (Mosquitto add-on),
+        in addition to the "Yapaia" integration. Useful when other devices should
+        listen in (ESPHome, your own automations). Off by default; if the broker
+        fails, values keep flowing through the integration.
     mqtt_prefix:
       name: MQTT topic prefix
       description: The prefix the topics are published under, e.g. "yapaia/nav/eta".

@@ -74,12 +74,11 @@ Abschnitt hier ist die deutschsprachige Schritt-für-Schritt-Fassung
 zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
 
 > **Dieses Repository ist selbst das Add-on-Repository.** In der Wurzel liegt
-> `repository.yaml`, das Add-on-Paket eine Ebene darunter als `yapaia_go/` —
-> genau das Layout, das der HA-Supervisor beim Eintragen einer
-> Repository-URL erwartet (Hintergrund: `yapaia_go/PACKAGING.md`,
+> `repository.yaml`, das Add-on-Paket unter `go/yapaia_go/`. Der
+> HA-Supervisor durchsucht beim Eintragen einer Repository-URL alle
+> Unterordner nach einer `config.yaml` (Hintergrund: `yapaia_go/PACKAGING.md`,
 > `docs/04-home-assistant.md` §3). Schritt 1 unten ist deshalb der
-> GUI-Weg; der frühere „lokales Add-on nach `/addons/` kopieren"-Umweg steht
-> nur noch als Alternative dabei.
+> GUI-Weg.
 
 1. **Repository in Home Assistant eintragen** (GUI, ohne SSH).
    **Einstellungen → Add-ons → Add-on Store → ⋮ (oben rechts) →
@@ -91,67 +90,47 @@ zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
 
    Danach den Dialog schließen und die Store-Seite neu laden (bzw. **⋮ → Nach
    Updates suchen**).
-   *Erwartetes Ergebnis:* ein neuer Store-Abschnitt „Yapaia Go" mit der
-   Kachel **Yapaia Go**.
+   *Erwartetes Ergebnis:* ein neuer Store-Abschnitt „Yapaia" mit der
+   Kachel **Yapaia Go** (daneben weitere Yapaia-Add-ons wie Yapaia Beat).
    *Erscheint nichts:* HA meldet ungültige Repositories mit einer eigenen
    Fehlermeldung im selben Dialog. Bleibt der Abschnitt leer ohne Fehler, hat
    der Supervisor das Repository zwar geladen, aber kein Add-on darin
    gefunden — dann fehlt entweder `repository.yaml` in der Wurzel oder
-   `yapaia_go/config.yaml`. Beides prüft der CI-Job `addon-config-check`
+   `go/yapaia_go/config.yaml`. Beides prüft der CI-Job `addon-config-check`
    (`yapaia_go/config.test.ts`) bei jedem PR mit.
 
-   *Alternative ohne Store (falls das Repository nicht erreichbar ist):* das
-   Verzeichnis `yapaia_go/` aus diesem Repository in den `addons`-Ordner der
-   Home-Assistant-Installation kopieren — erreichbar z. B. über das
-   offizielle „Samba share"- oder „Advanced SSH & Web Terminal"-Add-on:
-
-   ```bash
-   # auf dem HA-Host, im Ordner /addons/
-   git clone https://github.com/Yapaia/yapaia.git /tmp/yapaia
-   cp -r /tmp/yapaia/yapaia_go /addons/yapaia_go
-   rm -rf /tmp/yapaia
-   ```
-
-   „Yapaia Go" erscheint dann im Abschnitt **„Lokale Add-ons"**. Im Ordner
-   `/addons/yapaia_go/` müssen `config.yaml` und `Dockerfile` unmittelbar
-   liegen (keine weitere Zwischenebene).
-
-2. Add-on öffnen, **Installieren** klicken. Der Container wird dabei **auf dem
-   Gerät gebaut** — je nach Hardware **10–30 Minuten**, auf einem Raspberry Pi
-   auch länger. Das ist normal und kein Hänger.
-
-   Es gibt bewusst **kein fertiges Image zum Herunterladen**: `config.yaml`
-   deklariert absichtlich keinen `image:`-Schlüssel, damit der Supervisor
-   lokal baut. Der Bau lädt dabei den Quelltext von GitHub (~1,5 MB) sowie
-   Node.js, eine JRE und s6-overlay — eine Internetverbindung ist also nur
-   **während** der Installation nötig, danach läuft alles offline.
+2. Add-on öffnen, **Installieren** klicken. Der Supervisor lädt dabei ein
+   **fertiges Image** für deine Architektur (`ghcr.io/yapaia/yapaia-go-amd64`
+   bzw. `-aarch64`); auf dem Gerät wird nichts gebaut. Je nach Leitung dauert
+   das einige Minuten. Eine Internetverbindung ist nur **während** der
+   Installation (und später für Karten-Downloads) nötig.
 
    *Bricht die Installation ab* (z. B. `403 denied` beim Image-Download oder
    `could not read Username for 'https://github.com'`): beide Fälle stehen mit
    Ursache und Lösung unter
    [Troubleshooting I-01](troubleshooting.md#i-01--die-add-on-installation-bricht-ab).
-3. **Vor dem ersten Start**: den Reiter **Konfiguration** des Add-ons öffnen
-   und mindestens `region` setzen (siehe Optionstabelle in
-   `yapaia_go/DOCS.md` §„Configuration options"). Ohne `region`
-   startet das Add-on zwar (kein Absturz), aber ohne nutzbare Karte.
+3. **Konfiguration (optional):** Im Reiter **Konfiguration** muss vor dem
+   ersten Start nichts gesetzt werden. Bleibt `region` leer, führt der
+   Einrichtungsassistent in Yapaia durch die Auswahl der Karte. Alle Optionen
+   stehen in `yapaia_go/DOCS.md` §„Configuration options".
 4. Empfohlen bei knappem RAM auf einer geteilten HAOS-VM: die
    RAM-Empfehlungstabelle in `yapaia_go/DOCS.md` §„RAM
    recommendation" **vor** dem ersten Start lesen — Home Assistant selbst,
    Mosquitto und alle anderen Add-ons teilen sich dieselbe VM.
-5. Add-on **starten** (Toggle „Start on boot" zusätzlich aktivieren, wenn das
-   Add-on dauerhaft laufen soll). Im Log-Reiter sollte in dieser Reihenfolge
-   erscheinen: Valhalla bereit → Core lauscht → (falls konfiguriert)
-   MQTT verbunden.
+5. Add-on **starten** (Schalter „Beim Booten starten" zusätzlich aktivieren,
+   wenn das Add-on dauerhaft laufen soll). Im Log-Reiter sollte in dieser
+   Reihenfolge erscheinen: Valhalla bereit (bzw. ohne Karte: wartet auf einen
+   Routinggraphen) → Core lauscht → (falls eingeschaltet) MQTT verbunden.
 6. Add-on aus der HA-Seitenleiste öffnen (Ingress — **kein** separates
    Login, die HA-eigene Sitzung deckt das ab, auch über Nabu-Casa-Remote-
-   Zugriff). Erwartung: die Karte rendert, ein Positionspunkt (Simulator
-   oder echtes GPS) ist sichtbar.
+   Zugriff). Erwartung: der Einrichtungsassistent bzw. die Karte erscheint.
 
-MQTT-Discovery erfolgt automatisch, sobald ein MQTT-Broker (z. B. das
-Mosquitto-Add-on) installiert und gestartet ist — kein manueller Eintrag
-nötig (`docs/04-home-assistant.md` §1 listet die vollständige
-Entitätentabelle, die danach unter HA → Einstellungen → Geräte & Dienste →
-MQTT erscheint).
+**Anbindung an Home Assistant:** Das Add-on bringt die Integration „Yapaia"
+mit. Nach dem ersten Start erscheint eine Benachrichtigung — Home Assistant
+einmal neu starten, dann unter *Einstellungen → Geräte & Dienste* „Yapaia Go
+gefunden" bestätigen. Kein Broker, keine Adresse, kein Token nötig. MQTT gibt
+es zusätzlich (Option `mqtt_enabled`, Vorgabe aus). Details:
+[User Manual → Home Assistant](manual.md#home-assistant).
 
 Weiter mit [Erste Schritte](erste-schritte.md).
 
@@ -166,8 +145,8 @@ Sonderpfad, sondern der am häufigsten durchgespielte.
 ### B.1 Repository holen
 
 ```bash
-git clone <URL-dieses-Repositories> yapaia-go
-cd yapaia-go
+git clone https://github.com/Yapaia/yapaia.git
+cd yapaia/go
 cp .env.example .env
 ```
 
@@ -254,19 +233,25 @@ curl -s http://localhost:8080/api/v1/health | jq .
 *(Ohne `jq`: `curl -s http://localhost:8080/api/v1/health` — dieselbe Antwort,
 nur unformatiert.)*
 
-Erwartete Antwort (Auszug, `docs/03-api-spec.md` §2 „System"):
+Erwartete Antwort (Auszug):
 
 ```json
 {
   "status": "ok",
-  "version": "0.0.1",
-  "services": { "valhalla": "ok", "photon": "ok", "gpsd": "down", "mqtt": "down" }
+  "version": "…",
+  "services": { "db": "ok", "mqtt": "disabled" }
 }
 ```
 
-`gpsd: "down"` und `mqtt: "down"` sind an dieser Stelle **normal** — beide
-sind optional und werden erst durch die folgenden Abschnitte aktiv. Öffne
-danach `http://<Host-IP>:8080/` im Browser — die Karte sollte rendern.
+`/health` sagt nur, dass der Core läuft. Ob Karte, Routing, Suche und
+Position bereit sind, meldet die Installationsprüfung (§C.2):
+
+```bash
+curl -s http://localhost:8080/api/v1/system/preflight | jq '.data.checks[] | {id, status, detail}'
+```
+
+Fehlen dort noch Routing oder Suche, ist das vor §C normal. Öffne danach
+`http://<Host-IP>:8080/` im Browser — die App sollte erscheinen.
 
 ### B.5 Backup vor einem Update
 
@@ -320,7 +305,7 @@ austauschbar in der Reihenfolge, brauchen aber alle dieselbe Eingabedatei:
 
 ### C.2 Was fehlt mir gerade? — die Prüfung in der App
 
-Bevor du irgendetwas baust: öffne Yapaia und klicke rechts oben auf **🩺
+Bevor du irgendetwas baust: öffne Yapaia und tippe auf **⚙ → 🩺
 Installation prüfen**. Die Seite listet Kacheln, Routing, Suche, Position,
 RAM, Plattenplatz und MQTT — je mit dem, was tatsächlich vorgefunden wurde,
 und dem, was dagegen zu tun ist. Sie funktioniert auch dann, wenn noch gar
@@ -339,7 +324,7 @@ das Gerät selbst, auch eine HAOS-VM mit 8 GB.
 
 **Der normale Weg — in der Yapaia-Oberfläche, ohne Shell:**
 
-1. **„Karten verwalten"** (🗺️ rechts oben) öffnen.
+1. **⚙ → 🗺️ Karten verwalten** öffnen.
 2. Bei der gewünschten Karte auf **„Installieren"** drücken. (Bei einer
    bereits installierten Karte heißt derselbe Knopf **„Update"** — es ist
    derselbe Vorgang, er ersetzt, was da ist.)
@@ -350,7 +335,7 @@ das Gerät selbst, auch eine HAOS-VM mit 8 GB.
 > installierte und verfügbare Karten in zwei getrennten Abschnitten, und eine
 > Karte wanderte beim Installieren von der einen in die andere. Ob hinter
 > „Installieren" ein Download oder ein Kachelbau steckt, entscheidet die
-> Quelle — für Sie ist es dieselbe Handlung, nur die Dauer unterscheidet sich.
+> Quelle — für dich ist es dieselbe Handlung, nur die Dauer unterscheidet sich.
 
 Liechtenstein braucht Minuten, ein Bundesland wie Rheinland-Pfalz deutlich
 länger. Beim **ersten** Bau lädt das Add-on einmalig `planetiler.jar`
@@ -396,7 +381,7 @@ genügt ein Reload.
 
 Für Routing und Suche braucht es zwei weitere Erzeugnisse aus **derselben**
 `.osm.pbf`. Beide werden **direkt auf dem Gerät gebaut**, und seit 0.16.0 mit
-**einem** Knopf: „Karten verwalten" (🗺️ rechts oben) öffnen und auf
+**einem** Knopf: **⚙ → 🗺️ Karten verwalten** öffnen und auf
 **„Fehlendes bauen"** drücken.
 
 | Erzeugnis | Ohne das … | Umfang |
@@ -511,10 +496,12 @@ HAOS-VM**:
 Photon will allein mehrere GB Heap. Auf einer geteilten 8-GB-VM ist der
 **Lite-Suchindex** die verlässlichere Wahl — er deckt dieselbe Ortssuche ab
 und braucht ein Vielfaches weniger Speicher (W-12,
-`docs/08-wargame.md`). In der Add-on-Konfiguration:
+`docs/08-wargame.md`). In der Add-on-Konfiguration in der Gruppe **Suche**
+den Schalter **„Adresssuche mit Photon"** ausschalten — in YAML:
 
 ```yaml
-photon_enabled: false
+search:
+  photon_enabled: false
 ```
 
 Die Installationsprüfung aus §C.2 meldet genau diese Empfehlung selbst,
@@ -546,18 +533,20 @@ Installationswegen:
 
 ### Weg A (HA-Add-on)
 
-Nichts weiter zu tun — `gpsd` ist **im Add-on-Container eingebaut** und
-`config.yaml` deklariert bereits `usb: true` + `udev: true`, wodurch der HA-
-Supervisor USB-Geräte automatisch durchreicht. Ablauf:
+`gpsd` ist **im Add-on-Container eingebaut**, und `config.yaml` deklariert
+bereits `uart: true`, `usb: true` und `udev: true`, wodurch der HA-Supervisor
+USB-Geräte durchreicht. Einzustellen ist nur die Quelle. Ablauf:
 
 1. USB-GPS-Empfänger einstecken.
-2. Add-on neu starten (Geräte-Durchreichung wird beim Container-Start
+2. In der Add-on-Konfiguration `gps_source` auf **`usb`** stellen (Vorgabe ist
+   `none`) und speichern.
+3. Add-on neu starten (Geräte-Durchreichung wird beim Container-Start
    ausgewertet, nicht live nachgeladen).
-3. Im Add-on-Log nachsehen: entweder „found GPS device at /dev/ttyACMx"
-   oder eine Warnung, dass noch gewartet wird (in den ersten 90 s jede Sekunde, danach alle 15 s ein erneuter Versuch,
-   kein Absturz).
-4. In der App: Einstellungen → Position sollte einen Live-Fix zeigen,
-   sobald `gpsd` einen hat (freie Sicht zum Himmel nötig, siehe
+4. Im Add-on-Log nachsehen: entweder `gpsd: benutze /dev/serial/by-id/…`
+   oder eine Warnung, dass noch gewartet wird (in den ersten 90 s jede
+   Sekunde, danach alle 15 s ein erneuter Versuch, kein Absturz).
+5. In der App: **⚙ → 🩺 Installation prüfen** zeigt unter *Position*, ob
+   `gpsd` einen Fix liefert (freie Sicht zum Himmel nötig, siehe
    [Troubleshooting W-01](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung)).
 
 Details: `yapaia_go/DOCS.md` §„USB-GPS passthrough".
@@ -618,14 +607,14 @@ bestimmtes Docker-Image für `gpsd` erfordert:
    Effekt, nur nötig, wenn `network_mode: host` aus anderen Gründen nicht in
    Frage kommt, z. B. Portkonflikte mit anderen Host-Diensten.)
 5. Stack neu starten: `docker compose --profile routing --profile search up
-   -d --force-recreate core`. Danach `curl -s
-   http://localhost:8080/api/v1/health | jq .services.gpsd` sollte `"ok"`
-   zeigen (statt `"down"`).
+   -d --force-recreate core`. Danach sollte die Prüfung *Position* einen Fix
+   melden: `curl -s http://localhost:8080/api/v1/system/preflight | jq
+   '.data.checks[] | select(.id=="position")'`.
 
-Ohne angeschlossenes GPS funktioniert die App trotzdem vollständig über den
-eingebauten GPS-Simulator (`POST /api/v1/simulator/play`, siehe
-`docs/03-api-spec.md` §„Position") — die USB-Durchreichung ist nur für
-Live-Betrieb im Fahrzeug nötig.
+Ohne angeschlossenes GPS lässt sich die App trotzdem vollständig mit dem
+eingebauten GPS-Simulator ausprobieren (**⚙ → 🧪 Testfahrt**, siehe
+[Erste Schritte §6](erste-schritte.md#6-ohne-echtes-gps-testen-simulator)) —
+die USB-Durchreichung ist nur für den Live-Betrieb im Fahrzeug nötig.
 
 ---
 
@@ -639,11 +628,11 @@ mit Ergebnis (✅/❌ + Beobachtung) festhalten und zurückmelden:
 | # | Schritt | Erwartung | Ergebnis |
 |---|---|---|---|
 | 1 | `git clone` + `.env` kopieren | Repo liegt lokal, `.env` existiert | |
-| 2 | Kartenregion bauen (B.3) bzw. Add-on-`region` setzen (A.3) | Baubefehl endet ohne Fehler | |
+| 2 | Kartenregion bauen (B.3) bzw. im Einrichtungsassistenten eine Region installieren (A) | Bau endet ohne Fehler | |
 | 3 | Stack/Add-on starten | `docker compose ps` zeigt alle Container „Up" bzw. Add-on-Log zeigt „Core lauscht" | |
-| 4 | `GET /api/v1/health` | `status: "ok"`, `valhalla`/`photon`: `"ok"` | |
+| 4 | `GET /api/v1/health` und `GET /api/v1/system/preflight` | `status: "ok"`; Prüfungen *Routing* und *Suche* `ok` | |
 | 5 | App im Browser öffnen | Karte rendert, Positionspunkt sichtbar (Simulator reicht) | |
-| 6 | (falls GPS vorhanden) USB-GPS-Abschnitt durchspielen | `services.gpsd` wird `"ok"` | |
+| 6 | (falls GPS vorhanden) USB-GPS-Abschnitt durchspielen | Prüfung *Position* meldet einen Fix | |
 | 7 | Eine Route berechnen ([Erste Schritte](erste-schritte.md)) | Route wird angezeigt | |
 
 **Ehrlicher Stand dieses Dokuments:** Diese Tabelle wurde in der

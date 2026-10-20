@@ -1,8 +1,9 @@
 # Ideen: KI im Camper-Navi
 
-Stand: 2026-09-29. Ideensammlung, noch **nichts davon ist gebaut**. Sie hält
-fest, was besprochen wurde, damit es nicht verloren geht, und ist die Vorlage
-für die Umsetzung.
+Stand: 2026-09-29. Ideensammlung; die eigentlichen KI-Funktionen sind noch
+**nicht gebaut** (bereits gebaute Vorarbeiten ohne eigene KI sind bei der
+jeweiligen Idee vermerkt). Sie hält fest, was besprochen wurde, damit es nicht
+verloren geht, und ist die Vorlage für die Umsetzung.
 
 Reihenfolge laut Absprache: zuerst **Idee 4 (Bordsensoren)**, dann
 **Idee 1 (Sprach-Copilot)**. Idee 4 steht unten bei den übrigen, weil ihre
@@ -252,6 +253,12 @@ apps/web/src/drive                 Mikrofon-Knopf, Vorschlagskarten im Fahrtmen�
    Werkzeuge und Antworten.
 3. **Copilot per Sprache im Browser** (Weg A).
 4. **Über Home Assistant Assist** mit Aktivierungswort (Weg B).
+
+> **Vorarbeit gebaut (0.30.0):** Feste Sprachbefehle laufen über Home
+> Assistant Assist (`apps/core/src/sprache/`); versteht Yapaia einen Satz
+> nicht, kann optional ein Gesprächsagent aus Home Assistant ihn in eine
+> bekannte Absicht übersetzen (`apps/core/src/ha/kiAgent.ts`). Das ist noch
+> kein Copilot mit Werkzeugen, wie oben beschrieben.
 
 ---
 

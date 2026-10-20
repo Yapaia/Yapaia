@@ -8,11 +8,14 @@ Lösung für jeden kritischen Fall.
 Nein, im laufenden Betrieb nicht. Karten, Routing (Valhalla) und Suche
 (Photon bzw. die eingebaute Lite-Suche) laufen vollständig offline, sobald
 eine Kartenregion einmal heruntergeladen und der Routing-Graph gebaut wurde.
-Internet wird nur für den **einmaligen** Kartenregion-Download/-Update
-gebraucht (siehe [Installations-Guide](installation.md) und
-`docs/data-update-runbook.md`) sowie optional für den Add-on-Store-Katalog
-(fällt bei fehlendem Internet auf einen zwischengespeicherten Katalogstand
-zurück, siehe W-13 in `docs/08-wargame.md`).
+Internet wird nur für den Download bzw. das Update von Kartenregionen
+gebraucht (siehe [Installations-Guide](installation.md) und das
+[Runbook](data-update-runbook.md)) sowie für den Add-on-Marktplatz (ohne
+Internet zeigt der Store den zuletzt geladenen Katalog, siehe W-13 in
+`docs/08-wargame.md`). Zusätzlich lassen sich **Online-Dienste** einschalten
+(Vorgabe aus): Baustellen und Sperrungen der Autobahn GmbH, Infos zu einem
+angetippten Ort, Spritpreise über Tankerkönig. Die Navigation selbst bleibt
+davon unabhängig. Details: [Manual](manual.md#optional-online-services).
 
 **Welches GPS-Gerät wird empfohlen?**
 Ein externer USB-GPS-Empfänger mit Fensterhalterung/Außenantenne
@@ -30,8 +33,8 @@ GPX-Datei) mit einstellbarer Geschwindigkeit „abfahren". Siehe
 Das aktive Fahrzeugprofil (Höhe/Breite/Länge/Gewicht, ggf. Autobahn-/Maut-/
 Fähre-Vermeidung) schränkt die Routenwahl bewusst ein — eine für ein
 3,5-t-Wohnmobil zulässige Straße kann für ein 7,5-t-Fahrzeug gesperrt sein.
-Prüfe zuerst das aktive Profil (Profil-Symbol oben rechts), bevor du eine
-Route als „falsch" einordnest.
+Prüfe zuerst das aktive Profil (Fahrzeugwahl in der Routenansicht bzw.
+**⚙ → 🚐 Fahrzeuge**), bevor du eine Route als „falsch" einordnest.
 
 **Kann sich die App auf fehlende Kartendaten (z. B. eine fehlende
 Höhenbeschränkung) verlassen?**
@@ -71,13 +74,27 @@ Wer mehrere Geräte nutzt, ist mit einem USB-Empfänger oder der Companion-App
 als Quelle besser bedient (offener Punkt B-03 in `docs/backlog.md`).
 
 **Wie installiere/entferne ich ein Add-on sicher?**
-Nur aus dem Store (dort durchlaufen Add-ons eine Review-Checkliste) und nur
-mit den beim Installieren angezeigten, tatsächlich benötigten
-Berechtigungen. Jedes Add-on läuft in einer Sandbox mit Default-Deny für
-alles Nicht-Deklarierte; ein Kill-Switch (sofortiges Deaktivieren) ist
-jederzeit verfügbar. Details:
+Unter **⚙ → 🧩 Add-on-Store**. Seit 0.56.0 kommen Add-ons aus dem
+**Yapaia-Marktplatz**: unter „Marktplatz" die Adresse (`https://…`) und, für
+gekaufte Add-ons, den Konto-Token eintragen und „Verbinden" tippen. Go
+installiert nur Pakete, die der Marktplatz signiert hat — im Katalog mit
+„✓ Geprüft" gekennzeichnet, sonst „Unsigniert". Vor dem Installieren zeigt Go
+die angefragten Berechtigungen; bitte wirklich lesen. Kostenpflichtige
+Add-ons brauchen eine Lizenz für diese Installation, die Go beim
+Installieren holt („Lizenz aktivieren", falls das nicht klappt). Jedes Add-on
+läuft in einer Sandbox mit Default-Deny für alles Nicht-Deklarierte und lässt
+sich jederzeit sofort deaktivieren oder deinstallieren (Reiter „Updates").
+Vom Marktplatz gesperrte Versionen schaltet Go selbst ab.
+
+**Kann ich ein Add-on als Datei installieren?**
+Ja, über „Add-on-Datei installieren" (`.tar.gz`, z. B. vom USB-Stick). Solche
+Pakete sind nicht signiert und werden nur angenommen, wenn im Abschnitt
+„Marktplatz" der **Entwicklermodus** eingeschaltet ist. Der Entwicklermodus
+ist für eigene Add-ons und Tests gedacht — sonst ausgeschaltet lassen.
+Details: [Manual → Add-ons](manual.md#add-ons),
 [Troubleshooting W-10](troubleshooting.md#w-10--add-on-verhält-sich-verdächtig-)
-und der [Add-on-Entwicklungsleitfaden](addon-dev-guide.md) für Add-on-Autoren.
+und für Add-on-Autoren der
+[Add-on-Entwicklungsleitfaden](addon-dev-guide.md).
 
 **Überlebt ein Update meine Kartendaten und Einstellungen?**
 Ja — alle Nutzdaten liegen bewusst außerhalb des jeweiligen Containers
@@ -100,8 +117,9 @@ Browser geben die Standortbestimmung nur über eine gesicherte Verbindung
 frei — das ist eine Regel des Browsers, die keine Einstellung in Yapaia
 aushebeln kann. Der vorgesehene Weg dafür ist die **Home-Assistant-
 Companion-App**: sie meldet an Home Assistant statt an den Browser und tut
-das auch bei gesperrtem Bildschirm. Einrichtung: 🩺 Installationsprüfung in
-Yapaia, dort die Auswahlliste unter der Prüfliste
+das auch bei gesperrtem Bildschirm. Einrichtung: Add-on-Option `gps_source`
+auf `companion_app`, dann in Yapaia **⚙ → 🩺 Installation prüfen**, dort die
+Auswahlliste unter der Prüfliste
 ([Manual](manual.md#using-the-home-assistant-companion-app)).
 
 **Der Bildschirm geht während der Fahrt aus.**
@@ -125,6 +143,7 @@ Kommt stark auf Kartengröße und ob Photon-Suche aktiv ist an — die konkrete
 Tabelle steht in `docs/01-architecture.md` §4 und, für den HA-Add-on-Fall
 speziell (geteilte VM mit HA selbst), in
 `yapaia_go/DOCS.md` §„RAM recommendation". Bei knappem RAM: Photon
-deaktivieren (`photon_enabled: false` bzw. `PHOTON_ENABLED=false`) —
+deaktivieren (Add-on: Gruppe „Suche" → „Adresssuche mit Photon" aus;
+Compose: `PHOTON_ENABLED=false`) —
 Suche fällt automatisch auf einen deutlich schlankeren Offline-Index zurück
 ([Troubleshooting W-12](troubleshooting.md#w-12--suche-reagiert-nicht-mehrvereinfachte-suche)).

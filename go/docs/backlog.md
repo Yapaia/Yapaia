@@ -14,7 +14,7 @@ ist nach drei Monaten verschwunden.
 ## B-01 🔴 Golden-Routes DE verifizieren (Maßrestriktionen Deutschland)
 
 **Status:** zurückgestellt am 2026-08-05 durch Entscheidung des Betreibers.
-**Betrifft:** `e2e/golden-routes.json`, Job `golden-routes-de` in `nightly.yml`.
+**Betrifft:** `e2e/golden-routes.json`, Job `golden-routes-de` in `go-nightly.yml`.
 
 ### Was fehlt
 
@@ -84,7 +84,7 @@ Alles Werkzeug dafür liegt bereit:
 ## B-02 🟡 Photon-Live-Suche im Nightly
 
 **Status:** zurückgestellt am 2026-08-05.
-**Betrifft:** Job `photon-li-nightly` in `nightly.yml`.
+**Betrifft:** Job `photon-li-nightly` in `go-nightly.yml`.
 
 ### Was fehlt
 
@@ -262,6 +262,13 @@ Wenn der Betreiber es sagt — oder wenn der Bau auf dem Gerät zum Blocker wird
 
 ## B-05 ✅ Position aus der Home-Assistant-App — ERLEDIGT 2026-09-03
 
+**Status:** erledigt. Positionsquelle `ha_tracker`, Auswahl des Geräts in der
+Installationsprüfung (🩺) — siehe [`04-home-assistant.md`](04-home-assistant.md)
+§1d.
+
+<details>
+<summary>Ursprünglicher Eintrag vom 2026-09-02</summary>
+
 **Status:** offen, aufgenommen am 2026-09-02.
 **Betrifft:** `apps/core/src/position/service.ts`, `apps/core/src/ha/client.ts`,
 `packages/shared/src/{types.ts,schemas/position.ts}`, `yapaia_go/config.yaml`.
@@ -338,7 +345,7 @@ bisherige Kartendatei unangetastet, ein neuer Start beginnt sauber von vorn.
 **Ebenfalls bewusst:** kein Prozentwert. Planetilers Ausgabe lässt sich nicht
 versionsstabil in eine Zahl übersetzen; der Balken läuft unbestimmt und
 darunter steht die letzte Ausgabezeile. Eine erfundene Prozentzahl wäre
-genau die Sorte Behauptung, die diese Session über beseitigt wurde.
+genau die Sorte Behauptung, die in dieser Arbeitsrunde beseitigt wurde.
 
 <details>
 <summary>Ursprünglicher Eintrag vom 2026-09-01</summary>

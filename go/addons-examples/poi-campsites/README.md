@@ -16,7 +16,7 @@ Add-on-spezifische.
 |---|---|
 | `map.layer.write` | Pusht die gefilterten POIs als GeoJSON-Marker-Layer (`addon.map.addLayer`) sowie einen separaten Highlight-Layer für die aktuelle Auswahl. |
 | `widget.register` | Registriert/aktualisiert das `poi-detail`-Side-Panel-Widget mit dem Namen des ausgewählten Stellplatzes. |
-| `route.propose` | Der "Route hierhin"-Button in der Detail-Ansicht. **Aktiviert nie** selbst eine Route -- der Host zeigt nur die Bestätigungs-Banner (W-10); erst ein Klick des Nutzers dort löst `POST /navigation/destination` aus. |
+| `route.propose` | Der "Route hierhin"-Button in der Detail-Ansicht. **Aktiviert nie** selbst eine Route -- der Host zeigt nur das Bestätigungs-Banner (W-10); erst ein Klick des Nutzers dort löst `POST /navigation/destination` aus. |
 
 **Bewusst NICHT angefordert:**
 - `pos.read` -- dieses Add-on sortiert/filtert nicht nach der aktuellen
@@ -43,8 +43,8 @@ nicht: die add-on-CSP setzt `connect-src 'none'`, siehe
 
 ## Bekannte Plattform-Lücke: kein Marker-Klick-Callback
 
-`docs/05 §3`s SDK-Illustration deutet an: `addon.map.addMarkers('campsites',
-markers); // inkl. Klick-Callbacks`. Der tatsächliche Host-Code
+Eine frühere Fassung der SDK-Skizze in `docs/05 §3` versprach für
+`addMarkers()` Klick-Callbacks. Der tatsächliche Host-Code
 (`apps/web/src/addons/mapLayers.ts`) rendert `addMarkers()`/`addLayer()`
 aktuell als reine, NICHT-interaktive MapLibre-Circle-Layer -- es gibt (Stand
 E09-T2/T4) keinen Event-Kanal, der einen Klick auf einen echten Karten-Marker
@@ -62,20 +62,13 @@ Punkt ergänzt wurde.
 
 ## Hinweis: `core_api` als `"*"`
 
-`docs/addon-dev-guide.md`s Beispiel-Manifest verwendet `"core_api": "^0.1"`.
-Dieses Add-on setzt bewusst `"*"` (statt einer engeren Range): in einem lokal
-aus dem Quellcode gebauten Core (`node apps/core/dist/index.js` direkt aus dem
-Repo, statt aus dem Docker-Image) löst `readPackageVersion()`
-(`apps/core/src/version.ts`) den Pfad `../../package.json` relativ zu
-`apps/core/dist` auf -- das ist `apps/package.json`, das es lokal gar nicht
-gibt, sodass `GET /api/v1/health` `"0.0.0"` statt der echten
-`apps/core/package.json`-Version meldet (im Docker-Image, wo `WORKDIR /app`
-das ROOT-`package.json` nach `/app/package.json` kopiert, stimmt der Pfad und
-liefert die echte Version). `^0.1` würde gegen die lokale `0.0.0` fehlschlagen
-(`INCOMPATIBLE_CORE_API`) -- entdeckt beim Schreiben der E2E-Tests dieses
-Tasks. `"*"` ist für ein Referenz-Add-on ohnehin die richtige Wahl (maximale
-Kompatibilität) und umgeht diese Lokal-Dev-Falle sauber, statt sie zu
-verschleiern.
+`core_api` wird gegen die Version von `@yapaia/core` geprüft
+(`apps/core/package.json`, derzeit 0.0.x) — nicht gegen die Add-on-Version von
+Yapaia Go in Home Assistant und nicht gegen das, was `GET /api/v1/health`
+meldet (`apps/core/src/version.ts`). Eine Range wie `"^0.1"` passt nicht auf
+0.0.x und würde mit `INCOMPATIBLE_CORE_API` abgelehnt. Bis zum ersten Release
+der Add-on-API ist `"*"` deshalb die richtige Wahl (siehe
+[`docs/addon-dev-guide.md`](../../docs/addon-dev-guide.md) §1.2).
 
 ## Bauen
 
@@ -85,7 +78,12 @@ node build.mjs   # -> dist/poi-campsites.tgz
 
 ## Installieren (lokal gegen einen laufenden Core, siehe Dev-Guide §8)
 
+Das Paket ist nicht signiert; der Core installiert es nur im Entwicklermodus
+(Dev-Guide §8a).
+
 ```sh
+curl -s -X PUT http://localhost:8080/api/v1/addons/marketplace/developer-mode \
+  -H 'content-type: application/json' -d '{"enabled":true}'
 BASE64=$(base64 -w0 dist/poi-campsites.tgz)
 PENDING=$(curl -s -X POST http://localhost:8080/api/v1/addons/install \
   -H 'content-type: application/json' \

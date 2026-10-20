@@ -5,18 +5,18 @@ Im Betrieb liegen die Dateien im ESPHome Device Builder unter `/config/esphome/`
 
 | Ordner | Gerät |
 |---|---|
-| `btcollector/` | Bluetooth-Sammler: Batterie-BMS, Victron SmartShunt, Gasflaschen, Reifendruck |
-| `door/` | Tür / Aufbauschloss |
-| `heizung/` | Truma-Heizung (iNet Box) und Neigungssensor |
-| `navi/` | Navigationsanzeige im Fahrzeug, so wie sie aktuell aufgespielt ist |
-| `smartwomo/` | Schaltausgänge im Wohnmobil |
-| `swc/` | swc (GPS, Schrittmotoren) |
-| `yapaia-satellite/` | Gerätedatei des Sprach-Satelliten; die eigentliche Firmware liegt in `satellite/` |
-| `yapaia-nav-display/` | Navigationsanzeige aus dem Repo (Kopie von `go/esphome/`, aktueller als `navi/`) |
+| [`btcollector/`](btcollector/) | Bluetooth-Sammler: Batterie-BMS, Victron SmartShunt, Gasflaschen, Reifendruck |
+| [`door/`](door/) | Tür / Aufbauschloss |
+| [`heizung/`](heizung/) | Truma-Heizung (iNet Box) und Neigungssensor |
+| [`navi/`](navi/) | Navigationsanzeige im Fahrzeug, so wie sie aktuell aufgespielt ist |
+| [`smartwomo/`](smartwomo/) | Schaltausgänge im Wohnmobil |
+| [`swc/`](swc/) | Lenkradfernbedienung (SWC) fürs Autoradio: zwei Digitalpotis (X9C) bilden die Lenkradtasten nach; dazu ein GPS-Empfänger |
+| [`yapaia-satellite/`](yapaia-satellite/) | Gerätedatei des Sprachsatelliten; die eigentliche Firmware liegt in [`satellite/`](../../satellite/) |
+| [`yapaia-nav-display/`](yapaia-nav-display/) | Navigationsanzeige aus dem Repo (Kopie von [`go/esphome/`](../../go/esphome/), aktueller als `navi/`) |
 
 ## Geheimnisse
 
 Das Repo ist öffentlich. Schlüssel, Passwörter, Bindkeys und MAC-Adressen stehen deshalb
 nicht in den Dateien, sondern als `!secret …` in der `secrets.yaml` des Device Builders.
-Welche Namen gebraucht werden, zeigt `secrets.beispiel.yaml`. Eine `secrets.yaml` nie
+Welche Namen gebraucht werden, zeigt [`secrets.beispiel.yaml`](secrets.beispiel.yaml). Eine `secrets.yaml` nie
 einchecken.

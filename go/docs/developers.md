@@ -82,9 +82,10 @@ yapaia/go/
 └── tasks/              Historical task prompts from the planning phase
 ```
 
-`repository.yaml` at the root is what makes this repo installable as a Home
-Assistant add-on repository; the Supervisor looks for add-on directories
-exactly one level below it, which is why `yapaia_go/` sits where it does.
+`repository.yaml` at the monorepo root is what makes the repository installable
+as a Home Assistant add-on repository; the Supervisor searches every folder
+below it (except dot-folders and `rootfs/`) for a `config.yaml`, which is why
+`go/yapaia_go/` can live inside the Go module.
 
 ---
 
@@ -162,7 +163,7 @@ version:
 
 ### REST — `/api/v1/*`
 
-66 paths, generated into [`openapi.json`](openapi.json) from the Fastify routes
+97 paths, generated into [`openapi.json`](openapi.json) from the Fastify routes
 and the `@yapaia/shared` schemas. **The spec is CI-enforced**: change a route
 without regenerating and the `docs-freshness` job fails.
 
@@ -171,10 +172,10 @@ pnpm openapi:generate     # after any route change
 pnpm openapi:check        # what CI runs
 ```
 
-Groups: `addons` (16), `map` (9), `navigation` (8), `simulator` (5),
-`position` (4), `profiles` (4), `favorites` (3), `system` (3), `auth`,
-`history`, `routes`, `search`, `settings` (2 each), plus `health`, `jobs`,
-`security` and the `/tiles/{region}` endpoint.
+Largest groups by path: `addons` (21), `map` (13), `navigation` (8),
+`simulator` (5), then `position`, `profiles`, `online`, `ansage` and the
+Yapaia protocol `/yapaia/v1/*` (4 each); the rest are smaller groups plus the
+`/tiles/{region}` endpoint.
 
 The one endpoint worth knowing if you integrate from outside:
 `POST /api/v1/navigation/destination` takes `{query | latlng, profile_id?,
@@ -211,9 +212,10 @@ Details: [`04-home-assistant.md`](04-home-assistant.md).
 ### The add-on SDK
 
 `@yapaia/addon-sdk` is the public surface for third-party add-ons: a manifest
-format, two plugin types (sandboxed frontend, service), and a git-based
-registry. Changing it is a compatibility event — the `addon-compat-check` job
-runs reference add-ons against your change. See
+format, two plugin types (sandboxed frontend, service), a git-based registry
+and the signed marketplace ([`marktplatz.md`](marktplatz.md)). Changing it is a
+compatibility event — the `addon-compat-check` job in the release pipeline runs
+the reference add-ons against your change. See
 [`addon-dev-guide.md`](addon-dev-guide.md) and [`05-addon-system.md`](05-addon-system.md).
 
 ---
@@ -252,13 +254,6 @@ This is wargame case W-15, and `apps/web/e2e/subpath.spec.ts` guards it.
 
 The core is ESM. `import { x } from './thing.js'` — even though the file is
 `thing.ts`. Omitting it fails at runtime, not at compile time.
-
-### Entity IDs are `yapaia_`, helpers are `yapaia_`
-
-The product is *Yapaia*; the older entities say `yapaia` because Home Assistant
-never renames an ID once assigned, and the name predates the correction in
-0.6.7. Anything **new** gets the correct spelling. They cannot collide:
-`button.*` and `input_button.*` are different domains.
 
 ### Never check an exit status through a pipe
 
@@ -312,7 +307,7 @@ anything is decoration.
 
 ## CI/CD pipeline
 
-### On every pull request (`ci.yml`) — 14 jobs, all blocking
+### On every pull request (`ci.yml` → `go-ci.yml`, `go-addon-image.yml`) — 15 jobs, all blocking
 
 | Job | Gate |
 |---|---|
@@ -330,15 +325,16 @@ anything is decoration.
 | **Golden-Routes LI** | Routing safety gate — explicitly a merge blocker |
 | **Valhalla / Lite-Search / Photon** | Build and smoke each data pipeline |
 
-Performance jobs are skipped on pull requests by design and run nightly.
+Performance jobs are skipped on pull requests by design and run in the
+scheduled suite.
 
-### Nightly (`nightly.yml`)
+### Nightly (`go-nightly.yml`, weekly on Sundays)
 
 The full suite plus what is too slow or too heavy for a PR: the 24-hour
 performance soak, multi-architecture builds, the HA add-on linter, ETA
 plausibility, and a data-update runbook smoke test.
 
-### Release (`release.yml`)
+### Release (`go-release.yml`)
 
 Runs the whole nightly suite again, re-runs the docs and changeset gates as a
 double check, verifies reference add-on compatibility, merges changesets and
@@ -367,9 +363,10 @@ catches most of it, and `pnpm e2e` catches nearly all the rest.
    green.
 5. Squash-merge.
 
-The add-on has no `image:` in `config.yaml`, so the Supervisor builds locally
-on the user's machine. That is why the install progress bar sits at 0 % and why
-the first install takes minutes.
+`config.yaml` names a prebuilt image (`image: ghcr.io/yapaia/yapaia-go-{arch}`),
+so the Supervisor pulls `<image>:<version>` instead of building on the user's
+machine. The image for a version therefore has to be published before
+operators can install that version.
 
 ---
 

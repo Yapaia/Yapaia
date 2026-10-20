@@ -13,7 +13,7 @@ in 10 Minuten). Dieses README beschreibt nur das Add-on-spezifische.
 
 | Scope | Warum genau dieser (und kein anderer) |
 |---|---|
-| `pos.read` | Der Service abonniert `pos/update` (`addon.position.subscribe`), um jede Fixe der aktuellen Aufnahme hinzuzufügen. |
+| `pos.read` | Der Service abonniert `pos/update` (`addon.position.subscribe`), um jeden Fix der aktuellen Aufnahme hinzuzufügen. |
 | `storage.own` | Die EINZIGE Persistenz UND der EINZIGE Kanal zwischen Service- und UI-Hälfte (siehe unten) -- Track-GPX-Text, der Track-Index, der Live-Status und die Start/Stop-Kommandos leben alle unter `storage.own`. |
 | `widget.register` | Die UI aktualisiert ein kompaktes Side-Panel-Widget mit "Aufnahme läuft · Laufzeit · Distanz". |
 | `events.publish` | **Seit E09-T8.** Zwei schlanke, „fire-and-forget"-Benachrichtigungen (`started`/`stopped`) für externe (MQTT/HA-)Konsumenten -- **nicht** der UI<->Service-Kanal, siehe "`events.publish` (E09-T8)" unten für die Abgrenzung. |
@@ -25,7 +25,7 @@ Online-Abhängigkeit.
 ## Warum `storage.own` der UI<->Service-Kanal ist (nicht `events.publish`)
 
 Die zwei Hälften dieses Add-ons laufen auf VERSCHIEDENEN Transports
-(`packages/addon-sdk/src/types.ts`): die UI spricht postMessage mit dem
+(`packages/addon-sdk/src/types.ts`): die UI spricht postMessage mit der
 Host-Bridge, der Service spricht REST/WS mit dem Core. Es gibt keinen
 direkten Kanal zwischen beiden. Die SDK-Oberfläche bietet:
 
@@ -74,7 +74,7 @@ darf daher nie die eigentliche Aufnahme/GPX-Erstellung stören -- siehe
 
 `src/recorder.ts#applyFix` ist eine reine Zustandsmaschine (keine SDK-, keine
 Zeit-Abhängigkeit -- vollständig unit-testbar, siehe `recorder.test.ts`):
-Trifft eine Fixe ein, deren Abstand zur VORHERIGEN akzeptierten Fixe (nach
+Trifft ein Fix ein, dessen Abstand zum VORHERIGEN akzeptierten Fix (nach
 `ts`, dem echten Positions-Zeitstempel, nicht "wann kam die Nachricht an")
 `GAP_THRESHOLD_MS` (3000 ms) überschreitet, beginnt ein NEUES `<trkseg>` statt
 den Punkt an das laufende Segment anzuhängen. `src/gpx.ts#buildGpx` serialisiert
@@ -109,7 +109,7 @@ aber nicht die primäre, verlässliche Export-Methode ist.
 ## Hinweis: `core_api` als `"*"`
 
 Siehe [`../poi-campsites/README.md`](../poi-campsites/README.md#hinweis-core_api-als-) --
-derselbe Grund (lokal gebauter Core meldet `"0.0.0"` statt der echten Version).
+derselbe Grund (`core_api` wird gegen `@yapaia/core` 0.0.x geprüft).
 
 ## Bauen
 
@@ -119,7 +119,12 @@ node build.mjs   # -> dist/track-recorder.tgz
 
 ## Installieren (siehe Dev-Guide §8)
 
+Das Paket ist nicht signiert; der Core installiert es nur im Entwicklermodus
+(Dev-Guide §8a).
+
 ```sh
+curl -s -X PUT http://localhost:8080/api/v1/addons/marketplace/developer-mode \
+  -H 'content-type: application/json' -d '{"enabled":true}'
 BASE64=$(base64 -w0 dist/track-recorder.tgz)
 PENDING=$(curl -s -X POST http://localhost:8080/api/v1/addons/install \
   -H 'content-type: application/json' \

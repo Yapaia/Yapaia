@@ -1,6 +1,6 @@
 # Add-on-Marktplatz — Protokoll v1
 
-Dieses Dokument ist der Vertrag zwischen Yapaia Go (öffentlich, GPL-3.0) und
+Dieses Dokument ist der Vertrag zwischen Yapaia Go (öffentlich, GPL-3.0-or-later) und
 dem Marktplatz-Server (`Yapaia/Addon-server`, privat). Beide Seiten
 implementieren genau das, was hier steht. Ändert sich etwas, ändert sich
 zuerst dieses Dokument.
@@ -118,6 +118,10 @@ Ein Eintrag in `index.json` ist rückwärtskompatibel zu
 }
 ```
 
+Ist ein Marktplatz eingetragen, lädt Go den Store-Katalog von
+`B/v1/index.json` (Vorrang hat nur die Umgebungsvariable `ADDONS_REGISTRY_URL`)
+und holt bei jedem Katalog-Abgleich auch `B/v1/revocations`.
+
 ### Mit Konto (`Authorization: Bearer <Konto-Token>`)
 
 Der Konto-Token wird auf dem Marktplatz erzeugt und in Go eingetragen. Go
@@ -151,12 +155,34 @@ Die Nutzung von Yapaia selbst bleibt davon unberührt: Go und Home Assistant
 laufen weiter über `http` im lokalen Netz. `https` gilt nur für die
 Verbindung von Go zum Marktplatz.
 
+## Fehlercodes in Go
+
+Die Add-on-Routen von Go (`/api/v1/addons/…`) melden Ablehnungen durch diese
+Regeln mit folgenden Codes (`apps/core/src/addons/routes.ts#statusForAddonError`):
+
+| HTTP | Code | Bedeutung |
+|---|---|---|
+| 403 | `SIGNATURE_REQUIRED` | Paket ohne Signatur, Entwicklermodus aus |
+| 403 | `SIGNATURE_INVALID` | Signatur ungültig, unbekannter Schlüssel oder für andere Bytes/Id/Version |
+| 403 | `ADDON_REVOKED` | Version steht auf der Sperrliste |
+| 403 | `NOT_ENTITLED`, `MARKETPLACE_TOKEN_REJECTED`, `DOWNLOAD_FORBIDDEN` | Konto besitzt das Add-on nicht bzw. Token abgelehnt |
+| 409 | `LICENSE_REQUIRED`, `MARKETPLACE_NO_ACCOUNT`, `ACTIVATION_LIMIT` | erst Lizenz bzw. Konto-Token nötig, oder Aktivierungsgrenze erreicht |
+| 409 | `INCOMPATIBLE_CORE_API` | `core_api` passt nicht zur Version von `@yapaia/core` |
+| 400 | `MARKETPLACE_URL_INVALID`, `MARKETPLACE_NOT_CONFIGURED` | Adresse ungültig (ohne Entwicklermodus nur `https`) bzw. kein Marktplatz eingetragen |
+| 502 | `MARKETPLACE_UNREACHABLE`, `MARKETPLACE_ERROR`, `MARKETPLACE_INVALID`, `LICENSE_INVALID`, `REVOCATIONS_INVALID` | Marktplatz nicht erreichbar oder Antwort unbrauchbar |
+
+Abgelehnte Installationen (Signatur, Sperrliste) und Add-ons, die beim
+Abgleich deaktiviert werden (Sperrliste, fehlende Lizenz), protokolliert Go
+zusätzlich als Sicherheitsereignis (`addon.signature`, `addon.revoked`,
+`addon.license`; abrufbar über `GET /api/v1/security/events`).
+
 ## Lizenzen der Bausteine
 
 | Teil | Lizenz | Warum |
 |---|---|---|
-| Yapaia (ganzes Repo) | GPL-3.0-or-later | Open-Source-Kern |
-| `@yapaia/addon-sdk`, `packages/shared/src/marketplace` | Apache-2.0 | werden in Add-ons gebündelt; erlaubt Closed-Source-Add-ons (siehe `DRITTLIZENZEN.md`) |
+| Yapaia (Repo, außer den folgenden Ausnahmen) | GPL-3.0-or-later | Open-Source-Kern |
+| `@yapaia/addon-sdk`, `packages/shared/src/marketplace` | Apache-2.0 | werden in Add-ons gebündelt; erlaubt Closed-Source-Add-ons (siehe `DRITTLIZENZEN.md` in der Monorepo-Wurzel) |
+| Beispiel-Add-ons `addons-examples/poi-campsites`, `addons-examples/track-recorder` | Apache-2.0 | Vorlagen zum Weiterverwenden, auch in Closed-Source-Add-ons |
 | Marktplatz-Server | proprietär | privates Repo |
 | Add-ons | Sache des Herausgebers | z. B. proprietär |
 
@@ -166,5 +192,7 @@ GPL-Kerns.
 
 > **`core_api`** bezieht sich auf die Version der Add-on-API (`@yapaia/core`,
 > per Changesets versioniert), nicht auf die Add-on-Version von Yapaia Go in
-> Home Assistant (z. B. 0.47.0). Bis zum ersten Release steht die API auf
-> 0.0.x; Add-ons verwenden bis dahin `"*"`.
+> Home Assistant (z. B. 0.56.0). Bis zum ersten Release steht die API auf
+> 0.0.x; Add-ons verwenden bis dahin `"*"` (eine Range wie `"^0.1"` passt
+> nicht auf 0.0.x; unterstützt sind exakte Versionen, `^`, `~` und x-Ranges,
+> siehe `packages/shared/src/semver.ts`).

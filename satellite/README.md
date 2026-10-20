@@ -39,7 +39,8 @@ steckt das Board per USB am Rechner, auf dem Home Assistant läuft
    Zeilen `api:` / `encryption:` / `key:` mit dem erzeugten Schlüssel **behalten**,
    alles andere durch den Inhalt von
    [`yapaia-satellite.beispiel.yaml`](yapaia-satellite.beispiel.yaml) ersetzen
-   und dort bei `key:` den eigenen Schlüssel eintragen. WLAN-Name und
+   und dort bei `key:` den eigenen Schlüssel eintragen (oder ihn in den
+   „Secrets“ als `yapaia_satellite_api_key` ablegen). WLAN-Name und
    -Passwort kommen aus den „Secrets“ des Device Builders (oben rechts
    „Secrets“: `wifi_ssid`, `wifi_password`).
 4. **Aufspielen:** „Save“ → **„Install“** → **„Plug into the computer running
@@ -80,8 +81,8 @@ In Home Assistant erscheinen außerdem:
 
 - **In Home Assistant** (Standard): Der Satellit schickt den Ton an Home
   Assistant, das Add-on **openWakeWord** erkennt das Wort. Dort sind eigene
-  Wörter möglich – die Anleitung für **„Yapaia“** steht im Yapaia-Go-Repo unter
-  `docs/aktivierungswort-yapaia.md`. Braucht dauerhaft etwas WLAN.
+  Wörter möglich – die Anleitung für **„Yapaia“** steht bei Yapaia Go unter
+  [`go/docs/aktivierungswort-yapaia.md`](../go/docs/aktivierungswort-yapaia.md). Braucht dauerhaft etwas WLAN.
 - **Auf dem Gerät**: „Okay Nabu“ oder „Hey Jarvis“ wird auf dem ESP32 selbst
   erkannt (microWakeWord), ohne Dauer-Stream. Der ESP32-A1S ist dafür
   langsamer als die Home-Assistant-Voice-Geräte; erkennt er schlecht, auf
@@ -147,4 +148,4 @@ lauter Musik wird es nicht erkannt, dann KEY1 drücken.
   Gerätelogik
 - [`yapaia-satellite.beispiel.yaml`](yapaia-satellite.beispiel.yaml) – Vorlage
   für die eigene Gerätedatei
-- `ci/test.yaml` – die CI baut damit bei jeder Änderung die Firmware
+- [`ci/test.yaml`](ci/test.yaml) – die CI baut damit bei jeder Änderung die Firmware

@@ -10,7 +10,7 @@ stammt aus [Changesets](https://github.com/changesets/changesets)
 `apps/core/CHANGELOG.md` (dort landen die Einträge, weil `@yapaia/core` die
 Version trägt, gegen die die Add-on-API geprüft wird, Wargame W-11).
 `scripts/sync-root-changelog.mjs` übernimmt den jeweils neuesten Abschnitt
-von dort automatisch hierher — als Teil von `.github/workflows/release.yml`.
+von dort automatisch hierher — als Teil von `.github/workflows/go-release.yml`.
 **Nicht von Hand bearbeiten**, außer im `[Unreleased]`-Abschnitt.
 
 Ein Changeset mit `major`-Bump auf `@yapaia/core` oder `@yapaia/addon-sdk`
@@ -24,5 +24,5 @@ hier im Changelog, nicht nur als Versionssprung ohne Erklärung.
 Noch keine veröffentlichte Version. Das erste reale Release (`v1.0.0`) ist
 Gegenstand von `tasks/E10-qualitaet-release.md` §E10-T6 — dieser Eintrag
 und der komplette Release-Mechanismus (dieses Dokument, `.changeset/`,
-`.github/workflows/release.yml`) sind das Ergebnis von §E10-T5 (Prozess),
+`.github/workflows/go-release.yml`) sind das Ergebnis von §E10-T5 (Prozess),
 nicht bereits ein durchgeführtes Release.

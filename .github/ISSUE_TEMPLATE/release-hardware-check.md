@@ -1,24 +1,24 @@
 ---
-name: "Release: Manuelle Hardware-Checkliste"
-about: "Manuelle Hardware-Abnahme vor einem v1.x-Release (docs/07-testing-qa.md §7) -- kann nicht automatisiert werden, braucht echtes GPS/echten Mini-PC/echte Fahrt."
-title: "Hardware-Checkliste für Release vX.Y.Z"
+name: "Release Yapaia Go: Manuelle Hardware-Checkliste"
+about: "Manuelle Hardware-Abnahme vor einem Release von Yapaia Go (go/docs/07-testing-qa.md §7) – kann nicht automatisiert werden, braucht echtes GPS, einen echten Mini-PC und eine echte Fahrt."
+title: "Hardware-Checkliste für Release go-vX.Y.Z"
 labels: ["release", "manual-check", "hardware"]
 assignees: []
 ---
 
 ## Kontext
 
-Diese Checkliste ist der **menschliche** Teil des Release-Gates
-(`docs/07-testing-qa.md` §7, letzter Punkt: "Manuelle Hardware-Checkliste
+Diese Checkliste ist der **menschliche** Teil des Release-Gates von Yapaia Go
+(`go/docs/07-testing-qa.md` §7, letzter Punkt: "Manuelle Hardware-Checkliste
 durch Menschen"). Alles, was hier steht, kann **strukturell nicht** durch
 CI abgedeckt werden — es braucht echtes GPS, echte Hardware (Referenz:
-N100-Mini-PC, `docs/00-vision-scope.md`/`docs/01-architecture.md` §4) und
+N100-Mini-PC, `go/docs/00-vision-scope.md`/`go/docs/01-architecture.md` §4) und
 eine echte Fahrt. Kein Checklisten-Punkt gilt "per Aussage" als erledigt —
 jeder Punkt braucht einen konkreten Beleg (Zeitstempel, Foto/Video, kurze
-Beobachtungsnotiz), siehe `tasks/E10-qualitaet-release.md` §E10-T6
+Beobachtungsnotiz), siehe `go/tasks/E10-qualitaet-release.md` §E10-T6
 Plausibilität.
 
-**Release-Version:** vX.Y.Z (bitte im Titel + unten ausfüllen)
+**Release-Version:** go-vX.Y.Z (bitte im Titel + unten ausfüllen)
 **Getestete Hardware:** _(Modell, RAM, Betriebssystem/HAOS-Version)_
 **GPS-Empfänger:** _(Modell)_
 **Durchgeführt von:** _(Name)_
@@ -49,11 +49,11 @@ Beleg (Screenshot/Video-Zeitstempel bzw. Log-Auszug mit Zeitstempeln):
 - [ ] Fahrt ≥ 30 Minuten am Stück, **ohne** manuelles Eingreifen (kein
       Neustart der App, kein manuelles Reconnect, kein Eingriff bei
       GPS-Aussetzern — die App muss das selbst handhaben, siehe
-      [Troubleshooting W-01/W-02](../../docs/troubleshooting.md)).
+      [Troubleshooting W-01/W-02](https://github.com/Yapaia/yapaia/blob/main/go/docs/troubleshooting.md)).
 - [ ] Turn-by-Turn-Ansagen kamen rechtzeitig und korrekt.
 - [ ] Rerouting (falls ausgelöst, z. B. durch eine bewusste Abweichung)
       funktionierte ohne Eingriff (< 3 s, siehe
-      [Troubleshooting W-05](../../docs/troubleshooting.md#w-05--app-berechnet-nach-einer-abzweigung-automatisch-neu)).
+      [Troubleshooting W-05](https://github.com/Yapaia/yapaia/blob/main/go/docs/troubleshooting.md#w-05--app-berechnet-nach-einer-abzweigung-automatisch-neu)).
 - [ ] Tatsächliche Fahrtdauer: `____ min`
 - [ ] Auffälligkeiten (Ruckler, GPS-Aussetzer, falsche Ansagen, Abstürze):
 
@@ -66,7 +66,7 @@ Beleg (Screenshot/Video-Zeitstempel bzw. Log-Auszug mit Zeitstempeln):
 - [ ] Touch-Ziele (Zoom, Follow-Me, Manöver-Panel, Pause/Stopp) mit
       Handschuhen bzw. unter realistischen Fahrzeugbedingungen bedienbar
       getestet (Erschütterung, Sonneneinstrahlung auf das Display).
-- [ ] Keine versehentlichen Fehleingaben während der Fahrt (docs/06 §4
+- [ ] Keine versehentlichen Fehleingaben während der Fahrt (`go/docs/06-ui-ux-guidelines.md` §4
       "Touch & Fahrbetrieb" — Mindestgrößen/Abstände der Bedienelemente).
 - [ ] Auffälligkeiten:
 
@@ -122,7 +122,7 @@ ist erwiesenermaßen fehleranfällig.
 
 - [ ] **Falls mehrere Geräte gleichzeitig verbunden waren** (z. B. Telefon
       und Tablet): sprang die angezeigte Position zwischen Orten? Siehe
-      [Backlog B-03](../../docs/backlog.md) — bekanntes offenes Verhalten,
+      [Backlog B-03](https://github.com/Yapaia/yapaia/blob/main/go/docs/backlog.md#b-03--mehrere-browser-clients-wer-liefert-die-position) — bekanntes offenes Verhalten,
       hier bitte nur beobachten und notieren, nicht als Fehlschlag werten.
 
 ```
@@ -144,7 +144,6 @@ Bei Fehlschlag bitte zusätzlich verlinken:
 
 ---
 
-_Dieses Template wird im Release-Issue verlinkt (`tasks/E10-qualitaet-
-release.md` §E10-T6: "Menschliche Punkte als Sub-Issues an den Menschen"),
+_Dieses Template wird im Release-Issue verlinkt (`go/tasks/E10-qualitaet-release.md` §E10-T6: "Menschliche Punkte als Sub-Issues an den Menschen"),
 nicht automatisch ausgefüllt — jeder Haken hier braucht einen echten Beleg,
 keine Software kann das für euch bestätigen._

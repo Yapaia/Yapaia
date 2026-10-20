@@ -7,11 +7,17 @@
 
 
 Yapaia Go und Home Assistant laufen auf demselben Mini-PC (Proxmox: HAOS-VM +
-Yapaia-LXC/VM, **oder** Yapaia als HA-Add-on direkt in HAOS). Die Integration hat
-drei Säulen: **MQTT** (primär, robust, entkoppelt), **REST beidseitig** (gezielte
-Aktionen), **HA-Add-on-Packaging** (Installation & UI-Zugriff via Ingress).
+Yapaia-LXC/VM, **oder** Yapaia als HA-Add-on direkt in HAOS). Der Weg zu Home
+Assistant ist die **Integration „Yapaia"** (§1b). Dazu kommen **MQTT** als
+optionaler Zusatzkanal (`mqtt_enabled`, Vorgabe aus), **REST beidseitig**
+(gezielte Aktionen) und das **HA-Add-on-Packaging** (Installation &
+UI-Zugriff via Ingress).
 
-## 1. MQTT (primärer Kanal)
+## 1. MQTT (optionaler Zusatzkanal)
+
+> Nur aktiv, wenn `mqtt_enabled` eingeschaltet ist. Entitäten, Aktionen und
+> Auslöser liefert die Integration „Yapaia" (§1b); dieser Abschnitt beschreibt
+> den zusätzlichen MQTT-Weg.
 
 - Broker: der in HA übliche **Mosquitto**. Yapaia-Core verbindet sich als Client
   (mqtt.js), Reconnect mit Exponential-Backoff, **LWT** auf `yapaia/status = offline`.
@@ -119,24 +125,25 @@ Add-ons → Add-on Store → ⋮ → Repositories* die URL
 `https://github.com/Yapaia/yapaia` ein und bekommen „Yapaia Go"
 als installierbares Add-on angezeigt.
 
-**Warum die Struktur so und nicht anders ist:** Der Supervisor erkennt ein
-Git-Repository nur dann als Add-on-Repository, wenn im **Wurzelverzeichnis**
-eine `repository.yaml` liegt; die installierbaren Add-ons sucht er danach als
-Verzeichnisse **eine Ebene darunter**, die je eine `config.yaml` enthalten.
-Die ursprüngliche Ablage `ha-addon/yapaia_go/` lag eine Ebene zu tief und war
-für den Supervisor damit unsichtbar — der Store-Weg funktionierte schlicht
-nicht (`docs/installation.md` §A trug dazu eine ausdrückliche Warnung).
+**Warum die Struktur so ist:** Der Supervisor erkennt ein Git-Repository nur
+dann als Add-on-Repository, wenn im **Wurzelverzeichnis** eine
+`repository.yaml` liegt; die installierbaren Add-ons sucht er darunter in
+allen Ordnern (außer Punkt-Ordnern und `rootfs/`), die eine `config.yaml`
+enthalten — siehe den Kommentar in `repository.yaml`. So behält jedes Modul
+des Monorepos seinen Add-on-Ordner im eigenen Verzeichnis
+(`go/yapaia_go/`, `beat/yapaia_beat/`, `vision/yapaia_vision/`).
 
-Struktur (Repo-Wurzel):
+Struktur:
 ```
-yapaia/go/
+yapaia/                  # Monorepo-Wurzel
 ├── repository.yaml      # name, url, maintainer  ← macht das Repo zum Add-on-Repo
-└── yapaia_go/
+└── go/yapaia_go/
     ├── config.yaml      # name, slug, arch: [amd64, aarch64], ingress: true,
     │                    # ports: {} (ingress-only) bzw. optional 8080 für Direktzugriff,
     │                    # map: [share:rw]  → Kartendaten unter /share/yapaia (überlebt Updates!),
-    │                    # services: [mqtt:want], usb: true (GPS-Maus), udev: true
-    ├── Dockerfile       # FROM yapaia/core-Basis; s6-overlay startet:
+    │                    # services: [mqtt:want], uart/usb/udev: true (GPS-Maus),
+    │                    # image: ghcr.io/yapaia/yapaia-go-{arch} (fertiges Image)
+    ├── Dockerfile       # FROM Valhalla-Image (build.yaml); s6-overlay startet:
     │                    # core, valhalla, photon, gpsd (kein Compose in HA-Add-ons)
     ├── rootfs/etc/s6-overlay/...   # Service-Definitionen, Abhängigkeits-Reihenfolge
     └── DOCS.md / README.md / PACKAGING.md / icon.png
@@ -154,7 +161,8 @@ Kernpunkte:
   laufen (relative URLs, kein hartes `/`) – Anforderung an E01/E07!
   WebSocket über Ingress funktioniert, muss aber explizit getestet werden (E08-T4).
 - **MQTT-Credentials automatisch:** `services: [mqtt:want]` ⇒ bashio liefert
-  Host/User/Passwort, Core liest sie beim Start.
+  Host/User/Passwort, Core liest sie beim Start (nur relevant mit
+  `mqtt_enabled`).
 - **USB-GPS:** `usb: true` + udev; gpsd läuft im Add-on-Container.
 - **Kartendaten nach `/share/yapaia/`** (PMTiles, Valhalla-Graph, Photon-Index),
   nicht ins Container-FS – Add-on-Updates dürfen keine Daten-Downloads erzwingen.
@@ -166,8 +174,9 @@ Kernpunkte:
 
 ## 4. Standalone-Variante (Proxmox LXC/VM, ohne HAOS-Add-on)
 
-`docker-compose.yml` im Hauptrepo: `core` + `valhalla` + `photon` + optional `gpsd`
-(oder gpsd auf dem Host, USB-Durchreichung an LXC dokumentieren).
+`go/docker-compose.yml`: `core` + `valhalla` + `photon`. Einen
+`gpsd`-Dienst enthält die Compose-Datei derzeit nicht — gpsd läuft auf dem
+Host (USB-Durchreichung an LXC dokumentieren).
 MQTT-Zugang manuell in Settings. Reverse-Proxy-Hinweise (optional TLS via Caddy).
 Diese Variante ist die **Referenz für Entwicklung und CI**.
 

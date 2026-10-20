@@ -907,6 +907,6 @@ window.customCards.push({
   name: "Yapaia Beat",
   description: "Radio-Karte für Yapaia Beat (FM & DAB+) mit Logo, RDS/DLS, Favoriten-Tasten und Lautstärke.",
   preview: true,
-  documentationURL: "https://github.com/apfelsafft/radio",
+  documentationURL: "https://github.com/Yapaia/yapaia/blob/main/beat/yapaia_beat/DOCS.md",
 });
 console.info(`%c YAPAIA-BEAT-CARD %c ${CARD_VERSION} `, "color:#fff;background:#ff6b35;font-weight:700", "color:#ff6b35;background:#1b1f3b");

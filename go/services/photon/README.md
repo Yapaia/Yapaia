@@ -42,8 +42,8 @@ PHOTON_XMX=512m docker compose --profile search up -d photon
 (Metaspace, Thread-Stacks, Direct-Buffers, Lucenes Off-Heap-mmap-Anteile für
 den Index). Das ist auch die Plausibilitäts-Vorgabe aus der E05-T4-Spec:
 *"Photon-RSS unter Last (20 parallele Suchen) < Xmx + 300 MB"* — gemessen
-(informativ, `continue-on-error`) im Nightly-Job `photon-li-nightly`
-(`.github/workflows/nightly.yml`) gegen den dort gebauten CH+LI-Index; siehe
+(informativ, `continue-on-error`; derzeit zurückgestellt, B-02) im Nightly-Job `photon-li-nightly`
+(`.github/workflows/go-nightly.yml`) gegen den dort gebauten CH+LI-Index; siehe
 den Abschnitt "CI-Nachweis" unten für die genaue Begründung, warum das nicht
 per-PR gegen einen echten Index gemessen wird.
 
@@ -122,21 +122,22 @@ gemacht, mit folgendem Ergebnis:
 
 **Konsequenz:** ein Liechtenstein-ONLY-Index ist bei keiner bekannten Quelle
 in vertretbarer per-PR-Geschwindigkeit zu bekommen. Der Job `photon-setup`
-in `.github/workflows/ci.yml` prüft deshalb per PR alles, was **ohne** echte
+in `.github/workflows/go-ci.yml` prüft deshalb per PR alles, was **ohne** echte
 Geodaten belegbar ist (Skript-Logik, Compose-Config, `-Xmx`-Wirkung direkt
 gegen die im Image gebündelte JVM). Der echte "Vaduz"-Suchtest
 (E05-T4-Akzeptanz #1, E05-T1-SearchService-Integration) läuft stattdessen
-**nightly** (`photon-li-nightly` in `.github/workflows/nightly.yml`) gegen
+**nightly** (`photon-li-nightly` in `.github/workflows/go-nightly.yml`; derzeit
+zurückgestellt, siehe `docs/backlog.md` B-02) gegen
 die nächstkleinere ECHTE, tatsächlich herunterladbare Region
 (`switzerland-liechtenstein`, JSONL-Modus) — als `continue-on-error: true`,
 weil weder die Bauzeit/Größe dieses experimentellen Importpfads noch die
 Zuverlässigkeit des Drittanbieter-Mirrors aus dieser Sandbox heraus
 verifizierbar war. Das ist dieselbe Behandlung wie die (ebenfalls
-"unverified") DE-Golden-Routes in `nightly.yml`.
+"unverified") DE-Golden-Routes in `go-nightly.yml`.
 
 ## CI-Nachweis
 
-- **`photon-setup`** (`.github/workflows/ci.yml`, per PR): `bash -n` auf
+- **`photon-setup`** (`.github/workflows/go-ci.yml`, per PR): `bash -n` auf
   beiden Skripten; `download-index.test.sh` (Resume + Checksummen-Mismatch +
   Atomaritäts-Sicherheit, komplett offline); `docker compose --profile
   search config` inkl. Assertion, dass `JAVA_PARAMS=-Xmx<wert>` korrekt
@@ -148,8 +149,9 @@ verifizierbar war. Das ist dieselbe Behandlung wie die (ebenfalls
   laufenden Container ankommt (informativ toleriert dabei einen
   nicht-200-`/status`, da ohne echten Index unklar ist, ob/wann Photons
   Python-Entrypoint die JVM bis zum Ready-Zustand bringt).
-- **`photon-li-nightly`** (`.github/workflows/nightly.yml`, nightly,
-  `continue-on-error: true`): baut den `switzerland-liechtenstein`-Index via
+- **`photon-li-nightly`** (`.github/workflows/go-nightly.yml`, `continue-on-error: true`;
+  **seit 2026-08-05 zurückgestellt** und nur noch per `workflow_dispatch`
+  startbar, siehe [`docs/backlog.md` B-02](../../docs/backlog.md#b-02--photon-live-suche-im-nightly)): baut den `switzerland-liechtenstein`-Index via
   `IMPORT_MODE=jsonl`, wartet auf `/status`, führt die echte
   E05-T1-Integration aus (`apps/core/src/search/photonBackend.live.test.ts`,
   `PHOTON_LIVE=1`) — Suche nach "Vaduz" gegen ein LEBENDES Photon (Akzeptanz

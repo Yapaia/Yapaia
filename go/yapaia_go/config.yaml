@@ -8,9 +8,9 @@
 # Action can never block a merge -- see yapaia_go/PACKAGING.md "CI strategy".
 
 name: "Yapaia Go"
-description: "Offline-fähige Motorhome-Navigation (Karten, Routing, GPS, MQTT/HA-Integration) als HA-Add-on."
+description: "Offline-fähige Wohnmobil-Navigation (Karten, Routing, GPS, Home-Assistant-Integration) als HA-Add-on."
 slug: "yapaia_go"
-version: "0.56.0"
+version: "0.56.1"
 # ─── MINDESTVERSION VON HOME ASSISTANT ──────────────────────────────────────
 # Seit 0.8.4 sind die selten angefassten Optionen in aufklappbaren Gruppen
 # zusammengefasst. Verschachtelte Konfiguration gibt es in Home Assistant aber

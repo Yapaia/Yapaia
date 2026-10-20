@@ -4,7 +4,8 @@ Wie sich Yapaia-Module bei der zentralen Home-Assistant-Integration **„Yapaia�
 anmelden, beschreiben, was sie anbieten, und miteinander sprechen.
 
 > **Status: Version 1, umgesetzt** – Integration `integration/custom_components/yapaia`,
-> Yapaia Beat ab 1.14.0, Yapaia Go ab 0.44.0. Änderungen nur nach Abschnitt 10.
+> Yapaia Beat ab 1.14.0, Yapaia Go ab 0.44.0, Yapaia Vision von Anfang an; der
+> Yapaia Router läuft in der Integration selbst. Änderungen nur nach Abschnitt 10.
 
 ## 1. Ziele
 
@@ -18,8 +19,8 @@ anmelden, beschreiben, was sie anbieten, und miteinander sprechen.
    Entitäten; die Integration baut sie daraus. Nur Sonderfälle (z. B. Beats
    Mediaplayer) bekommen eigenen Code.
 4. **Echte Entitäten statt geschriebener Zustände.** Mit Gerät, umbenennbar,
-   bedienbar, nach einem HA-Neustart sofort wieder da. (Heute schreibt Go über
-   `POST /api/states` – ohne Gerät, ohne Befehle, nach Neustart kurz weg.)
+   bedienbar, nach einem HA-Neustart sofort wieder da. (Früher schrieb Go über
+   `POST /api/states` – ohne Gerät, ohne Befehle, nach einem Neustart kurz weg.)
 
 ### Namen
 
@@ -53,13 +54,14 @@ Nutzer, die es wollen).
 
 ## 3. Module und Instanzen
 
-Ein **Modul** ist eine Art Baustein (`go`, `beat`, `satellite` …). Von einem
+Ein **Modul** ist eine Art Baustein (`go`, `beat`, `vision`, `router`,
+`satellite`). Von einem
 Modul kann es **mehrere Instanzen** geben – z. B. mehrere Satelliten, im
 Wohnmobil verteilt. Deshalb trägt jede Instanz:
 
 | Feld | Bedeutung |
 |---|---|
-| `modul` | Art des Bausteins, klein, ohne Leerzeichen: `go`, `beat`, `satellite`. |
+| `modul` | Art des Bausteins, klein, ohne Leerzeichen: `go`, `beat`, `vision`, `router`, `satellite`. |
 | `instanz` | **Dauerhafte**, eindeutige Kennung dieser Instanz, vom Modul selbst erzeugt und gespeichert (zufällig beim ersten Start, bei Geräten z. B. aus der MAC-Adresse). Ändert sich nie – auch nicht bei Umbenennung oder Update. |
 | `name` | Anzeigename, vom Nutzer änderbar: „Yapaia Satellite Küche“. |
 
@@ -93,8 +95,7 @@ etwas vom Protokoll wissen muss.
 
 ## 4. Anmeldung
 
-Beim Start meldet sich jedes Add-on beim Supervisor (`POST /discovery`, wie
-Beat heute):
+Beim Start meldet sich jedes Add-on beim Supervisor (`POST /discovery`):
 
 ```json
 {
@@ -124,7 +125,9 @@ Beat heute):
 
 ## 5. Beschreibung
 
-`GET /yapaia/v1/beschreibung` liefert, was das Modul anbietet:
+`GET /yapaia/v1/beschreibung` liefert, was das Modul anbietet. Das Beispiel ist
+gekürzt und zeigt die Möglichkeiten; die echte Beschreibung von Go steht in
+[`integration/tests/fixtures/go_beschreibung.json`](../integration/tests/fixtures/go_beschreibung.json).
 
 ```json
 {
@@ -135,10 +138,10 @@ Beat heute):
   "version": "0.43.0",
   "hersteller": "Yapaia",
   "konfiguration_url": "/hassio/ingress/yapaia_go",
-  "faehigkeiten": ["navigation", "ansage.senden"],
+  "faehigkeiten": ["navigation"],
   "entitaeten": [
     {
-      "schluessel": "eta",
+      "schluessel": "ankunft",
       "plattform": "sensor",
       "name": {"de": "Ankunft", "en": "Arrival"},
       "geraeteklasse": "timestamp",
@@ -238,7 +241,7 @@ Ereignisse kommen über die Live-Verbindung (unten). Die Integration
 `GET /yapaia/v1/live` (WebSocket). Das Modul schickt:
 
 ```json
-{"typ": "zustand", "werte": {"eta": "2026-10-11T18:42:00+02:00", "restweg": 132.4}}
+{"typ": "zustand", "werte": {"ankunft": "2026-10-11T18:42:00+02:00", "restweg": 132.4}}
 {"typ": "ereignis", "name": "ziel_erreicht", "daten": {"ziel": "Magdeburg"}}
 {"typ": "beschreibung_geaendert"}
 ```
@@ -288,12 +291,12 @@ Modul die Liste der anderen:
 - Partner ohne eigene HTTP-Schnittstelle (Satelliten) tragen statt `url` die
   Home-Assistant-Entitäten, über die man sie erreicht.
 - **Fähigkeiten** sind die Verträge zwischen Modulen: `ansage.einmischen`
-  bedeutet „ich nehme `POST /yapaia/v1/aktion/ansage` mit Text/Audio an und
-  mische es ins Programm“. Jede Fähigkeit ist in `docs/faehigkeiten.md`
-  beschrieben (Name, Aktion, Felder, Verhalten). Ein Modul nutzt eine
+  bedeutet „ich mische Ansagen ins laufende Programm“ (aufgerufen über die
+  Home-Assistant-Aktion `yapaia.beat_ansage`). Jede Fähigkeit ist in
+  [`faehigkeiten.md`](faehigkeiten.md) beschrieben (Name, Aktion, Felder, Verhalten). Ein Modul nutzt eine
   Fähigkeit nur, wenn der Partner sie **meldet** – nie anhand des Modulnamens.
 - Ohne Integration gibt es keine Partnerliste; jedes Modul arbeitet dann für
-  sich (heutiger Zustand).
+  sich.
 
 ## 9. Installation der Integration
 
@@ -303,7 +306,7 @@ Modul die Liste der anderen:
   mit derselben Version tun also nichts doppelt; das neuere gewinnt.
 - Danach meldet das Add-on in HA eine **Reparatur** „Yapaia-Integration
   aktualisiert – Home Assistant neu starten“ mit Knopf.
-- Später zusätzlich über HACS.
+- Eine Installation über HACS ist derzeit nicht vorgesehen.
 
 ## 10. Versionen und Verträglichkeit
 
@@ -316,13 +319,14 @@ Modul die Liste der anderen:
 - Ein Modul mit einer Protokollversion, die die Integration nicht kennt, wird
   nicht eingerichtet, sondern als Reparatur gemeldet („Integration zu alt“).
 
-## 11. Was das für die bestehenden Module heißt
+## 11. Was sich für die Module geändert hat
 
-| | Heute | Mit dem Protokoll |
+| | Vorher | Mit dem Protokoll |
 |---|---|---|
 | **Beat** | eigene Integration `yapaia_beat` | Gerät „Yapaia Beat“ in `yapaia`; Mediaplayer als `spezial: beat.player`; Einstellungen/Sensoren allgemein beschrieben. Die alte Integration wird beim Umstieg ersetzt. |
-| **Go** | Zustände per `POST /api/states` (oder MQTT), Bedienen über Helfer | Gerät „Yapaia Go“ mit echten, bedienbaren Entitäten, Aktionen (`ziel_setzen` …) und Auslösern (`ziel_erreicht`, `stau_voraus` …). MQTT bleibt als Option; der States-Weg und die Helfer entfallen. |
+| **Go** | Zustände per `POST /api/states` (oder MQTT), Bedienen über Helfer | Gerät „Yapaia Go“ mit echten, bedienbaren Entitäten, Aktionen (`ziel_setzen` …) und Auslösern (`ziel_erreicht`, `zu_schnell` …). MQTT bleibt als Option; der States-Weg und die Helfer entfallen. |
 | **Router** | eigene Integration `glinet_cellular` | Gerät „Yapaia Router“ in `yapaia`. Der Router spricht kein Protokoll; die Integration spricht es lokal für ihn (Beschreibung, Werte, Aktionen) und fragt ihn per JSON-RPC ab. Eingerichtet über *Integration hinzufügen → Yapaia → GL.iNet-Router*. |
+| **Vision** | – (neu) | Gerät „Yapaia Vision“ in `yapaia` mit Kameras, Kanalwahl und Diagnose-Sensoren. |
 | **Satellite** | ESPHome-Gerät | bleibt ESPHome; die Integration erkennt jeden Satelliten an der Projektkennung `yapaia.satellite` und meldet ihn als Instanz und Partner (Abschnitt 3). Beliebig viele. |
 
 ## 12. Entscheidungen

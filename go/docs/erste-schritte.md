@@ -29,17 +29,18 @@ solltest du zuerst ein eigenes Profil mit den echten Maßen anlegen, **bevor**
 du die erste Route berechnest, damit Höhen-/Gewichts-/Breitenbeschränkungen
 von Anfang an greifen.
 
-1. Oben rechts auf das Profil-Symbol (🚐) tippen.
-2. „Neues Profil" wählen, Werte eintragen:
+1. **⚙ → 🚐 Fahrzeuge** öffnen.
+2. **„+ Neues Profil"** wählen, Werte eintragen:
    - **Höhe** (1,0–4,5 m), **Breite** (1,5–3,0 m), **Länge** (3,0–20,0 m),
      **Gewicht** (1,0–40,0 t) — jeweils inklusive Dachlast/Antenne/Beladung,
      nicht nur die Herstellerangabe.
    - **Durchschnittsgeschwindigkeit** (40–130 km/h) — beeinflusst nur die
      ETA-Berechnung, nicht das Routing selbst.
-   - **Vermeiden**: Autobahn / Maut / Fähre / unbefestigte Wege — je nach
-     Vorliebe an- oder abwählen.
+   - **Vermeiden**: Autobahnen / Mautstraßen / Fähren / unbefestigte
+     Straßen — je nach Vorliebe an- oder abwählen.
 3. Speichern, dann das neue Profil **aktivieren** (falls es nicht automatisch
-   das aktive wird — nur ein Profil ist gleichzeitig aktiv).
+   das aktive wird — nur ein Profil ist gleichzeitig aktiv). Welches Fahrzeug
+   für eine Route gilt, lässt sich auch direkt in der Routenansicht umstellen.
 
 **Wichtig:** Lies bei einer Profil-Höhe über 2,7 m den eingeblendeten
 Warnhinweis zu unvollständigen Kartendaten (siehe
@@ -76,37 +77,38 @@ Software-Unsicherheit.
    pausiert bei GPS-Verlust automatisch per Koppelnavigation
    ([W-01](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung))
    und meldet sich mit „Angekommen", sobald das Ziel erreicht ist.
-4. Navigation jederzeit pausierbar/abbrechbar über die Schaltflächen unten
-   rechts im Drive-Modus (⏸/✕).
+4. Pausieren oder beenden: auf die Leiste mit der Ankunftszeit unten tippen —
+   dort öffnet sich das Fahrtmenü mit **⏸ Pause** und **⏹ Stopp**.
 
 ## 6. Ohne echtes GPS testen (Simulator)
 
 Für einen ersten Eindruck ohne angeschlossenes GPS-Gerät und ohne echte
-Fahrt kann eine Route per eingebautem GPS-Simulator „abgefahren" werden:
+Fahrt kann der eingebaute GPS-Simulator („Testfahrer") eine geplante Route
+abfahren — jeden Abschnitt mit seinem Tempolimit.
 
-```bash
-curl -X PUT http://localhost:8080/api/v1/position/source \
-  -H 'Content-Type: application/json' -d '{"source":"simulator"}'
+1. **Nur im HA-Add-on:** den Testfahrer einmal freischalten —
+   *Einstellungen → Add-ons → Yapaia Go → Konfiguration*, Gruppe
+   **Erweitert**, **„Testfahrer freischalten"** einschalten, speichern, Add-on
+   neu starten. (Im Add-on ist er absichtlich aus: er verdrängt den echten
+   Empfänger.)
+2. Eine Route planen (Abschnitte 3–4).
+3. **⚙ → 🧪 Testfahrt** öffnen und **▶ Route abfahren** tippen. Mit dem
+   Regler **Zeitraffer** (1× bis 32×) läuft die Fahrt schneller.
 
-curl -X POST http://localhost:8080/api/v1/simulator/play \
-  -H 'Content-Type: application/json' \
-  -d '{"track":{"type":"route","route_id":"<ID der zuvor berechneten Route>"},"speed_factor":4}'
-```
-
-(`speed_factor: 4` spielt die Route 4× so schnell ab wie in Echtzeit — für
-einen schnellen ersten Eindruck. `docs/03-api-spec.md` §„Position"/§2
-beschreibt weitere Track-Typen, u. a. GPX-Dateien und absichtliche
-Falschabbiegungen für einen Rerouting-Test.)
+Danach den Haken im Add-on wieder entfernen; nach dem nächsten Neustart gilt
+wieder die echte Positionsquelle. Für Skripte gibt es denselben Simulator als
+API (`POST /api/v1/simulator/play`, siehe [`openapi.json`](openapi.json)), u. a.
+mit GPX-Dateien und absichtlichen Falschabbiegungen für einen Rerouting-Test.
 
 ## 7. Favoriten & Widgets anpassen
 
-- **Favorit anlegen:** auf der Routenübersicht bzw. im Ziel-Kontextmenü
-  „Als Favorit speichern" wählen (Kategorien: Home/Stellplatz/POI/eigene) —
-  erscheint danach im Bottom-Drawer des Explore-Modus.
-- **Widgets verschieben:** im Drive- oder Explore-Modus lange auf eine freie
-  Fläche drücken → Bearbeitungsmodus mit Raster erscheint → Widgets per
-  Drag & Drop in andere Slots ziehen, Größe wählen (S/M/L). „Zurücksetzen
-  auf Standard" ist im selben Menü verfügbar, falls etwas schiefgeht.
+- **Favorit anlegen:** in der Routenübersicht „⭐ Als Favorit speichern"
+  wählen (Kategorien: Zuhause, Stellplatz, Sehenswürdigkeit, Sonstiges) —
+  erscheint danach in der Favoritenleiste unten im Explore-Modus.
+- **Bildschirm anpassen:** **⚙ → 🧱 Bildschirm anpassen** — Knöpfe und
+  Fenster verschieben und vergrößern; **Zurücksetzen** stellt die
+  Standardanordnung wieder her, **Fertig** beendet die Bearbeitung. Die
+  Ansicht während der Navigation passt du im Fahrtmenü an.
 
 ## 8. Was diese Seite nicht behandelt
 
@@ -124,10 +126,12 @@ betreffen, aber im Alltag zählen. Alle ausführlich im
   sperren sich während der Fahrt.
 - **Fertiges HA-Dashboard** — liegt unter `/local/yapaia/dashboard.txt`,
   fertig zum Einfügen in den Rohkonfigurationseditor.
-- **Bedienen aus Home Assistant** — Pause/Weiter/Beenden und Profilwahl,
-  wahlweise über MQTT oder über selbst angelegte Helfer.
-- **Position aus der Companion-App** — auswählbar unter 🩺
-  Installationsprüfung, gilt sofort.
+- **Bedienen aus Home Assistant** — Pause/Weiter/Beenden, Profilwahl und
+  Zieleingabe über das Gerät „Yapaia Go" der Integration „Yapaia".
+- **Position aus der Companion-App** — auswählbar unter **⚙ → 🩺
+  Installation prüfen**, gilt sofort.
+- **Add-ons** — Erweiterungen aus dem Yapaia-Marktplatz unter
+  **⚙ → 🧩 Add-on-Store**.
 - **Links- oder rechtsgelenkt** — die Bedienknöpfe lassen sich spiegeln.
 
 ## Weiter
@@ -135,4 +139,5 @@ betreffen, aber im Alltag zählen. Alle ausführlich im
 - Alle Funktionen im Detail? → [User Manual](manual.md) (englisch)
 - Etwas funktioniert nicht wie erwartet? → [Troubleshooting](troubleshooting.md)
 - Allgemeine Fragen? → [FAQ](faq.md)
-- Add-ons installieren/entwickeln? → [Add-on-Entwicklungsleitfaden](addon-dev-guide.md)
+- Add-ons installieren? → [User Manual → Add-ons](manual.md#add-ons) (englisch)
+- Eigene Add-ons entwickeln? → [Add-on-Entwicklungsleitfaden](addon-dev-guide.md)

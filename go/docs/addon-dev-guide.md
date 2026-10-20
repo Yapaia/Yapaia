@@ -49,7 +49,7 @@ poi-overlay/
   "id": "com.example.poi-overlay",
   "name": "Stellplätze-Overlay",
   "version": "1.0.0",
-  "core_api": "^0.1",
+  "core_api": "*",
   "author": "Beispiel GmbH",
   "license": "MIT",
   "description": "Zeigt gebündelte Stellplatz-POIs als Kartenlayer.",
@@ -63,47 +63,62 @@ poi-overlay/
 
 `core_api` ist eine Semver-**Range**, die bei der Installation gegen die laufende
 Core-Version geprüft wird (Wargame W-11, `apps/core/src/addons/installService.ts`).
-Das SDK macht **zusätzlich** einen eigenen, engeren Check zur Verbindungszeit –
+Gemeint ist die Version von `@yapaia/core` (`apps/core/package.json`, derzeit
+0.0.x), **nicht** die Add-on-Version von Yapaia Go in Home Assistant. Bis zum
+ersten Release der Add-on-API deshalb `"*"` verwenden — eine Range wie `"^0.1"`
+passt nicht auf 0.0.x und wird mit `INCOMPATIBLE_CORE_API` abgelehnt.
+Das SDK macht **zusätzlich** einen eigenen Check zur Verbindungszeit –
 siehe [§7 Fehlerklassen](#7-fehlerklassen).
 
-### 1.3 `ui/index.html`
+### 1.3 `ui/index.html` und Add-on-Code
 
 ```html
 <!doctype html>
 <html>
   <head><meta charset="utf-8" /></head>
   <body>
-    <script type="module">
-      import { connectAddon } from 'https://esm.sh/@yapaia/addon-sdk'; // oder: gebündelt via Vite/esbuild
-
-      const addon = await connectAddon(); // erkennt "postMessage" automatisch (läuft im iframe)
-
-      addon.map.addLayer({
-        id: 'poi-overlay',
-        data: { type: 'FeatureCollection', features: [] }, // echtes GeoJSON hier
-        render: 'circle',
-      });
-
-      addon.position.subscribe(
-        (pos) => console.log('Position', pos.lat, pos.lng),
-        (err) => console.error('Subscription abgelehnt:', err.message), // z. B. ScopeDeniedError
-      );
-    </script>
+    <script src="./bundle.js"></script>
   </body>
 </html>
 ```
 
-In der Praxis wird `ui/index.html` von einem Bundler (Vite/esbuild) erzeugt, der
-`@yapaia/addon-sdk` aus `node_modules` bündelt – der Import oben ist nur zur
-Illustration ohne Build-Schritt.
+`bundle.js` entsteht per Bundler (Vite/esbuild) aus dem eigentlichen Code, der
+`@yapaia/addon-sdk` aus `node_modules` mitbündelt:
+
+```ts
+// src/main.ts
+import { connectAddon } from '@yapaia/addon-sdk';
+
+async function main() {
+  const addon = await connectAddon(); // erkennt "postMessage" automatisch (läuft im iframe)
+
+  addon.map.addLayer({
+    id: 'poi-overlay',
+    data: { type: 'FeatureCollection', features: [] }, // echtes GeoJSON hier
+    render: 'circle',
+  });
+
+  addon.position.subscribe(
+    (pos) => console.log('Position', pos.lat, pos.lng),
+    (err) => console.error('Subscription abgelehnt:', err.message), // z. B. ScopeDeniedError
+  );
+}
+
+void main(); // kein Top-Level-await: das IIFE-Bundle (siehe unten) unterstützt es nicht
+```
+
+Ein direkter Import von einem CDN funktioniert nicht: die CSP des Iframes
+erlaubt keine fremden Hosts (`default-src 'self'`, `connect-src 'none'`).
+Ein vollständiges Beispiel mit Build-Skript ist
+`addons-examples/poi-campsites/`.
 
 > ⚠️ **Bundle-Format: IIFE, nicht ESM** (entdeckt beim Bau von
-> `addons-examples/poi-campsites`/`track-recorder`, E09-T5). Der Bundle darf
+> `addons-examples/poi-campsites`/`track-recorder`, E09-T5). Das Bundle darf
 > **nicht** als `<script type="module" src="...">` eingebunden werden: das
 > Add-on-Iframe ist `sandbox="allow-scripts"` **ohne** `allow-same-origin` und
-> läuft damit mit einer OPAQUEN Origin (`"null"`). Ein Modul-Script-Load
+> läuft damit mit einer OPAKEN Origin (`"null"`). Ein Modul-Script-Load
 > unterliegt IMMER einer CORS-Prüfung (anders als ein klassisches Script) –
-> eine opaque Origin kann diese Prüfung nie bestehen, selbst bei einer
+> eine opake Origin kann diese Prüfung nie bestehen, selbst bei einer
 > Same-Path-Ressource. Ergebnis: `Access to script at '...' from origin
 > 'null' has been blocked by CORS policy`, das Add-on lädt nie. Bündelt den
 > Bundler-Output stattdessen als **IIFE** (esbuild: `format: 'iife'`) und
@@ -112,20 +127,16 @@ Illustration ohne Build-Schritt.
 > `import`/`export`-Statements mehr (alles ist bereits zusammengebündelt),
 > unterliegt also keiner Modul-Auflösung, die ein `type="module"` bräuchte.
 
-> ⚠️ **`@yapaia/shared` NICHT zur Laufzeit importieren.** Ein direkter
-> `import { ... } from '@yapaia/shared'`-Aufruf zieht dessen gesamten
-> Paket-Entry-Point (`src/index.ts`) mit hinein – inklusive
-> `validators.ts`, das beim Modul-Laden `ajv.compile(...)` aufruft (AJVs
-> Standard-Strategie generiert Validator-Funktionen per `new Function(...)`).
-> Das Add-on-Iframe hat **kein** `'unsafe-eval'` in seiner CSP
-> (`apps/core/src/addons/ui-host.ts#buildAddonCsp`), also schlägt das mit
-> genau derselben `blocked by CSP`-Fehlermeldung fehl, unabhängig davon, ob der
-> eigene Code die AJV-Validatoren je aufruft. `@yapaia/addon-sdk` selbst hatte
-> dieses Problem bis E09-T5 (`version.ts` importierte `isValidSemver` von
-> dort) – seitdem hält es, wie `protocol.ts`s `AddonScope` es schon vormacht,
-> keine Laufzeit-Abhängigkeit zu `@yapaia/shared` mehr. Braucht ein Add-on
-> `@yapaia/shared`-Typen, sind `import type { ... }`-Importe (typ-only, kein
-> Laufzeit-Code) unproblematisch – nur ein WERT-Import ist die Falle.
+> ⚠️ **Keine `@yapaia/shared`-Validatoren im Iframe aufrufen.** Die
+> `validate…()`-Funktionen aus `@yapaia/shared` (`validators.ts`) erzeugen beim
+> ersten Aufruf Code per `new Function(...)` (AJV). Das Add-on-Iframe hat
+> **kein** `'unsafe-eval'` in seiner CSP
+> (`apps/core/src/addons/ui-host.ts#buildAddonCsp`), ein solcher Aufruf
+> scheitert dort mit `blocked by CSP`. Bis E10-T4 passierte das schon beim
+> bloßen Import des Pakets (damals auch in `@yapaia/addon-sdk`s `version.ts`);
+> seitdem kompilieren die Validatoren erst beim ersten Aufruf, ein Import allein
+> ist unkritisch. `import type { ... }`-Importe (typ-only, kein Laufzeit-Code)
+> sind ohnehin unproblematisch.
 
 ### 1.4 Paketieren
 
@@ -141,6 +152,9 @@ erzeugt einen führenden `./`-Verzeichniseintrag, den die Tarball-Sicherheitspr�
 als leeren/`"."`-Namen ablehnt (`TARBALL_REJECTED`, `extract.ts`).
 
 ### 1.5 Installieren + aktivieren (siehe [§8 Testrezept](#8-testrezept-gegen-einen-lokalen-core-testen))
+
+Ein selbst gebautes Paket ist nicht signiert und lässt sich nur im
+Entwicklermodus installieren (§8, Schritt 1).
 
 ```sh
 BASE64=$(base64 -w0 poi-overlay.tar.gz)
@@ -179,7 +193,7 @@ traffic-warner/
   "id": "com.example.traffic-warner",
   "name": "Stauwarner",
   "version": "1.0.0",
-  "core_api": "^0.1",
+  "core_api": "*",
   "author": "Beispiel GmbH",
   "license": "MIT",
   "description": "Meldet Staus als addon/{id}/jam-detected Events.",
@@ -234,9 +248,9 @@ Struktureller Typ: `AddonManifest` in `packages/shared/src/types.ts`, geprüft v
 | `id` | `string` | ✅ | Reverse-DNS-artige ID (`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`). Wird 1:1 zum Verzeichnisnamen `data/addons/{id}/` – keine `/`, `\`, `..`. |
 | `name` | `string` | ✅ | Anzeigename. |
 | `version` | `string` | ✅ | Exakte Semver-Version des Add-ons, z. B. `"1.2.0"`. |
-| `core_api` | `string` | ✅ | Semver-**Range**, die die kompatible Core-Version beschreibt, z. B. `"^0.1"`. Geprüft bei Install (W-11) *und* zusätzlich vom SDK beim Verbinden (Major-Gleichheit, §7). |
+| `core_api` | `string` | ✅ | Semver-**Range**, die die kompatible Version von `@yapaia/core` beschreibt (derzeit 0.0.x, daher `"*"`). Unterstützt: exakte Versionen, `^`, `~`, x-Ranges (`1.2.x`, `*`) – **keine** Vergleichsoperatoren (`>=`), Bindestrich- oder `\|\|`-Ranges (`packages/shared/src/semver.ts`). Geprüft bei Install (W-11); unabhängig davon prüft das SDK beim Verbinden die Major-Version (§7). |
 | `author` | `string` | ✅ | Autor/Herausgeber. |
-| `license` | `string` | ✅ | Lizenz-Kennung (z. B. `"MIT"`). |
+| `license` | `string` | ✅ | Lizenz-Kennung des Add-ons (SPDX, z. B. `"MIT"` oder `"Apache-2.0"`). |
 | `description` | `string` | ✅ | Kurzbeschreibung. |
 | `requires_online` | `boolean` | – | Informativ: braucht das Add-on Internet (z. B. für `net.fetch`)? |
 | `ui` | `object` | – | Siehe unten. Weglassen ⇒ kein UI-Anteil (reines Service-Add-on). |
@@ -343,7 +357,7 @@ Alle exportiert aus `@yapaia/addon-sdk`, alle mit `.code`:
 | Klasse | `.code` | Bedeutung |
 |---|---|---|
 | `ScopeDeniedError` | `SCOPE_DENIED` | Aufruf abgelehnt, weil ein Scope fehlt. Trägt **`.scope`** (der fehlende Scope, z. B. `"pos.read"` oder `"net.fetch:api.example.com"`) und **`.method`** (die aufgerufene SDK-Methode) – direkt nutzbar, ohne eine Fehlermeldung zu parsen. |
-| `IncompatibleCoreError` | `INCOMPATIBLE_CORE` | Die verbundene Core-Version (`GET /api/v1/health`) hat eine andere **Major**-Version als dieses SDK-Build (`ADDON_SDK_VERSION`). Trägt `.sdkVersion`/`.coreVersion`. Regel: **SDK-Major muss gleich Core-Major sein** – Minor/Patch-Drift auf beiden Seiten ist unproblematisch. Umgehbar via `connectAddon({ service: { skipCoreCompatibilityCheck: true } })`. |
+| `IncompatibleCoreError` | `INCOMPATIBLE_CORE` | Die von `GET /api/v1/health` gemeldete Version (im Home-Assistant-Add-on ist das die Add-on-Version von Yapaia Go) hat eine andere **Major**-Version als dieses SDK-Build (`ADDON_SDK_VERSION`). Trägt `.sdkVersion`/`.coreVersion`. Regel: **SDK-Major muss gleich Core-Major sein** – Minor/Patch-Drift auf beiden Seiten ist unproblematisch. Umgehbar via `connectAddon({ service: { skipCoreCompatibilityCheck: true } })`. |
 | `AddonTransportError` | `TRANSPORT_ERROR` (o. spezifischer) | Verbindung/Handshake/Netzwerk selbst ist fehlgeschlagen (kein Antwortinhalt vorhanden). |
 | `AddonTimeoutError` | `TIMEOUT` | Der postMessage-Handshake hat innerhalb von `timeoutMs` (Default 5000) keine Antwort vom Host bekommen. |
 | `UnsupportedOnTransportError` | `UNSUPPORTED_ON_TRANSPORT` | Die aufgerufene Methode existiert auf diesem Transport nicht (siehe §4-Tabelle). Trägt `.method`/`.transport`. |
@@ -362,22 +376,19 @@ Aufruf unabhängig noch einmal (§0).
    `API_AUTH_TOKEN` gesetzt ist, läuft der Core im offenen Modus (kein Bearer-Token
    für die `curl`-Aufrufe unten nötig).
 
-   > ⚠️ **`core_api`-Range gegen einen LOKAL gebauten Core** (entdeckt bei
-   > E09-T5): `GET /api/v1/health` meldet gegen einen aus dem Quellcode
-   > gebauten Core (`node apps/core/dist/index.js` direkt aus dem Repo-Checkout,
-   > nicht aus dem Docker-Image) `"version": "0.0.0"` statt der echten
-   > `apps/core/package.json`-Version – `readPackageVersion()`
-   > (`apps/core/src/version.ts`) löst `../../package.json` relativ zu
-   > `apps/core/dist` auf, was lokal `apps/package.json` wäre (existiert
-   > nicht → Fallback `"0.0.0"`). Im Docker-Image stimmt der Pfad (`WORKDIR
-   > /app` kopiert das ROOT-`package.json` nach `/app/package.json`), dort ist
-   > die gemeldete Version korrekt. Ein Manifest mit einer engen Range wie
-   > `"core_api": "^0.1"` scheitert deshalb beim lokalen Testen mit
-   > `INCOMPATIBLE_CORE_API`, obwohl es gegen einen echten/produktiven Core
-   > passen würde. Zum lokalen Testen entweder `"core_api": "*"` verwenden
-   > (siehe `addons-examples/*/yapaia-addon.json`) oder die tatsächlich lokal
-   > gemeldete Version (`curl localhost:8080/api/v1/health`) explizit in der
-   > Range berücksichtigen.
+   Unsignierte Pakete installiert der Core nur im **Entwicklermodus** (§8a):
+   ```sh
+   curl -s -X PUT http://localhost:8080/api/v1/addons/marketplace/developer-mode \
+     -H 'content-type: application/json' -d '{"enabled":true}' | jq
+   ```
+
+   > ⚠️ **`core_api` wird gegen `@yapaia/core` geprüft**, nicht gegen die von
+   > `GET /api/v1/health` gemeldete Version (`apps/core/src/version.ts`:
+   > `readPackageVersion()` für `core_api`, `readAddonVersion()` für `/health`).
+   > Die Core-Version steht derzeit auf 0.0.x; eine Range wie `"^0.1"`
+   > scheitert deshalb mit `INCOMPATIBLE_CORE_API`. Bis zum ersten Release der
+   > Add-on-API `"core_api": "*"` verwenden (wie
+   > `addons-examples/*/yapaia-addon.json`).
 
 2. **Tarball bauen** (siehe §1.4/§2.4):
    ```sh
@@ -432,7 +443,7 @@ Aufruf unabhängig noch einmal (§0).
 
 ## 8a. Veröffentlichen, Signatur und Lizenz
 
-Seit Go 0.47.0 installiert Go nur signierte Pakete, außer im
+Seit Go 0.56.0 installiert Go nur signierte Pakete, außer im
 **Entwicklermodus** (Add-on-Store → Marktplatz). Zum Entwickeln und für das
 Testrezept oben den Entwicklermodus einschalten.
 
@@ -480,7 +491,8 @@ dürfen in Closed-Source-Add-ons gebündelt werden (siehe `DRITTLIZENZEN.md`).
   derselben `index.html`) – siehe `addons-examples/poi-campsites/src/main.ts`s
   Kategorie-Filter-Panel als Beispiel.
 - **Kein Klick-Callback für Karten-Marker** (entdeckt bei E09-T5, dem
-  POI-Overlay-Referenz-Add-on): §3s SDK-Illustration oben deutet
+  POI-Overlay-Referenz-Add-on): die SDK-Illustration in
+  [05-addon-system.md §3](05-addon-system.md#3-add-on-sdk-yapaiaaddon-sdk) deutet
   `addon.map.addMarkers('campsites', markers); // inkl. Klick-Callbacks` an,
   aber der tatsächliche Host-Code (`apps/web/src/addons/mapLayers.ts`) rendert
   `addMarkers()`/`addLayer()`-Output als reine, NICHT-interaktive
@@ -514,7 +526,7 @@ dürfen in Closed-Source-Add-ons gebündelt werden (siehe `DRITTLIZENZEN.md`).
   — OpenAPI 3.1, generiert aus den tatsächlich registrierten Fastify-Routen
   und den `@yapaia/shared`-JSON-Schemas (`apps/core/src/openapi/`). Ein
   CI-Gate (`pnpm openapi:check`, Job `docs-freshness` in
-  `.github/workflows/ci.yml`) hält das Dokument aktuell.
+  `.github/workflows/go-ci.yml`) hält das Dokument aktuell.
 - **Core-API-Versionierung & Breaking Changes:** ein `major`-Bump von
   `@yapaia/core` oder `@yapaia/addon-sdk` (Wargame W-11 — der Fall, in dem
   euer Add-on nach einem Core-Update deaktiviert statt geladen wird) braucht

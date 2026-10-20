@@ -17,6 +17,12 @@ Der Kiosk-Browser navigiert zu einer normalen HTTP(S)-URL des Core-Prozesses
 statisches Fileserving mit aus (`apps/core/src/index.ts`, `@fastify/static`
 auf `publicDir`); es ist **kein separater Webserver** für die PWA nötig.
 
+> **Als Home-Assistant-Add-on** veröffentlicht Yapaia Go keinen eigenen Port
+> (nur Ingress). Der Kiosk-Browser öffnet dann Home Assistant selbst
+> (`http(s)://<ha>:8123/`) und dort Yapaia Go in der Seitenleiste; die
+> Anmeldung übernimmt die Home-Assistant-Sitzung. Die Adressen
+> `http://localhost:8080/` unten gelten für die Compose-Installation.
+
 ## 2. Browserwahl & Vollbild-Flags
 
 ### Option A: Chromium/Chrome direkt (`--kiosk`)
@@ -156,9 +162,12 @@ nur dafür sorgen, dass der Browser überhaupt wieder hochkommt
    - Schlägt der Check selbst fehl (Core kurzzeitig nicht erreichbar): **fail
      open** — die App blockiert nicht, sondern läuft normal weiter, ohne
      Prompt (`resume.ts`'s `catch`-Zweig).
-4. Zustand (Fahrzeugprofil, Layout, Favoriten, Settings) kommt ohnehin aus
+4. Zustand (Fahrzeugprofile, Favoriten, Einstellungen) kommt ohnehin aus
    der SQLite-DB im Core (docs/01 ADR-006), nicht aus Browser-Storage — ein
    Tab-Neustart verliert davon nichts, unabhängig vom PWA-Service-Worker.
+   Ausnahme: die Anordnung unter „Bildschirm anpassen" gilt je Gerät und liegt
+   im Browser (`localStorage`); sie übersteht einen Neustart, aber nicht das
+   Löschen der Browserdaten.
 
 **Der Kiosk-Betreiber muss dafür nichts konfigurieren** — Punkte 2–4 sind
 App-Verhalten, kein Kiosk-Setup. Der einzige Kiosk-seitige Beitrag ist,

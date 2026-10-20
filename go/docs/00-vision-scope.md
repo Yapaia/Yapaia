@@ -51,6 +51,8 @@ Sygic Truck, Offline-Fähigkeit von iGO/OsmAnd – als offene, erweiterbare Plat
    Suchverlauf, Koordinaten-Eingabe.
 7. **Home-Assistant-Integration**: alle Navigationsparameter via MQTT und REST;
    Steuerung (Ziel setzen, Start/Pause/Stopp) aus HA heraus; Auslieferung als HA-Add-on.
+   *(Stand heute: der Weg zu HA ist die Integration „Yapaia", MQTT ist ein
+   optionaler Zusatzkanal — siehe docs/04.)*
 8. **Add-on-System**: Erweiterungen (Stauwarner, POI-Overlays, Track-Recording,
    Track-Planung, Kamera-Einbindung, Schilder-/Ampelerkennung u. a.) ohne Änderungen
    am Core; Marketplace/Store zum Installieren; öffentliche Add-on-API.
@@ -62,7 +64,9 @@ Sygic Truck, Offline-Fähigkeit von iGO/OsmAnd – als offene, erweiterbare Plat
 - Eigene Karten-Datenerhebung; wir nutzen ausschließlich OSM + optionale Community-Daten
 - Live-Verkehrsdaten im Core (kommt als Add-on „Stauwarner", benötigt online)
 - Multi-Fahrzeug-Flottenmanagement
-- Bezahlfunktionen im Store (v1: nur freie Add-ons)
+- Bezahlfunktionen im Store (v1: nur freie Add-ons) *(überholt: seit Go 0.56.0
+  unterstützt der Marktplatz kostenpflichtige Add-ons mit Lizenz pro
+  Installation, siehe [`marktplatz.md`](marktplatz.md))*
 - Offline-Sprachein-/-ausgabe über TTS hinaus (keine Spracherkennung im Core)
 
 ## Erfolgs-/Abnahmekriterien (Produkt-Ebene)
