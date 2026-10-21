@@ -71,7 +71,7 @@ export const ROUTE_DOCS: Record<string, RouteDoc> = {
   // --- Position ---
   'GET /api/v1/position': { summary: 'Letzte bekannte Position', tags: ['Position'], responseSchema: 'Position' },
   'GET /api/v1/position/sources': { summary: 'Verfügbare Positionsquellen + aktive Quelle', tags: ['Position'] },
-  'PUT /api/v1/position/source': { summary: 'Positionsquelle erzwingen (gpsd|browser|auto|simulator)', tags: ['Position'] },
+  'PUT /api/v1/position/source': { summary: 'Positionsquelle erzwingen (gpsd|modbus|browser|ha_tracker|simulator|auto)', tags: ['Position'] },
   'POST /api/v1/position/browser': { summary: 'Browser-Geolocation-Fix melden', tags: ['Position'], responseSchema: 'Position' },
 
   // --- Simulator (E02-T4, zentrales Testwerkzeug) ---

@@ -495,7 +495,7 @@
     },
     "/api/v1/position/source": {
       "put": {
-        "summary": "Positionsquelle erzwingen (gpsd|browser|auto|simulator)",
+        "summary": "Positionsquelle erzwingen (gpsd|modbus|browser|ha_tracker|simulator|auto)",
         "tags": [
           "Position"
         ],
@@ -3487,7 +3487,8 @@
               "gpsd",
               "browser",
               "simulator",
-              "ha_tracker"
+              "ha_tracker",
+              "modbus"
             ],
             "description": "Source of position data"
           },

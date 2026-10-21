@@ -109,6 +109,13 @@ GPS_DEVICE="$(bashio::config 'gps_device')"
 if [ "${GPS_DEVICE}" = "null" ]; then
   GPS_DEVICE=""
 fi
+# Adresse des Teltonika-Routers fuer `gps_source: rut50`. Dieselbe
+# "null"-Falle: leer heisst Werkseinstellung (192.168.1.1:502), und die setzt
+# der Core selbst ein.
+RUT50_HOST="$(bashio::config 'rut50_host')"
+if [ "${RUT50_HOST}" = "null" ]; then
+  RUT50_HOST=""
+fi
 # B-05. `str?` liefert bei leerer Option den String "null"; das ist KEINE
 # Entity-ID und muss zu leer werden, sonst startet der Core eine Quelle, die
 # eine Entitaet namens "null" sucht.
@@ -299,6 +306,9 @@ export_env "HA_DEVICE_TRACKER" "${HA_DEVICE_TRACKER:-}"
 # das run-Skript laeuft unter `set -u`, und eine ungesetzte Variable braeche es
 # ab, statt einfach selbst zu suchen.
 export_env "GPS_DEVICE" "${GPS_DEVICE:-}"
+# Liest der Core bei `gps_source: rut50` (position/modbus/). Immer
+# exportieren, auch leer -- leer heisst Werkseinstellung.
+export_env "RUT50_HOST" "${RUT50_HOST:-}"
 # Liest `settings/routes.ts` als VORGABE (nicht als Einstellung) -- die Wahl
 # in Yapaia hat Vorrang. Siehe `GET /settings/defaults`.
 export_env "THEME_MODE" "${THEME_MODE:-}"
@@ -312,10 +322,13 @@ if [ "${GPS_SOURCE}" = "usb" ] || [ "${GPS_SOURCE}" = "network" ]; then
   export_env "GPSD_HOST" "127.0.0.1"
   export_env "GPSD_PORT" "2947"
 else
-  # Auch `companion_app` landet hier -- gpsd auf einer Installation ohne
+  # Auch `companion_app` und `rut50` landen hier -- gpsd auf einer Installation ohne
   # USB-Empfaenger zu starten, erzeugt nur eine Warnung ueber ein Geraet, das
   # es nicht gibt.
   export_env "GPSD_ENABLED" "false"
+fi
+if [ "${GPS_SOURCE}" = "rut50" ]; then
+  bashio::log.info "init-yapaia-config: gps_source=rut50 -- der Core liest die Position per Modbus TCP vom Router unter '${RUT50_HOST:-192.168.1.1:502}'."
 fi
 if [ "${GPS_SOURCE}" = "companion_app" ] && [ -z "${HA_DEVICE_TRACKER}" ]; then
   bashio::log.info "init-yapaia-config: gps_source=companion_app ohne feste Entity-ID -- der Core waehlt selbst, sofern es genau einen device_tracker mit Koordinaten gibt (sonst sagt die Installationspruefung, welche zur Wahl stehen)."
