@@ -1,0 +1,1475 @@
+# ─── Yapaia auf dem M5Stack Dial ────────────────────────────────────────────
+#
+# Ein Drehknopf mit rundem Display fuers Wohnmobil: dieselbe Navigations-
+# anzeige und dieselbe Wasserwaage wie `yapaia-nav-display/` -- und dazu
+# Licht, Heizung, Batterie, Gas, Reifendruck und eine Uhr mit Tuerschloss.
+#
+# Gebaut fuer den **M5Stack Dial** (V1/V1.1): ein M5StampS3 (**ESP32-S3**,
+# 8 MB Flash, KEIN PSRAM), ein rundes 1,28-Zoll-Display mit 240x240
+# Bildpunkten (GC9A01A an SPI), der orange Drehring (Drehgeber) und darunter
+# ein Taster: man drueckt auf das ganze Display.
+#
+# ─── BEDIENUNG ──────────────────────────────────────────────────────────────
+#
+#   kurz druecken   naechste Ansicht
+#   drehen          verstellen, was die Ansicht verstellen kann
+#   lang druecken   die Auswahl in der Ansicht wechseln
+#
+#   Ansicht      drehen                        lang druecken
+#   ─────────    ──────────────────────────    ──────────────────────────────
+#   Navi         rechts Restzeit, links Ankunft  Restzeit <-> Ankunft
+#   Waage        rechts Fahrzeug, links Libelle  Libelle <-> Fahrzeug
+#   Licht        Helligkeit (bis 0 = aus)        naechstes Licht
+#   Heizung      Solltemperatur (unter 5 = aus)  Raum <-> Warmwasser
+#   Batterie     --                              Batterie 1 <-> 2
+#   Gas          --                              --
+#   Reifen       --                              --
+#   Uhr          Helligkeit des Displays         Tuer zu / (zweimal) auf
+#
+# Steht eine Abbiegung kurz bevor (`navi_vorrang_m`), springt die Anzeige von
+# selbst auf die Navigation -- es sei denn, man hat gerade eben am Knopf
+# gedreht oder gedrueckt.
+#
+# ─── WORAUS DIE WERTE KOMMEN, UND WOHIN DIE BEFEHLE GEHEN ───────────────────
+# Alles kommt aus Home Assistant, ueber die native ESPHome-API -- auch die
+# Werte der ANDEREN ESPHome-Geraete (heizung, smartwomo, btcollector, door).
+# Der Dial spricht nie direkt mit ihnen.
+#
+# Verstellt wird ebenfalls ueber Home Assistant (`homeassistant.action`). Das
+# muss dort EINMAL erlaubt werden, sonst passiert beim Drehen nichts:
+#
+#   Einstellungen -> Geraete & Dienste -> ESPHome -> dieses Geraet ->
+#   Konfigurieren -> „Dem Geraet erlauben, Home-Assistant-Aktionen
+#   auszufuehren" einschalten.
+#
+# WLAN-Zugangsdaten und der API-Schluessel stehen in `secrets.yaml`.
+
+substitutions:
+  geraetename: m5-dial
+  anzeigename: "Yapaia Dial"
+  zeitzone: Europe/Berlin
+
+  # ─── WELCHE ANSICHTEN, IN WELCHER REIHENFOLGE ─────────────────────────────
+  # Kurz druecken geht diese Liste der Reihe nach durch. Wer etwas nicht hat
+  # (keine Gasflaschen-Sensoren, keine Reifendrucksensoren), nimmt die Nummer
+  # heraus -- dann taucht die Ansicht gar nicht erst auf.
+  #
+  #   0 Navi   1 Waage   2 Licht   3 Heizung
+  #   4 Batterie   5 Gas   6 Reifen   7 Uhr
+  seiten: "0, 1, 2, 3, 4, 5, 6, 7"
+
+  # Ab wie vielen Metern vor dem naechsten Manoever die Navigation von selbst
+  # nach vorn kommt. `0` schaltet das ab.
+  navi_vorrang_m: "300"
+  # Wie lange nach dem letzten Dreh oder Druck der Vorrang wartet (ms) --
+  # wer gerade das Licht dimmt, will nicht mitten darin weggeschaltet werden.
+  navi_vorrang_ruhe_ms: "10000"
+
+  # ─── YAPAIA GO ────────────────────────────────────────────────────────────
+  # Wie in `yapaia-nav-display.yaml`.
+  entity_praefix: sensor.yapaia_go
+  entity_praefix_binaer: binary_sensor.yapaia_go
+
+  # ─── DIE WASSERWAAGE ──────────────────────────────────────────────────────
+  # Dieselben Werte wie in `yapaia-nav-display.yaml` -- dort steht auch, was
+  # sie bedeuten und dass beide Vorzeichen am Fahrzeug nachgeprueft sind.
+  entity_neigung_lr: sensor.heizung_neigung_links_rechts
+  entity_neigung_vh: sensor.heizung_neigung_vorne_hinten
+  wasserwaage_gerade_grad: "0.5"
+  wasserwaage_bereich_grad: "5"
+  radstand_mm: "4035"
+  spurweite_mm: "1810"
+  neigung_lr_vorzeichen: "1"
+  neigung_vh_vorzeichen: "1"
+
+  # ─── DIE LICHTER (Geraet „smartwomo") ─────────────────────────────────────
+  # Acht dimmbare Ausgaenge. Die Namen sind nur fuer die Anzeige -- „OUT3"
+  # sagt im Dunkeln niemandem etwas, „Vorzelt" schon. Kurz halten: es sind
+  # rund 14 Zeichen Platz.
+  licht_anzahl: "8"
+  licht1: light.smartwomo_ausgang_out1
+  licht1_name: "Ausgang 1"
+  licht2: light.smartwomo_ausgang_out2
+  licht2_name: "Ausgang 2"
+  licht3: light.smartwomo_ausgang_out3
+  licht3_name: "Ausgang 3"
+  licht4: light.smartwomo_ausgang_out4
+  licht4_name: "Ausgang 4"
+  licht5: light.smartwomo_ausgang_out5
+  licht5_name: "Ausgang 5"
+  licht6: light.smartwomo_ausgang_out6
+  licht6_name: "Ausgang 6"
+  licht7: light.smartwomo_ausgang_out7
+  licht7_name: "Ausgang 7"
+  licht8: light.smartwomo_ausgang_out8
+  licht8_name: "Ausgang 8"
+  # Prozent je Rastung des Drehrings.
+  licht_schritt: "5"
+
+  # ─── DIE HEIZUNG (Geraet „heizung", Truma iNet Box) ───────────────────────
+  # Gelesen wird der GEMELDETE Sollwert (`…_reported`), gestellt wird ueber
+  # die `number`-Entitaet -- genau so trennt die iNet-Box es selbst.
+  heiz_raum_ist: sensor.heizung_current_room_temperature
+  heiz_raum_soll: sensor.heizung_target_room_temperature_reported
+  heiz_raum_nummer: number.heizung_target_room_temperature
+  heiz_raum_aktiv: binary_sensor.heizung_room_heater_active
+  heiz_wasser_ist: sensor.heizung_current_water_temperature
+  heiz_wasser_soll: sensor.heizung_target_water_temperature_reported
+  heiz_wasser_nummer: number.heizung_target_water_temperature
+  heiz_wasser_aktiv: binary_sensor.heizung_water_heater_active
+
+  # ─── DIE BATTERIEN (Geraet „btcollector", Victron SmartShunt) ─────────────
+  batt1_name: "Aufbau"
+  batt1_soc: sensor.btcollector_state_of_charge
+  batt1_spannung: sensor.btcollector_battery_voltage
+  batt1_strom: sensor.btcollector_current
+  batt1_rest: sensor.btcollector_time_remaining
+  batt2_name: "Batterie 2"
+  batt2_soc: sensor.btcollector_state_of_charge_2
+  batt2_spannung: sensor.btcollector_battery_voltage_2
+  batt2_strom: sensor.btcollector_current_2
+  batt2_rest: sensor.btcollector_time_remaining_2
+  solar_leistung: sensor.btcollector_mppt_pv_power
+
+  # ─── GAS (Mopeka) ─────────────────────────────────────────────────────────
+  gas1: sensor.btcollector_gas_sensor_1_level
+  gas1_name: "Flasche 1"
+  gas2: sensor.btcollector_gas_sensor_2_level
+  gas2_name: "Flasche 2"
+
+  # ─── REIFENDRUCK (TPMS) ───────────────────────────────────────────────────
+  reifen_vl_druck: sensor.btcollector_fl_pressure
+  reifen_vr_druck: sensor.btcollector_fr_pressure
+  reifen_hl_druck: sensor.btcollector_rl_pressure
+  reifen_hr_druck: sensor.btcollector_rr_pressure
+  reifen_vl_temp: sensor.btcollector_fl_temperature
+  reifen_vr_temp: sensor.btcollector_fr_temperature
+  reifen_hl_temp: sensor.btcollector_rl_temperature
+  reifen_hr_temp: sensor.btcollector_rr_temperature
+  # Darunter wird ein Reifen rot. Bitte den Wert aus der Reifentabelle des
+  # Fahrzeugs nehmen -- ein Ducato traegt hinten deutlich mehr als vorn.
+  reifen_warn_bar: "4.0"
+
+  # ─── DIE TUER (Geraet „door") ─────────────────────────────────────────────
+  tuer_schloss: lock.door_aufbautur
+
+  # ─── PINS DES M5STACK DIAL ────────────────────────────────────────────────
+  pin_sck: GPIO6
+  pin_mosi: GPIO5
+  pin_cs: GPIO7
+  pin_dc: GPIO4
+  pin_reset: GPIO8
+  pin_backlight: GPIO9
+  pin_dreh_a: GPIO40
+  pin_dreh_b: GPIO41
+  pin_taster: GPIO42
+  pin_summer: GPIO3
+  pin_halten: GPIO46
+  pin_sda: GPIO11
+  pin_scl: GPIO12
+
+esphome:
+  name: ${geraetename}
+  friendly_name: ${anzeigename}
+  on_boot:
+    # ─── SELBSTHALTUNG ────────────────────────────────────────────────────
+    # Am Akku haelt sich der Dial ueber GPIO46 selbst eingeschaltet; ohne das
+    # geht er nach dem Loslassen des Tasters wieder aus. Am Bordnetz (USB oder
+    # Port A) schadet es nicht.
+    - priority: 900
+      then:
+        - output.turn_on: halten
+    - priority: 600
+      then:
+        - pcf8563.read_time:
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+  hardware_uart: USB_SERIAL_JTAG
+
+api:
+  encryption:
+    # secrets.yaml:   m5_dial__api_key: "…"   (32 Byte base64)
+    key: !secret m5_dial__api_key
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${geraetename} Fallback"
+
+captive_portal:
+
+i2c:
+  - id: intern
+    sda: ${pin_sda}
+    scl: ${pin_scl}
+
+time:
+  - platform: homeassistant
+    id: ha_zeit
+    timezone: ${zeitzone}
+    on_time_sync:
+      then:
+        - pcf8563.write_time:
+            id: rtc_zeit
+  # Die eingebaute Uhr: nach einem Neustart ohne WLAN steht so trotzdem die
+  # richtige Zeit da.
+  - platform: pcf8563
+    id: rtc_zeit
+    i2c_id: intern
+    address: 0x51
+    update_interval: never
+
+# ─── WAS SICH DER DIAL MERKT ────────────────────────────────────────────────
+# `*_bis` sind Zeitpunkte in `millis()`. Bis dahin zeigt die Anzeige den GERADE
+# GEDREHTEN Wert statt des gemeldeten -- sonst spraenge die Zahl beim Drehen
+# zurueck, bis Home Assistant den neuen Stand bestaetigt hat.
+globals:
+  - id: ansicht
+    type: int
+    restore_value: true
+    initial_value: "0"
+  - id: letzte_bedienung
+    type: uint32_t
+    initial_value: "0"
+  - id: seitenwechsel
+    type: uint32_t
+    initial_value: "0"
+  - id: licht_wahl
+    type: int
+    restore_value: true
+    initial_value: "0"
+  - id: licht_soll
+    type: int
+    initial_value: "-1"
+  - id: licht_soll_bis
+    type: uint32_t
+    initial_value: "0"
+  - id: heiz_wahl
+    type: int
+    initial_value: "0"
+  - id: raum_soll_neu
+    type: float
+    initial_value: "-1"
+  - id: wasser_soll_neu
+    type: int
+    initial_value: "-1"
+  - id: heiz_soll_bis
+    type: uint32_t
+    initial_value: "0"
+  - id: batterie_wahl
+    type: int
+    initial_value: "0"
+  - id: tuer_bestaetigen_bis
+    type: uint32_t
+    initial_value: "0"
+  - id: hell_anzeige_bis
+    type: uint32_t
+    initial_value: "0"
+
+# ─── DIE BEDIENUNG ──────────────────────────────────────────────────────────
+script:
+  # Kurz druecken: naechste Ansicht aus `seiten`.
+  - id: kurz
+    then:
+      - lambda: |-
+          static const int S[] = {${seiten}};
+          const int n = sizeof(S) / sizeof(S[0]);
+          int pos = 0;
+          for (int i = 0; i < n; i++) if (S[i] == id(ansicht)) pos = i;
+          id(ansicht) = S[(pos + 1) % n];
+          id(letzte_bedienung) = millis();
+          id(seitenwechsel) = millis();
+          id(tuer_bestaetigen_bis) = 0;
+          id(anzeige).update();
+
+  # Lang druecken: die Auswahl IN der Ansicht.
+  - id: lang
+    then:
+      - lambda: |-
+          id(letzte_bedienung) = millis();
+          switch (id(ansicht)) {
+            case 0: id(eta_als_restzeit).toggle(); break;
+            case 1: id(waage_fahrzeug).toggle(); break;
+            case 2:
+              id(licht_wahl) = (id(licht_wahl) + 1) % (${licht_anzahl});
+              id(licht_soll_bis) = 0;
+              break;
+            case 3:
+              id(heiz_wahl) = 1 - id(heiz_wahl);
+              id(heiz_soll_bis) = 0;
+              break;
+            case 4: id(batterie_wahl) = 1 - id(batterie_wahl); break;
+            case 7: {
+              // ─── DIE TUER GEHT NUR MIT ZWEI GRIFFEN AUF ───────────────────
+              // Abschliessen ist immer ungefaehrlich und geht sofort.
+              // Aufschliessen kann aus Versehen passieren -- ein Knopf in der
+              // Hosentasche, ein Kind am Armaturenbrett. Deshalb muss man es
+              // innerhalb von fuenf Sekunden ein zweites Mal wollen.
+              const std::string z = id(tuer_zustand).state;
+              if (z != "locked") {
+                id(tuer_zu).execute();
+              } else if ((int32_t) (id(tuer_bestaetigen_bis) - millis()) > 0) {
+                id(tuer_bestaetigen_bis) = 0;
+                id(tuer_auf).execute();
+              } else {
+                id(tuer_bestaetigen_bis) = millis() + 5000;
+              }
+              break;
+            }
+            default: break;
+          }
+          id(anzeige).update();
+
+  # Drehen. `richtung` ist +1 (im Uhrzeigersinn) oder -1.
+  - id: drehen
+    parameters:
+      richtung: int
+    then:
+      - lambda: |-
+          id(letzte_bedienung) = millis();
+          const uint32_t jetzt = millis();
+          switch (id(ansicht)) {
+            // Ein Umschalter am Drehring: RECHTS ist immer die eine Seite,
+            // LINKS die andere. Wer weiterdreht, bleibt dort -- ein Wechsel
+            // je Rastung liesse die Anzeige beim Drehen hin- und herspringen.
+            case 0:
+              if (richtung > 0) id(eta_als_restzeit).turn_on();
+              else id(eta_als_restzeit).turn_off();
+              break;
+            case 1:
+              if (richtung > 0) id(waage_fahrzeug).turn_on();
+              else id(waage_fahrzeug).turn_off();
+              break;
+            case 2: {
+              esphome::text_sensor::TextSensor *zust[8] = {
+                id(licht1_zustand), id(licht2_zustand), id(licht3_zustand), id(licht4_zustand),
+                id(licht5_zustand), id(licht6_zustand), id(licht7_zustand), id(licht8_zustand)};
+              esphome::sensor::Sensor *hell[8] = {
+                id(licht1_hell), id(licht2_hell), id(licht3_hell), id(licht4_hell),
+                id(licht5_hell), id(licht6_hell), id(licht7_hell), id(licht8_hell)};
+              const int k = std::max(0, std::min(7, id(licht_wahl)));
+              int pct;
+              if ((int32_t) (id(licht_soll_bis) - jetzt) > 0 && id(licht_soll) >= 0) {
+                pct = id(licht_soll);
+              } else if (zust[k]->state == "on") {
+                pct = (hell[k]->has_state() && !std::isnan(hell[k]->state))
+                          ? (int) (hell[k]->state * 100.0f / 255.0f + 0.5f) : 100;
+              } else {
+                pct = 0;
+              }
+              pct = std::max(0, std::min(100, pct + richtung * (${licht_schritt})));
+              id(licht_soll) = pct;
+              id(licht_soll_bis) = jetzt + 4000;
+              id(licht_senden).execute();
+              break;
+            }
+            case 3: {
+              if (id(heiz_wahl) == 0) {
+                // Truma: 0 heisst aus, sonst 5 bis 30 Grad, in ganzen Graden.
+                float soll = ((int32_t) (id(heiz_soll_bis) - jetzt) > 0 && id(raum_soll_neu) >= 0)
+                                 ? id(raum_soll_neu)
+                                 : (id(heiz_raum_soll_wert)->has_state() &&
+                                    !std::isnan(id(heiz_raum_soll_wert)->state)
+                                        ? id(heiz_raum_soll_wert)->state : 0.0f);
+                if (soll < 5.0f) soll = richtung > 0 ? 5.0f : 0.0f;
+                else soll += richtung;
+                if (soll < 5.0f) soll = 0.0f;
+                if (soll > 30.0f) soll = 30.0f;
+                id(raum_soll_neu) = soll;
+              } else {
+                // Warmwasser kennt nur vier Stufen.
+                static const int STUFEN[] = {0, 40, 60, 80};
+                int soll = ((int32_t) (id(heiz_soll_bis) - jetzt) > 0 && id(wasser_soll_neu) >= 0)
+                               ? id(wasser_soll_neu)
+                               : (id(heiz_wasser_soll_wert)->has_state() &&
+                                  !std::isnan(id(heiz_wasser_soll_wert)->state)
+                                      ? (int) id(heiz_wasser_soll_wert)->state : 0);
+                int i = 0;
+                for (int j = 0; j < 4; j++) if (soll >= STUFEN[j]) i = j;
+                i = std::max(0, std::min(3, i + richtung));
+                id(wasser_soll_neu) = STUFEN[i];
+              }
+              id(heiz_soll_bis) = jetzt + 6000;
+              id(heiz_senden).execute();
+              break;
+            }
+            case 7: {
+              float b = id(backlight).current_values.get_brightness();
+              b = std::max(0.05f, std::min(1.0f, b + richtung * 0.05f));
+              auto call = id(backlight).turn_on();
+              call.set_brightness(b);
+              call.perform();
+              id(hell_anzeige_bis) = jetzt + 2000;
+              break;
+            }
+            default: break;
+          }
+          id(anzeige).update();
+
+  # ─── GESENDET WIRD ERST, WENN DAS DREHEN AUFHOERT ─────────────────────────
+  # `mode: restart`: jede Rastung startet die Wartezeit neu. Wer von 0 auf
+  # 80 % dreht, schickt EINEN Befehl statt sechzehn -- die Lampen flackern
+  # nicht durch alle Zwischenstufen, und Home Assistant bleibt ruhig.
+  - id: licht_senden
+    mode: restart
+    then:
+      - delay: 300ms
+      - if:
+          condition:
+            lambda: "return id(licht_soll) <= 0;"
+          then:
+            - homeassistant.action:
+                action: light.turn_off
+                data:
+                  entity_id: !lambda |-
+                    static const char *const E[] = {"${licht1}", "${licht2}", "${licht3}", "${licht4}",
+                                                    "${licht5}", "${licht6}", "${licht7}", "${licht8}"};
+                    return std::string(E[std::max(0, std::min(7, id(licht_wahl)))]);
+          else:
+            - homeassistant.action:
+                action: light.turn_on
+                data:
+                  entity_id: !lambda |-
+                    static const char *const E[] = {"${licht1}", "${licht2}", "${licht3}", "${licht4}",
+                                                    "${licht5}", "${licht6}", "${licht7}", "${licht8}"};
+                    return std::string(E[std::max(0, std::min(7, id(licht_wahl)))]);
+                  brightness_pct: !lambda "return to_string(id(licht_soll));"
+
+  # Die Heizung wartet laenger: die iNet-Box schreibt jeden Befehl ueber den
+  # LIN-Bus ins CP Plus, und dort soll nicht jede Zwischenstufe ankommen.
+  - id: heiz_senden
+    mode: restart
+    then:
+      - delay: 800ms
+      - if:
+          condition:
+            lambda: "return id(heiz_wahl) == 0;"
+          then:
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${heiz_raum_nummer}
+                  value: !lambda "return to_string((int) id(raum_soll_neu));"
+          else:
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${heiz_wasser_nummer}
+                  value: !lambda "return to_string(id(wasser_soll_neu));"
+
+  - id: tuer_zu
+    then:
+      - homeassistant.action:
+          action: lock.lock
+          data:
+            entity_id: ${tuer_schloss}
+  - id: tuer_auf
+    then:
+      - homeassistant.action:
+          action: lock.unlock
+          data:
+            entity_id: ${tuer_schloss}
+
+binary_sensor:
+  # ─── DER TASTER UNTER DEM DISPLAY ─────────────────────────────────────────
+  # Er zieht nach Masse, also `inverted`. Kurz und lang werden hier getrennt;
+  # „lang" loest schon beim Halten aus, nicht erst beim Loslassen -- so merkt
+  # man, wann es reicht.
+  - platform: gpio
+    id: taster
+    pin:
+      number: ${pin_taster}
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_multi_click:
+      - timing:
+          - ON for at most 600ms
+          - OFF for at least 30ms
+        then:
+          - script.execute: kurz
+      - timing:
+          - ON for at least 700ms
+        then:
+          - script.execute: lang
+
+  - platform: homeassistant
+    id: yapaia_zu_schnell
+    entity_id: ${entity_praefix_binaer}_zu_schnell
+    # ─── EIN KURZER TON BEIM UEBERSCHREITEN ─────────────────────────────────
+    # Nur, wenn der Schalter „Warnton bei zu schnell" an ist. Einmal beim
+    # Ueberschreiten, nicht dauernd -- eine Dauerwarnung stellt man ab.
+    on_press:
+      - if:
+          condition:
+            switch.is_on: warnton
+          then:
+            - rtttl.play: "warn:d=16,o=6,b=180:c,p,c"
+  - platform: homeassistant
+    id: heiz_raum_aktiv_an
+    entity_id: ${heiz_raum_aktiv}
+  - platform: homeassistant
+    id: heiz_wasser_aktiv_an
+    entity_id: ${heiz_wasser_aktiv}
+
+sensor:
+  # ─── DER ORANGE DREHRING ──────────────────────────────────────────────────
+  # Springt er je Rastung um ZWEI Schritte, hier `resolution: 2` eintragen.
+  - platform: rotary_encoder
+    id: drehring
+    pin_a:
+      number: ${pin_dreh_a}
+      mode:
+        input: true
+        pullup: true
+    pin_b:
+      number: ${pin_dreh_b}
+      mode:
+        input: true
+        pullup: true
+    on_clockwise:
+      - script.execute:
+          id: drehen
+          richtung: 1
+    on_anticlockwise:
+      - script.execute:
+          id: drehen
+          richtung: -1
+
+  # ─── YAPAIA GO ────────────────────────────────────────────────────────────
+  - platform: homeassistant
+    id: yapaia_tempo
+    entity_id: ${entity_praefix}_tempo
+  - platform: homeassistant
+    id: yapaia_tempolimit
+    entity_id: ${entity_praefix}_tempolimit
+  - platform: homeassistant
+    id: yapaia_tempolimit_fahrzeug
+    entity_id: ${entity_praefix}_tempolimit_fahrzeug
+  - platform: homeassistant
+    id: yapaia_manoever_entfernung
+    entity_id: ${entity_praefix}_anweisung_entfernung
+  - platform: homeassistant
+    id: neigung_lr
+    entity_id: ${entity_neigung_lr}
+  - platform: homeassistant
+    id: neigung_vh
+    entity_id: ${entity_neigung_vh}
+
+  # ─── LICHT: die Helligkeit als Attribut (0..255) ──────────────────────────
+  - { platform: homeassistant, id: licht1_hell, entity_id: "${licht1}", attribute: brightness }
+  - { platform: homeassistant, id: licht2_hell, entity_id: "${licht2}", attribute: brightness }
+  - { platform: homeassistant, id: licht3_hell, entity_id: "${licht3}", attribute: brightness }
+  - { platform: homeassistant, id: licht4_hell, entity_id: "${licht4}", attribute: brightness }
+  - { platform: homeassistant, id: licht5_hell, entity_id: "${licht5}", attribute: brightness }
+  - { platform: homeassistant, id: licht6_hell, entity_id: "${licht6}", attribute: brightness }
+  - { platform: homeassistant, id: licht7_hell, entity_id: "${licht7}", attribute: brightness }
+  - { platform: homeassistant, id: licht8_hell, entity_id: "${licht8}", attribute: brightness }
+
+  # ─── HEIZUNG ──────────────────────────────────────────────────────────────
+  - { platform: homeassistant, id: heiz_raum_ist_wert, entity_id: "${heiz_raum_ist}" }
+  - { platform: homeassistant, id: heiz_raum_soll_wert, entity_id: "${heiz_raum_soll}" }
+  - { platform: homeassistant, id: heiz_wasser_ist_wert, entity_id: "${heiz_wasser_ist}" }
+  - { platform: homeassistant, id: heiz_wasser_soll_wert, entity_id: "${heiz_wasser_soll}" }
+
+  # ─── BATTERIE, SOLAR ──────────────────────────────────────────────────────
+  - { platform: homeassistant, id: batt1_soc_wert, entity_id: "${batt1_soc}" }
+  - { platform: homeassistant, id: batt1_spannung_wert, entity_id: "${batt1_spannung}" }
+  - { platform: homeassistant, id: batt1_strom_wert, entity_id: "${batt1_strom}" }
+  - { platform: homeassistant, id: batt1_rest_wert, entity_id: "${batt1_rest}" }
+  - { platform: homeassistant, id: batt2_soc_wert, entity_id: "${batt2_soc}" }
+  - { platform: homeassistant, id: batt2_spannung_wert, entity_id: "${batt2_spannung}" }
+  - { platform: homeassistant, id: batt2_strom_wert, entity_id: "${batt2_strom}" }
+  - { platform: homeassistant, id: batt2_rest_wert, entity_id: "${batt2_rest}" }
+  - { platform: homeassistant, id: solar_wert, entity_id: "${solar_leistung}" }
+
+  # ─── GAS, REIFEN ──────────────────────────────────────────────────────────
+  - { platform: homeassistant, id: gas1_wert, entity_id: "${gas1}" }
+  - { platform: homeassistant, id: gas2_wert, entity_id: "${gas2}" }
+  - { platform: homeassistant, id: reifen_vl, entity_id: "${reifen_vl_druck}" }
+  - { platform: homeassistant, id: reifen_vr, entity_id: "${reifen_vr_druck}" }
+  - { platform: homeassistant, id: reifen_hl, entity_id: "${reifen_hl_druck}" }
+  - { platform: homeassistant, id: reifen_hr, entity_id: "${reifen_hr_druck}" }
+  - { platform: homeassistant, id: reifen_vl_t, entity_id: "${reifen_vl_temp}" }
+  - { platform: homeassistant, id: reifen_vr_t, entity_id: "${reifen_vr_temp}" }
+  - { platform: homeassistant, id: reifen_hl_t, entity_id: "${reifen_hl_temp}" }
+  - { platform: homeassistant, id: reifen_hr_t, entity_id: "${reifen_hr_temp}" }
+
+text_sensor:
+  - platform: homeassistant
+    id: yapaia_anweisung
+    entity_id: ${entity_praefix}_anweisung
+  - platform: homeassistant
+    id: yapaia_manoever_art
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_typ
+  - platform: homeassistant
+    id: yapaia_kreisel
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_kreisel
+  - platform: homeassistant
+    id: yapaia_spuren
+    entity_id: ${entity_praefix}_anweisung
+    attribute: anweisung_spuren
+  - platform: homeassistant
+    id: yapaia_fahrzustand
+    entity_id: ${entity_praefix}_zustand
+  - platform: homeassistant
+    id: yapaia_ankunft
+    entity_id: ${entity_praefix}_ankunft
+
+  # Licht an oder aus: der ZUSTAND der Entitaet. Die Helligkeit allein reicht
+  # nicht -- ein ausgeschaltetes Licht hat gar kein `brightness`.
+  - { platform: homeassistant, id: licht1_zustand, entity_id: "${licht1}" }
+  - { platform: homeassistant, id: licht2_zustand, entity_id: "${licht2}" }
+  - { platform: homeassistant, id: licht3_zustand, entity_id: "${licht3}" }
+  - { platform: homeassistant, id: licht4_zustand, entity_id: "${licht4}" }
+  - { platform: homeassistant, id: licht5_zustand, entity_id: "${licht5}" }
+  - { platform: homeassistant, id: licht6_zustand, entity_id: "${licht6}" }
+  - { platform: homeassistant, id: licht7_zustand, entity_id: "${licht7}" }
+  - { platform: homeassistant, id: licht8_zustand, entity_id: "${licht8}" }
+
+  # locked | unlocked | locking | unlocking | jammed
+  - platform: homeassistant
+    id: tuer_zustand
+    entity_id: ${tuer_schloss}
+
+# ─── SCHALTER ───────────────────────────────────────────────────────────────
+# Wie beim Navi-Display: in Home Assistant sichtbar, aus Automatisierungen
+# stellbar -- und hier zusaetzlich am Drehring.
+switch:
+  - platform: template
+    name: "Waage als Fahrzeug"
+    id: waage_fahrzeug
+    icon: mdi:van-utility
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: template
+    name: "Restzeit statt Ankunft"
+    id: eta_als_restzeit
+    icon: mdi:timer-sand
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: template
+    name: "Warnton bei zu schnell"
+    id: warnton
+    icon: mdi:volume-high
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+output:
+  - platform: ledc
+    pin: ${pin_backlight}
+    id: backlight_pwm
+  - platform: ledc
+    pin: ${pin_summer}
+    id: summer
+  - platform: gpio
+    pin: ${pin_halten}
+    id: halten
+
+rtttl:
+  output: summer
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: "Helligkeit"
+    id: backlight
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: 0s
+
+color:
+  - id: c_hintergrund
+    hex: "0B0F14"
+  - id: c_text
+    hex: "F2F5F7"
+  - id: c_gedaempft
+    hex: "8A949E"
+  - id: c_dunkel
+    hex: "252C34"
+  - id: c_pfeil
+    hex: "4EA1FF"
+  - id: c_warnung
+    hex: "FF4D4D"
+  - id: c_gut
+    hex: "3DDC84"
+  # Das Orange des Drehrings -- alles, was sich drehen laesst, traegt es.
+  - id: c_akzent
+    hex: "FF8A1F"
+  - id: c_licht
+    hex: "FFC94D"
+  - id: c_wasser
+    hex: "4EA1FF"
+
+font:
+  - file: "gfonts://Roboto@700"
+    id: font_xxl
+    size: 58
+    glyphs: "0123456789:-"
+  - file: "gfonts://Roboto@700"
+    id: font_xl
+    size: 40
+    glyphs: &zeichen "!\"%()+=,-_.:/°'’ 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß"
+  - file: "gfonts://Roboto@700"
+    id: font_l
+    size: 26
+    glyphs: *zeichen
+  - file: "gfonts://Roboto@500"
+    id: font_m
+    size: 18
+    glyphs: *zeichen
+  - file: "gfonts://Roboto@400"
+    id: font_s
+    size: 13
+    glyphs: *zeichen
+
+spi:
+  clk_pin: ${pin_sck}
+  mosi_pin: ${pin_mosi}
+
+display:
+  - platform: ili9xxx
+    model: GC9A01A
+    id: anzeige
+    cs_pin: ${pin_cs}
+    dc_pin: ${pin_dc}
+    reset_pin: ${pin_reset}
+    dimensions:
+      width: 240
+      height: 240
+    invert_colors: true
+    # 16 Bit (die Voreinstellung): 115 kB Bildpuffer. Der S3 im Dial hat dafuer
+    # genug Arbeitsspeicher, anders als der C3 des Navi-Displays. Meldet das
+    # Protokoll trotzdem „Could not allocate buffer for display", hier
+    # `color_palette: 8BIT` eintragen -- dieselbe Abhilfe wie dort.
+    update_interval: 250ms
+    lambda: |-
+      const int B = it.get_width();
+      const int H = it.get_height();
+      const int cx = B / 2;
+      const int cy = H / 2;
+      // Der Rahmen des Dial verdeckt den aeussersten Ring.
+      const int r = std::min(B, H) / 2 - 8;
+      const uint32_t jetzt = millis();
+      const float GRAD = 3.14159265f / 180.0f;
+
+      auto halbbreite = [&](int y) -> int {
+        const int dy = y - cy;
+        const int q = r * r - dy * dy;
+        return q <= 0 ? 0 : (int) std::sqrt((double) q);
+      };
+      auto hat = [](esphome::sensor::Sensor *s) {
+        return s != nullptr && s->has_state() && !std::isnan(s->state);
+      };
+      auto hat_text = [](esphome::text_sensor::TextSensor *s) {
+        if (s == nullptr) return false;
+        const std::string &v = s->state;
+        return !v.empty() && v != "unknown" && v != "unavailable";
+      };
+      auto noch = [&](uint32_t bis) { return (int32_t) (bis - jetzt) > 0; };
+
+      // ─── EIN BOGEN, IM UHRZEIGERSINN, 0 GRAD = OBEN ───────────────────────
+      // Aus Dreiecken, weil ESPHome keinen Kreisbogen zeichnet. Vier Grad je
+      // Stueck: feiner sieht man auf 240 Punkten nicht, groeber werden die
+      // Kanten eckig.
+      auto bogen = [&](float a0, float a1, int ra, int ri, Color farbe) {
+        for (float a = a0; a < a1; a += 4.0f) {
+          const float b = std::min(a + 4.0f, a1);
+          const float s0 = sinf(a * GRAD), c0 = cosf(a * GRAD);
+          const float s1 = sinf(b * GRAD), c1 = cosf(b * GRAD);
+          const int xa0 = cx + (int) lroundf(ra * s0), ya0 = cy - (int) lroundf(ra * c0);
+          const int xa1 = cx + (int) lroundf(ra * s1), ya1 = cy - (int) lroundf(ra * c1);
+          const int xi0 = cx + (int) lroundf(ri * s0), yi0 = cy - (int) lroundf(ri * c0);
+          const int xi1 = cx + (int) lroundf(ri * s1), yi1 = cy - (int) lroundf(ri * c1);
+          it.filled_triangle(xa0, ya0, xa1, ya1, xi1, yi1, farbe);
+          it.filled_triangle(xa0, ya0, xi1, yi1, xi0, yi0, farbe);
+        }
+      };
+      // Die Skala der verstellbaren Ansichten: 270 Grad, unten offen -- wie
+      // der Drehring, der sie stellt. `f` von 0 bis 1.
+      const int SK_A = r - 2, SK_I = r - 12;
+      auto skala = [&](float f, Color farbe) {
+        f = std::max(0.0f, std::min(1.0f, f));
+        bogen(-135.0f, 135.0f, SK_A, SK_I, id(c_dunkel));
+        if (f > 0.0f) bogen(-135.0f, -135.0f + 270.0f * f, SK_A, SK_I, farbe);
+      };
+      auto titel = [&](const char *text) {
+        it.print(cx, cy - r + 30, id(font_s), id(c_gedaempft), TextAlign::CENTER, text);
+      };
+      auto hinweis = [&](const char *text) {
+        it.print(cx, cy + r - 26, id(font_s), id(c_gedaempft), TextAlign::CENTER, text);
+      };
+
+      // ─── WELCHE ANSICHT? ──────────────────────────────────────────────────
+      const std::string zustand = id(yapaia_fahrzustand).state;
+      const bool navigiert = zustand == "navigating";
+      int seite = id(ansicht);
+      {
+        const float vorrang = (float) (${navi_vorrang_m});
+        const bool nah = navigiert && vorrang > 0.0f && hat(id(yapaia_manoever_entfernung)) &&
+                         id(yapaia_manoever_entfernung).state <= vorrang;
+        const bool ruhig = (jetzt - id(letzte_bedienung)) > (uint32_t) (${navi_vorrang_ruhe_ms});
+        if (nah && ruhig) seite = 0;
+      }
+
+      it.fill(id(c_hintergrund));
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 0  NAVI -- wie `yapaia-nav-display.yaml`
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_navi = [&]() {
+        const int diag_da =
+            (hat(id(yapaia_tempo))               ? 1 : 0) +
+            (hat(id(yapaia_tempolimit))          ? 1 : 0) +
+            (hat(id(yapaia_tempolimit_fahrzeug)) ? 1 : 0) +
+            (hat(id(yapaia_manoever_entfernung)) ? 1 : 0) +
+            (hat_text(id(yapaia_fahrzustand))    ? 1 : 0) +
+            (hat_text(id(yapaia_anweisung))      ? 1 : 0);
+        if (diag_da == 0) {
+          titel("Navi");
+          it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER, "Nichts kommt an");
+          it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER, "ESPHome in HA einbinden");
+          return;
+        }
+
+        if (!navigiert) {
+          const char *text = "Keine Route";
+          if (zustand == "routing")   text = "Route wird berechnet";
+          if (zustand == "paused")    text = "Pausiert";
+          if (zustand == "arrived")   text = "Angekommen";
+          if (zustand == "off_route") text = "Abseits der Route";
+          if (zustand.empty() || zustand == "unavailable" || zustand == "unknown") {
+            it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER,
+                     "Kein Wert aus Home Assistant");
+            it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER,
+                     "Entität prüfen: Filter \"yapa\"");
+            return;
+          }
+          if (hat(id(yapaia_tempo))) {
+            it.printf(cx, cy - 18, id(font_xl), id(c_text), TextAlign::CENTER,
+                      "%d", (int) (id(yapaia_tempo).state + 0.5f));
+            it.print(cx, cy + 14, id(font_s), id(c_gedaempft), TextAlign::CENTER, "km/h");
+            it.print(cx, cy + 36, id(font_s), id(c_gedaempft), TextAlign::CENTER, text);
+            return;
+          }
+          it.print(cx, cy, id(font_m), id(c_gedaempft), TextAlign::CENTER, text);
+          return;
+        }
+
+        // ─── AB HIER ZEILENGLEICH MIT `yapaia-nav-display.yaml` ─────────────
+        // Pfeil, Kreisel, Entfernung, Spuren, Tempo und Ankunft. Die
+        // Begruendungen stehen dort; hier nicht noch einmal, damit eine
+        // spaetere Aenderung an EINER Stelle nachgelesen wird.
+        const std::string art = id(yapaia_manoever_art).state;
+        auto enthaelt = [&](const char *teil) {
+          return art.find(teil) != std::string::npos;
+        };
+        const int py = cy - (r * 41) / 100;
+        const int s = (r * 30) / 100;
+        const int d = s / 3;
+        auto C = id(c_pfeil);
+        auto rechteck = [&](int x, int y, int w, int h) {
+          if (w < 0) { x += w; w = -w; }
+          if (h < 0) { y += h; h = -h; }
+          if (w <= 0 || h <= 0) return;
+          it.filled_rectangle(x, y, w, h, C);
+        };
+        if (enthaelt("uturn")) {
+          const int seite = enthaelt("uturn_right") ? 1 : -1;
+          rechteck(cx - d / 2, py - s / 3, d, s + s / 3);
+          rechteck(cx - seite * d / 2, py - s, seite * (s + d / 2), d);
+          const int ex = cx + seite * s;
+          rechteck(ex - d / 2, py - s, d, s / 2);
+          it.filled_triangle(ex - s / 2, py - s / 2, ex + s / 2, py - s / 2, ex, py + s / 4, C);
+        } else if (enthaelt("roundabout")) {
+          int nummer = 0;
+          int grad = 0;
+          bool hat_grad = false;
+          {
+            const std::string k = id(yapaia_kreisel).state;
+            const size_t strich = k.find('|');
+            if (strich != std::string::npos) {
+              nummer = atoi(k.substr(0, strich).c_str());
+              const std::string g = k.substr(strich + 1);
+              if (!g.empty()) { grad = atoi(g.c_str()); hat_grad = true; }
+            }
+          }
+          const int rm = s / 2;
+          const int rs = (s * 3) / 4;
+          it.filled_ring(cx, py, rm + d / 2, rm - d / 2, id(c_gedaempft));
+          rechteck(cx - d / 2, py + rm, d, s - rm);
+          auto auf_kreis = [&](float phi, int rad, int &x, int &y) {
+            const float b = phi * 3.14159265f / 180.0f;
+            x = cx + (int) lroundf(rad * sinf(b));
+            y = py - (int) lroundf(rad * cosf(b));
+          };
+          if (hat_grad) {
+            int bogen_ = 180 - grad;
+            if (bogen_ <= 0) bogen_ += 360;
+            for (int a = 0; a <= bogen_; a += 6) {
+              int x, y;
+              auf_kreis(180.0f - a, rm, x, y);
+              it.filled_circle(x, y, d / 2, C);
+            }
+            int ax, ay, bx, by, tx, ty_, lx, ly, qx, qy;
+            auf_kreis((float) grad, rm, ax, ay);
+            auf_kreis((float) grad, rs, bx, by);
+            for (int t = 0; t <= 4; t++) {
+              it.filled_circle(ax + (bx - ax) * t / 4, ay + (by - ay) * t / 4, d / 2, C);
+            }
+            auf_kreis((float) grad, s + s / 8, tx, ty_);
+            const float b = grad * 3.14159265f / 180.0f;
+            lx = bx + (int) lroundf((s / 3) * cosf(b));
+            ly = by + (int) lroundf((s / 3) * sinf(b));
+            qx = bx - (int) lroundf((s / 3) * cosf(b));
+            qy = by - (int) lroundf((s / 3) * sinf(b));
+            it.filled_triangle(lx, ly, qx, qy, tx, ty_, C);
+          }
+          if (nummer > 0) {
+            it.printf(cx, py, id(font_m), id(c_text), TextAlign::CENTER, "%d", nummer);
+          }
+        } else if (enthaelt("left") || enthaelt("right")) {
+          const int seite = enthaelt("right") ? 1 : -1;
+          rechteck(cx - d / 2, py, d, s);
+          rechteck(cx - seite * d / 2, py, seite * ((s * 2) / 3 + d / 2), d);
+          const int ex = cx + (seite * s * 2) / 3;
+          it.filled_triangle(ex, py - s / 2, ex, py + s / 2 + d, ex + seite * s / 2, py + d / 2, C);
+        } else {
+          it.filled_rectangle(cx - d / 2, py - s / 3, d, s + s / 3, C);
+          it.filled_triangle(cx - s / 2, py - s / 3, cx + s / 2, py - s / 3, cx, py - s, C);
+        }
+
+        const int dy_ = cy + (r * 12) / 100;
+        if (hat(id(yapaia_manoever_entfernung))) {
+          const float m = id(yapaia_manoever_entfernung).state;
+          if (m >= 1000.0f) {
+            it.printf(cx, dy_, id(font_xl), id(c_text), TextAlign::CENTER, "%.1f km", m / 1000.0f);
+          } else {
+            it.printf(cx, dy_, id(font_xl), id(c_text), TextAlign::CENTER,
+                      "%d m", ((int) (m / 10.0f + 0.5f)) * 10);
+          }
+        } else {
+          it.print(cx, dy_, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
+        }
+
+        int sp_maske[8];
+        int sp_an[8];
+        int sp_n = 0;
+        const bool sp_nah = hat(id(yapaia_manoever_entfernung)) &&
+                            id(yapaia_manoever_entfernung).state <= 1500.0f;
+        if (sp_nah) {
+          const std::string &t = id(yapaia_spuren).state;
+          size_t i = 0;
+          while (sp_n < 8 && (i = t.find('{', i)) != std::string::npos) {
+            const size_t ende = t.find('}', i);
+            if (ende == std::string::npos) break;
+            const std::string teil = t.substr(i, ende - i);
+            auto wert = [&](const char *name) -> int {
+              const size_t p = teil.find(name);
+              if (p == std::string::npos) return 0;
+              const size_t z = teil.find_first_of("0123456789", p + std::strlen(name));
+              return z == std::string::npos ? 0 : std::atoi(teil.c_str() + z);
+            };
+            const int m = wert("directions");
+            if (m > 0) {
+              sp_maske[sp_n] = m;
+              sp_an[sp_n] = wert("active");
+              sp_n++;
+            }
+            i = ende + 1;
+          }
+          const bool links = enthaelt("left"), rechts = enthaelt("right");
+          if (sp_n == 0 && (links || rechts) &&
+              (enthaelt("fork") || enthaelt("ramp") || enthaelt("exit") ||
+               enthaelt("stay") || enthaelt("keep") || enthaelt("slight"))) {
+            const bool teilung = enthaelt("fork") || enthaelt("stay") || enthaelt("keep");
+            sp_maske[0] = links ? 16 : (teilung ? 16 : 2);
+            sp_maske[1] = rechts ? 32 : (teilung ? 32 : 2);
+            sp_an[0] = links ? sp_maske[0] : 0;
+            sp_an[1] = rechts ? sp_maske[1] : 0;
+            sp_n = 2;
+          }
+        }
+        if (sp_n > 0) {
+          const int ly = cy + (r * 44) / 100;
+          const int sw = 26, sh = 24, sg = 4;
+          int n = sp_n;
+          while (n > 1 && n * sw + (n - 1) * sg > 2 * halbbreite(ly + sh / 2) - 8) n--;
+          const int x0 = cx - (n * sw + (n - 1) * sg) / 2;
+          auto strich = [&](int x1, int y1, int x2, int y2, Color c) {
+            for (int k = -1; k <= 1; k++) {
+              if (std::abs(x2 - x1) >= std::abs(y2 - y1)) it.line(x1, y1 + k, x2, y2 + k, c);
+              else it.line(x1 + k, y1, x2 + k, y2, c);
+            }
+          };
+          for (int k = 0; k < n; k++) {
+            const int fx = x0 + k * (sw + sg);
+            const int x = fx + sw / 2, y = ly + 1;
+            const int m = sp_maske[k];
+            const int aktiv = sp_an[k];
+            if (aktiv) it.filled_rectangle(fx, ly - sh / 2, sw, sh, id(c_text));
+            const bool trifft = (aktiv & m & ~1) != 0 || ((aktiv & 1) && (m & 1));
+            auto farbe = [&](int bits) -> Color {
+              if (!aktiv) return id(c_gedaempft);
+              return (!trifft || (aktiv & bits)) ? id(c_hintergrund) : id(c_gedaempft);
+            };
+            Color c = aktiv ? id(c_hintergrund) : id(c_gedaempft);
+            strich(x, y + 9, x, y, c);
+            c = farbe(1 | 2);
+            if (m & (1 | 2)) {
+              strich(x, y, x, y - 5, c);
+              it.filled_triangle(x - 5, y - 5, x + 5, y - 5, x, y - 10, c);
+            }
+            for (int seite = -1; seite <= 1; seite += 2) {
+              const int leicht = seite < 0 ? 16 : 32;
+              const int scharf = seite < 0 ? (4 | 8 | 512) : (64 | 128 | 1024);
+              c = farbe(leicht);
+              if (m & leicht) {
+                strich(x, y, x + seite * 5, y - 5, c);
+                it.filled_triangle(x + seite * 9, y - 10, x + seite * 2, y - 8, x + seite * 8, y - 3, c);
+              }
+              c = farbe(scharf);
+              if (m & scharf) {
+                strich(x, y, x, y - 4, c);
+                strich(x, y - 4, x + seite * 6, y - 4, c);
+                it.filled_triangle(x + seite * 6, y - 9, x + seite * 6, y + 1, x + seite * 11, y - 4, c);
+              }
+            }
+            c = farbe(256);
+            if (m & 256) {
+              strich(x, y, x, y - 8, c);
+              strich(x, y - 8, x - 7, y - 8, c);
+              strich(x - 7, y - 8, x - 7, y - 2, c);
+              it.filled_triangle(x - 11, y - 3, x - 3, y - 3, x - 7, y + 2, c);
+            }
+          }
+        }
+
+        const int uy = cy + (r * 68) / 100;
+        const int hb = halbbreite(uy);
+        const bool zu_schnell = id(yapaia_zu_schnell).state;
+        if (hat(id(yapaia_tempo))) {
+          it.printf(cx, uy, id(font_xl),
+                    zu_schnell ? id(c_warnung) : id(c_text), TextAlign::CENTER,
+                    "%d", (int) (id(yapaia_tempo).state + 0.5f));
+        }
+        const std::string iso = id(yapaia_ankunft).state;
+        int Y, Mo, D, h, mi, se;
+        if (sscanf(iso.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &Y, &Mo, &D, &h, &mi, &se) == 6) {
+          esphome::ESPTime t{};
+          t.year = Y; t.month = Mo; t.day_of_month = D;
+          t.hour = h; t.minute = mi; t.second = se;
+          t.recalc_timestamp_utc(false);
+          if (id(eta_als_restzeit).state) {
+            const int32_t rest_s = (int32_t) (t.timestamp - id(ha_zeit).now().timestamp);
+            if (rest_s < 30) {
+              it.print(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT, "gleich");
+            } else {
+              const int min = (rest_s + 30) / 60;
+              if (min < 60) {
+                it.printf(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT,
+                          "%d min", min);
+              } else {
+                it.printf(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT,
+                          "%d:%02d h", min / 60, min % 60);
+              }
+            }
+          } else {
+            auto lokal = esphome::ESPTime::from_epoch_local(t.timestamp);
+            it.printf(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT,
+                      "%02d:%02d", lokal.hour, lokal.minute);
+          }
+        } else {
+          it.print(cx + hb - 2, uy, id(font_s), id(c_gedaempft), TextAlign::CENTER_RIGHT, "--:--");
+        }
+      };
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 1  WASSERWAAGE -- Libelle oder Fahrzeug, wie `yapaia-nav-display.yaml`
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_waage = [&]() {
+        const float rr = r - 4;
+        if (!(hat(id(neigung_lr)) && hat(id(neigung_vh)))) {
+          titel("Waage");
+          it.circle(cx, cy, (int) rr, id(c_gedaempft));
+          it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER, "Keine Neigungswerte");
+          it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER, "Sensoren prüfen");
+          return;
+        }
+        const float lr = id(neigung_lr).state * (float) (${neigung_lr_vorzeichen});
+        const float vh = id(neigung_vh).state * (float) (${neigung_vh_vorzeichen});
+        const float bereich = (float) (${wasserwaage_bereich_grad});
+        const float gerade  = (float) (${wasserwaage_gerade_grad});
+        const bool steht_gerade = fabsf(lr) <= gerade && fabsf(vh) <= gerade;
+
+        if (id(waage_fahrzeug).state) {
+          const float bogen_ = 3.14159265f / 180.0f;
+          const float mm_vh = tanf(vh * bogen_) * (float) (${radstand_mm});
+          const float mm_lr = tanf(lr * bogen_) * (float) (${spurweite_mm});
+          const float bild_bereich = 22.0f;
+          const float streckung = bild_bereich / bereich;
+          auto bildwinkel = [&](float grad) {
+            float b = grad * streckung;
+            if (b > bild_bereich) b = bild_bereich;
+            if (b < -bild_bereich) b = -bild_bereich;
+            return b * bogen_;
+          };
+          auto gedreht_x = [](float px, float py, float si, float co, int ox) {
+            return ox + (int) (px * co - py * si + (px * co - py * si >= 0 ? 0.5f : -0.5f));
+          };
+          auto gedreht_y = [](float px, float py, float si, float co, int oy) {
+            return oy + (int) (px * si + py * co + (px * si + py * co >= 0 ? 0.5f : -0.5f));
+          };
+          auto kasten = [&](float x1, float y1, float x2, float y2,
+                            float si, float co, int ox, int oy, Color farbe) {
+            const int ax = gedreht_x(x1, y1, si, co, ox), ay = gedreht_y(x1, y1, si, co, oy);
+            const int bx2 = gedreht_x(x2, y1, si, co, ox), by2 = gedreht_y(x2, y1, si, co, oy);
+            const int cx2 = gedreht_x(x2, y2, si, co, ox), cy2 = gedreht_y(x2, y2, si, co, oy);
+            const int dx2 = gedreht_x(x1, y2, si, co, ox), dy2 = gedreht_y(x1, y2, si, co, oy);
+            it.filled_triangle(ax, ay, bx2, by2, cx2, cy2, farbe);
+            it.filled_triangle(ax, ay, cx2, cy2, dx2, dy2, farbe);
+          };
+          auto rad = [&](float px, float py, float si, float co, int ox, int oy, Color farbe) {
+            it.filled_circle(gedreht_x(px, py, si, co, ox), gedreht_y(px, py, si, co, oy), 5, farbe);
+          };
+          const Color farbe = steht_gerade ? id(c_gut) : id(c_warnung);
+          {
+            const int ox = cx, oy = cy - 58;
+            const float w = bildwinkel(vh);
+            const float si = sinf(w), co = cosf(w);
+            it.line(ox - 52, oy + 18, ox + 52, oy + 18, id(c_gedaempft));
+            kasten(-16, -14, 44, 8, si, co, ox, oy, farbe);
+            kasten(-44, -3, -16, 8, si, co, ox, oy, farbe);
+            rad(-28, 12, si, co, ox, oy, id(c_gedaempft));
+            rad(30, 12, si, co, ox, oy, id(c_gedaempft));
+          }
+          it.printf(cx, cy - 26, id(font_s), id(c_text), TextAlign::CENTER,
+                    "V/H %+d mm  %+.1f°", (int) (mm_vh + (mm_vh >= 0 ? 0.5f : -0.5f)), vh);
+          {
+            const int ox = cx, oy = cy + 24;
+            const float w = bildwinkel(-lr);
+            const float si = sinf(w), co = cosf(w);
+            it.line(ox - 52, oy + 18, ox + 52, oy + 18, id(c_gedaempft));
+            kasten(-26, -22, 26, 8, si, co, ox, oy, farbe);
+            rad(-22, 12, si, co, ox, oy, id(c_gedaempft));
+            rad(22, 12, si, co, ox, oy, id(c_gedaempft));
+          }
+          it.printf(cx, cy + 58, id(font_s), id(c_text), TextAlign::CENTER,
+                    "L/R %+d mm  %+.1f°", (int) (mm_lr + (mm_lr >= 0 ? 0.5f : -0.5f)), lr);
+          if (steht_gerade) {
+            it.print(cx, cy + 84, id(font_s), id(c_gut), TextAlign::CENTER, "steht gerade");
+          }
+          return;
+        }
+
+        it.circle(cx, cy, (int) rr, id(c_gedaempft));
+        const int gut_r = (int) (rr * gerade / bereich);
+        it.circle(cx, cy, gut_r, steht_gerade ? id(c_gut) : id(c_gedaempft));
+        it.line(cx - (int) rr, cy, cx + (int) rr, cy, id(c_gedaempft));
+        it.line(cx, cy - (int) rr, cx, cy + (int) rr, id(c_gedaempft));
+        float bx = lr / bereich;
+        float by = -vh / bereich;
+        const float weite = sqrtf(bx * bx + by * by);
+        if (weite > 1.0f) { bx /= weite; by /= weite; }
+        const int blase_r = std::max(6, (int) (rr / 6));
+        const int px = cx + (int) (bx * (rr - blase_r));
+        const int py = cy + (int) (by * (rr - blase_r));
+        it.filled_circle(px, py, blase_r, steht_gerade ? id(c_gut) : id(c_warnung));
+        it.printf(cx, cy + (int) (rr * 0.52f), id(font_s), id(c_text), TextAlign::CENTER,
+                  "L/R %+.1f°", lr);
+        it.printf(cx, cy + (int) (rr * 0.72f), id(font_s), id(c_text), TextAlign::CENTER,
+                  "V/H %+.1f°", vh);
+        if (steht_gerade) {
+          it.print(cx, cy - (int) (rr * 0.62f), id(font_s), id(c_gut), TextAlign::CENTER,
+                   "steht gerade");
+        }
+      };
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 2  LICHT -- ein Licht gross, alle als Punkte darunter
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_licht = [&]() {
+        static const char *const NAMEN[] = {"${licht1_name}", "${licht2_name}", "${licht3_name}",
+                                            "${licht4_name}", "${licht5_name}", "${licht6_name}",
+                                            "${licht7_name}", "${licht8_name}"};
+        esphome::text_sensor::TextSensor *zust[8] = {
+            id(licht1_zustand), id(licht2_zustand), id(licht3_zustand), id(licht4_zustand),
+            id(licht5_zustand), id(licht6_zustand), id(licht7_zustand), id(licht8_zustand)};
+        esphome::sensor::Sensor *hell[8] = {
+            id(licht1_hell), id(licht2_hell), id(licht3_hell), id(licht4_hell),
+            id(licht5_hell), id(licht6_hell), id(licht7_hell), id(licht8_hell)};
+        const int n = std::max(1, std::min(8, (int) (${licht_anzahl})));
+        const int k = std::max(0, std::min(n - 1, id(licht_wahl)));
+
+        // -1 heisst „weiss ich nicht": dann steht dort kein erfundenes „Aus".
+        auto prozent = [&](int i) -> int {
+          if (!hat_text(zust[i])) return -1;
+          if (zust[i]->state != "on") return 0;
+          return hat(hell[i]) ? (int) (hell[i]->state * 100.0f / 255.0f + 0.5f) : 100;
+        };
+        int pct = prozent(k);
+        const bool gedreht = noch(id(licht_soll_bis)) && id(licht_soll) >= 0;
+        if (gedreht) pct = id(licht_soll);
+
+        titel("Licht");
+        skala(pct > 0 ? pct / 100.0f : 0.0f, id(c_licht));
+        it.print(cx, cy - 34, id(font_m), id(c_text), TextAlign::CENTER, NAMEN[k]);
+        if (pct < 0) {
+          it.print(cx, cy + 4, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
+        } else if (pct == 0) {
+          it.print(cx, cy + 4, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "Aus");
+        } else {
+          it.printf(cx, cy + 4, id(font_xl), gedreht ? id(c_akzent) : id(c_licht),
+                    TextAlign::CENTER, "%d %%", pct);
+        }
+
+        // Alle Lichter als Punkte: an = gelb gefuellt, aus = Ring, das
+        // gewaehlte etwas groesser und weiss umrandet.
+        const int py = cy + 44, abstand = 16;
+        const int x0 = cx - (n - 1) * abstand / 2;
+        for (int i = 0; i < n; i++) {
+          const int x = x0 + i * abstand;
+          const int p = (i == k) ? pct : prozent(i);
+          if (i == k) it.circle(x, py, 7, id(c_text));
+          if (p > 0) it.filled_circle(x, py, 5, id(c_licht));
+          else it.circle(x, py, 5, id(c_gedaempft));
+        }
+        hinweis("lang: nächstes Licht");
+      };
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 3  HEIZUNG -- Raum oder Warmwasser
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_heizung = [&]() {
+        const bool gedreht = noch(id(heiz_soll_bis));
+        if (id(heiz_wahl) == 0) {
+          titel("Heizung Raum");
+          float soll = hat(id(heiz_raum_soll_wert)) ? id(heiz_raum_soll_wert).state : -1.0f;
+          if (gedreht && id(raum_soll_neu) >= 0) soll = id(raum_soll_neu);
+          const bool an = soll >= 5.0f;
+          skala(an ? (soll - 5.0f) / 25.0f : 0.0f, id(c_akzent));
+          if (hat(id(heiz_raum_ist_wert))) {
+            it.printf(cx, cy - 8, id(font_xl), id(c_text), TextAlign::CENTER,
+                      "%.1f°", id(heiz_raum_ist_wert).state);
+          } else {
+            it.print(cx, cy - 8, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
+          }
+          if (soll < 0) {
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Soll --");
+          } else if (!an) {
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Aus");
+          } else {
+            it.printf(cx, cy + 32, id(font_m), id(c_akzent), TextAlign::CENTER,
+                      "Soll %d°", (int) (soll + 0.5f));
+          }
+          if (id(heiz_raum_aktiv_an).state) {
+            it.print(cx, cy - 44, id(font_s), id(c_akzent), TextAlign::CENTER, "heizt");
+          }
+        } else {
+          titel("Heizung Wasser");
+          int soll = hat(id(heiz_wasser_soll_wert)) ? (int) id(heiz_wasser_soll_wert).state : -1;
+          if (gedreht && id(wasser_soll_neu) >= 0) soll = id(wasser_soll_neu);
+          // Vier Stufen, vier Stuecke der Skala.
+          static const int STUFEN[] = {0, 40, 60, 80};
+          int stufe = 0;
+          for (int j = 0; j < 4; j++) if (soll >= STUFEN[j]) stufe = j;
+          bogen(-135.0f, 135.0f, SK_A, SK_I, id(c_dunkel));
+          for (int j = 1; j <= stufe; j++) {
+            const float a0 = -135.0f + (j - 1) * 90.0f + 2.0f;
+            bogen(a0, a0 + 86.0f, SK_A, SK_I, id(c_wasser));
+          }
+          if (hat(id(heiz_wasser_ist_wert))) {
+            it.printf(cx, cy - 8, id(font_xl), id(c_text), TextAlign::CENTER,
+                      "%.0f°", id(heiz_wasser_ist_wert).state);
+          } else {
+            it.print(cx, cy - 8, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
+          }
+          if (soll < 0) {
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Soll --");
+          } else if (soll == 0) {
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Aus");
+          } else {
+            it.printf(cx, cy + 32, id(font_m), id(c_wasser), TextAlign::CENTER, "Soll %d°", soll);
+          }
+          if (id(heiz_wasser_aktiv_an).state) {
+            it.print(cx, cy - 44, id(font_s), id(c_wasser), TextAlign::CENTER, "heizt");
+          }
+        }
+        hinweis("lang: Raum / Wasser");
+      };
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 4  BATTERIE -- Ladestand, Strom, Solar
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_batterie = [&]() {
+        const bool zwei = id(batterie_wahl) == 1;
+        esphome::sensor::Sensor *soc = zwei ? id(batt2_soc_wert) : id(batt1_soc_wert);
+        esphome::sensor::Sensor *u = zwei ? id(batt2_spannung_wert) : id(batt1_spannung_wert);
+        esphome::sensor::Sensor *i = zwei ? id(batt2_strom_wert) : id(batt1_strom_wert);
+        esphome::sensor::Sensor *rest = zwei ? id(batt2_rest_wert) : id(batt1_rest_wert);
+        titel(zwei ? "${batt2_name}" : "${batt1_name}");
+        if (!hat(soc)) {
+          skala(0, id(c_gut));
+          it.print(cx, cy, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
+          hinweis("lang: andere Batterie");
+          return;
+        }
+        const float p = soc->state;
+        const Color farbe = p < 20.0f ? id(c_warnung) : (p < 50.0f ? id(c_akzent) : id(c_gut));
+        skala(p / 100.0f, farbe);
+        it.printf(cx, cy - 14, id(font_xl), id(c_text), TextAlign::CENTER, "%d %%", (int) (p + 0.5f));
+        if (hat(u) && hat(i)) {
+          const float a = i->state;
+          it.printf(cx, cy + 20, id(font_m), a > 0.05f ? id(c_gut) : id(c_text), TextAlign::CENTER,
+                    "%.1f V  %+.1f A", u->state, a);
+        }
+        // Restlaufzeit nur beim ENTLADEN: beim Laden meldet der Shunt dort
+        // „unendlich", und das hilft niemandem.
+        if (hat(rest) && hat(i) && i->state < -0.05f && rest->state > 0) {
+          const int min = (int) rest->state;
+          it.printf(cx, cy + 44, id(font_s), id(c_gedaempft), TextAlign::CENTER,
+                    "reicht noch %d:%02d h", min / 60, min % 60);
+        }
+        if (hat(id(solar_wert))) {
+          it.printf(cx, cy + 62, id(font_s), id(c_licht), TextAlign::CENTER,
+                    "Solar %d W", (int) (id(solar_wert).state + 0.5f));
+        }
+        hinweis("lang: andere Batterie");
+      };
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 5  GAS -- zwei Flaschen
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_gas = [&]() {
+        titel("Gas");
+        auto flasche = [&](int x, esphome::sensor::Sensor *s, const char *name) {
+          const int w = 44, h = 96, oben = cy - 52;
+          // Ventilkappe und Schulter, dann der Koerper.
+          it.filled_rectangle(x - 8, oben - 12, 16, 8, id(c_gedaempft));
+          it.filled_rectangle(x - 14, oben - 5, 28, 6, id(c_gedaempft));
+          it.rectangle(x - w / 2, oben, w, h, id(c_gedaempft));
+          if (hat(s)) {
+            const float p = std::max(0.0f, std::min(100.0f, s->state));
+            const Color farbe = p < 15.0f ? id(c_warnung) : (p < 40.0f ? id(c_akzent) : id(c_gut));
+            const int fh = (int) ((h - 4) * p / 100.0f + 0.5f);
+            if (fh > 0) it.filled_rectangle(x - w / 2 + 2, oben + h - 2 - fh, w - 4, fh, farbe);
+            it.printf(x, oben + h + 16, id(font_m), id(c_text), TextAlign::CENTER, "%d %%", (int) (p + 0.5f));
+          } else {
+            it.print(x, oben + h + 16, id(font_m), id(c_gedaempft), TextAlign::CENTER, "--");
+          }
+          it.print(x, oben + h + 34, id(font_s), id(c_gedaempft), TextAlign::CENTER, name);
+        };
+        flasche(cx - 38, id(gas1_wert), "${gas1_name}");
+        flasche(cx + 38, id(gas2_wert), "${gas2_name}");
+      };
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 6  REIFEN -- das Fahrzeug von oben, vorn ist oben
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_reifen = [&]() {
+        titel("Reifen  bar");
+        const float warn = (float) (${reifen_warn_bar});
+        const int fw = 54, fh = 118, ox = cx - fw / 2, oy = cy - fh / 2 + 6;
+        it.rectangle(ox, oy, fw, fh, id(c_gedaempft));
+        it.filled_rectangle(ox + 6, oy + 8, fw - 12, 16, id(c_dunkel));   // Frontscheibe
+        auto reifen = [&](int seite, int y, esphome::sensor::Sensor *p, esphome::sensor::Sensor *t) {
+          const bool da = hat(p);
+          const bool tief = da && p->state < warn;
+          const Color farbe = !da ? id(c_gedaempft) : (tief ? id(c_warnung) : id(c_gut));
+          const int rx = seite < 0 ? ox - 7 : ox + fw - 3;
+          it.filled_rectangle(rx, y - 13, 10, 26, farbe);
+          const int tx = seite < 0 ? ox - 14 : ox + fw + 14;
+          const TextAlign ausr = seite < 0 ? TextAlign::CENTER_RIGHT : TextAlign::CENTER_LEFT;
+          if (da) it.printf(tx, y - 7, id(font_m), farbe, ausr, "%.1f", p->state);
+          else it.print(tx, y - 7, id(font_m), id(c_gedaempft), ausr, "--");
+          if (hat(t)) it.printf(tx, y + 11, id(font_s), id(c_gedaempft), ausr, "%.0f°", t->state);
+        };
+        reifen(-1, oy + 28, id(reifen_vl), id(reifen_vl_t));
+        reifen(+1, oy + 28, id(reifen_vr), id(reifen_vr_t));
+        reifen(-1, oy + fh - 26, id(reifen_hl), id(reifen_hl_t));
+        reifen(+1, oy + fh - 26, id(reifen_hr), id(reifen_hr_t));
+      };
+
+      // ═════════════════════════════════════════════════════════════════════
+      // 7  UHR -- mit Innentemperatur und Tuer
+      // ═════════════════════════════════════════════════════════════════════
+      auto zeichne_uhr = [&]() {
+        auto t = id(ha_zeit).now();
+        if (t.is_valid()) {
+          it.printf(cx, cy - 20, id(font_xxl), id(c_text), TextAlign::CENTER, "%02d:%02d", t.hour, t.minute);
+          static const char *const TAGE[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+          it.printf(cx, cy + 22, id(font_m), id(c_gedaempft), TextAlign::CENTER, "%s %d.%d.",
+                    TAGE[(t.day_of_week + 6) % 7], t.day_of_month, t.month);
+        } else {
+          it.print(cx, cy - 20, id(font_xxl), id(c_gedaempft), TextAlign::CENTER, "--:--");
+        }
+        if (hat(id(heiz_raum_ist_wert))) {
+          it.printf(cx, cy + 48, id(font_s), id(c_text), TextAlign::CENTER,
+                    "innen %.1f°", id(heiz_raum_ist_wert).state);
+        }
+        const std::string tz = id(tuer_zustand).state;
+        if (noch(id(tuer_bestaetigen_bis))) {
+          it.print(cx, cy + 70, id(font_s), id(c_akzent), TextAlign::CENTER, "nochmal lang: Tür auf");
+        } else if (tz == "locked") {
+          it.print(cx, cy + 70, id(font_s), id(c_gut), TextAlign::CENTER, "Tür zu");
+        } else if (tz == "unlocked") {
+          it.print(cx, cy + 70, id(font_s), id(c_akzent), TextAlign::CENTER, "Tür offen");
+        } else if (hat_text(id(tuer_zustand))) {
+          it.print(cx, cy + 70, id(font_s), id(c_gedaempft), TextAlign::CENTER, tz.c_str());
+        }
+        if (noch(id(hell_anzeige_bis))) {
+          const float b = id(backlight).current_values.get_brightness();
+          skala(b, id(c_akzent));
+          it.printf(cx, cy - 62, id(font_s), id(c_akzent), TextAlign::CENTER,
+                    "Helligkeit %d %%", (int) (b * 100.0f + 0.5f));
+        }
+      };
+
+      switch (seite) {
+        case 1: zeichne_waage(); break;
+        case 2: zeichne_licht(); break;
+        case 3: zeichne_heizung(); break;
+        case 4: zeichne_batterie(); break;
+        case 5: zeichne_gas(); break;
+        case 6: zeichne_reifen(); break;
+        case 7: zeichne_uhr(); break;
+        default: zeichne_navi(); break;
+      }
+
+      // ─── WO BIN ICH? ──────────────────────────────────────────────────────
+      // Kleine Punkte unten am Rand, einer je Ansicht. Auf Navi und Waage nur
+      // kurz nach dem Umschalten -- dort ist unten das Tempo, und das soll
+      // nicht dauernd Gesellschaft haben.
+      {
+        static const int S[] = {${seiten}};
+        const int n = sizeof(S) / sizeof(S[0]);
+        const bool immer = seite >= 2;
+        if (n > 1 && (immer || (jetzt - id(seitenwechsel)) < 3000)) {
+          const int py = cy + r - 8, abstand = 9;
+          const int x0 = cx - (n - 1) * abstand / 2;
+          for (int i = 0; i < n; i++) {
+            if (S[i] == seite) it.filled_circle(x0 + i * abstand, py, 3, id(c_akzent));
+            else it.filled_circle(x0 + i * abstand, py, 2, id(c_gedaempft));
+          }
+        }
+      }
+
+      // Der rote Ring bei zu hohem Tempo -- in JEDER Ansicht: wer waehrend der
+      // Fahrt das Licht dimmt, soll es trotzdem sehen.
+      if (id(yapaia_zu_schnell).state) {
+        it.filled_ring(cx, cy, r, r - 4, id(c_warnung));
+      }
