@@ -157,7 +157,7 @@ export const addonRegistryPlugin: FastifyPluginAsync<AddonRegistryPluginOptions>
         // Revocations ride along with every sync; a failure there must not
         // fail the catalog sync -- the previous (signed) list stays in force.
         if (marketplace) {
-          await marketplace.syncRevocations().catch((e: unknown) => {
+          await marketplace.syncRevocations(snapshot.sourceUrl).catch((e: unknown) => {
             fastify.log.warn({ err: e instanceof Error ? e.message : String(e) }, 'marketplace: revocations not refreshed');
           });
         }

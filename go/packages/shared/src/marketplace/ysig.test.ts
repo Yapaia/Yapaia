@@ -84,3 +84,14 @@ describe('ysig1', () => {
     expect(isRevoked(res.payload.entries, 'com.x.z', '2.0.0')).toBeNull();
   });
 });
+
+describe('OFFICIAL_MARKETPLACE_KEYS', () => {
+  it('every kid really belongs to its public key', async () => {
+    const { OFFICIAL_MARKETPLACE_KEYS } = await import('./officialKeys');
+    expect(OFFICIAL_MARKETPLACE_KEYS.length).toBeGreaterThan(0);
+    for (const k of OFFICIAL_MARKETPLACE_KEYS) {
+      expect(isMarketplaceKey(k)).toBe(true);
+      expect(await keyIdOf(k.public_key)).toBe(k.kid);
+    }
+  });
+});

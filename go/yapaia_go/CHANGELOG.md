@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.57.0
+
+**Der offizielle Yapaia-Marktplatz ist da.**
+
+- Der Add-on-Store lädt den Katalog jetzt ohne Einrichtung vom offiziellen
+  Marktplatz `https://addons.yapaia.cloud`. Kostenlose Add-ons lassen sich
+  sofort installieren; für gekaufte unter **Marktplatz** die Adresse und das
+  Konto-Token eintragen.
+- Go kennt den Signaturschlüssel des offiziellen Marktplatzes. Seine Pakete
+  gelten damit überall als **✓ Geprüft**, und kostenpflichtige Add-ons können
+  ihre Lizenz selbst prüfen.
+
+---
+
 ## 0.56.1
 
 **Add-ons bleiben klein und frei lizenzierbar.**

@@ -40,13 +40,13 @@ import { ADDON_PERMISSION_SCOPES, ADDON_NET_FETCH_PATTERN, isValidSemver, isVali
 import { downloadTarball } from './download.js';
 import { SettingsService } from '../settings/service.js';
 
-/** Official registry repo's raw `index.json` -- the built-in default,
- *  overridable per docs/05 §5 ("Registry-Client: index.json von
- *  konfigurierbarer URL laden"). Not a real, dereferenceable URL in this
- *  repo's test/dev environment on purpose -- exactly like `map/regions`'s
- *  bundled catalog, a fixture/override always stands in for it in tests. */
-export const DEFAULT_REGISTRY_URL =
-  'https://raw.githubusercontent.com/yapaia/yapaia-addons-registry/main/index.json';
+/** The official marketplace's catalog (docs/marktplatz.md) -- the built-in
+ *  default, so the store shows the official add-ons without any setup.
+ *  Overridable per docs/05 §5 ("Registry-Client: index.json von
+ *  konfigurierbarer URL laden"); its packages are signed with
+ *  `OFFICIAL_MARKETPLACE_KEYS`. In tests a fixture/override always stands in
+ *  for it. */
+export const DEFAULT_REGISTRY_URL = 'https://addons.yapaia.cloud/v1/index.json';
 
 /** Settings key holding an operator-configured override for the registry
  *  index URL. `ADDONS_REGISTRY_URL` (env) takes precedence, same

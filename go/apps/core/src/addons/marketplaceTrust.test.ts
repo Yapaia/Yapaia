@@ -17,12 +17,12 @@ import { createHash, generateKeyPairSync, sign, type KeyObject } from 'node:cryp
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
 import { Buffer } from 'node:buffer';
 import type { FastifyInstance } from 'fastify';
-import type { MarketplaceKey } from '@yapaia/shared';
+import { OFFICIAL_MARKETPLACE_KEYS, type MarketplaceKey } from '@yapaia/shared';
 import { createDb, closeDb } from '../db/index.js';
 import { buildServer } from '../index.js';
 import { AddonRepository } from './repository.js';
 import { InstallService } from './installService.js';
-import { MarketplaceService, normalizeMarketplaceUrl, MARKETPLACE_SETTINGS_KEY } from './marketplace.js';
+import { MarketplaceService, normalizeMarketplaceUrl, marketplaceBaseOf, MARKETPLACE_SETTINGS_KEY } from './marketplace.js';
 import { AddonError } from './errors.js';
 import { AddonStorageService } from './storageService.js';
 import { buildValidAddonTarball } from './__fixtures__/buildTarball.js';
@@ -178,6 +178,14 @@ describe('marketplace trust rules (unit)', () => {
     expect(marketplace.downloadHeaders('https://market.test.evil.test/v1/x')).toEqual({});
   });
 
+  it('derives the marketplace behind a catalog URL (for its revocation list)', () => {
+    expect(marketplaceBaseOf('https://addons.yapaia.cloud/v1/index.json')).toBe('https://addons.yapaia.cloud');
+    expect(marketplaceBaseOf('https://x.example/sub/v1/index.json')).toBe('https://x.example/sub');
+    expect(marketplaceBaseOf('https://raw.githubusercontent.com/o/r/main/index.json')).toBeNull();
+    expect(marketplaceBaseOf('http://127.0.0.1:8787/v1/index.json')).toBeNull();
+    expect(marketplaceBaseOf(undefined)).toBeNull();
+  });
+
   it('requires https for the marketplace unless developer mode is on', () => {
     expect(normalizeMarketplaceUrl('https://a.example/', false)).toBe('https://a.example');
     expect(normalizeMarketplaceUrl('http://192.168.1.5:8787', false)).toBeNull();
@@ -192,7 +200,10 @@ describe('marketplace trust rules (unit)', () => {
     expect(marketplace.connection()?.url).toBe('http://lan.test:8787');
     marketplace.setDeveloperMode(false);
     expect(marketplace.connection()).toBeNull();
-    expect(marketplace.trustedKeys()).toEqual([]);
+    // Only the built-in official keys remain -- the pinned key of the http
+    // marketplace is gone.
+    expect(marketplace.trustedKeys()).toEqual([...OFFICIAL_MARKETPLACE_KEYS]);
+    expect(marketplace.trustedKeys().map((k) => k.kid)).not.toContain(signer.key.kid);
   });
 });
 

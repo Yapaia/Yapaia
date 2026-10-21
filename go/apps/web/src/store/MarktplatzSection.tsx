@@ -74,7 +74,7 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
           type="url"
           inputMode="url"
           autoComplete="off"
-          placeholder="https://addons.example.org"
+          placeholder="https://addons.yapaia.cloud"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-sm"

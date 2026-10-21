@@ -699,11 +699,12 @@ Home Assistant add-on. Add-ons run in a sandbox and only get the permissions
 you confirm when installing them. Everything happens under
 **⚙ → 🧩 Add-on-Store**.
 
-**Connecting a marketplace (since 0.56.0).** Add-ons come from a Yapaia
-marketplace. Under **Marktplatz**, enter its address (it must start with
-`https://`) and, if you have bought add-ons there, the **Konto-Token** from
-your marketplace account, then tap **Verbinden**. The catalog loads;
-**Registry aktualisieren** reloads it later. Go itself keeps working over
+**The marketplace (since 0.56.0).** Add-ons come from the official Yapaia
+marketplace, `https://addons.yapaia.cloud`. Free add-ons need no setup:
+**Registry aktualisieren** loads the catalog. If you have bought add-ons,
+enter that address and the **Konto-Token** from your marketplace account
+under **Marktplatz**, then tap **Verbinden**. Another marketplace works the
+same way (its address must start with `https://`). Go itself keeps working over
 plain `http` on your local network — `https` only concerns the connection to
 the marketplace.
 
