@@ -30,7 +30,7 @@
  *
  * ─── UMGEBAUT IN 0.16.0 ─────────────────────────────────────────────────
  * Es gibt nur noch EINE Liste (`karte-<id>`) und je Karte höchstens zwei
- * Knöpfe: „Installieren"/„Update" (`installieren-button-<id>`) und
+ * Knöpfe: „Herunterladen"/„Installieren"/„Update" (`installieren-button-<id>`) und
  * „Löschen". Ob dahinter ein Download oder ein Kachelbau steckt, entscheidet
  * die Quelle und ist für den Bedienenden dieselbe Handlung — das war der
  * Punkt der Änderung.
@@ -76,7 +76,9 @@ test('regions panel shows the installed region and refuses to delete the last on
     'data-zustand',
     'verfuegbar',
   );
-  await expect(page.getByTestId('installieren-button-liechtenstein')).toHaveText('Installieren');
+  // Seit 0.59.0 wird eine Karte zum Bauen erst nur heruntergeladen; gebaut
+  // wird gemeinsam mit „Fehlendes bauen".
+  await expect(page.getByTestId('installieren-button-liechtenstein')).toHaveText('Herunterladen');
 
   // Deleting the only installed region must be refused (W-18-adjacent
   // "never half/zero map" rule) with a plain-language message, not a raw

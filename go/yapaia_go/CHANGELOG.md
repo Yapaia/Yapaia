@@ -10,6 +10,25 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.59.0
+
+**Erst alle Karten herunterladen, dann gemeinsam bauen.**
+
+- Bei einer Karte, die gebaut werden muss, heißt der Knopf jetzt
+  **Herunterladen**. Er lädt nur die OpenStreetMap-Daten — gebaut wird noch
+  nichts. Mehrere Downloads laufen nebeneinander.
+- **Fehlendes bauen** baut danach alles in einem Lauf: zuerst die
+  heruntergeladenen Karten, dann das Routing einmal über alle Karten (Routen
+  über die Grenze), dann die Suche. Bisher baute jede Karte sofort für sich,
+  und das Routing kam danach noch einmal obendrauf.
+- Heruntergeladene, noch nicht gebaute Karten stehen als „Heruntergeladen" in
+  der Liste und lassen sich vor dem Bau mit **Verwerfen** wieder entfernen.
+- Der Einrichtungsassistent macht es genauso: Karten herunterladen, dann
+  **Jetzt bauen**.
+- Das Update einer bereits installierten Karte baut weiterhin direkt.
+
+---
+
 ## 0.58.1
 
 **Der Einrichtungsassistent kann wieder Karten installieren.**

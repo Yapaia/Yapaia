@@ -407,10 +407,11 @@ async function checkTiles(tilesDir: string, listDir: ListDirFn): Promise<Preflig
   const remedy =
     'Für die mitgelieferten Regionen gibt es keine fertige Datei zum Herunterladen — ' +
     'die Kacheln werden aus OpenStreetMap-Daten gebaut. Das geht direkt hier: ' +
-    '„Karten verwalten" (🗺️ rechts oben) öffnen und bei der gewünschten Karte auf ' +
-    '„Installieren" drücken. Liechtenstein braucht Minuten, ein Bundesland wie ' +
-    'Rheinland-Pfalz deutlich länger; der Fortschritt steht im Panel. Danach einmal ' +
-    '„Fehlendes bauen" für Routing und Suche. ' +
+    '„Karten verwalten" (🗺️ rechts oben) öffnen und bei jeder gewünschten Karte auf ' +
+    '„Herunterladen" drücken. Danach einmal „Fehlendes bauen": das baut alle ' +
+    'heruntergeladenen Karten, das Routing über alle und die Suche in einem Lauf. ' +
+    'Liechtenstein braucht Minuten, ein Bundesland wie Rheinland-Pfalz deutlich ' +
+    'länger; der Fortschritt steht im Panel. ' +
     'Ganz Deutschland ist für dieses Gerät zu groß: auf einem anderen Rechner bauen und ' +
     'die fertige .pmtiles per „Samba share" nach /share/yapaia/tiles/ legen. ' +
     'Ausführlich: docs/installation.md §C.';

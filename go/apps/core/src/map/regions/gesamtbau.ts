@@ -39,6 +39,7 @@ import {
   ABBRUCH_MELDUNG,
   GRAPH_BUILD,
   LITE_INDEX_BUILD,
+  TILE_BUILD,
   laufeBau,
   type BuildJobDeps,
   type BuildVariant,
@@ -147,6 +148,22 @@ export function noetigerPlan(
   return schritte;
 }
 
+/**
+ * Heruntergeladene, noch nicht gebaute Karten kommen VOR alles andere.
+ *
+ * ─── WARUM ZUERST ───────────────────────────────────────────────────────────
+ * Routing und Suche entstehen aus denselben Extrakten — sie bräuchten die
+ * Kacheln nicht. Aber erst mit den Kacheln IST die Karte installiert: sie
+ * wird gezeichnet, sie steht in der Liste, und der Plan für Routing und Suche
+ * rechnet mit ihr. Bricht der Lauf danach ab, sieht man wenigstens die Karte.
+ *
+ * Die Kacheln werden je Karte gebaut (eine `.pmtiles` je Region, wie bisher);
+ * das Routing danach EINMAL über alle — genau das ist „gemeinsam bauen".
+ */
+export function mitNeuenKarten(neu: readonly string[], rest: readonly Bauschritt[]): Bauschritt[] {
+  return [...[...neu].sort().map((region): Bauschritt => ({ bauart: 'kacheln', region })), ...rest];
+}
+
 /** Aus dem Baustatus (`collectBuildStatus`) die Eingabe für `noetigerPlan`. */
 export function bestandAus(
   status: {
@@ -180,13 +197,17 @@ export function bestandAus(
 export function fertigText(plan: readonly Bauschritt[], regionen: readonly string[]): string {
   const routing = plan.some((s) => s.bauart === 'routing');
   const suche = plan.filter((s) => s.bauart === 'suche').map((s) => s.region);
+  const karten = plan.filter((s) => s.bauart === 'kacheln').map((s) => s.region);
   const teile: string[] = [];
+  if (karten.length > 0) teile.push(karten.length === 1 ? `Karte ${karten[0]}` : `${karten.length} Karten`);
   if (routing) {
     teile.push(regionen.length === 1 ? 'Routing' : `Routing über ${regionen.length} Karten`);
   }
   if (suche.length === regionen.length && suche.length > 1) teile.push(`Suche für ${suche.length} Karten`);
   else if (suche.length > 0) teile.push(`Suche für ${suche.join(', ')}`);
-  return `Gebaut: ${teile.join(' und ')}.`;
+  const text =
+    teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile[teile.length - 1]}` : (teile[0] ?? '');
+  return `Gebaut: ${text}.`;
 }
 
 /** Was in der Oberfläche über einem Schritt steht. */
@@ -196,17 +217,20 @@ export function schrittText(schritt: Bauschritt, regionen: readonly string[]): s
       ? `Routing bauen (${regionen[0]})`
       : `Routing bauen (${regionen.length} Karten)`;
   }
+  if (schritt.bauart === 'kacheln') return `Karte bauen (${schritt.region})`;
   return `Suche bauen (${schritt.region})`;
 }
 
 function variante(schritt: Bauschritt): BuildVariant {
+  if (schritt.bauart === 'kacheln') return TILE_BUILD;
   return schritt.bauart === 'routing' ? GRAPH_BUILD : LITE_INDEX_BUILD;
 }
 
 export interface GesamtbauEingabe {
   jobId: string;
   jobs: JobRegistry;
-  /** Die installierten Karten. */
+  /** Alle Karten des Laufs: die installierten und die heruntergeladenen,
+   *  die er erst baut (`mitNeuenKarten`). */
   regionen: readonly string[];
   /** Katalogeintrag je Region — für `pbfUrl`. */
   eintragFuer: (region: string) => CatalogEntry | undefined;

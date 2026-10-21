@@ -12,9 +12,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchCatalog,
   fetchInstalledRegions,
+  deleteExtrakt,
   fetchJob,
-  startBuild,
   startDownload,
+  startExtraktDownload,
+  startGesamtbau,
   RegionApiError,
   type CatalogRegion,
   type InstalledRegion,
@@ -42,6 +44,7 @@ function formatApiError(err: RegionApiError): string {
   }
   if (err.code === 'ALREADY_INSTALLED') return 'Diese Region ist bereits installiert.';
   if (err.code === 'BUILD_IN_PROGRESS') return 'Es läuft bereits ein Kartenbau. Bitte dessen Ende abwarten.';
+  if (err.code === 'ALREADY_DOWNLOADED') return 'Diese Region ist bereits heruntergeladen.';
   return err.message || 'Unbekannter Fehler.';
 }
 
@@ -51,6 +54,9 @@ export default function RegionStep(): React.ReactElement {
   const [resources, setResources] = useState<SystemResources | null>(null);
   const [downloads, setDownloads] = useState<Record<string, { jobId: string; job: JobSnapshot | null }>>({});
   const [errorByRegion, setErrorByRegion] = useState<Record<string, string>>({});
+  /** Der gemeinsame Bau aller heruntergeladenen Karten (0.59.0). */
+  const [bau, setBau] = useState<{ jobId: string; job: JobSnapshot | null } | null>(null);
+  const [bauFehler, setBauFehler] = useState('');
 
   const downloadsRef = useRef(downloads);
   useEffect(() => {
@@ -91,20 +97,36 @@ export default function RegionStep(): React.ReactElement {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  // ─── HERUNTERLADEN ODER BAUEN ─────────────────────────────────────────────
-  // Bis 0.58.0 rief dieser Schritt fuer JEDE Region den Download auf. Die
-  // mitgelieferten Regionen haben aber keine fertige Datei (`url`), sondern
-  // nur einen OSM-Extrakt (`pbfUrl`) -- sie werden GEBAUT. Jede Region endete
-  // deshalb auf einer frischen Installation mit „gibt es keine
-  // Download-Quelle". Welcher Weg gilt, entscheidet jetzt dieselbe Stelle wie
-  // in „Karten verwalten" (`kartenliste.ts`): die Quelle der Karte.
+  // Der gemeinsame Bau hat einen eigenen Takt: er dauert Minuten bis Stunden,
+  // alle paar hundert Millisekunden zu fragen bringt nichts.
+  useEffect(() => {
+    if (!bau || (bau.job && (bau.job.status === 'done' || bau.job.status === 'error'))) return;
+    const interval = setInterval(() => {
+      void fetchJob(bau.jobId).then((job) => {
+        setBau((prev) => (prev && prev.jobId === bau.jobId ? { ...prev, job } : prev));
+        if (job && (job.status === 'done' || job.status === 'error')) void refresh();
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [bau, refresh]);
+
+  // ─── ERST HERUNTERLADEN, DANN GEMEINSAM BAUEN ─────────────────────────────
+  // Bis 0.58.0 rief dieser Schritt fuer JEDE Region den Download einer
+  // fertigen Datei auf -- die es fuer die mitgelieferten Regionen nicht gibt
+  // („gibt es keine Download-Quelle"). 0.58.1 baute stattdessen sofort.
+  //
+  // Seit 0.59.0, gewuenscht: „Wenn man mehrere Karten zusammen bauen will
+  // sollte man sie erst alle runterladen und dann gemeinsam bauen." Eine
+  // Karte zum Bauen wird hier nur heruntergeladen; „Jetzt bauen" unten baut
+  // alle zusammen -- Karten, Routing ueber alle, Suche. Fertige Dateien (etwa
+  // vom Kartenserver) werden wie bisher direkt installiert.
   const handleInstall = useCallback(async (eintrag: Karteneintrag) => {
     setErrorByRegion((prev) => ({ ...prev, [eintrag.id]: '' }));
     try {
       const jobId =
         eintrag.quelle === 'download' || eintrag.quelle === 'kartenserver'
           ? await startDownload(eintrag.id)
-          : await startBuild(eintrag.id);
+          : await startExtraktDownload(eintrag.id);
       setDownloads((prev) => ({ ...prev, [eintrag.id]: { jobId, job: null } }));
     } catch (err) {
       const message =
@@ -113,9 +135,46 @@ export default function RegionStep(): React.ReactElement {
     }
   }, []);
 
-  const downloadableCatalog = kartenliste(installed, catalog).filter(
-    (eintrag) => eintrag.zustand === 'verfuegbar' || eintrag.zustand === 'ohne_quelle',
+  const handleVerwerfen = useCallback(
+    async (regionId: string) => {
+      setErrorByRegion((prev) => ({ ...prev, [regionId]: '' }));
+      try {
+        await deleteExtrakt(regionId);
+        setDownloads((prev) => {
+          const rest = { ...prev };
+          delete rest[regionId];
+          return rest;
+        });
+        await refresh();
+      } catch (err) {
+        const message =
+          err instanceof RegionApiError ? formatApiError(err) : 'Der Download konnte nicht verworfen werden.';
+        setErrorByRegion((prev) => ({ ...prev, [regionId]: message }));
+      }
+    },
+    [refresh],
   );
+
+  const handleBauen = useCallback(async () => {
+    setBauFehler('');
+    try {
+      const jobId = await startGesamtbau(false);
+      setBau({ jobId, job: null });
+    } catch (err) {
+      setBauFehler(err instanceof RegionApiError ? formatApiError(err) : 'Der Bau konnte nicht gestartet werden.');
+    }
+  }, []);
+
+  const karten = kartenliste(installed, catalog);
+  const downloadableCatalog = karten.filter(
+    (eintrag) =>
+      eintrag.zustand === 'verfuegbar' || eintrag.zustand === 'geladen' || eintrag.zustand === 'ohne_quelle',
+  );
+  const geladen = karten.filter((eintrag) => eintrag.zustand === 'geladen');
+  const ladenLaeuft = Object.values(downloads).some(
+    (s) => !s.job || (s.job.status !== 'done' && s.job.status !== 'error'),
+  );
+  const bauLaeuft = Boolean(bau && (!bau.job || (bau.job.status !== 'done' && bau.job.status !== 'error')));
   const photonOffRecommended = resources ? recommendPhotonOff(resources) : false;
 
   return (
@@ -192,18 +251,34 @@ export default function RegionStep(): React.ReactElement {
                   </div>
                   {/* Ohne jede Quelle kein Knopf: einer, der nicht
                       funktionieren KANN, schickt auf Fehlersuche. */}
-                  {entry.quelle !== null && (
+                  {entry.quelle !== null && entry.zustand !== 'geladen' && (
                     <button
                       type="button"
                       onClick={() => void handleInstall(entry)}
-                      disabled={isActive}
+                      disabled={isActive || bauLaeuft}
                       className="shrink-0 px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs disabled:opacity-50"
                       data-testid={`onboarding-download-button-${entry.id}`}
                     >
-                      {entry.quelle === 'bau' ? 'Bauen' : 'Herunterladen'}
+                      Herunterladen
+                    </button>
+                  )}
+                  {entry.zustand === 'geladen' && (
+                    <button
+                      type="button"
+                      onClick={() => void handleVerwerfen(entry.id)}
+                      disabled={bauLaeuft}
+                      className="shrink-0 px-2 py-1 rounded-md border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300 text-xs disabled:opacity-50"
+                      data-testid={`onboarding-verwerfen-button-${entry.id}`}
+                    >
+                      Verwerfen
                     </button>
                   )}
                 </div>
+                {entry.zustand === 'geladen' && !isActive && (
+                  <p className="mt-1 text-xs text-blue-700 dark:text-blue-300" data-testid={`onboarding-geladen-${entry.id}`}>
+                    ✓ Heruntergeladen — wird mit „Jetzt bauen" gebaut.
+                  </p>
+                )}
                 {entry.quelle === 'bau' && entry.grosserBau && (
                   <p
                     className="mt-1 text-xs text-amber-700 dark:text-amber-400"
@@ -217,7 +292,7 @@ export default function RegionStep(): React.ReactElement {
                     {entry.hinweis ?? 'Für diese Karte ist keine Quelle hinterlegt.'}
                   </p>
                 )}
-                {job && (
+                {job && !(job.status === 'done' && entry.zustand === 'geladen') && (
                   <div className="mt-1" data-testid={`onboarding-download-progress-${entry.id}`}>
                     {/* Ein Bau hat keinen messbaren Fortschritt (siehe
                         `RegionsPanel.tsx`): der Balken laeuft unbestimmt,
@@ -253,6 +328,70 @@ export default function RegionStep(): React.ReactElement {
           })}
         </ul>
       </section>
+
+      {/* ─── DER GEMEINSAME BAU ───────────────────────────────────────────
+          Erst wenn alle gewünschten Karten heruntergeladen sind. Er baut die
+          Karten, dann das Routing EINMAL über alle (sonst endet es an der
+          Grenze), dann die Suche. */}
+      {(geladen.length > 0 || bau) && (
+        <section
+          className="rounded-lg border border-emerald-300 dark:border-emerald-700 p-3 space-y-2"
+          data-testid="onboarding-bauen"
+        >
+          <div className="text-xs">
+            {geladen.length > 0 ? (
+              <>
+                <span className="font-medium">Bereit zum Bauen:</span>{' '}
+                {geladen.map((eintrag) => eintrag.name).join(', ')}. Weitere Karten jetzt noch
+                herunterladen — gebaut wird alles in einem Lauf.
+              </>
+            ) : (
+              'Die Karten werden gebaut.'
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleBauen()}
+            disabled={bauLaeuft || ladenLaeuft || geladen.length === 0}
+            className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-medium disabled:opacity-50"
+            data-testid="onboarding-bauen-button"
+          >
+            {bauLaeuft ? 'Baut…' : 'Jetzt bauen'}
+          </button>
+          {ladenLaeuft && !bauLaeuft && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Es wird noch heruntergeladen — gebaut werden kann, sobald alle Downloads fertig sind.
+            </p>
+          )}
+          {bau?.job && (
+            <div className="text-xs text-slate-600 dark:text-slate-300" data-testid="onboarding-bau-status">
+              {bau.job.status === 'error'
+                ? `Fehler: ${bau.job.error?.message ?? 'Bau fehlgeschlagen'}`
+                : bau.job.status === 'done'
+                  ? `✓ ${bau.job.note ?? 'Fertig.'}`
+                  : [
+                      bau.job.gesamt
+                        ? `Schritt ${bau.job.gesamt.schritt} von ${bau.job.gesamt.schritte}: ${bau.job.gesamt.schrittText}`
+                        : 'Bau läuft…',
+                      bau.job.gesamt?.restText,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+              {bau.job.status === 'running' && (
+                <p className="mt-1 text-slate-500 dark:text-slate-400">
+                  Der Bau läuft im Hintergrund weiter. Sie können den Assistenten fortsetzen; den
+                  Stand zeigt auch ⚙ → „Karten verwalten".
+                </p>
+              )}
+            </div>
+          )}
+          {bauFehler && (
+            <p className="text-xs text-red-600 dark:text-red-400" data-testid="onboarding-bau-fehler">
+              {bauFehler}
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

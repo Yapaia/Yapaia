@@ -876,7 +876,8 @@ describe('Handlungsanweisungen verweisen nur auf real Vorhandenes', () => {
     });
 
     const tiles = report.checks.find((c) => c.id === 'tiles');
-    expect(tiles?.remedy).toContain('Installieren');
+    // Seit 0.59.0 erst herunterladen, dann gemeinsam bauen.
+    expect(tiles?.remedy).toContain('Herunterladen');
     // Und den zweiten Schritt: eine installierte Karte allein ergibt weder
     // Routing noch Suche. Wer das nicht weiss, hält die Installation für
     // fertig und wundert sich, dass keine Route zustande kommt.

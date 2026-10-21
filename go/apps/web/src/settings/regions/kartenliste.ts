@@ -41,7 +41,7 @@ import type { CatalogRegion, InstalledRegion } from './client';
  * der Gesamtbau überspringt sie, und wer nicht weiss warum, sucht den Fehler
  * woanders.
  */
-export type Kartenzustand = 'installiert' | 'fremd' | 'verfuegbar' | 'ohne_quelle';
+export type Kartenzustand = 'installiert' | 'fremd' | 'verfuegbar' | 'geladen' | 'ohne_quelle';
 
 /** Wie eine Karte an ihre Kacheln kommt. */
 export type Kartenquelle =
@@ -84,7 +84,9 @@ export function istInstalliert(eintrag: Karteneintrag): boolean {
  * Deshalb hängt das an der Quelle und nicht am Zustand.
  */
 export function kannInstallieren(eintrag: Karteneintrag): boolean {
-  return eintrag.quelle !== null;
+  // Eine heruntergeladene Karte wartet auf den gemeinsamen Bau — ein
+  // zweites „Herunterladen" hätte nichts mehr zu tun.
+  return eintrag.quelle !== null && eintrag.zustand !== 'geladen';
 }
 
 function quelleVon(eintrag: CatalogRegion): Kartenquelle {
@@ -138,7 +140,11 @@ export function kartenliste(
     eintraege.push({
       id: eintrag.id,
       name: eintrag.name,
-      zustand: quelle === null ? 'ohne_quelle' : 'verfuegbar',
+      // ─── HERUNTERGELADEN, NOCH NICHT GEBAUT (0.59.0) ─────────────────────
+      // Gewünscht: erst alle Karten herunterladen, dann gemeinsam bauen.
+      // Dazwischen steht eine Karte in diesem Zustand.
+      zustand:
+        quelle === null ? 'ohne_quelle' : quelle === 'bau' && eintrag.extrakt ? 'geladen' : 'verfuegbar',
       groesseBytes: eintrag.sizeBytes,
       bounds: eintrag.bounds,
       quelle,
@@ -157,5 +163,8 @@ export function kartenliste(
 
 /** Die Beschriftung des einen Knopfes, der installiert oder aktualisiert. */
 export function installierenText(eintrag: Karteneintrag): string {
-  return istInstalliert(eintrag) ? 'Update' : 'Installieren';
+  if (istInstalliert(eintrag)) return 'Update';
+  // Eine Karte zum BAUEN wird erst nur heruntergeladen; gebaut wird
+  // gemeinsam (0.59.0). „Installieren" hiesse hier zu viel.
+  return eintrag.quelle === 'bau' ? 'Herunterladen' : 'Installieren';
 }

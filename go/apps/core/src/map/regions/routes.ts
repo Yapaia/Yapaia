@@ -4,8 +4,11 @@
  * - GET    /api/v1/map/regions/catalog   downloadable regions + `installed` flag
  * - POST   /api/v1/map/regions           starts a resumable download job (202)
  * - POST   /api/v1/map/regions/:id/build starts a tile BUILD job (202, B-04)
- * - POST   /api/v1/map/gesamtbau         baut Routing + Suche für ALLE Karten
- *                                        in EINEM Job (202, 0.16.0)
+ * - POST   /api/v1/map/regions/:id/extrakt  lädt NUR den OSM-Extrakt (202, 0.59.0)
+ * - DELETE /api/v1/map/regions/:id/extrakt  verwirft einen ungebauten Extrakt
+ * - POST   /api/v1/map/gesamtbau         baut heruntergeladene Karten, dann
+ *                                        Routing + Suche für ALLE Karten
+ *                                        in EINEM Job (202, 0.16.0/0.59.0)
  * - DELETE /api/v1/map/regions/:id       removes an installed region (409 if last)
  * - GET    /api/v1/map/regions/laufender-bau  der gerade laufende schwere Bau
  * - GET    /api/v1/jobs/:id              job status (progress/bytes/error)
@@ -51,7 +54,8 @@ import {
   type BuildJobDeps,
 } from './build.js';
 import { JobRegistry, type JobSnapshot } from './jobs.js';
-import { bestandAus, noetigerPlan, starteGesamtbau } from './gesamtbau.js';
+import { bestandAus, mitNeuenKarten, noetigerPlan, starteGesamtbau } from './gesamtbau.js';
+import { EXTRAKT_JOB_KIND, extraktPartPfad, hatExtrakt, runExtraktJob } from './extrakt.js';
 import { collectBuildStatus } from '../buildStatus.js';
 import { readLiteIndexMeta } from '../../search/lite/reader.js';
 import { liteSearchDbPathForRegion, resolveLiteSearchDir } from '../../search/lite/paths.js';
@@ -87,6 +91,9 @@ export interface RegionsPluginOptions {
 
 interface CatalogReplyEntry extends CatalogEntry {
   installed: boolean;
+  /** Der OSM-Extrakt liegt im Lager, die Karte ist aber noch nicht gebaut
+   *  (0.59.0). Sie wird mit dem nächsten Gesamtbau gebaut. */
+  extrakt?: boolean;
 }
 
 interface CatalogReply {
@@ -210,7 +217,13 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
       }
       const installedRegions = await listRegions(tilesDir, fastify.log);
       const installedIds = new Set(installedRegions.map((r) => r.region));
-      const data = catalog.map((entry) => ({ ...entry, installed: installedIds.has(entry.id) }));
+      const lager = pbfLagerPfad(resolveGraphDir());
+      const data = catalog.map((entry) => {
+        const installed = installedIds.has(entry.id);
+        return installed || !entry.pbfUrl
+          ? { ...entry, installed }
+          : { ...entry, installed, extrakt: hatExtrakt(lager, entry.id) };
+      });
       return reply.code(200).send({ data, kartenserver: stand });
     },
   );
@@ -666,6 +679,117 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
     },
   );
 
+  // POST /api/v1/map/regions/:id/extrakt -- NUR herunterladen (0.59.0).
+  //
+  // Gewuenscht: erst alle gewuenschten Karten herunterladen, dann gemeinsam
+  // bauen. Der Bau folgt ueber `POST /api/v1/map/gesamtbau`; siehe
+  // `extrakt.ts`.
+  fastify.post<{ Params: IdParams; Reply: PostRegionsReply | ApiError }>(
+    '/api/v1/map/regions/:id/extrakt',
+    async (request, reply) => {
+      const regionId = request.params.id;
+      if (!REGION_NAME_PATTERN.test(regionId)) {
+        return reply.code(400).send(createErrorResponse('INVALID_REGION', 'id must be a valid region slug'));
+      }
+      let catalog: CatalogEntry[];
+      try {
+        catalog = await loadCatalog();
+      } catch (err) {
+        fastify.log.error({ error: (err as Error).message }, 'Failed to load regions catalog');
+        return reply
+          .code(500)
+          .send(createErrorResponse('CATALOG_UNAVAILABLE', 'Regions catalog could not be loaded'));
+      }
+      const entry = catalog.find((candidate) => candidate.id === regionId);
+      if (!entry) {
+        return reply.code(404).send(createErrorResponse('NOT_FOUND', `Unknown catalog region '${regionId}'`));
+      }
+      if (!entry.pbfUrl) {
+        return reply
+          .code(409)
+          .send(
+            createErrorResponse(
+              'NO_BUILD_SOURCE',
+              `Für die Region '${regionId}' ist kein OSM-Extrakt hinterlegt (pbfUrl).`,
+            ),
+          );
+      }
+      const lager = pbfLagerPfad(resolveGraphDir());
+      if (hatExtrakt(lager, regionId)) {
+        return reply
+          .code(409)
+          .send(createErrorResponse('ALREADY_DOWNLOADED', `Region '${regionId}' ist bereits heruntergeladen`));
+      }
+      // Waehrend eines Baus nicht: der Routingbau laedt fehlende Extrakte
+      // selbst nach -- unter demselben Namen. Zwei Schreiber auf einer Datei
+      // ergeben eine kaputte.
+      const bau = jobs.findUnfinished(BUILD_JOB_KIND);
+      if (bau) {
+        return reply.code(409).send(
+          createErrorResponse(
+            'BUILD_IN_PROGRESS',
+            'Es läuft gerade ein Bau. Bitte dessen Ende abwarten und dann herunterladen.',
+            { jobId: bau.id },
+          ),
+        );
+      }
+      const laufend = jobs.findUnfinished(`${EXTRAKT_JOB_KIND}:${regionId}`);
+      if (laufend) {
+        return reply.code(202).send({ job_id: laufend.id });
+      }
+      const schon = await existingPartBytes(extraktPartPfad(lager, regionId));
+      const diskCheck = await checkDiskSpace(
+        tilesDir,
+        computeRemainingBytes(entry.sizeBytes, schon),
+        statfsImpl,
+      );
+      if (!diskCheck.ok) {
+        return reply.code(409).send(
+          createErrorResponse('INSUFFICIENT_SPACE', 'Nicht genug freier Speicherplatz für den OSM-Extrakt.', {
+            requiredBytes: diskCheck.requiredBytes,
+            freeBytes: diskCheck.freeBytes,
+          }),
+        );
+      }
+      const jobId = jobs.create(`${EXTRAKT_JOB_KIND}:${regionId}`, { region: regionId, bauart: 'extrakt' });
+      runExtraktJob(jobId, jobs, entry, lager);
+      return reply.code(202).send({ job_id: jobId });
+    },
+  );
+
+  // DELETE /api/v1/map/regions/:id/extrakt -- eine heruntergeladene, noch
+  // NICHT gebaute Karte wieder verwerfen. Ohne das liesse sich ein
+  // versehentlicher Download nur noch durch Bauen loswerden: der Gesamtbau
+  // nimmt alles mit, was im Lager liegt.
+  fastify.delete<{ Params: IdParams; Reply: ApiError | undefined }>(
+    '/api/v1/map/regions/:id/extrakt',
+    async (request, reply) => {
+      const regionId = request.params.id;
+      if (!REGION_NAME_PATTERN.test(regionId)) {
+        return reply.code(400).send(createErrorResponse('INVALID_REGION', 'Region name is invalid'));
+      }
+      if (existsSync(finalFilePath(tilesDir, regionId))) {
+        return reply
+          .code(409)
+          .send(
+            createErrorResponse(
+              'ALREADY_INSTALLED',
+              `Region '${regionId}' ist gebaut — zum Entfernen die Karte löschen.`,
+            ),
+          );
+      }
+      if (jobs.findUnfinished(BUILD_JOB_KIND)) {
+        return reply
+          .code(409)
+          .send(createErrorResponse('BUILD_IN_PROGRESS', 'Während eines Baus wird nichts entfernt.'));
+      }
+      const lager = pbfLagerPfad(resolveGraphDir());
+      await rm(extraktPfad(lager, regionId), { force: true });
+      await rm(extraktPartPfad(lager, regionId), { force: true });
+      return reply.code(204).send(undefined);
+    },
+  );
+
   // POST /api/v1/map/gesamtbau -- ein Knopf, der alles wieder zusammenbaut.
   //
   // ─── WOFUER ───────────────────────────────────────────────────────────────
@@ -704,14 +828,23 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
       }
 
       const installiert = (await listRegions(tilesDir, fastify.log)).map((r) => r.region);
-      if (installiert.length === 0) {
+      // ─── HERUNTERGELADEN, NOCH NICHT GEBAUT (0.59.0) ──────────────────────
+      // Diese Karten baut derselbe Lauf mit: erst ihre Kacheln, dann das
+      // Routing ueber alle. Nur Katalogkarten mit OSM-Quelle -- ein fremder
+      // Extrakt im Lager hat keinen Namen, unter dem er gezeichnet wuerde.
+      const lager = pbfLagerPfad(resolveGraphDir());
+      const neu = catalog
+        .filter((c) => Boolean(c.pbfUrl) && !installiert.includes(c.id) && hatExtrakt(lager, c.id))
+        .map((c) => c.id);
+      const alle = [...installiert, ...neu];
+      if (alle.length === 0) {
         return reply
           .code(409)
           .send(
             createErrorResponse(
               'NO_REGIONS',
-              'Es ist keine Karte installiert. Installiere zuerst eine Karte — ' +
-                'ohne Karte gibt es nichts zu bauen.',
+              'Es ist keine Karte installiert oder heruntergeladen. Lade zuerst eine Karte ' +
+                'herunter — ohne Karte gibt es nichts zu bauen.',
             ),
           );
       }
@@ -744,6 +877,29 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         );
       }
 
+      // Der Kachelbau braucht Arbeitsraum auf der Platte (BUILD_DISK_FACTOR).
+      // Fuer mehrere neue Karten nacheinander genuegt der der groessten:
+      // planetiler raeumt nach jedem Lauf auf.
+      if (neu.length > 0) {
+        const bedarf = Math.max(
+          ...neu.map((id) => {
+            const eintrag = catalog.find((c) => c.id === id);
+            return eintrag ? buildRequiredBytes(eintrag) : 0;
+          }),
+        );
+        const platz = await checkDiskSpace(tilesDir, bedarf, statfsImpl);
+        if (!platz.ok) {
+          return reply.code(409).send(
+            createErrorResponse(
+              'INSUFFICIENT_SPACE',
+              'Nicht genug freier Speicherplatz für den Kartenbau. Der Bau braucht neben ' +
+                'der fertigen Datei auch Platz für das Zwischenergebnis.',
+              { requiredBytes: platz.requiredBytes, freeBytes: platz.freeBytes },
+            ),
+          );
+        }
+      }
+
       // Der Routingschritt braucht denselben Plan wie der Einzelbau: welche
       // OSM-Extrakte fehlen und nachgeladen werden muessen.
       // ─── NUR WAS FEHLT (0.40.0) ─────────────────────────────────────────
@@ -754,19 +910,22 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         { tilesDir, graphDir: resolveGraphDir(), liteSearchDir: resolveLiteSearchDir() },
         readLiteIndexMeta,
       );
-      const plan = noetigerPlan(installiert, bestandAus(status, LITE_INDEX_FORMAT), {
-        alles: request.body?.alles === true,
-        ohneQuelle,
-      });
-      const bauRegion = [...installiert].sort()[0] ?? installiert[0];
+      const plan = mitNeuenKarten(
+        neu,
+        noetigerPlan(alle, bestandAus(status, LITE_INDEX_FORMAT), {
+          alles: request.body?.alles === true,
+          ohneQuelle,
+        }),
+      );
+      const bauRegion = [...alle].sort()[0] ?? alle[0];
       const graphPlan = graphBauPlan({
-        installiert,
-        mitExtrakt: regionenMitExtrakt(pbfLagerPfad(resolveGraphDir())),
+        installiert: alle,
+        mitExtrakt: regionenMitExtrakt(lager),
         katalog: catalog,
         bauRegion,
       });
       const abdeckung = abdeckungNachBau({
-        installiert,
+        installiert: alle,
         mitExtrakt: graphPlan.regionen,
         bauRegion,
         jetzt: graphRegionenJetzt(resolveGraphDir()),
@@ -774,13 +933,13 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
 
       const jobId = jobs.create(BUILD_JOB_KIND, { region: bauRegion, bauart: 'gesamt' });
       fastify.log.info(
-        { installiert, schritte: plan.length, abdeckung },
-        `Gesamtbau: ${plan.length} Schritte über ${installiert.length} Karten.`,
+        { installiert, neu, schritte: plan.length, abdeckung },
+        `Gesamtbau: ${plan.length} Schritte über ${alle.length} Karten.`,
       );
       starteGesamtbau({
         jobId,
         jobs,
-        regionen: installiert,
+        regionen: alle,
         eintragFuer: (region) => catalog.find((c) => c.id === region && Boolean(c.pbfUrl)),
         tilesDir,
         bauzeitenPfad: bauzeitenPfad(tilesDir),
@@ -788,7 +947,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         plan,
         fehltImGraph: () => {
           const drin = new Set(graphRegionenJetzt(resolveGraphDir()));
-          return installiert.filter((r) => !ohneQuelle.includes(r) && !drin.has(r));
+          return alle.filter((r) => !ohneQuelle.includes(r) && !drin.has(r));
         },
         deps: {
           ...opts.buildDeps,

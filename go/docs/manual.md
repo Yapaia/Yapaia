@@ -673,10 +673,12 @@ Maps are OpenStreetMap data, converted into a single compressed file per region
 (PMTiles) that lives on your disk.
 
 Install, update and remove regions from within the app, under
-**⚙ → 🗺️ Karten verwalten**. A download or build runs as a background job with
-progress, so you can leave the page. Several regions can be installed at once —
-useful if you cross a border. After installing, tap **Fehlendes bauen** once so
-that routing and search cover the new region.
+**⚙ → 🗺️ Karten verwalten**. First tap **Herunterladen** on every region you
+want — several downloads can run side by side, and only the OpenStreetMap data
+is fetched. Then tap **Fehlendes bauen** once: it builds all downloaded maps,
+then routing across all of them (so routes cross borders) and search, in one
+background job with progress, so you can leave the page. A downloaded region
+you no longer want can be dropped with **Verwerfen** before building.
 
 If you run your own **Yapaia map server**, enter its address and token under
 **Kartenserver** in the same place; its ready-made packages (map, search and

@@ -325,17 +325,25 @@ das Gerät selbst, auch eine HAOS-VM mit 8 GB.
 **Der normale Weg — in der Yapaia-Oberfläche, ohne Shell:**
 
 1. **⚙ → 🗺️ Karten verwalten** öffnen.
-2. Bei der gewünschten Karte auf **„Installieren"** drücken. (Bei einer
-   bereits installierten Karte heißt derselbe Knopf **„Update"** — es ist
-   derselbe Vorgang, er ersetzt, was da ist.)
-3. Der Fortschritt erscheint direkt darunter.
-4. Danach **einmal „Fehlendes bauen"** für Routing und Suche — siehe §C.3a.
+2. Bei jeder gewünschten Karte auf **„Herunterladen"** drücken — gern mehrere
+   nacheinander, die Downloads laufen nebeneinander. Geladen wird nur der
+   OpenStreetMap-Extrakt; gebaut wird noch nichts.
+3. Danach **einmal „Fehlendes bauen"**: das baut alle heruntergeladenen
+   Karten, dann das Routing einmal über alle und die Suche — in einem Lauf,
+   siehe §C.3a. Der Fortschritt steht im Panel.
+
+(Bei einer bereits installierten Karte heißt der Knopf **„Update"** und baut
+sie direkt neu. Fertige Pakete vom eigenen Kartenserver heißen
+**„Installieren"** und brauchen keinen Bau.)
+
+> **Seit 0.59.0: erst laden, dann gemeinsam bauen.** Bis dahin baute
+> „Installieren" jede Karte sofort. Wer zwei Länder wollte, wartete auf zwei
+> Bauten nacheinander — und das Routing danach baute ohnehin noch einmal über
+> beide.
 
 > **Seit 0.16.0 gibt es nur noch eine Kartenliste.** Vorher standen
 > installierte und verfügbare Karten in zwei getrennten Abschnitten, und eine
-> Karte wanderte beim Installieren von der einen in die andere. Ob hinter
-> „Installieren" ein Download oder ein Kachelbau steckt, entscheidet die
-> Quelle — für dich ist es dieselbe Handlung, nur die Dauer unterscheidet sich.
+> Karte wanderte beim Installieren von der einen in die andere.
 
 Liechtenstein braucht Minuten, ein Bundesland wie Rheinland-Pfalz deutlich
 länger. Beim **ersten** Bau lädt das Add-on einmalig `planetiler.jar`

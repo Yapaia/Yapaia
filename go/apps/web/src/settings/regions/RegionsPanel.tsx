@@ -43,6 +43,7 @@ import DriveLockGate from '../../drive/DriveLockGate.js';
 import BuildStatusSection from './BuildStatusSection.js';
 import KartenserverSection from './KartenserverSection.js';
 import {
+  deleteExtrakt,
   deleteRegion,
   fetchCatalogMitStand,
   fetchInstalledRegions,
@@ -50,6 +51,7 @@ import {
   fetchLaufenderBau,
   startDownload,
   startBuild,
+  startExtraktDownload,
   startGesamtbau,
   RegionApiError,
   type CatalogRegion,
@@ -138,6 +140,9 @@ function formatApiError(err: RegionApiError): string {
 interface DownloadState {
   jobId: string;
   job: JobSnapshot | null;
+  /** Ein reiner Extrakt-Download (0.59.0). Er sperrt keine weiteren
+   *  Downloads — nur einen Bau. */
+  nurLaden?: boolean;
 }
 
 /**
@@ -379,14 +384,24 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
    * gibt es eine fertige `.pmtiles`, wird sie geladen (Minuten), sonst aus dem
    * OSM-Extrakt gebaut (bei einem grossen Land Stunden).
    */
+  //
+  // ─── ERST LADEN, DANN GEMEINSAM BAUEN (0.59.0) ────────────────────────────
+  // Gewünscht: „Wenn man mehrere Karten zusammen bauen will sollte man sie
+  // erst alle runterladen und dann gemeinsam bauen." Eine noch nicht
+  // installierte Karte zum Bauen wird deshalb NUR heruntergeladen; gebaut
+  // wird sie mit „Fehlendes bauen", zusammen mit allen anderen. Das Update
+  // einer installierten Karte baut weiter direkt.
   const handleInstallieren = useCallback(async (eintrag: Karteneintrag) => {
     setErrorByRegion((prev) => ({ ...prev, [eintrag.id]: '' }));
     try {
+      const nurLaden = eintrag.quelle === 'bau' && !istInstalliert(eintrag);
       const jobId =
         eintrag.quelle === 'download' || eintrag.quelle === 'kartenserver'
           ? await startDownload(eintrag.id)
-          : await startBuild(eintrag.id);
-      setJobs((prev) => ({ ...prev, [eintrag.id]: { jobId, job: null } }));
+          : nurLaden
+            ? await startExtraktDownload(eintrag.id)
+            : await startBuild(eintrag.id);
+      setJobs((prev) => ({ ...prev, [eintrag.id]: { jobId, job: null, nurLaden } }));
     } catch (err) {
       const message =
         err instanceof RegionApiError
@@ -430,6 +445,26 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
     [refresh],
   );
 
+  const handleVerwerfen = useCallback(
+    async (regionId: string) => {
+      setErrorByRegion((prev) => ({ ...prev, [regionId]: '' }));
+      try {
+        await deleteExtrakt(regionId);
+        setJobs((prev) => {
+          const rest = { ...prev };
+          delete rest[regionId];
+          return rest;
+        });
+        await refresh();
+      } catch (err) {
+        const message =
+          err instanceof RegionApiError ? formatApiError(err) : 'Der Download konnte nicht verworfen werden.';
+        setErrorByRegion((prev) => ({ ...prev, [regionId]: message }));
+      }
+    },
+    [refresh],
+  );
+
   const toggleOpen = useCallback(() => setIsOpen((open) => !open), []);
 
   const karten = kartenliste(installed, catalog);
@@ -439,9 +474,15 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
   // und Arbeitsspeicher derselben Maschine, auf der auch Home Assistant
   // laeuft. Der Kern lehnt es ohnehin mit 409 ab; die Knöpfe vorher
   // auszugrauen erspart die Fehlermeldung.
-  const etwasLaeuft = Object.values(jobs).some(
-    (state) => !state.job || (state.job.status !== 'done' && state.job.status !== 'error'),
-  );
+  const laeuft = (state: DownloadState): boolean =>
+    !state.job || (state.job.status !== 'done' && state.job.status !== 'error');
+  const etwasLaeuft = Object.values(jobs).some(laeuft);
+  // Mehrere Karten nacheinander herunterladen soll gehen, ohne auf jede zu
+  // warten -- ein Download ist Netz, kein Arbeitsspeicher. Gesperrt wird nur
+  // durch einen BAU.
+  const bauLaeuft = Object.values(jobs).some((state) => laeuft(state) && !state.nurLaden);
+  const ladenLaeuft = Object.values(jobs).some((state) => laeuft(state) && state.nurLaden);
+  const geladen = karten.filter((eintrag) => eintrag.zustand === 'geladen');
 
   return (
     <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('regions'), right: TOP_RIGHT_INSET_PX }}>
@@ -474,17 +515,22 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
             <section className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-2">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <div className="font-semibold">Routing und Suche bauen</div>
+                  <div className="font-semibold">Karten, Routing und Suche bauen</div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
-                    Baut nur, was fehlt oder veraltet ist — etwa die Suche einer neuen Karte. Das
-                    Routing ist ein Netz über alle Karten (sonst endet es an der Grenze) und wird
-                    neu gebaut, sobald eine Karte dazukommt.
+                    Baut in einem Lauf, was fehlt: zuerst alle heruntergeladenen Karten, dann das
+                    Routing als ein Netz über alle Karten (sonst endet es an der Grenze), dann die
+                    Suche. Am besten erst alle gewünschten Karten herunterladen, dann einmal bauen.
                   </div>
+                  {geladen.length > 0 && (
+                    <div className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300" data-testid="gesamtbau-geladen">
+                      Bereit zum Bauen: {geladen.map((eintrag) => eintrag.name).join(', ')}
+                    </div>
+                  )}
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-1">
                   <button
                     onClick={() => void handleGesamtbau(false)}
-                    disabled={etwasLaeuft || installed.length === 0}
+                    disabled={etwasLaeuft || (installed.length === 0 && geladen.length === 0)}
                     className="px-2 py-1 rounded-md border border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
                     data-testid="gesamtbau-button"
                   >
@@ -494,7 +540,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                   </button>
                   <button
                     onClick={() => void handleGesamtbau(true)}
-                    disabled={etwasLaeuft || installed.length === 0}
+                    disabled={etwasLaeuft || (installed.length === 0 && geladen.length === 0)}
                     className="text-[11px] underline text-slate-500 dark:text-slate-400 disabled:opacity-50"
                     data-testid="gesamtbau-alles-button"
                   >
@@ -506,9 +552,14 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                   ohne diesen Satz weiss niemand, dass er ihn tun muss. Eine
                   frisch installierte Karte wird zwar sofort GEZEICHNET, aber
                   Routing und Suche entstehen daraus nicht von allein. */}
-              {installed.length === 0 && loaded && (
+              {installed.length === 0 && geladen.length === 0 && loaded && (
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-ohne-karte">
-                  Erst eine Karte installieren — ohne Karte gibt es nichts zu bauen.
+                  Erst eine Karte herunterladen — ohne Karte gibt es nichts zu bauen.
+                </p>
+              )}
+              {ladenLaeuft && (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-wartet-auf-download">
+                  Es wird noch heruntergeladen. Gebaut werden kann, sobald alle Downloads fertig sind.
                 </p>
               )}
               {gesamtJob && <GesamtFortschritt job={gesamtJob} />}
@@ -552,7 +603,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                           {kannInstallieren(eintrag) && (
                             <button
                               onClick={() => void handleInstallieren(eintrag)}
-                              disabled={etwasLaeuft}
+                              disabled={laeuftHier || bauLaeuft || (ladenLaeuft && eintrag.quelle !== 'bau')}
                               className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
                               data-testid={`installieren-button-${eintrag.id}`}
                             >
@@ -573,6 +624,16 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                               Gesamtbau an dieser Karte scheitern. Das ist
                               laut und behebbar — anders als eine Oberfläche
                               ohne jeden Knopf. */}
+                          {eintrag.zustand === 'geladen' && (
+                            <button
+                              onClick={() => void handleVerwerfen(eintrag.id)}
+                              disabled={bauLaeuft}
+                              className="px-2 py-1 rounded-md border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300 text-xs hover:bg-slate-50 dark:hover:bg-slate-700/40 disabled:opacity-50"
+                              data-testid={`verwerfen-button-${eintrag.id}`}
+                            >
+                              Verwerfen
+                            </button>
+                          )}
                           {istInstalliert(eintrag) && (
                             <button
                               onClick={() => void handleDelete(eintrag.id)}
@@ -609,13 +670,20 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                         </p>
                       )}
 
+                      {eintrag.zustand === 'geladen' && (
+                        <p className="mt-1 text-xs text-blue-700 dark:text-blue-300" data-testid={`karte-geladen-${eintrag.id}`}>
+                          Heruntergeladen. Gebaut wird sie mit „Fehlendes bauen", zusammen mit den
+                          anderen Karten.
+                        </p>
+                      )}
+
                       {eintrag.zustand === 'ohne_quelle' && (
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid={`karte-ohne-quelle-${eintrag.id}`}>
                           {eintrag.hinweis ?? 'Für diese Karte ist keine Quelle hinterlegt.'}
                         </p>
                       )}
 
-                      {eintrag.zustand === 'verfuegbar' && eintrag.grosserBau && (
+                      {(eintrag.zustand === 'verfuegbar' || eintrag.zustand === 'geladen') && eintrag.grosserBau && (
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid={`karte-grosser-bau-${eintrag.id}`}>
                           {eintrag.hinweis ??
                             'Große Region: der Kachelbau dauert auf diesem Gerät mehrere Stunden.'}

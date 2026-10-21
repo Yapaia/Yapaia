@@ -47,6 +47,7 @@ function katalog(
     ...(opt.buildEffort ? { buildEffort: opt.buildEffort } : {}),
     ...(opt.note ? { note: opt.note } : {}),
     ...(opt.quelle ? { quelle: opt.quelle } : {}),
+    ...(opt.extrakt !== undefined ? { extrakt: opt.extrakt } : {}),
   };
 }
 
@@ -212,8 +213,13 @@ describe('die Beschriftung des Knopfes', () => {
     expect(installierenText(finde(liste, 'germany'))).toBe('Update');
   });
 
-  it('und sonst „Installieren"', () => {
+  it('bei einer Karte zum Bauen „Herunterladen" — gebaut wird gemeinsam (0.59.0)', () => {
     const liste = kartenliste([], [katalog('germany', { pbfUrl: 'x' })]);
+    expect(installierenText(finde(liste, 'germany'))).toBe('Herunterladen');
+  });
+
+  it('und bei einer fertigen Datei „Installieren"', () => {
+    const liste = kartenliste([], [katalog('germany', { url: 'https://x/g.pmtiles' })]);
     expect(installierenText(finde(liste, 'germany'))).toBe('Installieren');
   });
 
@@ -222,6 +228,20 @@ describe('die Beschriftung des Knopfes', () => {
     const a = kartenliste([installiert('g')], [katalog('g', { pbfUrl: 'x' })]);
     const b = kartenliste([], [katalog('g', { pbfUrl: 'x' })]);
     expect(installierenText(finde(a, 'g'))).not.toBe(installierenText(finde(b, 'g')));
+  });
+});
+
+describe('heruntergeladen, aber noch nicht gebaut (0.59.0)', () => {
+  it('hat einen eigenen Zustand und keinen zweiten Download-Knopf', () => {
+    const liste = kartenliste([], [katalog('germany', { pbfUrl: 'x', extrakt: true })]);
+    const eintrag = finde(liste, 'germany');
+    expect(eintrag.zustand).toBe('geladen');
+    expect(kannInstallieren(eintrag)).toBe(false);
+  });
+
+  it('eine noch nicht heruntergeladene Karte bleibt verfügbar', () => {
+    const liste = kartenliste([], [katalog('germany', { pbfUrl: 'x', extrakt: false })]);
+    expect(finde(liste, 'germany').zustand).toBe('verfuegbar');
   });
 });
 
