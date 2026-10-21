@@ -879,9 +879,73 @@
         }
       }
     },
+    "/api/v1/map/regions/{id}/extrakt": {
+      "post": {
+        "summary": "Nur den OSM-Extrakt herunterladen, ohne zu bauen — 202 mit job_id",
+        "tags": [
+          "Karten"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Heruntergeladenen, noch nicht gebauten Extrakt verwerfen",
+        "tags": [
+          "Karten"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/map/gesamtbau": {
       "post": {
-        "summary": "Routing und Suche bauen, soweit sie fehlen oder veraltet sind ({alles:true}: alles) — 202 mit job_id",
+        "summary": "Heruntergeladene Karten, Routing und Suche bauen, soweit sie fehlen oder veraltet sind ({alles:true}: alles) — 202 mit job_id",
         "tags": [
           "Karten"
         ],

@@ -50,8 +50,13 @@
  *                  wird deshalb benannt statt kaschiert.
  */
 
-/** Was in einem Gesamtbau nacheinander gebaut wird. */
-export type Bauart = 'routing' | 'suche';
+/**
+ * Was in einem Gesamtbau nacheinander gebaut wird.
+ *
+ * `kacheln` seit 0.59.0: eine heruntergeladene, noch nicht gebaute Karte
+ * (siehe `extrakt.ts`). Sie läuft im selben Bau mit, VOR dem Routing.
+ */
+export type Bauart = 'kacheln' | 'routing' | 'suche';
 
 /** Ein Schritt des Gesamtbaus. */
 export interface Bauschritt {
@@ -97,6 +102,7 @@ export function routingSchluessel(regionen: readonly string[]): string {
 /** Der Schlüssel eines Schritts. */
 export function schluessel(schritt: Bauschritt, alleRegionen: readonly string[]): string {
   if (schritt.bauart === 'routing') return routingSchluessel(alleRegionen);
+  if (schritt.bauart === 'kacheln') return `kacheln:${schritt.region}`;
   return `suche:${schritt.region}`;
 }
 

@@ -39,6 +39,9 @@ export interface CatalogRegion {
   /** Freitext-Hinweis aus dem Katalog (deutsch). */
   note?: string;
   installed: boolean;
+  /** Der OSM-Extrakt ist heruntergeladen, die Karte aber noch nicht gebaut
+   *  (0.59.0). Sie wird mit dem nächsten „Fehlendes bauen" gebaut. */
+  extrakt?: boolean;
   /** `kartenserver`: ein fertiges Paket vom eigenen Kartenserver (Karte,
    *  Suche und Routing in einem). Fehlt bei den mitgelieferten Einträgen. */
   quelle?: 'kartenserver';
@@ -239,6 +242,35 @@ export async function startDownload(regionId: string): Promise<string> {
   }
   const body = (await response.json()) as { job_id: string };
   return body.job_id;
+}
+
+/**
+ * Lädt NUR den OSM-Extrakt von `regionId` herunter (0.59.0) — gebaut wird
+ * danach gemeinsam mit allen anderen über `startGesamtbau`. Wirft
+ * RegionApiError bei 409 (ALREADY_DOWNLOADED / BUILD_IN_PROGRESS /
+ * INSUFFICIENT_SPACE / NO_BUILD_SOURCE) oder 404.
+ */
+export async function startExtraktDownload(regionId: string): Promise<string> {
+  const response = await fetch(
+    apiUrl(`api/v1/map/regions/${encodeURIComponent(regionId)}/extrakt`),
+    { method: 'POST' },
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = (await response.json()) as { job_id: string };
+  return body.job_id;
+}
+
+/** Verwirft einen heruntergeladenen, noch nicht gebauten Extrakt. */
+export async function deleteExtrakt(regionId: string): Promise<void> {
+  const response = await fetch(
+    apiUrl(`api/v1/map/regions/${encodeURIComponent(regionId)}/extrakt`),
+    { method: 'DELETE' },
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
 }
 
 /** Startet einen KACHELBAU für `regionId` (B-04) — der Gegenpart zu

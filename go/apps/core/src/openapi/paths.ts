@@ -89,6 +89,15 @@ export const ROUTE_DOCS: Record<string, RouteDoc> = {
     summary: 'Kachelbau aus dem OSM-Extrakt starten (B-04) — 202 mit job_id',
     tags: ['Karten'],
   },
+  'POST /api/v1/map/regions/:id/extrakt': {
+    // 0.59.0: erst herunterladen, dann gemeinsam bauen (`/map/gesamtbau`).
+    summary: 'Nur den OSM-Extrakt herunterladen, ohne zu bauen — 202 mit job_id',
+    tags: ['Karten'],
+  },
+  'DELETE /api/v1/map/regions/:id/extrakt': {
+    summary: 'Heruntergeladenen, noch nicht gebauten Extrakt verwerfen',
+    tags: ['Karten'],
+  },
   'DELETE /api/v1/map/regions/:id': { summary: 'Installierte Region entfernen', tags: ['Karten'] },
   'GET /api/v1/map/satellit/:z/:x/:y': {
     // Stil „Satellit (online)": Sentinel-2 cloudless (EOX, CC BY 4.0), vom
@@ -103,7 +112,7 @@ export const ROUTE_DOCS: Record<string, RouteDoc> = {
     // dann `gesamt` mit Schritt, Gesamtzahl und Restzeit.
     // Seit 0.40.0 nur, was fehlt oder veraltet ist; `{ "alles": true }` im
     // Rumpf baut wie früher alles neu.
-    summary: 'Routing und Suche bauen, soweit sie fehlen oder veraltet sind ({alles:true}: alles) — 202 mit job_id',
+    summary: 'Heruntergeladene Karten, Routing und Suche bauen, soweit sie fehlen oder veraltet sind ({alles:true}: alles) — 202 mit job_id',
     tags: ['Karten'],
   },
   'GET /api/v1/map/regions/laufender-bau': {

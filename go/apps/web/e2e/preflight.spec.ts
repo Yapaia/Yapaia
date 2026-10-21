@@ -55,7 +55,8 @@ test('zeigt ohne Karte die Installationsprüfung mit echten Befunden und Handlun
   // „Installieren" und macht beides, herunterladen oder bauen -- für den
   // Bedienenden ist es dieselbe Handlung.
   const anweisung = page.getByTestId('preflight-remedy-tiles');
-  await expect(anweisung).toContainText('Installieren');
+  // Seit 0.59.0: erst „Herunterladen" (gern mehrere Karten), dann gemeinsam bauen.
+  await expect(anweisung).toContainText('Herunterladen');
   // Und der zweite Schritt: eine installierte Karte allein ergibt weder
   // Routing noch Suche. Wer das nicht weiss, hält die Installation für fertig
   // und wundert sich, dass keine Route zustande kommt.
