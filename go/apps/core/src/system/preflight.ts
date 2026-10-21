@@ -60,7 +60,8 @@
  */
 
 import { readdir, readFile, stat } from 'fs/promises';
-import { istCompanionAppQuelle } from '../position/gpsSourceOption.js';
+import { istCompanionAppQuelle, istRut50Quelle } from '../position/gpsSourceOption.js';
+import { parseHostPort } from '../position/modbus/index.js';
 import { totalmem } from 'os';
 import { createConnection } from 'net';
 import { resolveTilesDir } from '../map/paths.js';
@@ -675,6 +676,36 @@ async function checkPosition(
         'sie über die Standortfreigabe der Seite (ADR-007: gpsd > Browser > ' +
         'Companion App > Simulator). Achtung: der Browser gibt den Standort nur über ' +
         'HTTPS frei.',
+    };
+  }
+
+  // Der GPS-Empfaenger des Teltonika-Routers. Geprueft wird, ob der
+  // Modbus-TCP-Server antwortet -- ob der Router gerade einen Fix hat, steht
+  // im Live-Status der Positionsquellen, nicht hier.
+  if (istRut50Quelle(env.GPS_SOURCE)) {
+    const { host, port } = parseHostPort(env.RUT50_HOST);
+    const up = await tcpProbe(host, port, PROBE_TIMEOUT_MS);
+    if (up) {
+      return {
+        ...base,
+        status: 'ok',
+        detail:
+          `Position vom GPS des RUT50-Routers, Modbus TCP unter ${host}:${port} erreichbar. ` +
+          'Ob der Router gerade Satelliten empfängt, zeigt die Liste der Positionsquellen.',
+      };
+    }
+    return {
+      ...base,
+      status: 'warn',
+      detail: `Als Positionsquelle ist der RUT50-Router gewählt, aber unter ${host}:${port} antwortet kein Modbus-TCP-Server.`,
+      remedy:
+        'Im Router (RutOS-Weboberfläche) unter Services → Modbus → Modbus TCP Server ' +
+        'den Server einschalten (Port 502, Device ID 1) und den Zugriff aus dem LAN ' +
+        'erlauben. Unter Services → GPS muss GPS eingeschaltet und eine GNSS-Antenne ' +
+        'angeschlossen sein. Hat der Router nicht die Adresse 192.168.1.1, die richtige ' +
+        'Adresse in der Add-on-Konfiguration unter „rut50_host" eintragen (z. B. ' +
+        '„192.168.2.1" oder „192.168.2.1:502") und das Add-on neu starten. Solange der ' +
+        'Router nicht antwortet, kann die Position weiterhin aus dem Browser kommen.',
     };
   }
 

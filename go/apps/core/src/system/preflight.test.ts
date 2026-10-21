@@ -307,6 +307,42 @@ describe('Positionsprüfung', () => {
     expect(pos.detail).toContain('2947');
   });
 
+  describe('der RUT50-Router (gps_source: rut50)', () => {
+    const rut50Env = (extra: Record<string, string> = {}) => ({
+      ...healthyDeps().env,
+      GPSD_ENABLED: 'false',
+      GPS_SOURCE: 'rut50',
+      ...extra,
+    });
+
+    it('prueft den Modbus-Port des Routers, Werkseinstellung 192.168.1.1:502', async () => {
+      const probes: string[] = [];
+      const report = await runPreflight(
+        healthyDeps({
+          env: rut50Env(),
+          tcpProbe: async (host: string, port: number) => {
+            probes.push(`${host}:${port}`);
+            return true;
+          },
+        }),
+      );
+      const pos = byId(report.checks, 'position');
+      expect(pos.status).toBe('ok');
+      expect(probes).toContain('192.168.1.1:502');
+      expect(pos.detail).toContain('RUT50');
+    });
+
+    it('warnt mit Anleitung, wenn unter der eingetragenen Adresse kein Modbus antwortet', async () => {
+      const report = await runPreflight(
+        healthyDeps({ env: rut50Env({ RUT50_HOST: '10.0.0.1:5020' }), tcpProbe: async () => false }),
+      );
+      const pos = byId(report.checks, 'position');
+      expect(pos.status).toBe('warn');
+      expect(pos.detail).toContain('10.0.0.1:5020');
+      expect(pos.remedy).toContain('Modbus TCP Server');
+    });
+  });
+
   it('warnt, wenn gpsd eingeschaltet ist aber nicht antwortet, und nennt den Browser als Ausweg', async () => {
     const report = await runPreflight(healthyDeps({ tcpProbe: async () => false }));
     const pos = byId(report.checks, 'position');

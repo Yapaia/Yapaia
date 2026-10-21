@@ -257,6 +257,7 @@ describe('yapaia_go/config.yaml is valid YAML with the required HA add-on keys',
     expect(values).not.toContain('ha_tracker');
     expect(values).toContain('usb');
     expect(values).toContain('network');
+    expect(values).toContain('rut50');
     expect(values).toContain('none');
     // The default must itself be one of the offered values -- the Supervisor
     // rejects the add-on outright otherwise, and it would do so on the
@@ -925,6 +926,7 @@ describe('init-yapaia-config.sh — die GPS-Quelle, ausgeführt', () => {
       region: 'liechtenstein',
       gps_source: 'none',
       gps_device: '',
+      rut50_host: '',
       ha_device_tracker: '',
       'search.photon_enabled': 'false',
       'search.photon_xmx_mb': '1024',
@@ -1115,6 +1117,17 @@ describe('init-yapaia-config.sh — die GPS-Quelle, ausgeführt', () => {
     const env = runInit({ gps_source: 'companion_app' });
     expect(env.GPSD_ENABLED).toBe('false');
     expect(env.GPS_SOURCE).toBe('companion_app');
+  });
+
+  it('schaltet gpsd bei "rut50" aus und reicht Quelle und Router-Adresse an den Core weiter', () => {
+    const env = runInit({ gps_source: 'rut50', rut50_host: '192.168.2.1:502' });
+    expect(env.GPSD_ENABLED).toBe('false');
+    expect(env.GPS_SOURCE).toBe('rut50');
+    expect(env.RUT50_HOST).toBe('192.168.2.1:502');
+  });
+
+  it('macht aus bashios "null" eine leere Router-Adresse (= Werkseinstellung)', () => {
+    expect(runInit({ gps_source: 'rut50', rut50_host: 'null' }).RUT50_HOST).toBe('');
   });
 
   it('schaltet gpsd bei "none" aus', () => {
@@ -1668,7 +1681,7 @@ describe('die Add-on-Konfiguration ist gegliedert und beschriftet', () => {
     advanced: ['gps_simulator', 'log_level'],
   };
   /** Was OFFEN stehenbleibt -- das, was man wirklich einstellt. */
-  const OFFEN = ['region', 'gps_source', 'gps_device', 'ha_device_tracker'];
+  const OFFEN = ['region', 'gps_source', 'gps_device', 'rut50_host', 'ha_device_tracker'];
 
   function ladeUebersetzung(sprache: string): Record<string, unknown> {
     const pfad = join(ADDON_DIR, 'translations', `${sprache}.yaml`);

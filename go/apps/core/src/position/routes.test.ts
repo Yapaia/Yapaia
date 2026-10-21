@@ -63,7 +63,7 @@ describe('Position Routes Integration', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       const names = body.sources.map((s: { name: string }) => s.name).sort();
-      expect(names).toEqual(['browser', 'gpsd', 'ha_tracker', 'simulator']);
+      expect(names).toEqual(['browser', 'gpsd', 'ha_tracker', 'modbus', 'simulator']);
       expect(body.active).toBeNull();
       expect(body.forced).toBeNull();
     });

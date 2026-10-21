@@ -10,6 +10,25 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.58.0
+
+**Position vom GPS des Teltonika-Routers (RUT50).**
+
+- Neue Positionsquelle `rut50`: Yapaia liest die Position über Modbus TCP vom
+  GPS-Empfänger eines Teltonika-RUT50 (und anderer RutOS-Router mit GPS wie
+  RUTX50, RUTM50, RUT955). Kein zweiter USB-Empfänger nötig.
+- Einrichtung: im Router unter **Services → Modbus → Modbus TCP Server** den
+  Server einschalten (Port 502, Device ID 1) und unter **Services → GPS** das
+  GPS. In der Add-on-Konfiguration „Quelle" auf `rut50` stellen; hat der Router
+  nicht 192.168.1.1, die Adresse unter „Adresse des RUT50" eintragen.
+- Die Fahrtrichtung errechnet Yapaia aus zwei aufeinanderfolgenden Fixes — der
+  Router liefert keine. Verliert der Router den Empfang, wird der letzte Fix
+  nicht weiter als aktuell ausgegeben; es greift die normale GPS-Verlust-Anzeige.
+- Die Installationsprüfung sagt, ob der Router per Modbus antwortet, und was zu
+  tun ist, wenn nicht.
+
+---
+
 ## 0.57.0
 
 **Der offizielle Yapaia-Marktplatz ist da.**

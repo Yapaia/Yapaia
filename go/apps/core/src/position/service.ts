@@ -19,10 +19,11 @@ import type { EventBus } from '../bus/index.js';
  * vi.useFakeTimers() patches globalThis, not the 'node:timers' module
  * exports, and this service's tests rely on fake timers. */
 
-export type PositionSourceName = 'gpsd' | 'browser' | 'simulator' | 'ha_tracker';
+export type PositionSourceName = 'gpsd' | 'browser' | 'simulator' | 'ha_tracker' | 'modbus';
 
 export const POSITION_SOURCE_NAMES: readonly PositionSourceName[] = [
   'gpsd',
+  'modbus',
   'browser',
   'ha_tracker',
   'simulator',
@@ -50,8 +51,12 @@ export interface PositionServiceLogger {
 export interface PositionServiceOptions {
   bus: EventBus;
   /**
-   * Highest priority first. Default: gpsd > browser > ha_tracker > simulator
-   * (ADR-007, um `ha_tracker` erweitert).
+   * Highest priority first. Default: gpsd > modbus > browser > ha_tracker >
+   * simulator (ADR-007, um `modbus` und `ha_tracker` erweitert).
+   *
+   * `modbus` (der GPS-Empfaenger eines Teltonika-Routers wie dem RUT50) steht
+   * direkt unter gpsd: beides ist ein fest im Fahrzeug verbauter Empfaenger,
+   * der fortlaufend misst -- anders als das Telefon, das man mitnimmt.
    *
    * WARUM `ha_tracker` UNTER `browser` STEHT: die Home-Assistant-Companion-App
    * meldet in Intervallen, nicht fortlaufend. Fuer eine Abbiegeansage in
@@ -74,7 +79,7 @@ interface SourceState {
   lastFixTs: number | null;
 }
 
-const DEFAULT_PRIORITY: PositionSourceName[] = ['gpsd', 'browser', 'ha_tracker', 'simulator'];
+const DEFAULT_PRIORITY: PositionSourceName[] = ['gpsd', 'modbus', 'browser', 'ha_tracker', 'simulator'];
 const DEFAULT_ACTIVE_WINDOW_MS = 5000;
 const DEFAULT_CHECK_INTERVAL_MS = 250;
 const DEFAULT_RATE_HZ = 1;

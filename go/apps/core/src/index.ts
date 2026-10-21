@@ -19,7 +19,8 @@ import { SimulatorSource } from './position/simulator/index.js';
 import { simulatorPlugin } from './position/simulator/routes.js';
 import { GpsdSource } from './position/gpsd/index.js';
 import { HaTrackerSource, listGpsTrackers } from './position/haTracker/index.js';
-import { istCompanionAppQuelle } from './position/gpsSourceOption.js';
+import { ModbusGpsSource, parseHostPort } from './position/modbus/index.js';
+import { istCompanionAppQuelle, istRut50Quelle } from './position/gpsSourceOption.js';
 import { resolveHaConfig, resolveHaConnection, resolveTrackerEntityId } from './ha/config.js';
 import { BEAT_ENTITAET, BeatAnsage, beatAktionVorhanden, beatAnsagenAn, rufeBeat } from './ha/beatAnsage.js';
 import {
@@ -269,6 +270,24 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     gpsdSource.start();
   }
 
+  // GPS-Empfaenger eines Teltonika-Routers (RUT50) ueber Modbus TCP.
+  // Nur bei `gps_source: rut50` -- sonst stuende jede Installation mit einem
+  // anderen Geraet unter 192.168.1.1 im Verdacht, ein Router mit GPS zu sein.
+  const rut50 = parseHostPort(process.env.RUT50_HOST);
+  const modbusGpsSource = new ModbusGpsSource({
+    positionService,
+    host: rut50.host,
+    port: rut50.port,
+    logger: {
+      info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+    },
+  });
+  positionService.registerSource(modbusGpsSource);
+  if (istRut50Quelle(process.env.GPS_SOURCE)) {
+    modbusGpsSource.start();
+  }
+
   // Position aus einer Home-Assistant-`device_tracker`-Entitaet (B-05).
   // Der Weg fuer Telefon/Tablet/Autoradio, wenn der Browser den GPS-Sensor
   // nicht freigibt -- ohne HTTPS tut er das naemlich nie. Aus genau demselben
@@ -432,6 +451,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     navigationService.dispose();
     simulatorSource.dispose();
     gpsdSource.dispose();
+    modbusGpsSource.dispose();
     positionService.dispose();
   });
 

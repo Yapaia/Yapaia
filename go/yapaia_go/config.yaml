@@ -10,7 +10,7 @@
 name: "Yapaia Go"
 description: "Offline-fähige Wohnmobil-Navigation (Karten, Routing, GPS, Home-Assistant-Integration) als HA-Add-on."
 slug: "yapaia_go"
-version: "0.57.0"
+version: "0.58.0"
 # ─── MINDESTVERSION VON HOME ASSISTANT ──────────────────────────────────────
 # Seit 0.8.4 sind die selten angefassten Optionen in aufklappbaren Gruppen
 # zusammengefasst. Verschachtelte Konfiguration gibt es in Home Assistant aber
@@ -187,12 +187,21 @@ homeassistant_api: true
 # Any future change here is a widening of privileges and must be argued for
 # explicitly by ADDING the key with a comment saying why.
 
-# `gps_source` -- WOHER die Position kommt. Vier Werte, und der Reihe nach:
+# `gps_source` -- WOHER die Position kommt. Fuenf Werte, und der Reihe nach:
 #
 #   usb           fest eingebauter GPS-Empfaenger am USB-Port (gpsd)
 #   network       gpsd auf einem anderen Geraet im Netz
+#   rut50         GPS-Empfaenger eines Teltonika-Routers (RUT50) ueber Modbus TCP
 #   companion_app Home-Assistant-Companion-App auf Telefon/Tablet/Autoradio
 #   none          kein eigener Empfaenger -- die Position kommt aus dem Browser
+#
+# `rut50_host` (seit 0.58.0): unter welcher Adresse der Router erreichbar ist,
+# „host" oder „host:port". Leer = Werkseinstellung 192.168.1.1:502. Im Router
+# muss unter Services -> Modbus -> Modbus TCP Server der Server laufen; Yapaia
+# liest die GPS-Register ab Adresse 143 (apps/core/src/position/modbus/).
+# Benannt nach dem GERAET, nicht nach dem Weg -- wer die Option einstellt,
+# sucht „RUT50", nicht „Modbus". Andere Teltonika-Router mit GPS und RutOS
+# (RUTX50, RUTM50, RUT955 …) haben dieselbe Registerkarte und gehen ebenso.
 #
 # `ha_tracker` hiess dieser Wert bis 0.8.2. Umbenannt wurde er, weil er den
 # WEG beschrieb (eine device_tracker-Entitaet) und nicht die Sache: wer die
@@ -284,6 +293,7 @@ options:
   # dazukommt oder wegfaellt; der `by-id`-Pfad bleibt. Welche Pfade es auf
   # Ihrem Geraet gibt, zeigt die Installationspruefung in Yapaia an.
   gps_device: ""
+  rut50_host: ""
   ha_device_tracker: ""
   search:
     photon_enabled: true
@@ -377,8 +387,9 @@ options:
 # Formen -- erst die neue, dann die alte (siehe `config_mit_rueckfall` dort).
 schema:
   region: "str?"
-  gps_source: "list(usb|network|companion_app|none)"
+  gps_source: "list(usb|network|rut50|companion_app|none)"
   gps_device: "str?"
+  rut50_host: "str?"
   ha_device_tracker: "str?"
   search:
     photon_enabled: "bool"

@@ -19,6 +19,7 @@ import {
 const SOURCE_LABELS: Record<PositionSourceName, string> = {
   browser: 'Browser-Standort',
   gpsd: 'USB-GPS (gpsd)',
+  modbus: 'Router-GPS (RUT50)',
   // Diese Zeile fehlte, und der Kern liefert die Quelle trotzdem mit -- die
   // Liste zeigte dafuer einen leeren Eintrag. Wer nachsehen wollte, ob die
   // Companion App liefert, fand nichts.

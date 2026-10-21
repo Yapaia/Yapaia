@@ -227,6 +227,30 @@ Source priority is `gpsd > browser > Companion App > simulator`: the app reports
 at intervals, so it is the source that *exists* when the browser gives none —
 not a replacement for a live browser fix.
 
+## Position from a Teltonika router (RUT50)
+
+Many motorhomes already carry an LTE router with a GNSS receiver and a roof
+antenna. Yapaia reads its position over **Modbus TCP** — no second USB
+receiver needed. Works with the RUT50 and other RutOS routers with GPS that
+share the same register map (RUTX50, RUTM50, RUT955 …).
+
+1. On the router (RutOS web UI): **Services → GPS** — enable GPS, antenna
+   connected.
+2. **Services → Modbus → Modbus TCP Server** — enable it, port `502`,
+   device ID `1`, and allow access from the LAN.
+3. In the add-on configuration: `gps_source: rut50`. If the router is not at
+   the factory address `192.168.1.1`, put its address into `rut50_host`
+   (`192.168.2.1` or `192.168.2.1:502`). Restart the add-on.
+
+Yapaia reads registers 143–182 (latitude, longitude, fix time, speed,
+satellites) once per second. The router reports no heading; Yapaia derives it
+from two consecutive fixes. When the router loses reception its registers
+keep the last coordinates — Yapaia only passes a fix on when its fix time
+changes, so a lost signal shows up as GPS loss instead of a frozen position.
+The health check (**⚙ → 🩺**) tells you whether the router answers on Modbus.
+
+Source priority is `gpsd > RUT50 > browser > Companion App > simulator`.
+
 ## Configuration options
 
 The rarely-touched options sit in **collapsible groups** (the same shape the
@@ -243,8 +267,9 @@ minimum so the Supervisor says so plainly instead of drawing half a page.
 | Group | Option | Type | Default | Meaning |
 |---|---|---|---|---|
 | (open) | `region` | string (optional) | *(empty)* | Which map region to use, e.g. `germany`. Empty = the setup wizard inside Yapaia lets you choose one. Regions are downloaded and built inside Yapaia (**⚙ → 🗺️ Karten verwalten**), not here. |
-|  | `gps_source` | `usb` \| `network` \| `companion_app` \| `none` | `none` | Where the Core's position service gets a GPS fix from. `usb`/`network` start gpsd; `companion_app` reads a Home Assistant `device_tracker` fed by the Companion App; `none` leaves the browser as the source. Browser positions are accepted at **every** value. The old value `ha_tracker` was removed in 0.8.8 — pick `companion_app` once if you had it. (`Position.source` in the API still says `ha_tracker`; that is the wire format, not a setting.) |
+|  | `gps_source` | `usb` \| `network` \| `rut50` \| `companion_app` \| `none` | `none` | Where the Core's position service gets a GPS fix from. `usb`/`network` start gpsd; `rut50` reads the GPS of a Teltonika router over Modbus TCP (`Position.source`: `modbus`); `companion_app` reads a Home Assistant `device_tracker` fed by the Companion App; `none` leaves the browser as the source. Browser positions are accepted at **every** value. The old value `ha_tracker` was removed in 0.8.8 — pick `companion_app` once if you had it. (`Position.source` in the API still says `ha_tracker`; that is the wire format, not a setting.) |
 |  | `gps_device` | string (optional) | *(empty)* | Which serial device is the GPS receiver, e.g. `/dev/serial/by-id/usb-u-blox_AG_…-if00` — **with** the leading slash. Only needed when several serial devices are present and none identifies itself as a GNSS receiver — see "Which device gets used" above. |
+|  | `rut50_host` | string (optional) | *(empty)* | Only with `gps_source: rut50`: the router's address, `host` or `host:port`. Empty = `192.168.1.1:502`. See "Position from a Teltonika router" above. |
 |  | `ha_device_tracker` | string (optional) | *(empty)* | Which `device_tracker` entity to read, e.g. `device_tracker.my_phone`. Only needed with `gps_source: companion_app` **and** more than one candidate. With exactly one, Yapaia picks it itself; with several you can also choose in the app's health check, which takes effect immediately. |
 | `search` | `photon_enabled` | bool | `true` | Full-text search via Photon. `false` = RAM-saver, falls back to the offline lite-search index (W-12). |
 |  | `photon_xmx_mb` | int 256–4096 | `1024` | Photon JVM heap cap (`-Xmx`). See the RAM table above. |

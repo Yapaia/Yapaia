@@ -29,7 +29,8 @@ configuration:
   gps_source:
     name: Quelle
     description: 'Woher die Position kommt. „usb": ein GPS-Empfänger am USB-Anschluss.
-      „network": ein gpsd auf einem anderen Gerät im Netz. „companion_app": die
+      „network": ein gpsd auf einem anderen Gerät im Netz. „rut50": der GPS-Empfänger
+      eines Teltonika-Routers (RUT50), gelesen über Modbus TCP. „companion_app": die
       Home-Assistant-Companion-App auf Telefon, Tablet oder Autoradio — der richtige
       Weg, wenn Home Assistant über http:// läuft, denn dann gibt kein Browser seinen
       Standort frei. „none": die Position kommt aus dem Browser. Ein Browser-Standort
@@ -42,6 +43,12 @@ configuration:
       oder Z-Wave-Stick) und keines gibt sich von selbst als GPS zu erkennen. Bitte
       den Pfad unter /dev/serial/by-id/ nehmen, nicht /dev/ttyACM0 — die Nummer
       verschiebt sich, sobald ein anderer USB-Stick dazukommt.'
+  rut50_host:
+    name: Adresse des RUT50
+    description: 'Nur für die Quelle „rut50": unter welcher Adresse der Router erreichbar
+      ist, zum Beispiel „192.168.1.1" oder „192.168.1.1:502". Leer lassen heißt
+      Werkseinstellung (192.168.1.1, Port 502). Im Router muss unter Services → Modbus
+      → Modbus TCP Server der Server eingeschaltet sein und GPS unter Services → GPS.'
   ha_device_tracker:
     name: Gerät der Companion App
     description: Welches Gerät die Position liefert, zum Beispiel „device_tracker.mein_telefon".

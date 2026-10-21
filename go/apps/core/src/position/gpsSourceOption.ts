@@ -46,3 +46,16 @@ export const COMPANION_APP_OPTION = 'companion_app';
 export function istCompanionAppQuelle(gpsSource: string | undefined | null): boolean {
   return gpsSource === COMPANION_APP_OPTION;
 }
+
+/**
+ * Der Wert fuer „Position vom GPS-Empfaenger des Teltonika-Routers" (RUT50,
+ * ueber Modbus TCP). Benannt nach dem Geraet, nicht nach dem Weg -- aus
+ * demselben Grund wie `companion_app` oben: wer die Option einstellt, sucht
+ * „RUT50", nicht „Modbus". `Position.source` heisst dafuer `'modbus'`.
+ */
+export const RUT50_OPTION = 'rut50';
+
+/** Ist „Position vom RUT50" gewaehlt? */
+export function istRut50Quelle(gpsSource: string | undefined | null): boolean {
+  return gpsSource === RUT50_OPTION;
+}
