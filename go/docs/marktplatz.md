@@ -91,7 +91,7 @@ Add-ons und lässt sie nicht wieder aktivieren.
 
 ## HTTP-API des Marktplatzes
 
-Basis-Adresse `B` (z. B. `https://addons.yapaia.de`). Go verlangt `https`,
+Basis-Adresse `B` (z. B. `https://addons.yapaia.cloud`). Go verlangt `https`,
 außer im Entwicklermodus. Fehler haben die Form
 `{"error":{"code":"…","message":"…"}}`.
 
