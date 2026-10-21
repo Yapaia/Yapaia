@@ -10,6 +10,30 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.58.1
+
+**Der Einrichtungsassistent kann wieder Karten installieren.**
+
+Gemeldet bei einer frischen Installation, Schritt „Kartenregion":
+
+```
+Fehler: Für die Region "germany" gibt es keine Download-Quelle. Diese Kacheln
+werden aus einem OSM-Extrakt gebaut. …
+```
+
+- Der Assistent bot für jede Region nur „Herunterladen" an. Fertige
+  Kartendateien gibt es für die mitgelieferten Regionen aber nicht — sie werden
+  aus OpenStreetMap-Daten **gebaut**. Jeder Klick endete deshalb mit dieser
+  Meldung, bei jeder Region.
+- Jetzt entscheidet der Assistent wie „Karten verwalten": Regionen zum Bauen
+  haben den Knopf **Bauen**, fertige Pakete (etwa von einem eigenen
+  Kartenserver) weiter **Herunterladen**.
+- Große Länder (z. B. Deutschland) tragen einen Hinweis: der Bau dauert auf
+  einem Home-Assistant-Rechner Stunden. Routing und Suche baut danach
+  ⚙ → „Karten verwalten" → „Alles bauen".
+
+---
+
 ## 0.58.0
 
 **Position vom GPS des Teltonika-Routers (RUT50).**
