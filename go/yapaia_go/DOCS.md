@@ -432,22 +432,25 @@ The token is never shown again; leave the field empty to keep it.
 
 ## Add-on marketplace
 
-Since 0.56.0 Go installs add-ons from a **Yapaia marketplace**. Every package
-there is signed; Go refuses packages without a valid signature. Paid add-ons
-also need a license, which is bound to this Go installation.
+Go installs add-ons from the official **Yapaia marketplace**
+(`https://addons.yapaia.cloud`). Every package there is signed; Go refuses
+packages without a valid signature. Paid add-ons also need a license, which is
+bound to this Go installation.
 
-1. In Go: **⚙ → 🧩 Add-on-Store → Marktplatz**, enter the address (e.g.
-   `https://addons.example.org`) and, for purchased add-ons, the
-   **Konto-Token** from your marketplace account (optional for free
-   add-ons). Tap **Verbinden**.
-2. Go then loads the catalog; **Registry aktualisieren** reloads it later.
-   Entries show **✓ Geprüft**
-   when their signature is valid, otherwise **Unsigniert**.
-3. **Installieren** downloads and checks the package, then shows the
-   permissions it asks for — confirm with **Bestätigen & installieren**. For
-   a paid add-on Go activates its license during installation; if that fails,
-   the add-on is installed but stays disabled until you tap **Lizenz
-   aktivieren** under *Updates → Installierte Add-ons*.
+1. Free add-ons need no setup: **⚙ → 🧩 Add-on-Store → Registry
+   aktualisieren** loads the official catalog.
+2. For purchased add-ons: under **Marktplatz** enter
+   `https://addons.yapaia.cloud` and the **Konto-Token** from your
+   marketplace account, then tap **Verbinden**.
+
+Entries show **✓ Geprüft** when their signature is valid, otherwise
+**Unsigniert**.
+
+**Installieren** downloads and checks the package, then shows the
+permissions it asks for — confirm with **Bestätigen & installieren**. For a
+paid add-on Go activates its license during installation; if that fails, the
+add-on is installed but stays disabled until you tap **Lizenz aktivieren**
+under *Updates → Installierte Add-ons*.
 
 Versions the marketplace has revoked are disabled at the next sync and can no
 longer be installed or enabled.

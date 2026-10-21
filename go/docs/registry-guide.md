@@ -163,8 +163,8 @@ Review-Gedächtnisstütze, kein Selbstzertifizierungsformular.
 
 - **Registry-URL**: `ADDONS_REGISTRY_URL` (Env, höchste Priorität) →
   `…/v1/index.json` des eingetragenen Marktplatzes ([`marktplatz.md`](marktplatz.md)) →
-  Settings-Key `addons.registry.url` → eingebauter Default (offizielles
-  Registry-Repo). Für lokale Entwicklung/Tests: `ADDONS_REGISTRY_URL` auf
+  Settings-Key `addons.registry.url` → eingebauter Default (der Katalog des offiziellen
+  Marktplatzes, `https://addons.yapaia.cloud/v1/index.json`). Für lokale Entwicklung/Tests: `ADDONS_REGISTRY_URL` auf
   eine lokale Fixture-`index.json` zeigen lassen (z. B. `http://127.0.0.1:<port>/index.json`,
   siehe `apps/core/src/addons/registryRoutes.test.ts` und
   `apps/web/e2e/store.spec.ts` für lauffähige Beispiele).

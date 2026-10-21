@@ -95,6 +95,15 @@ export function normalizeMarketplaceUrl(raw: string, allowHttp: boolean): string
   return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
 }
 
+/** `https://x/v1/index.json` -> `https://x`; anything else -> `null`. Only
+ *  https -- the revocation list of an http registry is not worth trusting the
+ *  transport for (it is signed, but an attacker could withhold it). */
+export function marketplaceBaseOf(indexUrl: string | undefined): string | null {
+  if (!indexUrl) return null;
+  const m = /^(https:\/\/[^?#]+?)\/v1\/index\.json$/.exec(indexUrl.trim());
+  return m ? m[1] : null;
+}
+
 export class MarketplaceService {
   private readonly settings: MarketplaceSettings;
   private readonly fetchImpl: FetchImpl;
@@ -283,10 +292,13 @@ export class MarketplaceService {
 
   /** Fetches and stores the signed revocation list. Keeps the old list on any
    *  failure, and never accepts an OLDER list than the stored one. */
-  async syncRevocations(): Promise<RevocationEntry[]> {
-    const c = this.connection();
-    if (!c) return this.revocations();
-    const body = await this.getJson(`${c.url}/v1/revocations`);
+  async syncRevocations(indexUrl?: string): Promise<RevocationEntry[]> {
+    // The list comes from the marketplace the catalog came from: the configured
+    // one, or -- without one -- the marketplace behind `indexUrl` (e.g. the
+    // built-in official catalog). A plain registry without `/v1/` has none.
+    const base = this.connection()?.url ?? marketplaceBaseOf(indexUrl);
+    if (!base) return this.revocations();
+    const body = await this.getJson(`${base}/v1/revocations`);
     const res = await verifyRevocations(isObject(body) ? body.token : undefined, this.trustedKeys());
     if (!res.ok) throw new AddonError('REVOCATIONS_INVALID', `Sperrliste ungültig (${res.reason})`);
     const stored = this.settings.get(REVOCATIONS_SETTINGS_KEY);

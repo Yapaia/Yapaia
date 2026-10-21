@@ -17,4 +17,7 @@
 
 import type { MarketplaceKey } from './ysig';
 
-export const OFFICIAL_MARKETPLACE_KEYS: readonly MarketplaceKey[] = [];
+export const OFFICIAL_MARKETPLACE_KEYS: readonly MarketplaceKey[] = [
+  // addons.yapaia.cloud, erzeugt am 21.10.2026
+  { kid: '87f8baf20c6db4c5', public_key: 'pD_GIpRxKI-yiwqe_RV-t1s4qijzmdSMGR8E36dbeYM' },
+];
