@@ -110,11 +110,11 @@ substitutions:
   # Gelesen wird der GEMELDETE Sollwert (`…_reported`), gestellt wird ueber
   # die `number`-Entitaet -- genau so trennt die iNet-Box es selbst.
   heiz_raum_ist: sensor.heizung_current_room_temperature
-  heiz_raum_soll: sensor.heizung_target_room_temperature_reported
+  heiz_raum_soll: sensor.heizung_target_room_temperature
   heiz_raum_nummer: number.heizung_target_room_temperature
   heiz_raum_aktiv: binary_sensor.heizung_room_heater_active
   heiz_wasser_ist: sensor.heizung_current_water_temperature
-  heiz_wasser_soll: sensor.heizung_target_water_temperature_reported
+  heiz_wasser_soll: sensor.heizung_target_water_temperature
   heiz_wasser_nummer: number.heizung_target_water_temperature
   heiz_wasser_aktiv: binary_sensor.heizung_water_heater_active
 
