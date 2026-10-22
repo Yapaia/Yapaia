@@ -90,10 +90,18 @@ export function kannInstallieren(eintrag: Karteneintrag): boolean {
 }
 
 function quelleVon(eintrag: CatalogRegion): Kartenquelle {
-  if (eintrag.quelle === 'kartenserver' && eintrag.url) return 'kartenserver';
+  // Auch ohne Karte: ein Paket vom Kartenserver kann nur Routing (oder nur
+  // Suche) enthalten -- etwa ein gemeinsamer Graph fuer mehrere Laender.
+  if (eintrag.quelle === 'kartenserver') return 'kartenserver';
   if (eintrag.url) return 'download';
   if (eintrag.pbfUrl) return 'bau';
   return null;
+}
+
+/** Was ein Download laedt: bei einem Kartenserver-Paket alle Teile. */
+function downloadBytes(eintrag: CatalogRegion): number {
+  if (eintrag.quelle !== 'kartenserver') return eintrag.sizeBytes;
+  return (eintrag.url ? eintrag.sizeBytes : 0) + (eintrag.suche?.sizeBytes ?? 0) + (eintrag.routing?.sizeBytes ?? 0);
 }
 
 /**
@@ -145,7 +153,7 @@ export function kartenliste(
       // Dazwischen steht eine Karte in diesem Zustand.
       zustand:
         quelle === null ? 'ohne_quelle' : quelle === 'bau' && eintrag.extrakt ? 'geladen' : 'verfuegbar',
-      groesseBytes: eintrag.sizeBytes,
+      groesseBytes: downloadBytes(eintrag),
       bounds: eintrag.bounds,
       quelle,
       grosserBau: eintrag.buildEffort === 'large',

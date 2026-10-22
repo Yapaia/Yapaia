@@ -279,4 +279,16 @@ describe('Pakete vom Kartenserver', () => {
     expect(da.quelle).toBe('kartenserver');
     expect(installierenText(da)).toBe('Update');
   });
+
+  it('ein Paket nur mit Routing ist installierbar und zeigt seine echte Größe', () => {
+    const routing = { ...katalog('routing-de-ch-li', { sizeBytes: 0, quelle: 'kartenserver' }), routing: { url: 'https://k/r.tar', sizeBytes: 5_000 } };
+    const [e] = kartenliste([], [routing]);
+    expect(e.zustand).toBe('verfuegbar');
+    expect(kannInstallieren(e)).toBe(true);
+    expect(installierenText(e)).toBe('Installieren');
+    expect(e.groesseBytes).toBe(5_000);
+
+    const ganz = { ...katalog('de', { url: 'https://k/de.pmtiles', sizeBytes: 300, quelle: 'kartenserver' }), suche: { url: 'https://k/s.db', sizeBytes: 600 } };
+    expect(kartenliste([], [ganz])[0].groesseBytes).toBe(900);
+  });
 });
