@@ -68,6 +68,17 @@ async function kartenserver(dateien: Record<string, Buffer>, katalog: (basis: st
       res.writeHead(404).end();
       return;
     }
+    // Wie der echte Server: ein Bereich ab dem Dateiende ist nicht erfuellbar.
+    const ab = /^bytes=(\d+)-$/.exec(req.headers.range ?? '')?.[1];
+    if (ab !== undefined) {
+      if (Number(ab) >= daten.length) {
+        res.writeHead(416).end();
+        return;
+      }
+      const rest = daten.subarray(Number(ab));
+      res.writeHead(206, { 'Content-Length': rest.length }).end(rest);
+      return;
+    }
     res.writeHead(200, { 'Content-Length': daten.length }).end(daten);
   });
   server.push(s);
@@ -195,6 +206,39 @@ describe('Paket laden und installieren', () => {
     expect(existsSync(join(z.graphDir, 'valhalla_tiles', '2', '000.gph'))).toBe(true);
     expect(JSON.parse(readFileSync(join(d, 'valhalla', 'build-info.json'), 'utf-8'))).toEqual({ region: 'neu' });
     expect(existsSync(join(d, 'valhalla', 'alpen-routing.tar.part'))).toBe(false);
+  });
+
+  it('neuer Versuch, nachdem die Karte schon ganz geladen war: kein HTTP 416', async () => {
+    const { d, z } = ziele();
+    const karte = Buffer.from('PMTiles-Karte');
+    const suche = Buffer.from('SQLite format 3 ...');
+    const routing = readFileSync(routingTar(d));
+    const basis = await kartenserver({ 'alpen.pmtiles': karte, 'lite_search-alpen.db': suche, 'alpen-routing.tar': routing }, () => []);
+    // Erster Versuch: Karte komplett, Suche halb, dann abgebrochen.
+    mkdirSync(z.tilesDir, { recursive: true });
+    mkdirSync(z.liteDir, { recursive: true });
+    writeFileSync(join(z.tilesDir, 'alpen.pmtiles.part'), karte);
+    writeFileSync(join(z.liteDir, 'lite_search-alpen.db.part'), suche.subarray(0, 5));
+    const jobs = new JobRegistry();
+    const id = jobs.create('kartenserver');
+    await runPaketJob(id, jobs, eintragAus(paket(basis, karte, suche, routing))!, z, TOKEN);
+    const j = await fertig(jobs, id);
+    expect(j.status, JSON.stringify(j.error)).toBe('done');
+    expect(readFileSync(join(z.tilesDir, 'alpen.pmtiles'), 'utf-8')).toBe('PMTiles-Karte');
+    expect(readFileSync(join(z.liteDir, 'lite_search-alpen.db'), 'utf-8')).toBe('SQLite format 3 ...');
+  });
+
+  it('Teil-Datei größer als die Datei: wird neu geladen', async () => {
+    const { z } = ziele();
+    const karte = Buffer.from('PMTiles-Karte');
+    const basis = await kartenserver({ 'alpen.pmtiles': karte }, () => []);
+    mkdirSync(z.tilesDir, { recursive: true });
+    writeFileSync(join(z.tilesDir, 'alpen.pmtiles.part'), Buffer.from('viel zu lange alte Datei'));
+    const jobs = new JobRegistry();
+    const id = jobs.create('kartenserver');
+    await runPaketJob(id, jobs, { ...eintragAus(paket(basis, karte, Buffer.from(''), Buffer.from('')))!, suche: undefined, routing: undefined }, z, TOKEN);
+    expect((await fertig(jobs, id)).status).toBe('done');
+    expect(readFileSync(join(z.tilesDir, 'alpen.pmtiles'), 'utf-8')).toBe('PMTiles-Karte');
   });
 
   it('falsche Prüfsumme: nichts wird angefasst', async () => {

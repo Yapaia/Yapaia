@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.59.1
+
+**Paket vom Kartenserver lässt sich nach einem Abbruch wieder installieren.**
+War die Karte eines Pakets beim ersten Versuch schon ganz geladen und brach
+erst der Suchindex oder das Routing ab, scheiterte jeder weitere Versuch mit
+
+> Fehler: Kartenserver: germany.pmtiles HTTP 416
+
+Go wollte die fertige Datei ab ihrem Ende weiterladen. Jetzt wird eine
+vollständig geladene Datei nur noch geprüft und der Download geht bei der
+nächsten weiter.
+
+---
+
 ## 0.59.0
 
 **Erst alle Karten herunterladen, dann gemeinsam bauen.**
