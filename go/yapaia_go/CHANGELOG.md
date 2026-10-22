@@ -10,6 +10,16 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.59.2
+
+**Routing-Pakete vom Kartenserver haben einen Knopf.**
+Ein Paket, das nur Routing enthält (etwa „Routing Deutschland, Schweiz,
+Liechtenstein“), stand mit „0 B“ und ohne „Installieren“ in der Liste. Jetzt
+lässt es sich installieren. Bei Paketen vom Kartenserver zeigt die Liste
+außerdem die ganze Downloadgröße (Karte, Suche und Routing).
+
+---
+
 ## 0.59.1
 
 **Paket vom Kartenserver lässt sich nach einem Abbruch wieder installieren.**
