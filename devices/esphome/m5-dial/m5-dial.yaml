@@ -87,22 +87,22 @@ substitutions:
   # sagt im Dunkeln niemandem etwas, „Vorzelt" schon. Kurz halten: es sind
   # rund 14 Zeichen Platz.
   licht_anzahl: "8"
-  licht1: light.smartwomo_ausgang_out1
-  licht1_name: "Ausgang 1"
-  licht2: light.smartwomo_ausgang_out2
-  licht2_name: "Ausgang 2"
-  licht3: light.smartwomo_ausgang_out3
-  licht3_name: "Ausgang 3"
-  licht4: light.smartwomo_ausgang_out4
-  licht4_name: "Ausgang 4"
-  licht5: light.smartwomo_ausgang_out5
-  licht5_name: "Ausgang 5"
-  licht6: light.smartwomo_ausgang_out6
-  licht6_name: "Ausgang 6"
-  licht7: light.smartwomo_ausgang_out7
-  licht7_name: "Ausgang 7"
-  licht8: light.smartwomo_ausgang_out8
-  licht8_name: "Ausgang 8"
+  licht1: light.smartwomo_ausgang_out2
+  licht1_name: "Dinette"
+  licht2: light.smartwomo_ausgang_out1
+  licht2_name: "Außen"
+  licht3: light.smartwomo_ausgang_out5
+  licht3_name: "Ambiente"
+  licht4: light.smartwomo_ausgang_out6
+  licht4_name: "Ambiente Bett"
+  licht5: light.smartwomo_ausgang_out4
+  licht5_name: "Bett"
+  licht6: light.smartwomo_ausgang_out8
+  licht6_name: "Bad"
+  licht7: light.smartwomo_ausgang_out3
+  licht7_name: "Eingang"
+  licht8: light.smartwomo_ausgang_out7
+  licht8_name: "Nachtlicht"
   # Prozent je Rastung des Drehrings.
   licht_schritt: "5"
 
