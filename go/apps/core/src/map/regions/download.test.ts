@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'fs';
+import http from 'http';
+import type { AddressInfo } from 'net';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { Buffer } from 'node:buffer';
@@ -11,7 +13,9 @@ import {
   partFileName,
   partFilePath,
   finalFilePath,
+  streamToFile,
 } from './download.js';
+import { JobRegistry } from './jobs.js';
 
 describe('buildRangeHeader (resume offset -> Range header)', () => {
   it('omits the header for a fresh download (no existing bytes)', () => {
@@ -69,5 +73,63 @@ describe('file naming helpers', () => {
     expect(finalFileName('germany')).toBe('germany.pmtiles');
     expect(partFilePath('/tiles', 'germany')).toBe(join('/tiles', 'germany.pmtiles.part'));
     expect(finalFilePath('/tiles', 'germany')).toBe(join('/tiles', 'germany.pmtiles'));
+  });
+});
+
+describe('streamToFile folgt Umleitungen', () => {
+  let server: http.Server | null = null;
+  let dir: string | null = null;
+
+  afterEach(async () => {
+    if (server) await new Promise<void>((r) => server!.close(() => r()));
+    server = null;
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    dir = null;
+  });
+
+  it('laedt nach 307 die Zieldatei und reicht Range weiter (Geofabrik `-latest`)', async () => {
+    const ranges: (string | undefined)[] = [];
+    server = http.createServer((req, res) => {
+      ranges.push(req.headers.range);
+      if (req.url === '/europe/netherlands-latest.osm.pbf') {
+        res.writeHead(307, { Location: '/europe/netherlands-261020.osm.pbf' });
+        res.end();
+        return;
+      }
+      res.writeHead(206, { 'Content-Length': '3' });
+      res.end('def');
+    });
+    await new Promise<void>((r) => server!.listen(0, '127.0.0.1', () => r()));
+    const { port } = server.address() as AddressInfo;
+
+    dir = mkdtempSync(join(tmpdir(), 'umleitung-'));
+    const dest = join(dir, 'nl.part');
+    writeFileSync(dest, 'abc');
+    const jobs = new JobRegistry();
+    await streamToFile({
+      url: `http://127.0.0.1:${port}/europe/netherlands-latest.osm.pbf`,
+      dest,
+      resumeFrom: 3,
+      jobId: jobs.create(),
+      jobs,
+    });
+
+    expect(readFileSync(dest, 'utf8')).toBe('abcdef');
+    expect(ranges).toEqual(['bytes=3-', 'bytes=3-']);
+  });
+
+  it('bricht nach zu vielen Umleitungen ab', async () => {
+    server = http.createServer((_req, res) => {
+      res.writeHead(302, { Location: '/kreis' });
+      res.end();
+    });
+    await new Promise<void>((r) => server!.listen(0, '127.0.0.1', () => r()));
+    const { port } = server.address() as AddressInfo;
+    dir = mkdtempSync(join(tmpdir(), 'umleitung-'));
+    const jobs = new JobRegistry();
+
+    await expect(
+      streamToFile({ url: `http://127.0.0.1:${port}/kreis`, dest: join(dir, 'x.part'), resumeFrom: 0, jobId: jobs.create(), jobs }),
+    ).rejects.toThrow(/Too many redirects/);
   });
 });
