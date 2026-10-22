@@ -199,18 +199,27 @@ export async function graphEinwechseln(tarPfad: string, graphDir: string, deps: 
 }
 
 async function ladeGeprueft(
-  url: string,
+  datei: PaketDatei,
   ziel: string,
-  sha256: string | undefined,
   ctx: { jobId: string; jobs: JobRegistry; token: string; davor: number; gesamt: number },
 ): Promise<void> {
+  const { url, sha256, sizeBytes } = datei;
   await mkdir(dirname(ziel), { recursive: true });
   const teil = `${ziel}.part`;
   const name = url.split('/').pop();
-  await streamToFile({
+  let schon = await existingPartBytes(teil);
+  // Ein frueherer Versuch kann diese Datei schon ganz geladen haben und erst
+  // an der naechsten gescheitert sein. Dann nicht ab ihrem Ende weiterladen
+  // wollen -- der Server antwortet darauf mit 416 --, sondern nur pruefen.
+  // Ist die Teil-Datei groesser als die Datei, taugt sie nicht: neu laden.
+  if (sizeBytes > 0 && schon > sizeBytes) {
+    await rm(teil, { force: true });
+    schon = 0;
+  }
+  if (sizeBytes <= 0 || schon < sizeBytes) await streamToFile({
     url,
     dest: teil,
-    resumeFrom: await existingPartBytes(teil),
+    resumeFrom: schon,
     jobId: ctx.jobId,
     jobs: ctx.jobs,
     headers: { Authorization: `Bearer ${ctx.token}` },
@@ -258,7 +267,7 @@ export function runPaketJob(
         jobs.setNote(jobId, `${t.was} wird geladen …`);
         // `<ziel>.part` -- fuer die Karte dieselbe Datei wie beim normalen
         // Download (`partFilePath`), damit ein Abbruch dort weitermacht.
-        await ladeGeprueft(t.datei.url, t.ziel, t.datei.sha256, { jobId, jobs, token, davor, gesamt });
+        await ladeGeprueft(t.datei, t.ziel, { jobId, jobs, token, davor, gesamt });
         davor += t.datei.sizeBytes;
         if (jobs.isCancelled(jobId)) throw Object.assign(new Error('Abgebrochen'), { code: 'CANCELLED' });
       }
