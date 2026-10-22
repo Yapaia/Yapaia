@@ -30,6 +30,7 @@ import http from 'http';
 import https from 'https';
 import type { IncomingMessage } from 'http';
 import { Buffer } from 'node:buffer';
+import { URL } from 'node:url';
 import type { CatalogEntry } from './catalog.js';
 import type { JobRegistry } from './jobs.js';
 
