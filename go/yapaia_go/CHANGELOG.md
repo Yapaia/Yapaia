@@ -10,6 +10,14 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.59.3
+
+**OSM-Extrakte von Geofabrik lassen sich wieder laden.** Geofabrik leitet
+`…-latest.osm.pbf` inzwischen auf die datierte Datei um (HTTP 307). Go ist
+dieser Umleitung nicht gefolgt und brach mit „Unexpected HTTP status 307
+downloading region tiles“ ab. Umleitungen werden jetzt verfolgt; ein
+abgebrochener Download setzt weiter dort fort, wo er aufhörte.
+
 ## 0.59.2
 
 **Routing-Pakete vom Kartenserver haben einen Knopf.**

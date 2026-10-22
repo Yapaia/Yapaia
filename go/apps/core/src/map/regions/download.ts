@@ -30,11 +30,15 @@ import http from 'http';
 import https from 'https';
 import type { IncomingMessage } from 'http';
 import { Buffer } from 'node:buffer';
+import { URL } from 'node:url';
 import type { CatalogEntry } from './catalog.js';
 import type { JobRegistry } from './jobs.js';
 
 /** Socket inactivity timeout for the download request. */
 export const DOWNLOAD_TIMEOUT_MS = 30_000;
+
+/** Hoechstzahl verfolgter HTTP-Umleitungen je Download. */
+const MAX_UMLEITUNGEN = 5;
 
 export function partFileName(regionId: string): string {
   return `${regionId}.pmtiles.part`;
@@ -177,67 +181,86 @@ export function streamToFile({ url, dest, resumeFrom, jobId, jobs, headers: zusa
       headers.Range = rangeHeader;
     }
 
-    const req = requestFn(url)(
-      url,
-      { headers, timeout: DOWNLOAD_TIMEOUT_MS },
-      (res: IncomingMessage) => {
-        const status = res.statusCode ?? 0;
-        if (status !== 200 && status !== 206) {
-          res.resume();
-          settleErr(new Error(`Unexpected HTTP status ${status} downloading region tiles`));
-          return;
-        }
-
-        // A resume attempt where the server ignores Range and answers 200
-        // (full body) must restart the .part file from byte 0 -- never
-        // append the full body after our existing partial bytes.
-        const isFullRestart = status === 200 && resumeFrom > 0;
-        const writeStart = isFullRestart ? 0 : resumeFrom;
-
-        const out = createWriteStream(
-          dest,
-          writeStart > 0 ? { flags: 'r+', start: writeStart } : { flags: 'w' },
-        );
-
-        outStream = out;
-
-        let bytesWritten = writeStart;
-        const contentLengthHeader = res.headers['content-length'];
-        const contentLength =
-          typeof contentLengthHeader === 'string' ? parseInt(contentLengthHeader, 10) : null;
-        const totalBytes =
-          contentLength !== null && !Number.isNaN(contentLength) ? writeStart + contentLength : null;
-
-        const melden = (): void =>
-          fortschritt
-            ? jobs.updateProgress(jobId, fortschritt.davor + bytesWritten, fortschritt.gesamt)
-            : jobs.updateProgress(jobId, bytesWritten, totalBytes ?? undefined);
-        melden();
-
-        res.on('data', (chunk: Buffer) => {
-          bytesWritten += chunk.length;
-          melden();
-          if (jobs.isCancelled(jobId)) {
-            res.unpipe(out);
-            out.end();
-            res.destroy();
-            req.destroy();
+    /**
+     * Geofabrik leitet `…-latest.osm.pbf` per 307 auf die datierte Datei um
+     * (z. B. `netherlands-261020.osm.pbf`). Umleitungen werden deshalb
+     * verfolgt -- mit denselben Kopfzeilen, also auch mit `Range`.
+     */
+    let req: http.ClientRequest;
+    const anfragen = (ziel: string, umleitungen: number): void => {
+      req = requestFn(ziel)(
+        ziel,
+        { headers, timeout: DOWNLOAD_TIMEOUT_MS },
+        (res: IncomingMessage) => {
+          const status = res.statusCode ?? 0;
+          const location = res.headers.location;
+          if ([301, 302, 303, 307, 308].includes(status) && location) {
+            res.resume();
+            if (umleitungen >= MAX_UMLEITUNGEN) {
+              settleErr(new Error(`Too many redirects downloading region tiles`));
+              return;
+            }
+            anfragen(new URL(location, ziel).toString(), umleitungen + 1);
+            return;
           }
-        });
+          if (status !== 200 && status !== 206) {
+            res.resume();
+            settleErr(new Error(`Unexpected HTTP status ${status} downloading region tiles`));
+            return;
+          }
 
-        res.on('error', (err) => settleErr(err));
-        out.on('error', (err) => settleErr(err));
-        out.on('finish', () => settleOk());
+          // A resume attempt where the server ignores Range and answers 200
+          // (full body) must restart the .part file from byte 0 -- never
+          // append the full body after our existing partial bytes.
+          const isFullRestart = status === 200 && resumeFrom > 0;
+          const writeStart = isFullRestart ? 0 : resumeFrom;
 
-        res.pipe(out);
-      },
-    );
+          const out = createWriteStream(
+            dest,
+            writeStart > 0 ? { flags: 'r+', start: writeStart } : { flags: 'w' },
+          );
 
-    req.on('timeout', () => {
-      req.destroy(new Error(`Download timed out after ${DOWNLOAD_TIMEOUT_MS}ms of inactivity`));
-    });
-    req.on('error', (err) => settleErr(err instanceof Error ? err : new Error(String(err))));
-    req.end();
+          outStream = out;
+
+          let bytesWritten = writeStart;
+          const contentLengthHeader = res.headers['content-length'];
+          const contentLength =
+            typeof contentLengthHeader === 'string' ? parseInt(contentLengthHeader, 10) : null;
+          const totalBytes =
+            contentLength !== null && !Number.isNaN(contentLength) ? writeStart + contentLength : null;
+
+          const melden = (): void =>
+            fortschritt
+              ? jobs.updateProgress(jobId, fortschritt.davor + bytesWritten, fortschritt.gesamt)
+              : jobs.updateProgress(jobId, bytesWritten, totalBytes ?? undefined);
+          melden();
+
+          res.on('data', (chunk: Buffer) => {
+            bytesWritten += chunk.length;
+            melden();
+            if (jobs.isCancelled(jobId)) {
+              res.unpipe(out);
+              out.end();
+              res.destroy();
+              req.destroy();
+            }
+          });
+
+          res.on('error', (err) => settleErr(err));
+          out.on('error', (err) => settleErr(err));
+          out.on('finish', () => settleOk());
+
+          res.pipe(out);
+        },
+      );
+
+      req.on('timeout', () => {
+        req.destroy(new Error(`Download timed out after ${DOWNLOAD_TIMEOUT_MS}ms of inactivity`));
+      });
+      req.on('error', (err) => settleErr(err instanceof Error ? err : new Error(String(err))));
+      req.end();
+    };
+    anfragen(url, 0);
   });
 }
 
