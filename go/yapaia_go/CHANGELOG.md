@@ -10,6 +10,21 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.60.0
+
+**Kartenbau schützt das System vor Überlastung.** Ein großer Gesamtbau konnte
+einen Rechner so auslasten, dass Home Assistant einfror. Jetzt gilt:
+
+- Kacheln, Routing und Suche bauen mit niedrigster CPU-Priorität – Home
+  Assistant kommt immer zuerst dran.
+- Ein Lastwächter misst alle 5 Sekunden CPU und Arbeitsspeicher des ganzen
+  Rechners. Ist die CPU 30 Sekunden am Stück voll oder wird der Speicher knapp,
+  **pausiert** der Bau („Pausiert – System ausgelastet …“) und geht von selbst
+  weiter, sobald wieder Luft ist.
+- Wird der Speicher kritisch knapp oder bleibt er trotz Pause 10 Minuten knapp,
+  wird der Bau **abgebrochen**, bevor das System einfriert. Der bisherige
+  Kartenstand bleibt dabei unverändert.
+
 ## 0.59.3
 
 **OSM-Extrakte von Geofabrik lassen sich wieder laden.** Geofabrik leitet

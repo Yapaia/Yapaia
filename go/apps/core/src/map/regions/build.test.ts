@@ -16,6 +16,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Buffer } from 'node:buffer';
+import { setTimeout } from 'node:timers';
 import {
   BUILD_COMMAND,
   BUILD_HEAP_BYTES,
@@ -30,7 +31,9 @@ import {
   truncateNote,
   type SpawnedBuild,
   ansiFrei,
+  defaultSpawnBuild,
 } from './build.js';
+import type { LastMessung } from './lastwaechter.js';
 import { JobRegistry } from './jobs.js';
 import type { CatalogEntry } from './catalog.js';
 
@@ -47,7 +50,7 @@ function makeStub() {
   const handlers: Record<string, Array<(arg: never) => void>> = {};
   const outHandlers: Array<(chunk: Buffer | string) => void> = [];
   const errHandlers: Array<(chunk: Buffer | string) => void> = [];
-  let killed: string | undefined;
+  const signale: string[] = [];
 
   const child: SpawnedBuild = {
     stdout: { on: (_e, cb) => void outHandlers.push(cb) },
@@ -56,7 +59,7 @@ function makeStub() {
       (handlers[event] ??= []).push(cb);
     },
     kill: (signal?: string) => {
-      killed = signal;
+      signale.push(signal ?? 'SIGTERM');
       return true;
     },
   } as SpawnedBuild;
@@ -68,7 +71,7 @@ function makeStub() {
     close: (code: number | null) =>
       (handlers.close ?? []).forEach((cb) => (cb as (c: number | null) => void)(code)),
     fail: (err: Error) => (handlers.error ?? []).forEach((cb) => (cb as (e: Error) => void)(err)),
-    killedWith: () => killed,
+    signale: () => [...signale],
   };
 }
 
@@ -230,7 +233,8 @@ describe('runBuildJob — Verlauf und Ende', () => {
     runBuildJob(id, jobs, ENTRY, '/tiles', { spawnFn: () => stub.child });
 
     jobs.cancel(id);
-    expect(stub.killedWith()).toBe('SIGTERM');
+    // SIGCONT danach, damit auch ein pausierter Bau das SIGTERM bekommt.
+    expect(stub.signale()).toEqual(['SIGTERM', 'SIGCONT']);
 
     stub.close(143);
     const job = jobs.get(id);
@@ -433,5 +437,69 @@ describe('ansiFrei', () => {
     const zeile = `\u001B[0m${roh}`;
     expect(noteFromChunk(zeile)).toContain('Kartendaten werden geladen');
     expect(noteFromChunk(zeile)).toContain('4607 MB');
+  });
+});
+
+describe('runBuildJob — Lastwächter', () => {
+  const GB = 1024 ** 3;
+
+  it('pausiert bei knappem Speicher, setzt fort und bricht bei kritischem Speicher ab', async () => {
+    const jobs = new JobRegistry();
+    const id = jobs.create();
+    const stub = makeStub();
+    let messung: LastMessung = { cpuProzent: 10, ramFreiBytes: 8 * GB, ramGesamtBytes: 16 * GB };
+    runBuildJob(id, jobs, ENTRY, '/tiles', {
+      spawnFn: () => stub.child,
+      lastQuelle: () => messung,
+      lastIntervallMs: 5,
+    });
+    const warte = () => new Promise((r) => setTimeout(r, 30));
+
+    messung = { ...messung, ramFreiBytes: 1 * GB };
+    await warte();
+    expect(stub.signale()).toEqual(['SIGSTOP']);
+    expect(jobs.get(id)?.note).toMatch(/^Pausiert/);
+
+    messung = { ...messung, ramFreiBytes: 8 * GB };
+    await warte();
+    expect(stub.signale()).toEqual(['SIGSTOP', 'SIGCONT']);
+
+    messung = { ...messung, ramFreiBytes: 0.5 * GB };
+    await warte();
+    expect(stub.signale().slice(-2)).toEqual(['SIGTERM', 'SIGCONT']);
+    expect(jobs.get(id)?.status).toBe('error');
+    expect(jobs.get(id)?.error?.code).toBe('SYSTEM_UEBERLASTET');
+  });
+
+  it('startet mit Stub-Prozess und ohne Quelle keinen Wächter', async () => {
+    const jobs = new JobRegistry();
+    const id = jobs.create();
+    const stub = makeStub();
+    runBuildJob(id, jobs, ENTRY, '/tiles', { spawnFn: () => stub.child, lastIntervallMs: 5 });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(stub.signale()).toEqual([]);
+  });
+});
+
+describe('defaultSpawnBuild', () => {
+  it('startet mit niedrigster Priorität', async () => {
+    const child = defaultSpawnBuild('sh', ['-c', 'nice'], {});
+    let aus = '';
+    child.stdout?.on('data', (c) => void (aus += c.toString()));
+    await new Promise<void>((r) => child.on('close', () => r()));
+    expect(aus.trim()).toBe('19');
+  });
+
+  it('pausiert, setzt fort und beendet die ganze Prozessgruppe', async () => {
+    // Die Shell wartet auf ein Kind -- SIGTERM muss auch das Kind treffen.
+    const child = defaultSpawnBuild('sh', ['-c', 'sleep 30 & wait'], {});
+    const ende = new Promise<number | null>((r) => child.on('close', (c) => r(c)));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(child.kill('SIGSTOP')).toBe(true);
+    expect(child.kill('SIGTERM')).toBe(true);
+    expect(child.kill('SIGCONT')).toBe(true);
+    const start = Date.now();
+    await ende;
+    expect(Date.now() - start).toBeLessThan(5000);
   });
 });

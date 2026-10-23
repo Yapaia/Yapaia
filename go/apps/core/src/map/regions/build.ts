@@ -33,11 +33,13 @@
  * da ist.
  */
 
-import { spawn as nodeSpawn } from 'child_process';
+import { spawn as nodeSpawn, type ChildProcess } from 'child_process';
 import { Buffer } from 'node:buffer';
 import { freemem as osFreemem } from 'os';
+import process from 'node:process';
 import type { CatalogEntry } from './catalog.js';
 import type { JobRegistry } from './jobs.js';
+import { procLastQuelle, starteLastwaechter, type LastQuelle } from './lastwaechter.js';
 
 /** Der Wrapper aus `yapaia_go/rootfs/usr/bin/` -- er setzt TILES_DIR, holt
  *  beim ersten Lauf planetiler.jar und ruft dann das eigentliche Skript. */
@@ -150,7 +152,44 @@ export interface BuildJobDeps {
   /** Wohin die Ausgabe des Bau-Prozesses gespiegelt wird. In Produktion der
    *  Fastify-Logger, dessen stdout im Add-on-Protokoll landet. */
   logger?: (line: string) => void;
+  /** Misst die Last des Rechners für den Lastwächter (`lastwaechter.ts`).
+   *  Ohne Angabe: `/proc` -- aber nur mit dem echten `spawn`. Ein Test mit
+   *  Stub-Prozess soll nicht pausiert werden, nur weil die CI ausgelastet ist. */
+  lastQuelle?: LastQuelle;
+  lastIntervallMs?: number;
 }
+
+type Signal = NonNullable<Parameters<ChildProcess['kill']>[0]>;
+
+/**
+ * Startet ein Bau-Werkzeug so, dass es das System nicht erdrückt:
+ *
+ *  * `nice -n 19` -- niedrigste CPU-Priorität, Home Assistant geht vor;
+ *  * eigene Prozessgruppe (`detached`) -- Signale gehen an das Skript UND
+ *    alle Werkzeuge, die es startet (valhalla_build_tiles, java, osmium).
+ *    Sonst pausierte bzw. beendete ein SIGSTOP/SIGTERM nur die Shell,
+ *    während das eigentliche Werkzeug weiterrechnet.
+ */
+export const defaultSpawnBuild: SpawnBuildFn = (command, args, env) => {
+  const child = nodeSpawn('nice', ['-n', '19', command, ...args], {
+    env: { ...process.env, ...env },
+    detached: true,
+  });
+  return {
+    stdout: child.stdout,
+    stderr: child.stderr,
+    on: child.on.bind(child) as SpawnedBuild['on'],
+    kill: (signal = 'SIGTERM') => {
+      if (child.pid === undefined) return false;
+      try {
+        process.kill(-child.pid, signal as Signal);
+        return true;
+      } catch {
+        return child.kill(signal as Signal);
+      }
+    },
+  };
+};
 
 /** Kappt eine Ausgabezeile auf eine Laenge, die in der Oberflaeche noch
  *  lesbar ist -- planetiler schreibt sehr lange Statuszeilen. */
@@ -342,16 +381,16 @@ export function laufeBau(
   // den der Kindprozess dann doch noch mit `close` reagiert, zweimal ein
   // Ende — und der Gesamtbau spränge zwei Schritte weiter.
   let beendet = false;
+  let stoppeLast = (): void => {};
   const ende = (ergebnis: BauErgebnis): void => {
     if (beendet) return;
     beendet = true;
+    stoppeLast();
     onEnde(ergebnis);
   };
   const logger = deps.logger;
-  const spawnFn: SpawnBuildFn =
-    deps.spawnFn ??
-    ((command, args, env) =>
-      nodeSpawn(command, args, { env: { ...process.env, ...env } }) as unknown as SpawnedBuild);
+  const spawnFn: SpawnBuildFn = deps.spawnFn ?? defaultSpawnBuild;
+  const lastQuelle = deps.lastQuelle ?? (deps.spawnFn ? undefined : procLastQuelle());
 
   const source = entry.pbfUrl;
   if (!source) {
@@ -403,10 +442,46 @@ export function laufeBau(
   //
   // `markError` auf einem bereits beendeten Job ist ein No-op, der
   // `close`-Zweig unten darf also gefahrlos noch einmal dasselbe tun.
-  jobs.setOnCancel(jobId, () => {
+  // Ein pausierter Prozess bekommt SIGTERM erst nach SIGCONT zugestellt.
+  const beenden = (): void => {
     child.kill('SIGTERM');
+    child.kill('SIGCONT');
+  };
+  jobs.setOnCancel(jobId, () => {
+    beenden();
     ende({ art: 'abgebrochen' });
   });
+
+  stoppeLast = lastQuelle
+    ? starteLastwaechter({
+        quelle: lastQuelle,
+        intervallMs: deps.lastIntervallMs,
+        onPause: (grund) => {
+          child.kill('SIGSTOP');
+          logger?.(`[${variant.logPrefix} ${entry.id}] Pausiert: System ausgelastet (${grund})`);
+          jobs.setNote(jobId, `Pausiert – System ausgelastet (${grund}). Geht von selbst weiter.`);
+        },
+        onWeiter: () => {
+          child.kill('SIGCONT');
+          logger?.(`[${variant.logPrefix} ${entry.id}] Last wieder normal, Bau geht weiter`);
+          jobs.setNote(jobId, 'Last wieder normal – Bau geht weiter…');
+        },
+        onAbbruch: (grund) => {
+          beenden();
+          logger?.(`[${variant.logPrefix} ${entry.id}] Abgebrochen zum Schutz des Systems: ${grund}`);
+          ende({
+            art: 'fehler',
+            info: {
+              code: 'SYSTEM_UEBERLASTET',
+              message:
+                `${variant.humanName} wurde abgebrochen, um das System zu schützen: ${grund}. ` +
+                'Der bisherige Stand ist unverändert. Große Regionen besser auf einem Rechner ' +
+                'mit mehr Arbeitsspeicher bauen und die fertigen Dateien einspielen.',
+            },
+          });
+        },
+      })
+    : () => {};
 
   // Die Ausgabe geht an ZWEI Stellen, und beide werden gebraucht:
   //
