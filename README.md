@@ -1,5 +1,24 @@
 # Yapaia
 
+> [!CAUTION]
+> **Alpha-Version – Nutzung auf eigene Gefahr.**
+>
+> Yapaia befindet sich in der Alpha-Testphase und ist noch fehlerbehaftet.
+> Einzelne Funktionen – etwa der Bau großer Karten – können ein System stark
+> belasten und im schlimmsten Fall zum Absturz bringen.
+>
+> - **Vor der Installation ein vollständiges Backup** des Home-Assistant-Systems
+>   anlegen und prüfen, dass es sich zurückspielen lässt.
+> - **Am besten zuerst auf einem Testsystem** ausprobieren und erst auf das
+>   produktive System wechseln, wenn alles zuverlässig läuft.
+> - Yapaia ist **kein Ersatz für ein zugelassenes Navigationsgerät**; Routen,
+>   Höhen- und Gewichtsangaben immer selbst prüfen.
+>
+> Die Software wird ohne jede Gewährleistung bereitgestellt. Jegliche Haftung
+> für Schäden, die durch die Nutzung entstehen – insbesondere Datenverlust,
+> Ausfälle oder Folgeschäden –, ist ausgeschlossen, soweit gesetzlich zulässig.
+> Siehe auch Abschnitte 15 und 16 der [Lizenz (GPL-3.0)](LICENSE).
+
 **Yapaia** ist eine Suite von Home-Assistant-Modulen fürs Wohnmobil – jedes
 Modul erfüllt eine Aufgabe, funktioniert für sich allein und wird besser, je
 mehr Yapaia-Module zusammenarbeiten.
