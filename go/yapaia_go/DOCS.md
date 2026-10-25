@@ -451,8 +451,13 @@ builds map tiles, search index and routing graph exactly like Go does.
    downloads map, search and routing, verifies the checksums and only then
    swaps them in. If anything fails, your current data stays untouched.
 
-The routing graph from a package **replaces** the current one (there is
-only one graph). Valhalla picks it up within 30 seconds, no restart needed.
+Country packages from one Europe-wide build (e.g. Germany, Switzerland,
+France) **add up**: their routing tiles are combined into one graph, and
+routes across the borders work as with a single big graph. A routing package
+from a different build, or any other routing package, **replaces** the
+current graph – the job message then names the countries whose routing has
+to be downloaded again. Deleting a map also removes that country's routing
+tiles (border tiles needed by a neighbour stay). Valhalla reloads right away.
 The token is never shown again; leave the field empty to keep it.
 
 ## Add-on marketplace
