@@ -77,7 +77,7 @@ FROM scratch AS yapaia-integration
 FROM scratch AS gosrc
 
 # ---- Stage 1c: build apps/core + apps/web (identical recipe to apps/core/Dockerfile) ----
-FROM node:22-slim AS core-build
+FROM node:24-slim AS core-build
 RUN corepack enable
 WORKDIR /app
 ENV CI=true
@@ -171,7 +171,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ---- Node.js: official prebuilt tarball (works regardless of the base ----
 # ---- image's own package manager/repos having a recent-enough Node). ----
-ENV NODE_VERSION=22.11.0
+ENV NODE_VERSION=24.22.1
 RUN set -eux; \
     ARCH="${BUILD_ARCH:-${TARGETARCH:-}}"; \
     test -n "$ARCH" || { echo "neither BUILD_ARCH nor TARGETARCH is set -- refusing to guess"; exit 1; }; \

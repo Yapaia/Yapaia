@@ -167,7 +167,7 @@ what the Developer Guide and the Manual say.
 ## Technology
 
 TypeScript throughout. **Frontend:** React 18, Vite, MapLibre GL JS 6, Zustand,
-Tailwind. **Backend:** Node 22, Fastify 5, SQLite. **Maps:** OpenStreetMap as
+Tailwind. **Backend:** Node 24, Fastify 5, SQLite. **Maps:** OpenStreetMap as
 PMTiles. **Routing:** Valhalla. **Search:** Photon, with an offline fallback
 index. **Packaging:** a single container, s6-overlay supervised, served through
 Home Assistant Ingress.

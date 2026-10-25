@@ -24,7 +24,7 @@ export default defineConfig({
   entry: { index: 'src/index.ts', 'lite-index': 'src/search/lite/cli.ts' },
   format: ['esm'],
   platform: 'node',
-  target: 'node22',
+  target: 'node24',
   outDir: 'dist',
   clean: true,
   sourcemap: true,
