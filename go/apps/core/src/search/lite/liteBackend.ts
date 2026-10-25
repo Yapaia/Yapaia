@@ -22,6 +22,7 @@ import type { GeocoderBackend, ReverseQuery, SearchLogger, SearchQuery } from '.
 import { LiteIndexReader, splitQueryTerms, type SuchKasten } from './reader.js';
 import { listLiteSearchDbFiles } from './paths.js';
 import { haversineKm, rankLiteCandidates, type LiteCandidate } from './ranking.js';
+import type { Korrektur } from './tippfehler.js';
 
 const noopLogger: SearchLogger = { info: () => {}, warn: () => {}, error: () => {} };
 
@@ -169,6 +170,37 @@ export class LiteBackend implements GeocoderBackend {
   }
 
   async search(query: SearchQuery): Promise<SearchResult[]> {
+    const ergebnis = this.sucheGenau(query);
+    if (ergebnis.length > 0) return ergebnis;
+    // Nichts gefunden: vielleicht ein Tippfehler (tippfehler.ts, 0.61.0).
+    const korrigiert = this.withErrorMapping('search', () => this.korrigiereEingabe(query.q));
+    if (!korrigiert) return ergebnis;
+    return this.sucheGenau({ ...query, q: korrigiert }).map((r) => ({ ...r, korrigiert }));
+  }
+
+  /**
+   * Die Eingabe mit korrigierten Woertern, oder null, wenn es nichts zu
+   * korrigieren gibt. Korrigiert wird nur ein Wort, das ALLEIN in keinem
+   * Index etwas findet -- „Bahnhofstrase Zuerich" behaelt Zuerich. Unter den
+   * Vorschlaegen aller Indizes gewinnt der mit weniger Fehlern, dann der
+   * haeufigere.
+   */
+  private korrigiereEingabe(q: string): string | null {
+    const readers = this.getReaders();
+    let neu = q;
+    for (const wort of splitQueryTerms(q)) {
+      if (readers.some((r) => r.hatTreffer(wort))) continue;
+      let best: Korrektur | null = null;
+      for (const r of readers) {
+        const k = r.korrektur(wort);
+        if (k && (!best || k.fehler < best.fehler || (k.fehler === best.fehler && k.anzahl > best.anzahl))) best = k;
+      }
+      if (best) neu = neu.replace(wort, best.form);
+    }
+    return neu === q ? null : neu;
+  }
+
+  private sucheGenau(query: SearchQuery): SearchResult[] {
     const readers = this.getReaders();
     // JEDER Index wird gefragt, nicht nur der der aktuellen Region. Wer an
     // der Grenze steht, sucht regelmaessig etwas auf der anderen Seite -- und

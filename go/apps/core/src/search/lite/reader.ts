@@ -8,6 +8,7 @@
 import Database from 'better-sqlite3';
 import { LITE_KINDS, type LiteCandidate, type LiteKind } from './ranking.js';
 import { faltung } from './faltung.js';
+import { korrigiere, type Korrektur } from './tippfehler.js';
 import { nummernSchluessel, strassenSchluessel } from './buildIndex.js';
 
 export interface HausnummerTreffer {
@@ -238,6 +239,7 @@ export class LiteIndexReader {
   private available: Set<string> | null = null;
   /** Hat dieser Index die Hausnummern-Tabelle (seit 0.39.0)? */
   private hatAdressen: boolean | undefined;
+  private hatWortliste: boolean | undefined;
 
   constructor(private readonly dbPath: string) {}
 
@@ -525,6 +527,24 @@ export class LiteIndexReader {
       }
     }
     return bestKm <= maxKm ? best : null;
+  }
+
+  /** Hat dieses eine Wort ueberhaupt Treffer? Fuer die Tippfehler-Korrektur:
+   *  korrigiert wird nur, was allein nichts findet. */
+  hatTreffer(wort: string): boolean {
+    const db = this.open();
+    return db.prepare('SELECT 1 FROM lite_search WHERE lite_search MATCH ? LIMIT 1').get(escapeFtsQuery(wort)) !== undefined;
+  }
+
+  /** Das aehnlichste Wort aus der Wortliste (tippfehler.ts), oder null --
+   *  auch bei einem Index von vor 0.61.0, der keine Wortliste hat. */
+  korrektur(wort: string): Korrektur | null {
+    const db = this.open();
+    if (this.hatWortliste === undefined) {
+      this.hatWortliste =
+        db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'woerter'").get() !== undefined;
+    }
+    return this.hatWortliste ? korrigiere(db, wort) : null;
   }
 
   close(): void {

@@ -398,6 +398,10 @@ export interface SearchResult {
   /** Der Ort, in dem der Treffer liegt ("Worms"). Ohne ihn sind dreihundert
    *  Beethovenstraßen in der Vorschlagsliste nicht auseinanderzuhalten. */
   locality?: string;
+  /** Gesetzt, wenn die Eingabe nichts fand und dieser Treffer zur
+   *  KORRIGIERTEN Eingabe gehört ("Interlakn" -> "Interlaken"). Die
+   *  Oberfläche zeigt dann „Ergebnisse für Interlaken". */
+  korrigiert?: string;
 }
 
 // Favorite destination (E05-T3, docs/03 §2 "Favoriten")
