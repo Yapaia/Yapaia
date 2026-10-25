@@ -22,7 +22,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { Buffer } from 'node:buffer';
 import { join } from 'node:path';
+import { inflateSync } from 'node:zlib';
 import {
   baueBlatt,
   dehnbereiche,
@@ -40,6 +42,26 @@ interface Schild {
 }
 
 const ALLE = SHIELDS as Schild[];
+
+/**
+ * Kopf und entpackte Bilddaten eines PNG. Verglichen wird das statt der
+ * Bytes: zlib packt je nach Node-Build (glibc/musl, Version) anders, die
+ * Pixel bleiben gleich. Byteweise schlug die Prüfung auf dem Mini-PC
+ * (Node 24, musl) gegen die CI (glibc) an, obwohl nichts veraltet war.
+ */
+function inhalt(png: Buffer): { kopf: Buffer; daten: Buffer } {
+  let kopf = Buffer.alloc(0);
+  const idat: Buffer[] = [];
+  for (let pos = 8; pos < png.length; ) {
+    const laenge = png.readUInt32BE(pos);
+    const typ = png.subarray(pos + 4, pos + 8).toString('latin1');
+    const nutzlast = png.subarray(pos + 8, pos + 8 + laenge);
+    if (typ === 'IHDR') kopf = nutzlast;
+    if (typ === 'IDAT') idat.push(nutzlast);
+    pos += 12 + laenge;
+  }
+  return { kopf, daten: inflateSync(Buffer.concat(idat)) };
+}
 
 describe('Straßenschilder — die Dateien im Repo stammen aus dem Erzeuger', () => {
   it.each([
@@ -62,8 +84,10 @@ describe('Straßenschilder — die Dateien im Repo stammen aus dem Erzeuger', ()
   ])('das Bild ist aktuell (%s)', (endung, skala) => {
     const { png } = baueBlatt(skala as number);
     const eingecheckt = readFileSync(join(OUT_DIR, `${SPRITE_NAME}${endung as string}.png`));
+    const ist = inhalt(eingecheckt);
+    const soll = inhalt(png);
     expect(
-      eingecheckt.equals(png),
+      ist.kopf.equals(soll.kopf) && ist.daten.equals(soll.daten),
       'weicht ab — läuft `node scripts/generate-sprites.mjs` noch aus?',
     ).toBe(true);
   });

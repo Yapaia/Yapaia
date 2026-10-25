@@ -10,6 +10,13 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.60.1
+
+**Läuft auf Node.js 24.** Das Add-on brachte bisher Node 22.11.0 mit, eine
+fast zwei Jahre alte Version ohne aktuelle Sicherheitskorrekturen. Jetzt ist
+es Node 24.22.1 (LTS mit Updates bis 2028). Für Betreiber ändert sich sonst
+nichts.
+
 ## 0.60.0
 
 **Kartenbau schützt das System vor Überlastung.** Ein großer Gesamtbau konnte

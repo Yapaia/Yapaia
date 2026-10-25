@@ -108,8 +108,8 @@ Schnittstellen an, nie direkt an die internen Services.
 
 ### ADR-006: Backend = Node.js + Fastify + TypeScript, SQLite
 
-> **Stand heute:** Node **22** (nicht mehr 20, wie bei der Entscheidung
-> notiert) und Fastify **5**. Node 22 ist auch das, was die CI fährt; der
+> **Stand heute:** Node **24** (nicht mehr 20, wie bei der Entscheidung
+> notiert) und Fastify **5**. Node 24 ist auch das, was die CI fährt; der
 > Code stützt sich inzwischen auf dessen eingebautes `WebSocket` und `fetch`.
 > Die Begründung unten gilt unverändert.
 

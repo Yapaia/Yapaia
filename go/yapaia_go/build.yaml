@@ -15,11 +15,11 @@
 # `args` als zusaetzliche Build-Argumente.
 # We build on top of the SAME `gis-ops/docker-valhalla` image the standalone
 # docker-compose stack already uses (ADR-014, services/valhalla/README.md),
-# instead of on `node:22-slim` (which apps/core/Dockerfile uses standalone).
+# instead of on `node:24-slim` (which apps/core/Dockerfile uses standalone).
 # Rationale (Dockerfile has the full comment): Valhalla's native binary +
 # shared-library graph is exactly what that image already gets right for us;
 # copying `valhalla_service` + its libs OUT of it into an unrelated base
-# image (e.g. node:22-slim's Debian) risks a glibc/shared-lib mismatch that
+# image (e.g. node:24-slim's Debian) risks a glibc/shared-lib mismatch that
 # is very easy to get subtly wrong and hard to verify without a live build.
 # Node.js, the JRE (for Photon) and gpsd, by contrast, are all easy to add
 # on top of an Ubuntu-family base (apt / official upstream tarballs) --
