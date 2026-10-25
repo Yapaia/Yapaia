@@ -32,6 +32,11 @@ export const searchResultSchema = {
       description:
         'True if the result lies outside all installed map regions (Vorgriff W-09)',
     },
+    korrigiert: {
+      type: 'string',
+      description:
+        'Set when the query found nothing and this result belongs to the typo-corrected query (e.g. "Interlakn" -> "Interlaken")',
+    },
   },
   required: ['name', 'label', 'latlng', 'type', 'source'],
   additionalProperties: false,

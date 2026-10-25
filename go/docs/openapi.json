@@ -5029,6 +5029,10 @@
           "out_of_coverage": {
             "type": "boolean",
             "description": "True if the result lies outside all installed map regions (Vorgriff W-09)"
+          },
+          "korrigiert": {
+            "type": "string",
+            "description": "Set when the query found nothing and this result belongs to the typo-corrected query (e.g. \"Interlakn\" -> \"Interlaken\")"
           }
         },
         "required": [

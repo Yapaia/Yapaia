@@ -10,6 +10,17 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.61.0
+
+**Die Suche verzeiht Tippfehler.** „Interlakn", „Lauzanne", „Zürihc" oder
+„Bahnhofstrase Zürich" fanden bisher nichts. Jetzt sucht Go in so einem Fall
+nach dem ähnlichsten Wort und zeigt die Treffer mit dem Hinweis
+„Ergebnisse für „Interlaken"" an. Erlaubt sind ein Fehler ab 4 und zwei ab
+8 Buchstaben; vertauschte Buchstaben zählen als einer.
+
+Damit es greift, muss die Suche einer Karte **einmal neu gebaut** werden
+(⚙ → Karten verwalten). Bis dahin sucht sie wie bisher.
+
 ## 0.60.2
 
 **Suche bauen geht fast doppelt so schnell.** Gemessen an der Schweiz:

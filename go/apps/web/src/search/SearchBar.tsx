@@ -309,7 +309,9 @@ export default function SearchBar(): React.ReactElement {
       liveMessage =
         results.length === 0
           ? `Nichts gefunden für ${query.trim()}.`
-          : `${results.length} ${results.length === 1 ? 'Ergebnis' : 'Ergebnisse'} gefunden.`;
+          : results[0]?.korrigiert
+            ? `Nichts gefunden für ${query.trim()}. ${results.length} ${results.length === 1 ? 'Ergebnis' : 'Ergebnisse'} für ${results[0].korrigiert}.`
+            : `${results.length} ${results.length === 1 ? 'Ergebnis' : 'Ergebnisse'} gefunden.`;
     }
   }
 
@@ -441,6 +443,18 @@ export default function SearchBar(): React.ReactElement {
                 SearchService's chain), so checking the first result's
                 `source` is enough -- purely additive, doesn't touch any
                 existing testid/behavior. */}
+            {/* Tippfehler (0.61.0): die Eingabe fand nichts, die Treffer
+                gehören zur korrigierten Eingabe. Alle Treffer einer Antwort
+                tragen dieselbe Korrektur, der erste genügt. */}
+            {hasOptions && results[0]?.korrigiert && (
+              <p
+                className="px-4 py-1.5 text-xs text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700"
+                data-testid="search-korrigiert"
+              >
+                Ergebnisse für „{results[0].korrigiert}“
+              </p>
+            )}
+
             {hasOptions && results[0]?.source === 'lite' && (
               <p
                 className="px-4 py-1.5 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-100 dark:border-slate-700"

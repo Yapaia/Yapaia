@@ -27,6 +27,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import type { AddressRecord, NormalizedRecord } from './extract.js';
 import { faltung } from './faltung.js';
+import { baueWortliste } from './tippfehler.js';
 
 /** Was neben den Datensaetzen ueber diesen Index festgehalten wird. */
 export interface LiteIndexMeta {
@@ -226,6 +227,12 @@ export function buildLiteIndexFile(
     // lite_search.db; a rebuild always starts from a fresh file).
     db.exec('INSERT INTO lite_search(rowid, search_text, aux_text) SELECT id, search_text, aux_text FROM places;');
     db.exec("INSERT INTO lite_search(lite_search) VALUES('optimize');");
+
+    // Seit 0.61.0: Wortliste fuer Tippfehler (tippfehler.ts). Das Format
+    // bleibt bewusst 2: ein Index ohne Wortliste sucht weiter wie bisher, nur
+    // ohne Korrektur -- kein Grund, ihn als veraltet zu melden und neu bauen
+    // zu lassen.
+    baueWortliste(db);
 
     // Beim Bauen festgehalten, nicht beim Lesen erraten: die Datei wandert
     // per rename an ihren Platz, ihr Zeitstempel sagt also nichts Sicheres
