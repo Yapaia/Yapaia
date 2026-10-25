@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.62.0
+
+**Routing in Länderpaketen.** Der Kartenserver kann Routing jetzt je Land
+anbieten – geschnitten aus einem gemeinsamen Europa-Bau. Solche Pakete
+**ergänzen** sich: Deutschland, dann Frankreich, dann Dänemark laden ergibt
+ein Routing über alle drei, auch über die Grenzen – ohne stundenlangen Bau
+auf dem eigenen Gerät.
+
+- Ein Paket aus einem anderen Bau ersetzt das Routing wie bisher; die
+  Meldung nennt dann die Länder, deren Paket neu geladen werden muss.
+- Wird eine Karte gelöscht, geht ihr Routing mit (Grenzkacheln, die ein
+  Nachbarland braucht, bleiben).
+- Nach der Installation lädt der Routingdienst sofort neu.
+
 ## 0.61.1
 
 **Routing baut deutlich schneller.** Der Routinggraph wurde bisher mit nur

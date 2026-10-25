@@ -12,17 +12,19 @@
  *   <paket>-routing.tar      -> ersetzt den Routinggraphen (tiles/ + build-info.json)
  *
  * Ein Paket kann mehrere Laender umfassen; sein Routing gilt ueber Grenzen
- * hinweg. Es ERSETZT den bisherigen Graphen -- genau wie ein Routingbau
+ * hinweg. Laenderpakete aus EINEM Europa-Bau kommen zum vorhandenen Graphen
+ * dazu (teilgraph.ts); alles andere ERSETZT ihn -- genau wie ein Routingbau
  * hier ueber die installierten Karten.
  */
 
 import { execFile } from 'node:child_process';
-import { mkdir, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { CatalogEntry } from './catalog.js';
 import { existingPartBytes, finalFilePath, hashFile, streamToFile } from './download.js';
 import type { JobRegistry } from './jobs.js';
+import { bauInfoAus, bauInfoJetzt, passtDazu, teilgraphErgaenzen, teilgraphNeuBegonnen } from './teilgraph.js';
 
 const ausfuehren = promisify(execFile);
 
@@ -121,7 +123,9 @@ export function eintragAus(roh: unknown, basis?: string): KartenserverEintrag | 
     ...(routing ? { routing } : {}),
     note:
       `Vom Kartenserver, gebaut am ${datum(r.gebaut)}: ${teile}.` +
-      (routing ? ' Das Routing ersetzt den bisherigen Graphen und gilt dann für dieses Paket.' : ''),
+      (routing
+        ? ' Stammt das Routing aus demselben Bau wie das vorhandene, kommt es dazu; sonst ersetzt es den bisherigen Graphen.'
+        : ''),
   };
 }
 
@@ -161,6 +165,8 @@ export interface PaketZiele {
 
 export interface PaketDeps {
   tar?: (args: string[]) => Promise<string>;
+  /** Valhalla nach einer Aenderung am Graphen neu laden. */
+  neustart?: () => Promise<void>;
 }
 
 async function vorhanden(pfad: string): Promise<boolean> {
@@ -172,30 +178,90 @@ async function vorhanden(pfad: string): Promise<boolean> {
   }
 }
 
+/** Auspacken und pruefen: nur `tiles/...` und `build-info.json`, mit
+ *  valhalla.json. Gibt den Ordner und die Archivliste zurueck. */
+async function auspacken(tarPfad: string, graphDir: string, tar: (args: string[]) => Promise<string>) {
+  const liste = (await tar(['-tf', tarPfad])).split('\n').filter(Boolean);
+  const fremd = liste.filter((p) => !erlaubterArchivpfad(p));
+  if (fremd.length) throw new Error(`Das Routing-Archiv enthält Unerwartetes: ${fremd.slice(0, 3).join(', ')}`);
+  if (!liste.some((p) => p === 'tiles/valhalla.json')) throw new Error('Das Routing-Archiv enthält keine valhalla.json');
+  const neu = join(dirname(graphDir), `.neu-${process.pid}`);
+  await rm(neu, { recursive: true, force: true });
+  await mkdir(neu, { recursive: true });
+  await tar(['-xf', tarPfad, '-C', neu]);
+  return { neu, liste };
+}
+
+/** Den ausgepackten Graphen an die Stelle des alten setzen. */
+async function einsetzen(neu: string, graphDir: string): Promise<void> {
+  const valhalla = dirname(graphDir);
+  const alt = join(valhalla, `.alt-${process.pid}`);
+  await rm(alt, { recursive: true, force: true });
+  if (await vorhanden(graphDir)) await rename(graphDir, alt);
+  await rename(join(neu, 'tiles'), graphDir);
+  if (await vorhanden(join(neu, 'build-info.json'))) await rename(join(neu, 'build-info.json'), join(valhalla, 'build-info.json'));
+  await rm(alt, { recursive: true, force: true });
+}
+
+function standardTar(): (args: string[]) => Promise<string> {
+  return async (args: string[]) => (await ausfuehren('tar', args, { maxBuffer: 64 * 1024 ** 2 })).stdout;
+}
+
 /**
  * Den Graphen einwechseln: erst komplett auspacken und pruefen, dann den
  * alten Ordner beiseite und den neuen an seine Stelle -- wie es auch
  * `yapaia-build-graph` tut. Valhalla laedt die Kacheln aus demselben Pfad.
  */
 export async function graphEinwechseln(tarPfad: string, graphDir: string, deps: PaketDeps = {}): Promise<void> {
-  const tar = deps.tar ?? (async (args: string[]) => (await ausfuehren('tar', args, { maxBuffer: 64 * 1024 ** 2 })).stdout);
-  const liste = (await tar(['-tf', tarPfad])).split('\n').filter(Boolean);
-  const fremd = liste.filter((p) => !erlaubterArchivpfad(p));
-  if (fremd.length) throw new Error(`Das Routing-Archiv enthält Unerwartetes: ${fremd.slice(0, 3).join(', ')}`);
-  if (!liste.some((p) => p === 'tiles/valhalla.json')) throw new Error('Das Routing-Archiv enthält keine valhalla.json');
+  const { neu } = await auspacken(tarPfad, graphDir, deps.tar ?? standardTar());
+  try {
+    await einsetzen(neu, graphDir);
+  } finally {
+    await rm(neu, { recursive: true, force: true });
+  }
+}
 
-  const valhalla = dirname(graphDir);
-  const neu = join(valhalla, `.neu-${process.pid}`);
-  const alt = join(valhalla, `.alt-${process.pid}`);
-  await rm(neu, { recursive: true, force: true });
-  await mkdir(neu, { recursive: true });
-  await tar(['-xf', tarPfad, '-C', neu]);
-  await rm(alt, { recursive: true, force: true });
-  if (await vorhanden(graphDir)) await rename(graphDir, alt);
-  await rename(join(neu, 'tiles'), graphDir);
-  if (await vorhanden(join(neu, 'build-info.json'))) await rename(join(neu, 'build-info.json'), join(valhalla, 'build-info.json'));
-  await rm(neu, { recursive: true, force: true });
-  await rm(alt, { recursive: true, force: true });
+export interface RoutingErgebnis {
+  /** `ergaenzt`: zum vorhandenen Teilgraphen dazu; `ersetzt`: neuer Graph. */
+  art: 'ergaenzt' | 'ersetzt';
+  /** Laender, deren Routing beim Ersetzen verloren ging. */
+  verloren: string[];
+}
+
+/**
+ * Ein Routing-Paket installieren (teilgraph.ts): aus demselben Europa-Bau
+ * wie der vorhandene Teilgraph -> dazu, sonst -> ersetzen.
+ */
+export async function routingInstallieren(tarPfad: string, graphDir: string, deps: PaketDeps = {}): Promise<RoutingErgebnis> {
+  const { neu, liste } = await auspacken(tarPfad, graphDir, deps.tar ?? standardTar());
+  try {
+    const paket = bauInfoAus(await readFile(join(neu, 'build-info.json'), 'utf8').catch(() => null));
+    const jetzt = bauInfoJetzt(graphDir);
+    const kacheln = liste
+      .filter((p) => /^tiles\/valhalla_tiles\/.+\.gph$/.test(p))
+      .map((p) => p.slice('tiles/'.length));
+    if (paket && jetzt && passtDazu(paket, jetzt)) {
+      await teilgraphErgaenzen(neu, graphDir, paket, jetzt, kacheln);
+      return { art: 'ergaenzt', verloren: [] };
+    }
+    await einsetzen(neu, graphDir);
+    if (paket?.teilgraph) {
+      await teilgraphNeuBegonnen(graphDir, paket.region ?? paket.regions[0] ?? 'unbekannt', kacheln);
+    } else {
+      await rm(join(dirname(graphDir), 'teilgraph'), { recursive: true, force: true });
+    }
+    const bleibt = new Set(paket?.regions ?? []);
+    return { art: 'ersetzt', verloren: (jetzt?.regions ?? []).filter((r) => !bleibt.has(r)) };
+  } finally {
+    await rm(neu, { recursive: true, force: true });
+  }
+}
+
+/** Valhalla neu laden lassen (s6 im Add-on). Ohne s6 -- Tests, Entwicklung --
+ *  passiert nichts; der Dienst liest den Graphen dann beim naechsten Start. */
+export async function valhallaNeuStarten(): Promise<void> {
+  if (!(await vorhanden('/run/service/valhalla'))) return;
+  await ausfuehren('s6-svc', ['-r', '/run/service/valhalla']).catch(() => undefined);
 }
 
 async function ladeGeprueft(
@@ -272,15 +338,24 @@ export function runPaketJob(
         if (jobs.isCancelled(jobId)) throw Object.assign(new Error('Abgebrochen'), { code: 'CANCELLED' });
       }
       jobs.setNote(jobId, 'Wird installiert …');
+      let routing: RoutingErgebnis | null = null;
       for (const t of teile) {
         if (t.was === 'Routing') {
-          await graphEinwechseln(`${t.ziel}.part`, ziele.graphDir, deps);
+          routing = await routingInstallieren(`${t.ziel}.part`, ziele.graphDir, deps);
           await rm(`${t.ziel}.part`, { force: true });
+          await (deps.neustart ?? valhallaNeuStarten)();
         } else {
           await rename(`${t.ziel}.part`, t.ziel);
         }
       }
-      jobs.setNote(jobId, `Installiert: ${teile.map((t) => t.was).join(', ')}`);
+      let note = `Installiert: ${teile.map((t) => t.was).join(', ')}`;
+      if (routing?.art === 'ergaenzt') note += ' (Routing zum vorhandenen hinzugefügt)';
+      if (routing && routing.verloren.length > 0) {
+        note +=
+          `. Das Routing für ${routing.verloren.join(', ')} stammte aus einem anderen Bau und ist ersetzt worden – ` +
+          'dafür die Pakete dieser Länder erneut laden.';
+      }
+      jobs.setNote(jobId, note);
       jobs.markDone(jobId);
     } catch (err) {
       const e = err as Error & { code?: string };

@@ -114,7 +114,7 @@ describe('Katalog vom Kartenserver', () => {
     const e = eintragAus({ id: 'alpen', name: 'Alpen', url: 'https://k/a.pmtiles', sizeBytes: 5, bounds: [1, 2, 3, 4], gebaut: '2026-10-11T00:00:00Z', routing: { url: 'https://k/r.tar', sizeBytes: 9 } });
     expect(e?.quelle).toBe('kartenserver');
     expect(e?.note).toMatch(/Karte, Routing/);
-    expect(e?.note).toMatch(/ersetzt den bisherigen Graphen/);
+    expect(e?.note).toMatch(/kommt es dazu; sonst ersetzt es den bisherigen Graphen/);
     expect(eintragAus({ id: '../x', name: 'X', url: 'https://k/a', bounds: [1, 2, 3, 4] })).toBeNull();
     expect(eintragAus({ id: 'x', name: 'X', bounds: [1, 2, 3, 4] })).toBeNull();
     expect(eintragAus({ id: 'x', name: 'X', url: 'https://k/a', bounds: [1, 2, 3] })).toBeNull();

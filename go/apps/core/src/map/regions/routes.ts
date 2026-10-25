@@ -67,10 +67,12 @@ import {
   holeKatalog,
   istKartenserverEintrag,
   runPaketJob,
+  valhallaNeuStarten,
   verbindungAus,
   type KartenserverEintrag,
   type KartenserverVerbindung,
 } from './kartenserver.js';
+import { teilgraphEntfernen } from './teilgraph.js';
 
 export interface RegionsPluginOptions {
   /** Injectable for tests (simulates a near-full disk); defaults to the
@@ -968,7 +970,8 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
   //
   // Der Routinggraph bleibt: es gibt EINEN für alle Regionen, eine einzelne
   // lässt sich nicht herausnehmen. „Was ist gebaut?" nennt, was darin noch
-  // steckt; der nächste Routingbau lässt es weg.
+  // steckt; der nächste Routingbau lässt es weg. Ausnahme seit 0.62.0:
+  // Routing aus Länderpaketen -- dort geht das Land mit (teilgraph.ts).
   fastify.delete<{ Params: IdParams; Reply: ApiError | undefined }>(
     '/api/v1/map/regions/:id',
     async (request, reply) => {
@@ -1014,6 +1017,13 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         await rm(pfad, { force: true }).catch((err: unknown) => {
           fastify.log.warn({ pfad, error: (err as Error).message }, 'Region gelöscht, Zubehör blieb liegen');
         });
+      }
+      // Stammt das Routing aus Länderpaketen (teilgraph.ts), geht das Land
+      // mit -- nur seine Kacheln, Grenzkacheln der Nachbarn bleiben.
+      try {
+        if (await teilgraphEntfernen(resolveGraphDir(), regionId)) await valhallaNeuStarten();
+      } catch (err) {
+        fastify.log.warn({ regionId, error: (err as Error).message }, 'Region gelöscht, Routing-Kacheln blieben liegen');
       }
       return reply.code(204).send(undefined);
     },
