@@ -69,8 +69,24 @@ export const MAX_LOCALITY_KM = 25;
  */
 const MAX_RING = 6;
 
-function cellKey(lat: number, lon: number): string {
-  return `${Math.floor(lat / CELL_DEG)}:${Math.floor(lon / CELL_DEG)}`;
+/** Zellen als Zahl statt Zeichenkette: der Bau fragt Millionen Mal nach,
+ *  und eine Zeichenkette je Nachfrage kostete spuerbar Zeit. Laengenzellen
+ *  liegen zwischen -1800 und 1800, passen also in den Faktor 4000. */
+function cellId(latCell: number, lonCell: number): number {
+  return latCell * 4000 + lonCell;
+}
+
+function cellKey(lat: number, lon: number): number {
+  return cellId(Math.floor(lat / CELL_DEG), Math.floor(lon / CELL_DEG));
+}
+
+/** Der Teil der Haversine-Formel unter der Wurzel. Er waechst mit der
+ *  Entfernung, taugt also zum VERGLEICHEN; in Kilometer umgerechnet wird nur
+ *  der beste Treffer (haversineKm). */
+function haversineA(lat1: number, lon1: number, cosLat1: number, lat2: number, lon2: number): number {
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  return Math.sin(dLat / 2) ** 2 + cosLat1 * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
 }
 
 /** Gleiche Formel wie in `ranking.ts`/`reader.ts` -- siehe dort, warum die
@@ -86,7 +102,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 }
 
 export class PlaceLocator {
-  private readonly grid = new Map<string, PlacePoint[]>();
+  private readonly grid = new Map<number, PlacePoint[]>();
   readonly size: number;
 
   constructor(places: readonly PlacePoint[]) {
@@ -113,8 +129,9 @@ export class PlaceLocator {
     const centerLonCell = Math.floor(lon / CELL_DEG);
     const maxRing = Math.min(Math.ceil(MAX_LOCALITY_KM / (CELL_DEG * 111)) + 1, MAX_RING);
 
+    const cosLat = Math.cos((lat * Math.PI) / 180);
     let best: PlacePoint | null = null;
-    let bestKm = Infinity;
+    let bestA = Infinity;
     let ringAfterFirstHit = -1;
 
     for (let ring = 0; ring <= maxRing; ring += 1) {
@@ -122,12 +139,12 @@ export class PlaceLocator {
         for (let dLon = -ring; dLon <= ring; dLon += 1) {
           // Nur der RAND des Rings -- das Innere war in einer frueheren Runde dran.
           if (ring > 0 && Math.abs(dLat) !== ring && Math.abs(dLon) !== ring) continue;
-          const bucket = this.grid.get(`${centerLatCell + dLat}:${centerLonCell + dLon}`);
+          const bucket = this.grid.get(cellId(centerLatCell + dLat, centerLonCell + dLon));
           if (!bucket) continue;
           for (const place of bucket) {
-            const km = haversineKm(lat, lon, place.lat, place.lon);
-            if (km < bestKm) {
-              bestKm = km;
+            const a = haversineA(lat, lon, cosLat, place.lat, place.lon);
+            if (a < bestA) {
+              bestA = a;
               best = place;
             }
           }
@@ -138,7 +155,7 @@ export class PlaceLocator {
       if (ringAfterFirstHit >= 0 && ring > ringAfterFirstHit) break;
     }
 
-    if (!best || bestKm > MAX_LOCALITY_KM) return null;
+    if (!best || haversineKm(lat, lon, best.lat, best.lon) > MAX_LOCALITY_KM) return null;
 
     // Bewusst der Name AUS dem Ortsdatensatz, ohne Kopie und ohne
     // Zwischenspeicher: es gibt je Ort genau einen solchen Datensatz, also

@@ -10,6 +10,20 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.60.2
+
+**Suche bauen geht fast doppelt so schnell.** Gemessen an der Schweiz:
+etwa 3½ statt gut 6 Minuten – mit demselben Ergebnis, ohne mehr
+Arbeitsspeicher und mit weniger Schreibarbeit auf der Festplatte.
+
+- Der große OSM-Extrakt wird nur noch einmal entpackt statt für jeden
+  Filter neu; Zwischendateien sind schneller gepackt und werden gelöscht,
+  sobald sie nicht mehr gebraucht werden.
+- Die Suchdatenbank schreibt während des Baus kein Journal mehr und wartet
+  nicht nach jedem Schritt auf die Platte. Erst die fertige Datei wird
+  sicher gespeichert und dann eingewechselt — ein Stromausfall mitten im
+  Bau lässt den bisherigen Index unberührt.
+
 ## 0.60.1
 
 **Läuft auf Node.js 24.** Das Add-on brachte bisher Node 22.11.0 mit, eine

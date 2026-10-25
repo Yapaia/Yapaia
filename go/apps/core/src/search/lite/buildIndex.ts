@@ -48,6 +48,19 @@ export function nummernSchluessel(number: string): string {
 }
 
 /**
+ * Einstellungen fuer den BAU, nicht fuer die fertige Datei: kein Journal,
+ * kein Warten auf die Platte nach jedem Commit. Beides schuetzt eine Datei,
+ * die schon jemand benutzt -- gebaut wird aber in eine temporaere Datei, die
+ * erst nach dem Schliessen (und fsync, siehe cli.ts) an ihren Platz kommt.
+ * Ein abgebrochener Bau hinterlaesst also nur Muell, nie einen kaputten
+ * Index. Spart Zeit und Schreibvorgaenge auf der SSD.
+ */
+function bauModus(db: Database.Database): void {
+  db.pragma('journal_mode = OFF');
+  db.pragma('synchronous = OFF');
+}
+
+/**
  * Schreibt Adressen in einen gerade gebauten Index -- in Paketen, ohne sie
  * alle im Speicher zu halten: ein Bundesland hat Millionen davon.
  * Gibt die Zahl der geschriebenen zurueck.
@@ -57,6 +70,7 @@ export async function appendAddresses(
   addresses: AsyncIterable<AddressRecord>,
 ): Promise<number> {
   const db = new Database(dbPath);
+  bauModus(db);
   try {
     const insert = db.prepare(
       'INSERT INTO addresses (street_key, number_key, street, number, postcode, city, lat, lon) ' +
@@ -109,6 +123,7 @@ export function buildLiteIndexFile(
   }
 
   const db = new Database(dbPath);
+  bauModus(db);
   try {
     db.exec(`
       CREATE TABLE places (

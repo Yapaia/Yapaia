@@ -17,7 +17,16 @@
  * Run via `services/valhalla/build-lite-index.sh`, never invoked directly
  * by the app itself.
  */
-import { createReadStream, existsSync, realpathSync, renameSync, unlinkSync } from 'fs';
+import {
+  closeSync,
+  createReadStream,
+  existsSync,
+  fsyncSync,
+  openSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+} from 'fs';
 import { createInterface } from 'readline';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -205,6 +214,16 @@ export async function runCli(argv: string[]): Promise<void> {
     if (args.addresses) {
       const n = await appendAddresses(tmpPath, readAddresses(args.addresses));
       console.warn(`Hausnummern: ${n} uebernommen aus ${args.addresses}`);
+    }
+    // Gebaut wurde ohne Journal und ohne Plattensync (bauModus in
+    // buildIndex.ts). Deshalb hier EINMAL auf die Platte schreiben, bevor die
+    // Datei an ihren Platz kommt -- sonst stuende nach einem Stromausfall
+    // womoeglich ein halb geschriebener Index unter dem richtigen Namen.
+    const fd = openSync(tmpPath, 'r+');
+    try {
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
     }
     // Atomic swap (W-17 discipline): rename(2) on the same filesystem is
     // atomic -- a concurrent reader of `args.out` (the running Core

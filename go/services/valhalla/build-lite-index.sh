@@ -107,39 +107,53 @@ trap cleanup EXIT
 
 mkdir -p "$(dirname "$OUT_DB")"
 
-echo "== Filtere Orte (place=city,town,village,suburb,quarter,borough,hamlet) aus $PBF =="
-# 0.6.0: Ortsteile gehoeren dazu -- „Sondernheim wurde nicht gefunden" lag
-# daran, dass `place=suburb` hier gar nicht erst herausgefiltert wurde.
-osmium tags-filter --overwrite -o "$WORK_DIR/places.osm.pbf" "$PBF" n/place=city,town,village,suburb,quarter,borough,hamlet
-
-echo "== Filtere Strassen (highway=*) aus $PBF =="
-osmium tags-filter --overwrite -o "$WORK_DIR/streets.osm.pbf" "$PBF" w/highway
-
-# Sonderziele (POIs). Die Filterausdruecke kommen aus dem Index-Werkzeug
-# selbst (apps/core/src/search/lite/poiCategories.ts) -- dieselbe Liste, die
-# spaeter die deutschen Suchbegriffe vergibt. Von Hand gepflegt wuerden die
-# beiden frueher oder spaeter auseinanderlaufen, und zwar lautlos.
-echo "== Filtere Sonderziele (amenity/shop/tourism/leisure) aus $PBF =="
+# Filterausdruecke fuer Sonderziele und benannte Objekte kommen aus dem
+# Index-Werkzeug selbst (apps/core/src/search/lite/poiCategories.ts) --
+# dieselbe Liste, die spaeter die deutschen Suchbegriffe vergibt. Von Hand
+# gepflegt wuerden die beiden frueher oder spaeter auseinanderlaufen, und zwar
+# lautlos.
 mapfile -t POI_FILTERS < <(pnpm --silent --filter @yapaia/core exec tsx src/search/lite/cli.ts --print-osmium-filters)
 if [ "${#POI_FILTERS[@]}" -eq 0 ]; then
   echo "FEHLER: keine POI-Filter erhalten." >&2
   exit 1
 fi
-osmium tags-filter --overwrite -o "$WORK_DIR/pois.osm.pbf" "$PBF" "${POI_FILTERS[@]}"
-
-# Seit 0.39.0: alles BENANNTE (Firmen, Werkstaetten, Gebaeude) und
-# Hausnummern. Zwei Durchgaenge, weil `osmium` kein UND in einem Filter kennt.
-echo "== Filtere benannte Firmen und Gebaeude aus $PBF =="
 mapfile -t NAMED_FILTERS < <(pnpm --silent --filter @yapaia/core exec tsx src/search/lite/cli.ts --print-named-filters)
 if [ "${#NAMED_FILTERS[@]}" -eq 0 ]; then
   echo "FEHLER: keine Filter fuer benannte Objekte erhalten." >&2
   exit 1
 fi
-osmium tags-filter --overwrite -o "$WORK_DIR/named-all.osm.pbf" "$PBF" nwr/name
-osmium tags-filter --overwrite -o "$WORK_DIR/named.osm.pbf" "$WORK_DIR/named-all.osm.pbf" "${NAMED_FILTERS[@]}"
+# 0.6.0: Ortsteile gehoeren dazu -- „Sondernheim wurde nicht gefunden" lag
+# daran, dass `place=suburb` hier gar nicht erst herausgefiltert wurde.
+PLACE_FILTER="n/place=city,town,village,suburb,quarter,borough,hamlet"
 
-echo "== Filtere Hausnummern (addr:housenumber) aus $PBF =="
-osmium tags-filter --overwrite -o "$WORK_DIR/addresses.osm.pbf" "$PBF" nwr/addr:housenumber
+# Ein Durchgang durch den Extrakt, lz4 statt zlib -- die Filter laufen danach
+# ueber diese Vorauswahl (Begruendung und Messung: yapaia_go/rootfs/usr/bin/
+# yapaia-build-lite-index).
+LZ4=(-f pbf,pbf_compression=lz4)
+VORAB="$WORK_DIR/vorab.osm.pbf"
+echo "== Vorauswahl aus $PBF (ein Durchgang) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$VORAB" "$PBF" \
+  "$PLACE_FILTER" w/highway "${POI_FILTERS[@]}" nwr/name nwr/addr:housenumber
+
+echo "== Filtere Orte (place=city,town,village,suburb,quarter,borough,hamlet) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/places.osm.pbf" "$VORAB" "$PLACE_FILTER"
+
+echo "== Filtere Strassen (highway=*) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/streets.osm.pbf" "$VORAB" w/highway
+
+echo "== Filtere Sonderziele (amenity/shop/tourism/leisure) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/pois.osm.pbf" "$VORAB" "${POI_FILTERS[@]}"
+
+# Seit 0.39.0: alles BENANNTE (Firmen, Werkstaetten, Gebaeude) und
+# Hausnummern. Zwei Durchgaenge, weil `osmium` kein UND in einem Filter kennt.
+echo "== Filtere benannte Firmen und Gebaeude =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/named-all.osm.pbf" "$VORAB" nwr/name
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/named.osm.pbf" "$WORK_DIR/named-all.osm.pbf" "${NAMED_FILTERS[@]}"
+rm -f "$WORK_DIR/named-all.osm.pbf"
+
+echo "== Filtere Hausnummern (addr:housenumber) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/addresses.osm.pbf" "$VORAB" nwr/addr:housenumber
+rm -f "$VORAB"
 
 echo "== Exportiere GeoJSONSeq =="
 # Orte sind Nodes -> Points.
