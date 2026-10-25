@@ -113,43 +113,61 @@ else
   INPUT="$PBF_ARG"
 fi
 
-# --- 1/3: Orte und Strassen herausfiltern ----------------------------------
-# Ortsteile gehoeren dazu (0.6.0 im Repository-Skript) -- hier fehlten sie
-# bis 0.39.0, „Sondernheim" war also im Add-on weiter nicht zu finden.
-echo "== Filtere Orte (place=city,town,village,suburb,quarter,borough,hamlet) =="
-osmium tags-filter --overwrite -o "$WORK_DIR/places.osm.pbf" "$INPUT" n/place=city,town,village,suburb,quarter,borough,hamlet
-
-echo "== Filtere Strassen (highway=*) =="
-osmium tags-filter --overwrite -o "$WORK_DIR/streets.osm.pbf" "$INPUT" w/highway
-
+# --- 1/3: herausfiltern ----------------------------------------------------
 # Die Filterausdruecke kommen aus apps/core/src/search/lite/poiCategories.ts --
 # dieselbe Liste, die spaeter die deutschen Suchbegriffe vergibt. Wuerden sie
 # hier von Hand gepflegt, liefe `osmium` frueher oder spaeter Daten heraus, die
 # niemand einordnet, oder der Normalisierer wartete auf Daten, die nie kommen.
-echo "== Filtere Sonderziele (amenity/shop/tourism/leisure) =="
 mapfile -t POI_FILTERS < <(node "$CLI" --print-osmium-filters)
 if [ "${#POI_FILTERS[@]}" -eq 0 ]; then
   echo "FEHLER: keine POI-Filter erhalten -- das Index-Werkzeug ist nicht das erwartete." >&2
   exit 1
 fi
-osmium tags-filter --overwrite -o "$WORK_DIR/pois.osm.pbf" "$INPUT" "${POI_FILTERS[@]}"
-
-# Seit 0.39.0: alles BENANNTE -- Firmen, Werkstaetten, Gebaeude. `osmium`
-# kennt kein UND in einem Filter; deshalb zwei Durchgaenge: erst alles mit
-# Namen, darin dann die Arten (apps/core/src/search/lite/poiCategories.ts).
-echo "== Filtere benannte Firmen und Gebaeude =="
 mapfile -t NAMED_FILTERS < <(node "$CLI" --print-named-filters)
 if [ "${#NAMED_FILTERS[@]}" -eq 0 ]; then
   echo "FEHLER: keine Filter fuer benannte Objekte erhalten." >&2
   exit 1
 fi
-osmium tags-filter --overwrite -o "$WORK_DIR/named-all.osm.pbf" "$INPUT" nwr/name
-osmium tags-filter --overwrite -o "$WORK_DIR/named.osm.pbf" "$WORK_DIR/named-all.osm.pbf" "${NAMED_FILTERS[@]}"
+# Ortsteile gehoeren dazu (0.6.0 im Repository-Skript) -- hier fehlten sie
+# bis 0.39.0, „Sondernheim" war also im Add-on weiter nicht zu finden.
+PLACE_FILTER="n/place=city,town,village,suburb,quarter,borough,hamlet"
+
+# Seit 0.60.2: EIN Durchgang durch den grossen Extrakt, der alles mitnimmt,
+# was die Filter unten brauchen -- als lz4 statt zlib gepackt. Die Filter
+# laufen danach ueber diese Datei. Das Entpacken des zlib-Extrakts war der
+# teuerste Teil: sechsmal hintereinander fuer jeden Filter (mit den
+# referenzierten Objekten sogar zwoelfmal). Gemessen an der Schweiz: Filtern
+# und Export 231 s -> 117 s, Ergebnis byte-gleich. Weil jeder Filter eine
+# Teilmenge der Vorauswahl ist und osmium die referenzierten Knoten und Wege
+# mitnimmt, findet jeder Filter dieselben Objekte wie im Original.
+LZ4=(-f pbf,pbf_compression=lz4)
+VORAB="$WORK_DIR/vorab.osm.pbf"
+echo "== Vorauswahl aus dem Extrakt (ein Durchgang) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$VORAB" "$INPUT" \
+  "$PLACE_FILTER" w/highway "${POI_FILTERS[@]}" nwr/name nwr/addr:housenumber
+
+echo "== Filtere Orte (place=city,town,village,suburb,quarter,borough,hamlet) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/places.osm.pbf" "$VORAB" "$PLACE_FILTER"
+
+echo "== Filtere Strassen (highway=*) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/streets.osm.pbf" "$VORAB" w/highway
+
+echo "== Filtere Sonderziele (amenity/shop/tourism/leisure) =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/pois.osm.pbf" "$VORAB" "${POI_FILTERS[@]}"
+
+# Seit 0.39.0: alles BENANNTE -- Firmen, Werkstaetten, Gebaeude. `osmium`
+# kennt kein UND in einem Filter; deshalb zwei Durchgaenge: erst alles mit
+# Namen, darin dann die Arten (apps/core/src/search/lite/poiCategories.ts).
+echo "== Filtere benannte Firmen und Gebaeude =="
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/named-all.osm.pbf" "$VORAB" nwr/name
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/named.osm.pbf" "$WORK_DIR/named-all.osm.pbf" "${NAMED_FILTERS[@]}"
 rm -f "$WORK_DIR/named-all.osm.pbf"
 
 # Seit 0.39.0: Hausnummern.
 echo "== Filtere Hausnummern (addr:housenumber) =="
-osmium tags-filter --overwrite -o "$WORK_DIR/addresses.osm.pbf" "$INPUT" nwr/addr:housenumber
+osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/addresses.osm.pbf" "$VORAB" nwr/addr:housenumber
+# Die Vorauswahl wird nicht mehr gebraucht -- Platz sofort freigeben.
+rm -f "$VORAB"
 
 # --- 2/3: nach GeoJSONSeq exportieren --------------------------------------
 # Orte sind Nodes -> Points. Strassen sind Ways; `osmium export` reduziert sie
@@ -158,18 +176,23 @@ osmium tags-filter --overwrite -o "$WORK_DIR/addresses.osm.pbf" "$INPUT" nwr/add
 echo "== Exportiere GeoJSONSeq =="
 osmium export --overwrite --geometry-types=point -f geojsonseq \
   -o "$WORK_DIR/places.geojsonseq" "$WORK_DIR/places.osm.pbf"
+rm -f "$WORK_DIR/places.osm.pbf"
 osmium export --overwrite --geometry-types=linestring,polygon -f geojsonseq \
   -o "$WORK_DIR/streets.geojsonseq" "$WORK_DIR/streets.osm.pbf"
+rm -f "$WORK_DIR/streets.osm.pbf"
 
 # Sonderziele kommen als Knoten UND als Flaechen (ein Supermarkt ist meist ein
 # Gebaeude). Beide Geometriearten muessen exportiert werden; den Zentroid einer
 # Flaeche berechnet extract.ts selbst.
 osmium export --overwrite --geometry-types=point,linestring,polygon -f geojsonseq \
   -o "$WORK_DIR/pois.geojsonseq" "$WORK_DIR/pois.osm.pbf"
+rm -f "$WORK_DIR/pois.osm.pbf"
 osmium export --overwrite --geometry-types=point,linestring,polygon -f geojsonseq \
   -o "$WORK_DIR/named.geojsonseq" "$WORK_DIR/named.osm.pbf"
+rm -f "$WORK_DIR/named.osm.pbf"
 osmium export --overwrite --geometry-types=point,linestring,polygon -f geojsonseq \
   -o "$WORK_DIR/addresses.geojsonseq" "$WORK_DIR/addresses.osm.pbf"
+rm -f "$WORK_DIR/addresses.osm.pbf"
 
 # --- 3/3: Index bauen (atomarer Tausch im Werkzeug) -------------------------
 echo "== Baue $OUT_DB =="
