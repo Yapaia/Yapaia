@@ -301,7 +301,45 @@ export build_time_zones=False
 export build_transit=False
 export force_rebuild=True
 export use_tiles_ignore_pbf=False
-export server_threads="${VALHALLA_BUILD_THREADS:-1}"
+
+# ─── THREADS (seit 0.61.1) ───────────────────────────────────────────────────
+# Bis 0.61.0 baute Valhalla mit EINEM Thread. Gemessen am Schweiz-Graphen auf
+# dem N100 (4 Kerne, 2026-10-25): 1 Thread 32 min / 2,4 GB RAM, 3 Threads
+# 19 min / 6,2 GB. Mehr Threads kosten also spuerbar RAM. Deshalb:
+#   * hoechstens Kerne - 1 -- ein Kern bleibt fuer Home Assistant, und die CPU
+#     bleibt unter der Schwelle, ab der der Lastwaechter den Bau pausiert;
+#   * hoechstens ein Thread je angefangene 4 GB RAM (8 GB -> 2, 16 GB -> 4);
+#   * mindestens einer.
+# Der Lastwaechter bleibt die Sicherung, falls es doch knapp wird.
+# VALHALLA_BUILD_THREADS ueberschreibt die Wahl (Kartenserver).
+if [ -z "${VALHALLA_BUILD_THREADS:-}" ]; then
+  KERNE="$(nproc 2>/dev/null || echo 1)"
+  RAM_MB="$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null || echo 0)"
+  THREADS=$(( KERNE - 1 ))
+  NACH_RAM=$(( (RAM_MB + 1000) / 4000 ))
+  [ "$THREADS" -gt "$NACH_RAM" ] && THREADS="$NACH_RAM"
+  [ "$THREADS" -lt 1 ] && THREADS=1
+  VALHALLA_BUILD_THREADS="$THREADS"
+  echo "Threads fuer den Bau: $THREADS (Kerne: $KERNE, RAM: $RAM_MB MB)"
+fi
+export server_threads="$VALHALLA_BUILD_THREADS"
+
+# ─── GRENZDATEN WIEDERVERWENDEN (seit 0.61.1) ───────────────────────────────
+# `admins.sqlite` (Laendergrenzen) haengt nur davon ab, WELCHE Laender im
+# Graphen sind -- Grenzen aendern sich zwischen zwei Datenstaenden praktisch
+# nie. Ist die Laenderliste dieselbe wie beim laufenden Graphen, wird die
+# vorhandene Datei uebernommen; configure_valhalla.sh baut sie dann nicht neu
+# (es prueft nur, ob sie da ist). Bei einer anderen Liste oder mit
+# YAPAIA_GRAPH_ADMINS_NEU=1 entsteht sie wie bisher frisch.
+LIVE_ADMINS="$LIVE_DIR/admin_data/admins.sqlite"
+LIVE_INFO="$(dirname "$LIVE_DIR")/build-info.json"
+NEUE_LISTE="$(printf '%s\n' "${GRAPH_REGIONS[@]}" | sort | paste -sd, -)"
+ALTE_LISTE="$(jq -r '(.regions // []) | sort | join(",")' "$LIVE_INFO" 2>/dev/null || true)"
+if [ "${YAPAIA_GRAPH_ADMINS_NEU:-0}" != "1" ] && [ -s "$LIVE_ADMINS" ] && [ "$NEUE_LISTE" = "$ALTE_LISTE" ]; then
+  mkdir -p "$STAGING_DIR/admin_data"
+  cp "$LIVE_ADMINS" "$STAGING_DIR/admin_data/admins.sqlite"
+  echo "Grenzdaten unveraendert (gleiche Laender) -- vorhandene admins.sqlite wird weiterverwendet."
+fi
 
 echo "== Baue Routinggraph fuer \"$REGION_ID\" (Staging: $STAGING_DIR) =="
 echo "Das dauert bei Liechtenstein Minuten, bei einem Bundesland deutlich laenger."

@@ -10,6 +10,17 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.61.1
+
+**Routing baut deutlich schneller.** Der Routinggraph wurde bisher mit nur
+einem Rechenkern gebaut. Jetzt nutzt Go alle Kerne bis auf einen, der für
+Home Assistant frei bleibt – begrenzt nach Arbeitsspeicher (ein Kern je
+angefangene 4 GB), damit kleine Geräte nicht ins Schwitzen kommen. Gemessen
+an der Schweiz auf einem N100: 19 statt 32 Minuten.
+
+Bleiben die Länder gleich, werden außerdem die Ländergrenzen nicht jedes Mal
+neu berechnet.
+
 ## 0.61.0
 
 **Die Suche verzeiht Tippfehler.** „Interlakn", „Lauzanne", „Zürihc" oder
