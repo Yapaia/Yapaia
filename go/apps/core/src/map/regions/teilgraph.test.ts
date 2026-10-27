@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { routingInstallieren } from './kartenserver.js';
-import { bauInfoAus, passtDazu, teilgraphEntfernen } from './teilgraph.js';
+import { bauInfoAus, passtDazu, teilgraphEntfernen, vergleicheVersion } from './teilgraph.js';
 
 const ordner: string[] = [];
 afterEach(() => {
@@ -112,6 +112,30 @@ describe('ein Land aus dem Teilgraphen nehmen', () => {
     mkdirSync(g.graphDir, { recursive: true });
     writeFileSync(join(d, 'valhalla', 'build-info.json'), JSON.stringify({ region: 'germany', regions: ['germany'] }));
     expect(await teilgraphEntfernen(g.graphDir, 'germany')).toBe(false);
+    expect(g.info().regions).toEqual(['germany']);
+  });
+});
+
+describe('Valhalla-Version', () => {
+  it('vergleicht Versionen', () => {
+    expect(vergleicheVersion('3.9.1', '3.5.1')).toBeGreaterThan(0);
+    expect(vergleicheVersion('3.9.1', '3.9.1')).toBe(0);
+    expect(vergleicheVersion('3.10.0', '3.9.1')).toBeGreaterThan(0);
+    expect(vergleicheVersion('3.5.1', '3.9.1')).toBeLessThan(0);
+  });
+
+  it('ein Paket aus einer neueren Valhalla-Version wird abgelehnt, der Graph bleibt', async () => {
+    const d = tmp();
+    const g = graph(d);
+    await routingInstallieren(paket(d, 'de', { ...de(), valhalla: '3.9.1' }, { '2/000/001.gph': 'DE' }), g.graphDir, {
+      valhallaVersion: async () => '3.9.1',
+    });
+    await expect(
+      routingInstallieren(paket(d, 'ch', { ...ch(), valhalla: '4.0.0' }, { '2/000/003.gph': 'CH' }), g.graphDir, {
+        valhallaVersion: async () => '3.9.1',
+      }),
+    ).rejects.toThrow(/braucht Valhalla 4.0.0, hier läuft 3.9.1/);
+    expect(existsSync(g.kachel('2/000/003.gph'))).toBe(false);
     expect(g.info().regions).toEqual(['germany']);
   });
 });

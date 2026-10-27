@@ -21,7 +21,7 @@ services:
     # ghcr.io/valhalla/valhalla — baut/serviert den Graphen ueber simple
     # env-Var-Flags statt manueller valhalla_build_config/_tiles-Schritte.
     # Details + Begruendung: services/valhalla/README.md.
-    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    image: ghcr.io/valhalla/valhalla-scripted:3.9.1
     container_name: yapaia-valhalla
     volumes:
       # /custom_files zeigt direkt auf den LIVE-Tiles-Pfad, den

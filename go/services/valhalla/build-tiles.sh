@@ -49,7 +49,7 @@ NEW_DIR="$DATA_DIR/tiles.new"
 OLD_DIR="$DATA_DIR/tiles.old"
 OVERRIDE_FILE="$SCRIPT_DIR/valhalla.json"
 
-IMAGE="ghcr.io/gis-ops/docker-valhalla/valhalla:latest" # ADR-014
+IMAGE="ghcr.io/valhalla/valhalla-scripted:3.9.1" # ADR-014
 BUILD_PORT="${VALHALLA_BUILD_PORT:-8099}"
 BUILD_TIMEOUT_S="${VALHALLA_BUILD_TIMEOUT_S:-1800}"
 POLL_INTERVAL_S=10

@@ -10,6 +10,21 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.63.0
+
+**Aktuelles Valhalla (3.9.1).** Das Routing lief bisher mit Valhalla 3.5.1
+aus einem Image, das nicht mehr gepflegt wird. Jetzt kommt Valhalla vom
+offiziellen Projekt, Version 3.9.1 – mit vier Versionen Fehlerkorrekturen,
+unter anderem für sehr große Routing-Bauten, die vorher am Ende abstürzten.
+
+- Vorhandene Routing-Graphen funktionieren weiter: Go ergänzt beim Start die
+  Einstellungen, die die neue Version zusätzlich erwartet. Geprüft mit einem
+  Graphen für Deutschland, Schweiz und Liechtenstein – gleiche Routen.
+- Routing-Pakete vom Kartenserver, die mit einer neueren Valhalla-Version
+  gebaut sind, werden abgelehnt statt eingespielt, mit dem Hinweis, Go zu
+  aktualisieren.
+- Der Routingbau auf dem Gerät lädt weiterhin nichts aus dem Internet nach.
+
 ## 0.62.0
 
 **Routing in Länderpaketen.** Der Kartenserver kann Routing jetzt je Land

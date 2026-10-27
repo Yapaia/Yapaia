@@ -30,6 +30,8 @@ export interface BauInfo {
   built_at?: string;
   bau?: string;
   teilgraph?: boolean;
+  /** Valhalla-Version, mit der gebaut wurde (z. B. "3.9.1"). */
+  valhalla?: string;
 }
 
 /** Liest eine `build-info.json` (Text). Unbrauchbares -> null. */
@@ -49,6 +51,7 @@ export function bauInfoAus(text: string | null | undefined): BauInfo | null {
       ...(typeof roh.built_at === 'string' ? { built_at: roh.built_at } : {}),
       ...(typeof roh.bau === 'string' ? { bau: roh.bau } : {}),
       ...(roh.teilgraph === true ? { teilgraph: true } : {}),
+      ...(typeof roh.valhalla === 'string' ? { valhalla: roh.valhalla } : {}),
     };
   } catch {
     return null;
@@ -150,4 +153,12 @@ export async function teilgraphEntfernen(graphDir: string, region: string): Prom
   await unlink(liste);
   await schreibeBauInfo(graphDir, { ...jetzt, regions: jetzt.regions.filter((r) => r !== region) });
   return true;
+}
+
+/** Vergleicht "3.9.1" mit "3.5.1": <0, 0, >0. Unlesbares zählt als 0.0.0. */
+export function vergleicheVersion(a: string, b: string): number {
+  const teile = (v: string) => (/(\d+)\.(\d+)(?:\.(\d+))?/.exec(v) ?? []).slice(1, 4).map((x) => Number(x ?? 0) || 0);
+  const [x, y] = [teile(a), teile(b)];
+  for (let i = 0; i < 3; i += 1) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+  return 0;
 }

@@ -54,7 +54,7 @@ Bundle gelinkt, sondern unveraendert als Image bezogen (`docker-compose.yml`).
 
 | Dienst | Image | Lizenz des Projekts |
 |---|---|---|
-| Valhalla (Routing) | `ghcr.io/gis-ops/docker-valhalla/valhalla` | MIT |
+| Valhalla (Routing) | `ghcr.io/valhalla/valhalla-scripted` | MIT |
 | Photon (Geocoding) | `rtuszik/photon-docker` | Apache-2.0 |
 | gpsd (GPS-Daemon) | Distributionspaket im Add-on-Image | BSD-2-Clause |
 | Mosquitto (nur Test/HA-seitig) | `eclipse-mosquitto` | EPL-2.0 / EDL-1.0 |

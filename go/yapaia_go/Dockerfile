@@ -7,7 +7,7 @@
 #   2. `photon-src`     -- source of `photon.jar` (a portable JAR, unlike
 #                          native binaries -- safe to lift out of its image).
 #   3. final stage      -- `FROM $BUILD_FROM` (build.yaml points this at
-#                          `ghcr.io/gis-ops/docker-valhalla/valhalla:latest`,
+#                          `ghcr.io/valhalla/valhalla-scripted:3.9.1`,
 #                          amd64+aarch64 -- see build.yaml's comment for why
 #                          we build ON TOP OF the Valhalla image rather than
 #                          copying Valhalla's binaries into a Node base: its
@@ -59,7 +59,9 @@
 # (`docker build -f yapaia_go/Dockerfile yapaia_go/`) und ueberlebt die vom
 # Supervisor angekuendigte Abkuendigung von `build.yaml` -- solange
 # `build.yaml` gelesen wird, gewinnt dessen `build_from`.
-ARG BUILD_FROM=ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+# Seit 0.63.0 das offizielle Valhalla-Image (3.9.1) statt gis-ops (3.5.1,
+# nicht mehr gepflegt) -- siehe build.yaml.
+ARG BUILD_FROM=ghcr.io/valhalla/valhalla-scripted:3.9.1
 
 # ---- Stage 1a: Quelltext holen ----
 # Leere Vorgabe fuer die gemeinsame Integration „Yapaia" -- der Bau ersetzt
