@@ -18,7 +18,11 @@
  */
 
 import { execFile } from 'node:child_process';
+import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
+import type { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import * as zlib from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { CatalogEntry } from './catalog.js';
@@ -39,7 +43,11 @@ export interface KartenserverVerbindung {
 export interface PaketDatei {
   url: string;
   sizeBytes: number;
+  /** Der GELADENEN Datei -- bei `komprimiert` also der gepackten. */
   sha256?: string;
+  /** Seit 0.64.0: Suche und Routing koennen zstd-gepackt kommen (etwa halbe
+   *  Groesse); entpackt wird nach dem Laden und Pruefen. */
+  komprimiert?: 'zstd';
 }
 
 /** Ein Katalogeintrag, der vom Kartenserver stammt. */
@@ -90,7 +98,15 @@ function datei(roh: unknown, basis?: string): PaketDatei | undefined {
   if (!roh || typeof roh !== 'object') return undefined;
   const d = roh as Record<string, unknown>;
   if (typeof d.url !== 'string' || !/^https?:\/\//.test(d.url) || typeof d.sizeBytes !== 'number') return undefined;
-  return { url: paketUrl(d.url, basis), sizeBytes: d.sizeBytes, ...(typeof d.sha256 === 'string' ? { sha256: d.sha256 } : {}) };
+  // Eine Komprimierung, die Go nicht kennt, kann es nicht auspacken -- dann
+  // lieber den Teil weglassen als Unbrauchbares installieren.
+  if (d.komprimiert !== undefined && d.komprimiert !== 'zstd') return undefined;
+  return {
+    url: paketUrl(d.url, basis),
+    sizeBytes: d.sizeBytes,
+    ...(typeof d.sha256 === 'string' ? { sha256: d.sha256 } : {}),
+    ...(d.komprimiert === 'zstd' ? { komprimiert: 'zstd' as const } : {}),
+  };
 }
 
 function datum(iso: unknown): string {
@@ -270,6 +286,13 @@ export async function routingInstallieren(tarPfad: string, graphDir: string, dep
   }
 }
 
+/** Eine zstd-Datei entpacken (Node >= 22.15 bringt zstd in zlib mit). */
+export async function zstdEntpacken(quelle: string, ziel: string): Promise<void> {
+  const erzeuge = (zlib as unknown as { createZstdDecompress?: () => Transform }).createZstdDecompress;
+  if (!erzeuge) throw new Error('Diese Node-Version kann kein zstd entpacken');
+  await pipeline(createReadStream(quelle), erzeuge(), createWriteStream(ziel));
+}
+
 let eigeneVersion: Promise<string | null> | null = null;
 /** `valhalla_service --version` (einmal je Prozess). Ohne Valhalla: null. */
 export function eigeneValhallaVersion(): Promise<string | null> {
@@ -351,13 +374,23 @@ export function runPaketJob(
     try {
       // Erst ALLES laden und pruefen, dann einwechseln: ein Abbruch mitten im
       // Laden laesst die bisherigen Daten unangetastet.
+      // Gepackte Teile werden als `<ziel>.zst.part` geladen und geprueft.
+      const ladeziel = (t: { datei: PaketDatei; ziel: string }) => (t.datei.komprimiert ? `${t.ziel}.zst` : t.ziel);
       for (const t of teile) {
         jobs.setNote(jobId, `${t.was} wird geladen …`);
         // `<ziel>.part` -- fuer die Karte dieselbe Datei wie beim normalen
         // Download (`partFilePath`), damit ein Abbruch dort weitermacht.
-        await ladeGeprueft(t.datei, t.ziel, { jobId, jobs, token, davor, gesamt });
+        await ladeGeprueft(t.datei, ladeziel(t), { jobId, jobs, token, davor, gesamt });
         davor += t.datei.sizeBytes;
         if (jobs.isCancelled(jobId)) throw Object.assign(new Error('Abgebrochen'), { code: 'CANCELLED' });
+      }
+      // Erst entpacken, dann einwechseln -- wie oben: ein Fehler hier laesst
+      // die bisherigen Daten unangetastet.
+      for (const t of teile) {
+        if (!t.datei.komprimiert) continue;
+        jobs.setNote(jobId, `${t.was} wird entpackt …`);
+        await zstdEntpacken(`${ladeziel(t)}.part`, `${t.ziel}.part`);
+        await rm(`${ladeziel(t)}.part`, { force: true });
       }
       jobs.setNote(jobId, 'Wird installiert …');
       let routing: RoutingErgebnis | null = null;
