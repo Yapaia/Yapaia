@@ -4,7 +4,14 @@ Valhalla liefert Routenberechnung (inkl. LKW/Wohnmobil-Costing), Turn-by-Turn-
 Manöver, Isochronen und Map-Matching für Yapaia Go. Der Service läuft als Teil
 des Docker-Compose-Stacks (`docker compose --profile routing up -d`).
 
-## ADR-014: gis-ops Auto-Build-Image statt offiziellem `valhalla/valhalla`
+## ADR-014: Auto-Build-Image statt offiziellem `valhalla/valhalla`
+
+> **Stand 0.63.0 (2026-10-27):** Das gis-ops-Image wird nicht mehr gepflegt
+> (letzte Version Valhalla 3.5.1, deren build-Stufe beim Europa-Bau
+> reproduzierbar mit „double free or corruption“ abstürzte). Sein Nachfolger
+> ist das offizielle `ghcr.io/valhalla/valhalla-scripted` mit denselben
+> Skripten und Umgebungsvariablen; Go nutzt es mit fester Version (3.9.1).
+> Die Begründung unten gilt für dieses Image unverändert.
 
 **Entscheidung:** `ghcr.io/gis-ops/docker-valhalla/valhalla:latest` statt des
 offiziellen `ghcr.io/valhalla/valhalla`.

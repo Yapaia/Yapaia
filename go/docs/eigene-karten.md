@@ -162,10 +162,11 @@ Das Ergebnis liegt danach in `data/valhalla/tiles/`: ein Ordner
   `build-tiles.sh` schreibt sie genau so. Ein Graph, den jemand anders mit
   einem eigenen Aufbau gebaut hat, trägt oft andere Pfade — dann startet
   Valhalla nicht. Die Pfade lassen sich mit dem File editor anpassen.
-- **Die Valhalla-Version muss zusammenpassen.** Das Add-on nutzt das Image
-  `ghcr.io/gis-ops/docker-valhalla/valhalla:latest`. Ein Graph aus einer
-  deutlich älteren oder neueren Valhalla-Version wird unter Umständen nicht
-  gelesen. Mit `build-tiles.sh` gebaut, passt es.
+- **Die Valhalla-Version muss zusammenpassen.** Das Add-on nutzt seit 0.63.0
+  das Image `ghcr.io/valhalla/valhalla-scripted:3.9.1` (vorher gis-ops mit
+  Valhalla 3.5.1). Ältere Graphen liest es weiter; ein Graph aus einer
+  NEUEREN Valhalla-Version wird unter Umständen nicht gelesen. Mit
+  `build-tiles.sh` gebaut, passt es.
 - **„Fehlendes bauen" kann den Graphen ersetzen.** Fehlt ihm eine installierte
   Karte (ein von Hand abgelegter Graph nennt keine), wird er aus den
   installierten Katalog-Regionen neu gebaut, und der eigene ist weg. Wer seinen

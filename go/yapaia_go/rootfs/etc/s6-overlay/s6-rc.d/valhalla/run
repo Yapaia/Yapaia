@@ -46,4 +46,23 @@ fi
 # `--max-memory` flag, memory behavior is governed by the tileset's own
 # `mjolnir.max_cache_size` inside valhalla.json (set at build time by
 # build-tiles.sh / the gis-ops image, not tunable per-start here).
+# ─── KONFIGURATION ERGAENZEN (seit 0.63.0) ──────────────────────────────────
+# Valhalla 3.9 verlangt Eintraege, die eine mit 3.5 erzeugte valhalla.json
+# nicht hat, und bricht sonst sofort ab („No such node
+# (loki.service_defaults.mvt_min_zoom_road_class)“). Deshalb: die
+# Standardwerte DIESER Valhalla-Version, darueber die vorhandene Datei --
+# alle bisherigen Werte bleiben, nur Fehlendes kommt dazu. Geschrieben wird
+# eine Laufzeitkopie; die Datei des Graphen bleibt unangetastet.
+# Geprueft 2026-10-27: Valhalla 3.9.1 liest so einen 3.5.1-Graphen (DE+CH+LI)
+# und liefert dieselben Routen auf den Meter.
+LAUFZEIT=/tmp/valhalla-laufzeit.json
+if valhalla_build_config > "${LAUFZEIT}.std" 2>/dev/null \
+   && jq -s '.[0] * .[1]' "${LAUFZEIT}.std" "${CONFIG}" > "${LAUFZEIT}" 2>/dev/null \
+   && [ -s "${LAUFZEIT}" ]; then
+  CONFIG="${LAUFZEIT}"
+else
+  bashio::log.warning "valhalla: Konfiguration liess sich nicht ergaenzen -- starte mit ${CONFIG} wie sie ist."
+fi
+rm -f "${LAUFZEIT}.std"
+
 exec valhalla_service "${CONFIG}" 1

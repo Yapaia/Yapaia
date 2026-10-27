@@ -301,6 +301,11 @@ export build_time_zones=False
 export build_transit=False
 export force_rebuild=True
 export use_tiles_ignore_pbf=False
+# Seit Valhalla 3.9: die Bau-Skripte laufen mit `set -o nounset`, und das
+# Image laedt sonst Standard-Geschwindigkeiten aus dem Internet -- der Bau
+# soll offline gehen wie bisher.
+export tile_urls="${tile_urls:-}"
+export use_default_speeds_config=False
 
 # ─── THREADS (seit 0.61.1) ───────────────────────────────────────────────────
 # Bis 0.61.0 baute Valhalla mit EINEM Thread. Gemessen am Schweiz-Graphen auf
@@ -331,13 +336,15 @@ export server_threads="$VALHALLA_BUILD_THREADS"
 # vorhandene Datei uebernommen; configure_valhalla.sh baut sie dann nicht neu
 # (es prueft nur, ob sie da ist). Bei einer anderen Liste oder mit
 # YAPAIA_GRAPH_ADMINS_NEU=1 entsteht sie wie bisher frisch.
-LIVE_ADMINS="$LIVE_DIR/admin_data/admins.sqlite"
+# Seit Valhalla 3.9 (Go 0.63.0) liegt sie direkt im Graph-Ordner, vorher
+# unter admin_data/ -- beide Orte zaehlen.
+LIVE_ADMINS="$LIVE_DIR/admins.sqlite"
+[ -s "$LIVE_ADMINS" ] || LIVE_ADMINS="$LIVE_DIR/admin_data/admins.sqlite"
 LIVE_INFO="$(dirname "$LIVE_DIR")/build-info.json"
 NEUE_LISTE="$(printf '%s\n' "${GRAPH_REGIONS[@]}" | sort | paste -sd, -)"
 ALTE_LISTE="$(jq -r '(.regions // []) | sort | join(",")' "$LIVE_INFO" 2>/dev/null || true)"
 if [ "${YAPAIA_GRAPH_ADMINS_NEU:-0}" != "1" ] && [ -s "$LIVE_ADMINS" ] && [ "$NEUE_LISTE" = "$ALTE_LISTE" ]; then
-  mkdir -p "$STAGING_DIR/admin_data"
-  cp "$LIVE_ADMINS" "$STAGING_DIR/admin_data/admins.sqlite"
+  cp "$LIVE_ADMINS" "$STAGING_DIR/admins.sqlite"
   echo "Grenzdaten unveraendert (gleiche Laender) -- vorhandene admins.sqlite wird weiterverwendet."
 fi
 

@@ -263,7 +263,7 @@ export function renderDocument({ prodPackages, devOnlyCount, violations }) {
   p();
   p('| Dienst | Image | Lizenz des Projekts |');
   p('|---|---|---|');
-  p('| Valhalla (Routing) | `ghcr.io/gis-ops/docker-valhalla/valhalla` | MIT |');
+  p('| Valhalla (Routing) | `ghcr.io/valhalla/valhalla-scripted` | MIT |');
   p('| Photon (Geocoding) | `rtuszik/photon-docker` | Apache-2.0 |');
   p('| gpsd (GPS-Daemon) | Distributionspaket im Add-on-Image | BSD-2-Clause |');
   p('| Mosquitto (nur Test/HA-seitig) | `eclipse-mosquitto` | EPL-2.0 / EDL-1.0 |');

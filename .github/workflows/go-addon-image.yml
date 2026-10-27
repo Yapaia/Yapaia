@@ -62,7 +62,7 @@ jobs:
             gosrc=./go
             yapaia-integration=./integration/custom_components
           build-args: |
-            BUILD_FROM=ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+            BUILD_FROM=ghcr.io/valhalla/valhalla-scripted:3.9.1
             BUILD_VERSION=ci-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

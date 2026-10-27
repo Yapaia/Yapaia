@@ -530,7 +530,7 @@ jobs:
             -e build_elevation=False \
             -e build_admins=True \
             -e build_time_zones=False \
-            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+            ghcr.io/valhalla/valhalla-scripted:3.9.1
 
       - name: Wait for Valhalla /status
         run: |
@@ -660,7 +660,7 @@ jobs:
             -e build_elevation=False \
             -e build_admins=True \
             -e build_time_zones=False \
-            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+            ghcr.io/valhalla/valhalla-scripted:3.9.1
 
       - name: Wait for Valhalla /status
         run: |

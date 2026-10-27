@@ -13,7 +13,11 @@
 #
 # `build_from` wird als `BUILD_FROM` an den Dockerfile durchgereicht,
 # `args` als zusaetzliche Build-Argumente.
-# We build on top of the SAME `gis-ops/docker-valhalla` image the standalone
+# Seit 0.63.0: das offizielle `valhalla/valhalla-scripted` (Valhalla 3.9.1).
+# Das gis-ops-Image blieb bei Valhalla 3.5.1 stehen, und dessen build-Stufe
+# stuerzte beim Europa-Bau reproduzierbar ab („double free or corruption“).
+# Das Nachfolge-Image bringt dieselben Bau-Skripte unter /valhalla/scripts mit.
+# We build on top of the SAME Valhalla image the standalone
 # docker-compose stack already uses (ADR-014, services/valhalla/README.md),
 # instead of on `node:24-slim` (which apps/core/Dockerfile uses standalone).
 # Rationale (Dockerfile has the full comment): Valhalla's native binary +
@@ -25,8 +29,8 @@
 # on top of an Ubuntu-family base (apt / official upstream tarballs) --
 # so we add THOSE on top of Valhalla's base instead of the reverse.
 build_from:
-  amd64: "ghcr.io/gis-ops/docker-valhalla/valhalla:latest"
-  aarch64: "ghcr.io/gis-ops/docker-valhalla/valhalla:latest"
+  amd64: "ghcr.io/valhalla/valhalla-scripted:3.9.1"
+  aarch64: "ghcr.io/valhalla/valhalla-scripted:3.9.1"
 labels:
   org.opencontainers.image.title: "Yapaia Go"
   org.opencontainers.image.description: "Offline motorhome navigation, packaged as a Home Assistant add-on"

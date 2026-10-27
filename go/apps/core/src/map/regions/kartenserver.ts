@@ -24,7 +24,7 @@ import { promisify } from 'node:util';
 import type { CatalogEntry } from './catalog.js';
 import { existingPartBytes, finalFilePath, hashFile, streamToFile } from './download.js';
 import type { JobRegistry } from './jobs.js';
-import { bauInfoAus, bauInfoJetzt, passtDazu, teilgraphErgaenzen, teilgraphNeuBegonnen } from './teilgraph.js';
+import { bauInfoAus, bauInfoJetzt, passtDazu, teilgraphErgaenzen, teilgraphNeuBegonnen, vergleicheVersion } from './teilgraph.js';
 
 const ausfuehren = promisify(execFile);
 
@@ -167,6 +167,8 @@ export interface PaketDeps {
   tar?: (args: string[]) => Promise<string>;
   /** Valhalla nach einer Aenderung am Graphen neu laden. */
   neustart?: () => Promise<void>;
+  /** Die eigene Valhalla-Version ("3.9.1"), null = unbekannt. */
+  valhallaVersion?: () => Promise<string | null>;
 }
 
 async function vorhanden(pfad: string): Promise<boolean> {
@@ -236,6 +238,17 @@ export async function routingInstallieren(tarPfad: string, graphDir: string, dep
   const { neu, liste } = await auspacken(tarPfad, graphDir, deps.tar ?? standardTar());
   try {
     const paket = bauInfoAus(await readFile(join(neu, 'build-info.json'), 'utf8').catch(() => null));
+    // Ein Graph aus einer NEUEREN Valhalla-Version wird von der eigenen
+    // womoeglich nicht gelesen -- dann lieber gar nicht einwechseln.
+    if (paket?.valhalla) {
+      const eigene = await (deps.valhallaVersion ?? eigeneValhallaVersion)();
+      if (eigene && vergleicheVersion(paket.valhalla, eigene) > 0) {
+        throw Object.assign(
+          new Error(`Dieses Routing braucht Valhalla ${paket.valhalla}, hier läuft ${eigene} – bitte Yapaia Go aktualisieren.`),
+          { code: 'VALHALLA_ZU_ALT' },
+        );
+      }
+    }
     const jetzt = bauInfoJetzt(graphDir);
     const kacheln = liste
       .filter((p) => /^tiles\/valhalla_tiles\/.+\.gph$/.test(p))
@@ -255,6 +268,15 @@ export async function routingInstallieren(tarPfad: string, graphDir: string, dep
   } finally {
     await rm(neu, { recursive: true, force: true });
   }
+}
+
+let eigeneVersion: Promise<string | null> | null = null;
+/** `valhalla_service --version` (einmal je Prozess). Ohne Valhalla: null. */
+export function eigeneValhallaVersion(): Promise<string | null> {
+  eigeneVersion ??= ausfuehren('valhalla_service', ['--version'])
+    .then(({ stdout }) => /(\d+\.\d+\.\d+)/.exec(stdout)?.[1] ?? null)
+    .catch(() => null);
+  return eigeneVersion;
 }
 
 /** Valhalla neu laden lassen (s6 im Add-on). Ohne s6 -- Tests, Entwicklung --
