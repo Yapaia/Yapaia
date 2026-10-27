@@ -449,7 +449,9 @@ builds map tiles, search index and routing graph exactly like Go does.
    the connection right away.
 3. The packages appear in the map list. **Installieren** / **Update**
    downloads map, search and routing, verifies the checksums and only then
-   swaps them in. If anything fails, your current data stays untouched.
+   swaps them in. Search and routing may come zstd-compressed (about half
+   the download); Go unpacks them after the check. If anything fails, your
+   current data stays untouched.
 
 Country packages from one Europe-wide build (e.g. Germany, Switzerland,
 France) **add up**: their routing tiles are combined into one graph, and

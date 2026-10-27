@@ -10,6 +10,14 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.64.0
+
+**Kartenpakete laden etwa halb so viel.** Der Kartenserver kann Suche und
+Routing jetzt gepackt ausliefern (zstd). Go lädt die gepackte Datei, prüft
+sie und entpackt sie erst dann. Beispiel Deutschland: statt rund 15 GB nur
+noch etwa 7 GB Download – das schont Mobilfunk-Datenvolumen und den
+Kartenserver. Ungepackte Pakete funktionieren weiter wie bisher.
+
 ## 0.63.0
 
 **Aktuelles Valhalla (3.9.1).** Das Routing lief bisher mit Valhalla 3.5.1

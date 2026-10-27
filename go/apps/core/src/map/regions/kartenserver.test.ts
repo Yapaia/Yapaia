@@ -11,6 +11,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import * as zlib from 'node:zlib';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { JobRegistry } from './jobs.js';
 import { eintragAus, erlaubterArchivpfad, graphEinwechseln, holeKatalog, paketUrl, runPaketJob, verbindungAus } from './kartenserver.js';
@@ -206,6 +207,38 @@ describe('Paket laden und installieren', () => {
     expect(existsSync(join(z.graphDir, 'valhalla_tiles', '2', '000.gph'))).toBe(true);
     expect(JSON.parse(readFileSync(join(d, 'valhalla', 'build-info.json'), 'utf-8'))).toEqual({ region: 'neu' });
     expect(existsSync(join(d, 'valhalla', 'alpen-routing.tar.part'))).toBe(false);
+  });
+
+  it('zstd-gepackte Suche und Routing: geladen, geprüft, entpackt, eingewechselt', async () => {
+    const { d, z } = ziele();
+    const packe = (zlib as unknown as { zstdCompressSync: (b: Buffer) => Buffer }).zstdCompressSync;
+    const karte = Buffer.from('PMTiles-Karte');
+    const suche = Buffer.from('SQLite format 3 ... '.repeat(50));
+    const routing = readFileSync(routingTar(d));
+    const [sucheZ, routingZ] = [packe(suche), packe(routing)];
+    const basis = await kartenserver({ 'alpen.pmtiles': karte, 'lite_search-alpen.db.zst': sucheZ, 'alpen-routing.tar.zst': routingZ }, () => []);
+    const roh = paket(basis, karte, suche, routing);
+    const eintrag = eintragAus({
+      ...roh,
+      suche: { url: `${basis}/v1/pakete/alpen/lite_search-alpen.db.zst`, sizeBytes: sucheZ.length, sha256: sha(sucheZ), komprimiert: 'zstd' },
+      routing: { url: `${basis}/v1/pakete/alpen/alpen-routing.tar.zst`, sizeBytes: routingZ.length, sha256: sha(routingZ), komprimiert: 'zstd' },
+    })!;
+    expect(eintrag.suche?.komprimiert).toBe('zstd');
+    const jobs = new JobRegistry();
+    const id = jobs.create('kartenserver');
+    await runPaketJob(id, jobs, eintrag, z, TOKEN);
+    const j = await fertig(jobs, id);
+    expect(j.status, JSON.stringify(j.error)).toBe('done');
+    expect(readFileSync(join(z.liteDir, 'lite_search-alpen.db'))).toEqual(suche);
+    expect(JSON.parse(readFileSync(join(z.graphDir, 'valhalla.json'), 'utf-8'))).toEqual({ inhalt: 'neu' });
+    expect(existsSync(join(z.liteDir, 'lite_search-alpen.db.zst.part'))).toBe(false);
+    expect(existsSync(join(d, 'valhalla', 'alpen-routing.tar.zst.part'))).toBe(false);
+  });
+
+  it('eine unbekannte Komprimierung lässt den Teil weg', () => {
+    const e = eintragAus({ id: 'a', name: 'A', bounds: [1, 2, 3, 4], suche: { url: 'https://k/s.db.xz', sizeBytes: 5, komprimiert: 'xz' }, routing: { url: 'https://k/r.tar', sizeBytes: 9 } });
+    expect(e?.suche).toBeUndefined();
+    expect(e?.routing).toBeDefined();
   });
 
   it('neuer Versuch, nachdem die Karte schon ganz geladen war: kein HTTP 416', async () => {
