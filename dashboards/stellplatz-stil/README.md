@@ -14,6 +14,11 @@ Eco/Heiß/Boost), Batterie mit Restlaufzeit, Solar, Gas und Frischwasser, alle
 Lichter, Aufbautür, Radio (Yapaia Beat, Senderfavoriten), WLAN (Yapaia Router),
 dazu Wetter (`weather.forecast_home`) und Sonne (`sun.sun`).
 
+- **Energie:** aktuelle Leistung der Batterien in W (Summe von `leistung` und
+  `leistung_2`; negativ = Verbrauch/Entladen, positiv = Laden). Beim Laden schätzt
+  die Karte, wann die Batterie voll ist: fehlende Ah (aus Ladestand und
+  `kapazitaet_ah`, Standard 600 Ah) ÷ Ladestrom. Gegen Ende lädt eine
+  Lithiumbatterie langsamer, deshalb „ca.“.
 - **Aufbautür:** zweimal tippen (Schutz vor versehentlichem Öffnen).
 - **Frischwasser:** ohne `wasser_leer_v`/`wasser_voll_v` zeigt die Karte die
   Spannung des Drucksensors; mit beiden Werten Prozent.

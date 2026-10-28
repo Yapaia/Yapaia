@@ -42,6 +42,11 @@ const STANDARD = {
   strom: "sensor.btcollector_current",
   strom_2: "sensor.btcollector_current_2",
   restlaufzeit: "sensor.batterien_restlaufzeit",
+  // Leistung je Batterie in W: negativ = Entladen, positiv = Laden
+  leistung: "sensor.btcollector_btcollector_battery_1_power",
+  leistung_2: "sensor.btcollector_btcollector_battery_2_power",
+  // Für „voll in …“: Kapazität aller Batterien zusammen
+  kapazitaet_ah: 600,
   pv: "sensor.btcollector_mppt_pv_power",
   ertrag: "sensor.btcollector_mppt_yield_today",
   gas_1: "sensor.btcollector_gas_sensor_1_level",
@@ -117,7 +122,9 @@ class YapaiaStellplatzCard extends HTMLElement {
         { type: "expandable", flatten: true, name: "", title: "Batterie und Solar", schema: [
           { name: "soc", selector: e("sensor") }, { name: "soc_2", selector: e("sensor") },
           { name: "spannung", selector: e("sensor") }, { name: "strom", selector: e("sensor") }, { name: "strom_2", selector: e("sensor") },
-          { name: "restlaufzeit", selector: e("sensor") }, { name: "pv", selector: e("sensor") }, { name: "ertrag", selector: e("sensor") }] },
+          { name: "restlaufzeit", selector: e("sensor") }, { name: "leistung", selector: e("sensor") }, { name: "leistung_2", selector: e("sensor") },
+          { name: "kapazitaet_ah", selector: { number: { min: 10, max: 2000, step: 10, mode: "box", unit_of_measurement: "Ah" } } },
+          { name: "pv", selector: e("sensor") }, { name: "ertrag", selector: e("sensor") }] },
         { type: "expandable", flatten: true, name: "", title: "Vorräte", schema: [
           { name: "gas_1", selector: e("sensor") }, { name: "gas_2", selector: e("sensor") }, { name: "frischwasser", selector: e("sensor") },
           { type: "grid", name: "", schema: [
@@ -131,13 +138,15 @@ class YapaiaStellplatzCard extends HTMLElement {
       computeLabel: (s) => ({
         stil: "Stil", titel: "Titel", ort: "Ort (leer = Titel)", raum: "Heizung Raum", wasser: "Warmwasser",
         soc: "Ladestand Batterie 1", soc_2: "Ladestand Batterie 2 (optional)", spannung: "Spannung", strom: "Strom Batterie 1",
-        strom_2: "Strom Batterie 2 (optional)", restlaufzeit: "Restlaufzeit (Tage)", pv: "Solarleistung", ertrag: "Solarertrag heute",
+        strom_2: "Strom Batterie 2 (optional)", restlaufzeit: "Restlaufzeit (Tage)", leistung: "Leistung Batterie 1 (W, − = Entladen)",
+        leistung_2: "Leistung Batterie 2 (optional)", kapazitaet_ah: "Kapazität aller Batterien", pv: "Solarleistung", ertrag: "Solarertrag heute",
         gas_1: "Gas 1", gas_2: "Gas 2", frischwasser: "Frischwasser", wasser_leer_v: "Wasser leer bei", wasser_voll_v: "Wasser voll bei",
         tuer: "Aufbautür", radio: "Radio", internet: "Router „Internet über“", wetter: "Wetter", sonne: "Sonne",
         lichter: "Lichter (Liste aus entity und name)",
       })[s.name],
       computeHelper: (s) => ({
         wasser_leer_v: "Ohne beide Werte zeigt die Karte die Spannung des Drucksensors.",
+        kapazitaet_ah: "Für die Schätzung, wann die Batterie wieder voll ist.",
       })[s.name],
     };
   }
@@ -232,13 +241,7 @@ class YapaiaStellplatzCard extends HTMLElement {
         schritt: zahl(raum.attributes.target_temp_step) || 0.5,
       },
       wasser: wasser && { modus: wModus, ist: zahl(wasser.attributes.current_temperature), soll: wModus === "aus" ? null : wSoll },
-      batt: {
-        soc: socs.length ? socs.reduce((a, b) => a + b, 0) / socs.length : null,
-        volt: this._wert(c.spannung),
-        strom,
-        rest,
-        laedt: strom !== null && strom > 0.2,
-      },
+      batt: this._batterie(socs, strom, rest),
       solar: { w: this._wert(c.pv), kwh: this._wert(c.ertrag) },
       gas: [this._wert(c.gas_1), this._wert(c.gas_2)],
       fw: { pct: fwPct, v: fwV, da: Boolean(fw) },
@@ -262,11 +265,65 @@ class YapaiaStellplatzCard extends HTMLElement {
     };
   }
 
+  _batterie(socs, strom, rest) {
+    const c = this._config;
+    const soc = socs.length ? socs.reduce((a, b) => a + b, 0) / socs.length : null;
+    const volt = this._wert(c.spannung);
+    const leistungen = [this._wert(c.leistung), this._wert(c.leistung_2)].filter((v) => v !== null);
+    // Leistung: aus den Sensoren, sonst Spannung × Strom
+    const w = leistungen.length ? leistungen.reduce((a, b) => a + b, 0) : volt !== null && strom !== null ? volt * strom : null;
+    const richtung = w === null ? (strom === null ? null : strom > 0.2 ? "laden" : strom < -0.2 ? "entladen" : "ruhe")
+      : w > 3 ? "laden" : w < -3 ? "entladen" : "ruhe";
+    // Wann voll? Fehlende Ah ÷ Ladestrom (Ladestrom notfalls aus W ÷ V).
+    // Am Ende lädt eine Lithiumbatterie langsamer -- daher „ca.“.
+    let vollIn = null;
+    const ladestrom = strom !== null && strom > 0.2 ? strom : w !== null && w > 3 && volt ? w / volt : null;
+    if (richtung === "laden" && soc !== null && soc < 99.5 && ladestrom && zahl(c.kapazitaet_ah)) {
+      vollIn = (((100 - soc) / 100) * zahl(c.kapazitaet_ah)) / ladestrom; // Stunden
+    }
+    return { soc, volt, strom, rest, w, richtung, laedt: richtung === "laden", vollIn, voll: soc !== null && soc >= 99.5 };
+  }
+
   // ---- Bausteine (für alle Stile gleich) -----------------------------------
 
+  _dauer(std) {
+    if (std === null || !Number.isFinite(std)) return "–";
+    if (std >= 48) return `${Math.round(std / 24)} Tagen`;
+    const h = Math.floor(std);
+    const m = Math.round((std - h) * 60 / 5) * 5;
+    return h ? `${h} Std${m ? ` ${m} Min` : ""}` : `${Math.max(5, m)} Min`;
+  }
+
+  _vollUm(std) {
+    return new Date(Date.now() + std * 3600e3).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  /** „−24 W“ / „+120 W“ */
+  _wText(b) {
+    return b.w === null ? "–" : `${b.w > 0.5 ? "+" : b.w < -0.5 ? "−" : ""}${de(Math.abs(b.w))} W`;
+  }
+
+  /** Kurzer Satz zur Batterie (Retro: unten in der Kachel). */
+  _battZeile(b) {
+    if (b.richtung === "laden") {
+      if (b.voll) return "voll · lädt";
+      return b.vollIn !== null ? `voll in ca. ${this._dauer(b.vollIn)} (gegen ${this._vollUm(b.vollIn)})` : "lädt gerade";
+    }
+    return b.rest === null ? "Restlaufzeit unbekannt" : `${this._restText(b)} Restlaufzeit`;
+  }
+
+  /** Satz zur Batterie im Magazin-Stil. */
+  _battSatz(b) {
+    if (b.richtung === "laden") {
+      const voll = b.voll ? " Sie ist voll." : b.vollIn !== null ? ` Voll in ca. <b>${this._dauer(b.vollIn)}</b>, gegen ${this._vollUm(b.vollIn)}.` : "";
+      return `Die Batterie <b>lädt mit ${de(Math.abs(b.w ?? 0))} W</b>.${voll}`;
+    }
+    const zieht = b.richtung === "entladen" ? `Gerade werden <b>${de(Math.abs(b.w))} W</b> verbraucht. ` : "Gerade fließt kaum Strom. ";
+    return `${zieht}${b.rest === null ? "" : `Reicht noch <b>${esc(this._restText(b))}</b>.`}`;
+  }
+
   _restText(b) {
-    if (b.laedt) return "lädt gerade";
-    if (b.rest === null) return "Restlaufzeit unbekannt";
+    if (b.rest === null) return "unbekannt";
     const tage = Math.floor(b.rest);
     const std = Math.round((b.rest - tage) * 24);
     return tage > 0 ? `${tage} ${tage === 1 ? "Tag" : "Tage"} ${std} Std` : `${std} Std`;
@@ -353,9 +410,11 @@ class YapaiaStellplatzCard extends HTMLElement {
           <div class="label braun">Batterie</div>
           <div class="batt">
             <div class="akku"><i style="height:${b.soc ?? 0}%"></i></div>
-            <div><div class="gross">${b.soc === null ? "–" : `${de(b.soc)}%`}</div><small>${de(b.volt, 1)} V · ${b.strom === null ? "–" : `${b.strom > 0 ? "+" : ""}${de(b.strom, 1)} A`}</small></div>
+            <div><div class="gross">${b.soc === null ? "–" : `${de(b.soc)}%`}</div>
+              <div class="leistung ${b.richtung ?? ""}">${this._wText(b)}<small>${{ laden: "lädt", entladen: "entlädt", ruhe: "Ruhe" }[b.richtung] ?? ""}</small></div>
+              <small>${de(b.volt, 1)} V · ${b.strom === null ? "–" : `${b.strom > 0 ? "+" : ""}${de(b.strom, 1)} A`}</small></div>
           </div>
-          <div><b>${esc(this._restText(b))}</b>${b.laedt || b.rest === null ? "" : " Restlaufzeit"}</div>
+          <div class="battzeile"><b>${esc(this._battZeile(b))}</b></div>
         </section>
         <section class="k dunkel">
           <div class="kopf"><span class="label senf">Solar</span><span class="ic senf gross-ic">${ICON.sonne}</span></div>
@@ -421,7 +480,8 @@ class YapaiaStellplatzCard extends HTMLElement {
           <div class="mini">Energie</div>
           <div class="zahl">${b.soc === null ? "–" : de(b.soc)}<span>%</span></div>
           <div class="balken"><i style="width:${b.soc ?? 0}%"></i></div>
-          <p>${b.laedt ? "Die Batterie <b>lädt</b> gerade." : `Reicht noch <b>${esc(this._restText(b))}</b>.`}
+          <div class="leistung-gross ${b.richtung ?? ""}">${this._wText(b)}<span>${{ laden: "lädt", entladen: "Verbrauch", ruhe: "Ruhe" }[b.richtung] ?? ""}</span></div>
+          <p>${this._battSatz(b)}
              ${d.solar.w ? `Die Sonne liefert <b class="akz">${de(d.solar.w)} W</b>, heute ${de(d.solar.kwh, 1)} kWh.` : `Heute ${de(d.solar.kwh, 1)} kWh von der Sonne.`}</p>
         </section>
         <section class="${mix ? "karte waerme" : ""}">
@@ -583,6 +643,11 @@ svg { display: block; }
 .retro .akku { width: 58px; height: 118px; border: 3px solid var(--braun); border-radius: 12px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 5px; flex: none; }
 .retro .akku::before { content: ""; position: absolute; top: -10px; left: 17px; width: 18px; height: 7px; background: var(--braun); border-radius: 3px 3px 0 0; }
 .retro .akku i { background: var(--senf); border-radius: 6px; }
+.retro .leistung { font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 26px; margin: 4px 0 2px; display: flex; align-items: baseline; gap: 6px; }
+.retro .leistung small { font-family: "DM Sans", system-ui, sans-serif; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--hellbraun); }
+.retro .leistung.laden { color: #2F7A4F; }
+.retro .leistung.entladen { color: var(--rost); }
+.retro .battzeile { font-size: 15px; }
 .retro .kopf { display: flex; justify-content: space-between; align-items: center; }
 .retro .gross-ic { width: 34px; height: 34px; }
 .retro .lichter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex: 1; }
@@ -665,6 +730,12 @@ aside .netz small { font-size: 13px; color: var(--seitegrau); }
 .mix .balken i { background: var(--akzent); }
 main p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--tinte); opacity: .88; }
 .akz { color: var(--akzent); }
+.leistung-gross { display: flex; align-items: baseline; gap: 8px; font-family: var(--schrift); font-weight: var(--zahlgewicht); font-size: 34px; line-height: 1; }
+.leistung-gross span { font-family: "Inter", system-ui, sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--grau); }
+.leistung-gross.laden { color: #2F7A4F; }
+.leistung-gross.entladen { color: #B4532A; }
+.mix .leistung-gross.entladen { color: var(--rost); }
+.mix .energie .akz { color: var(--rost); }
 .magazin .akz { color: #B8692A; }
 .plusminus { display: flex; gap: 10px; }
 .plusminus button { flex: 1; height: 48px; border-radius: 24px; border: 1.5px solid var(--tinte); background: transparent; color: var(--tinte); font-size: 22px; display: flex; align-items: center; justify-content: center; }
