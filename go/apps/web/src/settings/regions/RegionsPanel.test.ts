@@ -85,6 +85,14 @@ describe('es gibt einen Weg zu Routing und Suche', () => {
     ).not.toContain('gesamtbau-button');
   });
 
+  it('mit Kartenserver rückt er nach unten, bleibt aber erreichbar', () => {
+    // Wer nur vom Kartenserver lädt, baut nie selbst -- oben wäre der
+    // Abschnitt im Weg. Weg sein darf er trotzdem nicht.
+    expect(CODE).toContain('{bauOben && bauAbschnitt}');
+    expect(CODE).toContain('gesamtbau-zugeklappt');
+    expect(CODE).toMatch(/const bauOben = !kartenserver\?\.eingerichtet \|\| geladen\.length > 0/);
+  });
+
   it('er sagt, wenn es noch nichts zu bauen gibt', () => {
     // Ein ausgegrauter Knopf ohne Begründung ist eine Wand.
     expect(CODE).toContain('gesamtbau-ohne-karte');

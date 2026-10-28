@@ -82,7 +82,7 @@ function ArtifactRow({
             )}
             {ohneKarte && ohneKarte.length > 0 && (
               <span className="block text-slate-500 dark:text-slate-400 text-xs" data-testid={`${testId}-ohne-karte`}>
-                Enthält noch {ohneKarte.join(', ')} — die Karte dazu ist gelöscht. Verschwindet beim nächsten Routingbau.
+                Enthält noch {ohneKarte.join(', ')} — die Karte dazu ist gelöscht. Das stört nicht; es verschwindet, sobald das Routing neu gebaut oder vom Kartenserver ersetzt wird.
               </span>
             )}
           </>
