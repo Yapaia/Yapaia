@@ -42,6 +42,8 @@ from .api import (
     GLiNetError,
     aktive_quelle,
     is_unknown_method,
+    gespeicherter_schluessel,
+    parse_scan,
     parse_state,
     parse_wlan,
 )
@@ -50,8 +52,8 @@ from .laender import codes, land
 _LOGGER = logging.getLogger(__name__)
 
 MODUL = "router"
-VERSION = "0.3.0"
-FAEHIGKEITEN = ["mobilfunk", "mobilfunk.sim_wechsel"]
+VERSION = "0.4.0"
+FAEHIGKEITEN = ["mobilfunk", "mobilfunk.sim_wechsel", "wlan.repeater"]
 
 # Optionen (Einstellungen der Integration für diesen Router)
 OPT_INTERVALL = "intervall"
@@ -125,6 +127,9 @@ def beschreibung(instanz: str, name: str, version: str) -> dict[str, Any]:
                    attribute=["quelle", "wlan_ssid", "wlan_balken", "wlan_kanal", "wlan_bssid", "wlan_ip",
                               "wlan_gateway", "wlan_verbunden"]),
             sensor("wlan_signal", "WLAN-Signal", "Wi-Fi signal", **dbm),
+            {"schluessel": "wlan_anmeldung", "plattform": "binary_sensor",
+             "name": _T(de="WLAN-Anmeldung nötig", en="Wi-Fi sign-in required"), "symbol": "mdi:web-check",
+             "attribute": ["wlan_zustand", "wlan_fehler"]},
             {"schluessel": "neu_verbinden", "plattform": "button",
              "name": _T(de="Mobilfunk neu verbinden", en="Reconnect cellular"), "symbol": "mdi:restart",
              "aktion": "neu_verbinden"},
@@ -143,6 +148,19 @@ def beschreibung(instanz: str, name: str, version: str) -> dict[str, Any]:
             {"name": "router_neustart", "titel": _T(de="Router neu starten", en="Restart router")},
             {"name": "automatik_an", "titel": _T(de="SIM nach Land: an", en="SIM by country: on")},
             {"name": "automatik_aus", "titel": _T(de="SIM nach Land: aus", en="SIM by country: off")},
+            {"name": "wlan_suchen", "titel": _T(de="WLANs suchen", en="Scan Wi-Fi networks"),
+             "beschreibung": _T(de="Sucht WLANs in der Umgebung (dauert einige Sekunden) und gibt sie als Liste zurück.",
+                                en="Scans nearby Wi-Fi networks (takes a few seconds) and returns them as a list.")},
+            {"name": "wlan_verbinden", "titel": _T(de="Mit WLAN verbinden", en="Connect to Wi-Fi"),
+             "beschreibung": _T(de="Verbindet den Router als Repeater mit einem WLAN (z. B. vom Campingplatz). "
+                                   "Ohne Passwort wird ein beim Router gespeichertes verwendet.",
+                                en="Connects the router to a Wi-Fi network as repeater. "
+                                   "Without a password a saved one is used."),
+             "felder": {"ssid": {"typ": "text", "pflicht": True, "titel": _T(de="WLAN-Name", en="Network name")},
+                        "passwort": {"typ": "text", "titel": _T(de="Passwort", en="Password")},
+                        "bssid": {"typ": "text", "titel": _T(de="Zugangspunkt (BSSID)", en="Access point (BSSID)")},
+                        "merken": {"typ": "bool", "standard": True, "titel": _T(de="Merken", en="Remember")}}},
+            {"name": "wlan_trennen", "titel": _T(de="WLAN trennen", en="Disconnect Wi-Fi")},
             {"name": "rpc", "titel": _T(de="Router-Aufruf (roh)", en="Raw router call"),
              "beschreibung": _T(de="Für Fachleute: ruft service.method am Router auf und gibt die Antwort zurück.",
                                 en="For experts: calls service.method on the router and returns the answer."),
@@ -302,6 +320,9 @@ class RouterModul(YapaiaModul):
             "internet": QUELLEN_NAME.get(z.quelle or ""),
             "quelle": z.quelle,
             "wlan_signal": z.wlan.get("signal"),
+            "wlan_anmeldung": z.wlan.get("portal"),
+            "wlan_zustand": z.wlan.get("zustand"),
+            "wlan_fehler": z.wlan.get("fehler"),
             **{f"wlan_{k}": z.wlan.get(k) for k in ("ssid", "balken", "kanal", "bssid", "ip", "gateway", "verbunden")},
             "umschaltung": self._status,
             "umschaltweg": f"{weg['methode']} {json.dumps(weg.get('parameter'))}" if weg else "noch nicht eingelernt",
@@ -428,6 +449,12 @@ class RouterModul(YapaiaModul):
             elif name == "router_neustart":
                 await self.router.reboot()
                 return None
+            elif name == "wlan_suchen":
+                return await self.wlan_suchen()
+            elif name == "wlan_verbinden":
+                return await self.wlan_verbinden(daten)
+            elif name == "wlan_trennen":
+                await self.router.call("repeater", "disconnect")
             elif name == "rpc":
                 params = daten.get("params") or {}
                 if isinstance(params, str):
@@ -444,6 +471,36 @@ class RouterModul(YapaiaModul):
             raise YapaiaFehler(f"Router: {err}") from err
         self._wecker.set()
         return None
+
+    # ---- WLAN (Repeater) ----------------------------------------------------
+    async def wlan_suchen(self) -> dict[str, Any]:
+        verbunden = self.zustand.wlan.get("ssid") if self.zustand else None
+        netze = parse_scan(await self.router.call("repeater", "scan", {"all_band": True}), verbunden)
+        return {"netze": netze, "verbunden": verbunden}
+
+    async def wlan_verbinden(self, daten: dict[str, Any]) -> dict[str, Any]:
+        """Mit einem WLAN verbinden. Fertig ist das erst, wenn der Router es meldet.
+
+        Der Router baut die Verbindung im Hintergrund auf; ob sie steht (oder
+        das Passwort falsch war), zeigt der Status in den nächsten Sekunden
+        (`wlan_zustand`, `wlan_fehler`, `wlan_anmeldung`).
+        """
+        ssid = str(daten.get("ssid") or "").strip()
+        if not ssid:
+            raise YapaiaFehler("Bitte den WLAN-Namen angeben")
+        passwort = str(daten.get("passwort") or "")
+        if not passwort:
+            # Gespeichertes Passwort des Routers nehmen; es verlässt die Integration nicht.
+            passwort = gespeicherter_schluessel(await self.router.call_optional("repeater", "get_saved_ap_list"), ssid) or ""
+        params: dict[str, Any] = {"ssid": ssid, "remember": daten.get("merken", True) is not False,
+                                  "manual": False, "protocol": "dhcp"}
+        if passwort:
+            params["key"] = passwort
+        if daten.get("bssid"):
+            params["bssid"] = str(daten["bssid"]).lower()
+        await self.router.call("repeater", "connect", params)
+        self._wecker.set()
+        return {"ssid": ssid, "gestartet": True}
 
     @callback
     def _ereignis(self, name: str, daten: dict[str, Any]) -> None:

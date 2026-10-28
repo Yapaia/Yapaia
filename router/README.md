@@ -45,17 +45,32 @@ diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
 | `sensor.yapaia_router_datenverbrauch` | Datenzähler des Routers |
 | `sensor.yapaia_router_internet` | **Internet über** WLAN / Mobilfunk / Kabel / Tethering, mit den WLAN-Daten als Attribute |
 | `sensor.yapaia_router_wlan_signal` | Signal des WLANs, mit dem der Router verbunden ist (dBm) |
+| `binary_sensor.yapaia_router_wlan_anmeldung` | **WLAN-Anmeldung nötig** (Captive Portal erkannt); Attribute `wlan_zustand`, `wlan_fehler` |
 | `binary_sensor.yapaia_router_verbunden` | Mobilfunkverbindung |
 | `sensor.yapaia_router_umschaltung` | Stand der SIM-Umschaltung (Diagnose) |
 | `sensor.yapaia_router_modem` | Modem des Routers (Diagnose) |
 | `button.yapaia_router_neu_verbinden`, `…_neustart` | neu verbinden, Router-Neustart (deaktiviert) |
 
 **Aktionen:** `yapaia.router_sim_waehlen` (`sim: 1|2`), `…_neu_verbinden`,
-`…_router_neustart`, `…_automatik_an` / `…_automatik_aus` und
+`…_router_neustart`, `…_automatik_an` / `…_automatik_aus`,
+`yapaia.router_wlan_suchen` (WLANs der Umgebung als Antwort), `…_wlan_verbinden`
+(`ssid`, `passwort`, `bssid`, `merken`; ohne Passwort ein beim Router
+gespeichertes), `…_wlan_trennen` und
 `yapaia.router_rpc` (Router-Aufruf roh, für Fachleute; Antwort als Ergebnis).
 
 **Auslöser** (im Automationen-Editor beim Gerät „Yapaia Router“):
 *Land gewechselt*, *SIM gewechselt*, *SIM-Wechsel fehlgeschlagen*.
+
+## WLAN (Campingplatz)
+
+Der Router kann als Repeater an einem fremden WLAN hängen. Die Karte
+`custom:yapaia-wlan-card` (Dashboard [Stellplatz](../dashboards/stellplatz/))
+sucht WLANs, verbindet und trennt. Verlangt ein WLAN eine Anmeldung im
+Browser (**Captive Portal**: Zugangscode, „Bedingungen akzeptieren“), meldet
+der Router das (`portal`), und der Sensor „WLAN-Anmeldung nötig“ geht an. Die
+Anmeldeseite öffnet man dann auf einem Gerät im WLAN des Wohnmobils, z. B.
+über `http://neverssl.com`; das Portal sieht nur den Router, die Anmeldung gilt
+also für alle Geräte dahinter.
 
 ## SIM nach Land (Grenzübertritt)
 

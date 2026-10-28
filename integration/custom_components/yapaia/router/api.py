@@ -476,13 +476,26 @@ def wlan_balken(dbm: float | None) -> int | None:
 
 
 def parse_wlan(repeater: Any) -> dict[str, Any]:
-    """Die wichtigen Werte aus `repeater.get_status` (leer ohne Verbindung)."""
+    """Die wichtigen Werte aus `repeater.get_status`.
+
+    Verbindungswerte nur, wenn verbunden. `zustand`, `fehler` und `portal`
+    immer: gerade wenn keine Verbindung zustande kommt (falsches Passwort) oder
+    ein Captive Portal die Anmeldung im Browser verlangt, will man das sehen.
+    """
     r = _dict(repeater)
-    if r.get("state_s") != "connected" and _to_int(r.get("state")) != 2:
+    if not r:
         return {}
+    allgemein = {
+        "zustand": r.get("state_s") or None,
+        "fehler": r.get("fail_type") or None,
+        "portal": _to_bool(r.get("portal")),
+    }
+    if r.get("state_s") != "connected" and _to_int(r.get("state")) != 2:
+        return allgemein
     signal = _to_float(r.get("signal"))
     ipv4 = _dict(r.get("ipv4"))
     return {
+        **allgemein,
         "ssid": r.get("ssid") or None,
         "signal": signal,
         "balken": wlan_balken(signal),
@@ -492,6 +505,55 @@ def parse_wlan(repeater: Any) -> dict[str, Any]:
         "gateway": ipv4.get("gateway") or None,
         "verbunden": r.get("connected") or None,
     }
+
+
+BAND_NAME = {"2g": "2,4 GHz", "5g": "5 GHz", "6g": "6 GHz"}
+
+
+def parse_scan(scan: Any, verbunden_ssid: str | None = None) -> list[dict[str, Any]]:
+    """WLANs aus `repeater.scan`, je Name EIN Eintrag (stärkster Zugangspunkt).
+
+    Ein Campingplatz hat oft Dutzende Zugangspunkte mit demselben Namen; für
+    die Auswahl zählt der Name, verbunden wird mit dem stärksten. Versteckte
+    Netze (ohne Namen) fallen weg -- verbinden ließe sich ohnehin nur mit Namen.
+    """
+    netze: dict[str, dict[str, Any]] = {}
+    for ap in _dict(scan).get("res") or []:
+        if not isinstance(ap, dict) or not ap.get("ssid"):
+            continue
+        ssid = str(ap["ssid"])
+        signal = _to_float(ap.get("signal"))
+        verschl = _dict(ap.get("encryption"))
+        band = BAND_NAME.get(str(ap.get("band") or ""), ap.get("band"))
+        alt = netze.get(ssid)
+        if alt is None:
+            alt = netze[ssid] = {"ssid": ssid, "signal": None, "baender": [], "zugangspunkte": 0,
+                                 "verschluesselt": False, "verschluesselung": None,
+                                 "gespeichert": False, "verbunden": ssid == verbunden_ssid}
+        alt["zugangspunkte"] += 1
+        if band and band not in alt["baender"]:
+            alt["baender"].append(band)
+        if _to_bool(ap.get("saved")):
+            alt["gespeichert"] = True
+        if _to_bool(verschl.get("enabled")):
+            alt["verschluesselt"] = True
+            alt["verschluesselung"] = verschl.get("description") or alt["verschluesselung"]
+        if signal is not None and (alt["signal"] is None or signal > alt["signal"]):
+            alt["signal"] = signal
+            alt["bssid"] = ap.get("bssid")
+    liste = sorted(netze.values(), key=lambda n: (not n["verbunden"], -(n["signal"] if n["signal"] is not None else -999)))
+    for n in liste:
+        n["balken"] = wlan_balken(n["signal"])
+        n["baender"].sort()
+    return liste
+
+
+def gespeicherter_schluessel(gespeichert: Any, ssid: str) -> str | None:
+    """Das Passwort eines gespeicherten WLANs -- bleibt in der Integration."""
+    for ap in _dict(gespeichert).get("res") or []:
+        if isinstance(ap, dict) and ap.get("ssid") == ssid:
+            return ap.get("key") or None
+    return None
 
 
 @dataclass

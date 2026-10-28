@@ -112,3 +112,13 @@ views:
           - type: custom:yapaia-beat-card
             entity: media_player.yapaia_beat
             style: modern
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Internet
+            icon: mdi:wifi
+          # WLANs suchen und den Router damit verbinden (z. B. Campingplatz-WLAN)
+          - type: custom:yapaia-wlan-card
+            internet: sensor.yapaia_router_internet
+            anmeldung: binary_sensor.yapaia_router_wlan_anmeldung

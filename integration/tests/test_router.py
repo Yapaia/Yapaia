@@ -227,7 +227,7 @@ async def test_rohaufruf_knoepfe_und_partner(hass: HomeAssistant, patch_router: 
     assert ("modem", "disconnect", {"bus": "0001:01:00.0"}) in patch_router.calls
     liste = partner.liste(hass)
     assert liste == [{"modul": "router", "instanz": "9483c4aabbcc", "name": "Yapaia Router", "version": r.VERSION,
-                      "faehigkeiten": ["mobilfunk", "mobilfunk.sim_wechsel"]}]
+                      "faehigkeiten": ["mobilfunk", "mobilfunk.sim_wechsel", "wlan.repeater"]}]
 
 
 async def test_diagnose_schwaerzt(hass: HomeAssistant, patch_router: FakeRouter) -> None:
@@ -248,3 +248,33 @@ async def test_neue_anmeldung_bei_falschem_passwort(hass: HomeAssistant, patch_r
     await hass.async_block_till_done()
     flows = hass.config_entries.flow.async_progress()
     assert any(f["context"]["source"] == config_entries.SOURCE_REAUTH for f in flows)
+
+
+async def test_wlan_suchen_verbinden_trennen(hass: HomeAssistant, patch_router: FakeRouter) -> None:
+    await einrichten(hass)
+    antwort = await hass.services.async_call(DOMAIN, "router_wlan_suchen", {}, blocking=True, return_response=True)
+    netze = antwort["Yapaia Router"]["netze"]
+    assert [n["ssid"] for n in netze] == ["NoDramaLama", "Campingplatz"]
+    assert netze[0]["verbunden"] and not netze[1]["verschluesselt"]
+
+    # Ohne Passwort: das beim Router gespeicherte -- es taucht in keiner Antwort auf
+    antwort = await hass.services.async_call(DOMAIN, "router_wlan_verbinden", {"ssid": "NoDramaLama"},
+                                             blocking=True, return_response=True)
+    assert antwort["Yapaia Router"] == {"ssid": "NoDramaLama", "gestartet": True}
+    assert ("repeater", "connect", {"ssid": "NoDramaLama", "remember": True, "manual": False,
+                                    "protocol": "dhcp", "key": "gespeichert"}) in patch_router.calls
+    # Offenes WLAN, nicht merken
+    await hass.services.async_call(DOMAIN, "router_wlan_verbinden", {"ssid": "Campingplatz", "merken": False},
+                                   blocking=True)
+    assert ("repeater", "connect", {"ssid": "Campingplatz", "remember": False, "manual": False,
+                                    "protocol": "dhcp"}) in patch_router.calls
+    await hass.services.async_call(DOMAIN, "router_wlan_trennen", {}, blocking=True)
+    assert ("repeater", "disconnect", {}) in patch_router.calls
+
+
+async def test_wlan_anmeldung_noetig(hass: HomeAssistant, patch_router: FakeRouter) -> None:
+    patch_router.repeater["portal"] = True
+    await einrichten(hass)
+    zustand = hass.states.get("binary_sensor.yapaia_router_wlan_anmeldung")
+    assert zustand is not None and zustand.state == "on"
+    assert zustand.attributes["wlan_zustand"] == "connected"

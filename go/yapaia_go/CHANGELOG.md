@@ -10,6 +10,13 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.64.2
+
+**Bringt die Integration 0.6.0 mit:** Der GL.iNet-Router kann jetzt WLANs
+suchen und sich damit verbinden (z. B. Campingplatz-WLAN), mit Hinweis, wenn
+eine Anmeldung im Browser (Captive Portal) nötig ist. Dazu gibt es die Karte
+„Yapaia WLAN“ im Dashboard Stellplatz. An Go selbst ändert sich nichts.
+
 ## 0.64.1
 
 **Kartenverwaltung für Kartenserver-Nutzer aufgeräumt.**
