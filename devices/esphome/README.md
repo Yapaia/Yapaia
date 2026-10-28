@@ -6,7 +6,7 @@ Im Betrieb liegen die Dateien im ESPHome Device Builder unter `/config/esphome/`
 | Ordner | Gerät |
 |---|---|
 | [`btcollector/`](btcollector/) | Bluetooth-Sammler: Batterie-BMS, Victron SmartShunt, Gasflaschen, Reifendruck |
-| [`ducato-can/`](ducato-can/) | Fahrzeugdaten vom Karosserie-CAN des Ducato (Planung: Einkaufsliste, Messanleitung, Signaltabelle; noch keine Firmware) |
+| [`ducato-can/`](ducato-can/) | Fahrzeugdaten von den drei CAN-Bussen am Diagnoseport des Ducato (Planung: Einkaufsliste, Messanleitung, Signaltabelle; noch keine Firmware) |
 | [`door/`](door/) | Tür / Aufbauschloss |
 | [`heizung/`](heizung/) | Truma-Heizung (iNet Box) und Neigungssensor |
 | [`navi/`](navi/) | Navigationsanzeige im Fahrzeug, so wie sie aktuell aufgespielt ist |
