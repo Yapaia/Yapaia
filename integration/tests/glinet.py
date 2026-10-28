@@ -129,7 +129,17 @@ class FakeRouter:
             return {"mode": 0, "interfaces": [{"interface": n, "metric": m} for n, m in metrik.items()]}
         if key == "repeater.get_status":
             return copy.deepcopy(self.repeater)
-        if key in ("modem.disconnect", "modem.set_connect", "system.reboot"):
+        if key == "repeater.scan":
+            return {"res": [
+                {"ssid": "NoDramaLama", "band": "5g", "bssid": "94:83:c4:2f:26:fd", "signal": -55, "saved": True,
+                 "encryption": {"enabled": True, "description": "PSK"}},
+                {"ssid": "Campingplatz", "band": "2g", "bssid": "aa:bb:cc:00:00:01", "signal": -70, "saved": False,
+                 "encryption": {"enabled": False}},
+            ]}  # fmt: skip
+        if key == "repeater.get_saved_ap_list":
+            return {"res": [{"ssid": "NoDramaLama", "key": "gespeichert"}]}
+        if key in ("modem.disconnect", "modem.set_connect", "system.reboot", "repeater.connect",
+                   "repeater.disconnect"):
             return {}
         raise RpcError(-32601, "Method not found")
 

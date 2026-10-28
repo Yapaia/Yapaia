@@ -11,6 +11,8 @@ from custom_components.yapaia.router.api import (
     SWITCH_UI,
     GLiNetClient,
     aktive_quelle,
+    gespeicherter_schluessel,
+    parse_scan,
     parse_wlan,
     wlan_balken,
     GLiNetRpcError,
@@ -247,7 +249,37 @@ def test_aktive_quelle_nach_rangfolge() -> None:
 
 def test_wlan_werte() -> None:
     w = parse_wlan({"state_s": "connected", "ssid": "NoDramaLama", "signal": -55, "channel": 6,
-                    "ipv4": {"ip": "192.168.178.46/24", "gateway": "192.168.178.1"}, "connected": "1h"})
+                    "ipv4": {"ip": "192.168.178.46/24", "gateway": "192.168.178.1"}, "connected": "1h",
+                    "portal": False})
     assert w["ssid"] == "NoDramaLama" and w["balken"] == 4 and w["ip"] == "192.168.178.46"
-    assert parse_wlan({"state_s": "disconnected", "ssid": "x"}) == {}
+    assert w["portal"] is False and w["zustand"] == "connected"
+    # Ohne Verbindung: keine Verbindungswerte, aber Zustand und Fehler
+    assert parse_wlan({"state_s": "disconnected", "ssid": "x", "fail_type": "wrong_key", "portal": False}) == {
+        "zustand": "disconnected", "fehler": "wrong_key", "portal": False}
+    assert parse_wlan({"state_s": "connected", "ssid": "Camping", "portal": True})["portal"] is True
+    assert parse_wlan(None) == {}
     assert [wlan_balken(d) for d in (-50, -60, -70, -80, -90, None)] == [4, 3, 2, 1, 0, None]
+
+
+def test_wlan_scan_je_name_ein_eintrag() -> None:
+    def ap(ssid, signal, band="2g", bssid="aa", saved=False, verschl=True):
+        return {"ssid": ssid, "signal": signal, "band": band, "bssid": bssid, "saved": saved,
+                "encryption": {"enabled": verschl, "description": "PSK" if verschl else ""}}
+
+    scan = {"res": [ap("Camping", -80, bssid="c1", verschl=False), ap("Camping", -60, "5g", "c2", verschl=False),
+                    ap("Zuhause", -70, saved=True), ap("", -40), ap("Nachbar", -50)]}
+    netze = parse_scan(scan, verbunden_ssid="Zuhause")
+    # verbundenes zuerst, dann nach Signal; ohne Namen fällt weg
+    assert [n["ssid"] for n in netze] == ["Zuhause", "Nachbar", "Camping"]
+    camping = netze[2]
+    assert camping["signal"] == -60 and camping["bssid"] == "c2" and camping["zugangspunkte"] == 2
+    assert camping["baender"] == ["2,4 GHz", "5 GHz"] and camping["verschluesselt"] is False
+    assert netze[0]["verbunden"] and netze[0]["gespeichert"] and netze[0]["balken"] == 2
+    assert parse_scan(None) == []
+
+
+def test_gespeicherter_schluessel() -> None:
+    liste = {"res": [{"ssid": "A", "key": "geheim"}, {"ssid": "B"}]}
+    assert gespeicherter_schluessel(liste, "A") == "geheim"
+    assert gespeicherter_schluessel(liste, "B") is None
+    assert gespeicherter_schluessel(None, "A") is None

@@ -1,5 +1,19 @@
 # Änderungen
 
+## 0.4.0
+
+**WLAN suchen und verbinden**, z. B. mit dem WLAN eines Campingplatzes.
+
+- Neue Aktionen **`yapaia.router_wlan_suchen`** (WLANs der Umgebung als Liste,
+  je Name ein Eintrag mit dem stärksten Zugangspunkt), **`…_wlan_verbinden`**
+  (Name, Passwort, merken; ohne Passwort nimmt der Router ein gespeichertes)
+  und **`…_wlan_trennen`**. Gespeicherte Passwörter verlassen die Integration nicht.
+- Neuer Sensor **„WLAN-Anmeldung nötig“** (`binary_sensor.yapaia_router_wlan_anmeldung`):
+  an, wenn der Router ein **Captive Portal** erkennt, also eine Anmeldung im
+  Browser nötig ist. Attribute `wlan_zustand` und `wlan_fehler` (z. B. falsches Passwort).
+- Dazu die Karte `custom:yapaia-wlan-card` im Dashboard „Stellplatz“.
+- Kommt mit der Integration 0.6.0 (in Yapaia Go 0.64.2).
+
 ## 0.3.0
 
 **Worüber geht der Router ins Internet?** Für die Anzeige im Cockpit-Dashboard.
