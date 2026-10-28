@@ -14,8 +14,11 @@ Eco/Heiß/Boost), Batterie mit Restlaufzeit, Solar, Gas und Frischwasser, alle
 Lichter, Aufbautür, Radio (Yapaia Beat, Senderfavoriten), WLAN (Yapaia Router),
 dazu Wetter (`weather.forecast_home`) und Sonne (`sun.sun`).
 
-- **Energie:** aktuelle Leistung der Batterien in W (Summe von `leistung` und
-  `leistung_2`; negativ = Verbrauch/Entladen, positiv = Laden). Beim Laden schätzt
+- **Energie:** aktuelle Leistung der Batterien in W, je Batterie Spannung × Strom
+  der Shunts (negativ = Verbrauch/Entladen, positiv = Laden). Eigene
+  Leistungssensoren gehen über `leistung`/`leistung_2`; die BMS-Werte
+  `…battery_1_power` taugen dafür nicht, sie springen bei kleinen Strömen
+  zwischen dem echten Wert und 0. Beim Laden schätzt
   die Karte, wann die Batterie voll ist: fehlende Ah (aus Ladestand und
   `kapazitaet_ah`, Standard 600 Ah) ÷ Ladestrom. Gegen Ende lädt eine
   Lithiumbatterie langsamer, deshalb „ca.“.

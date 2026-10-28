@@ -42,9 +42,12 @@ const STANDARD = {
   strom: "sensor.btcollector_current",
   strom_2: "sensor.btcollector_current_2",
   restlaufzeit: "sensor.batterien_restlaufzeit",
-  // Leistung je Batterie in W: negativ = Entladen, positiv = Laden
-  leistung: "sensor.btcollector_btcollector_battery_1_power",
-  leistung_2: "sensor.btcollector_btcollector_battery_2_power",
+  spannung_2: "sensor.btcollector_battery_voltage_2",
+  // Leistung je Batterie in W (negativ = Entladen). Leer: Spannung × Strom der
+  // Shunts. Die BMS-Werte (…battery_1_power) springen bei kleinen Strömen
+  // zwischen echtem Wert und 0 -- deshalb nicht der Standard.
+  leistung: null,
+  leistung_2: null,
   // Für „voll in …“: Kapazität aller Batterien zusammen
   kapazitaet_ah: 600,
   pv: "sensor.btcollector_mppt_pv_power",
@@ -121,7 +124,8 @@ class YapaiaStellplatzCard extends HTMLElement {
           { name: "raum", selector: e("climate") }, { name: "wasser", selector: e("climate") }] },
         { type: "expandable", flatten: true, name: "", title: "Batterie und Solar", schema: [
           { name: "soc", selector: e("sensor") }, { name: "soc_2", selector: e("sensor") },
-          { name: "spannung", selector: e("sensor") }, { name: "strom", selector: e("sensor") }, { name: "strom_2", selector: e("sensor") },
+          { name: "spannung", selector: e("sensor") }, { name: "spannung_2", selector: e("sensor") },
+          { name: "strom", selector: e("sensor") }, { name: "strom_2", selector: e("sensor") },
           { name: "restlaufzeit", selector: e("sensor") }, { name: "leistung", selector: e("sensor") }, { name: "leistung_2", selector: e("sensor") },
           { name: "kapazitaet_ah", selector: { number: { min: 10, max: 2000, step: 10, mode: "box", unit_of_measurement: "Ah" } } },
           { name: "pv", selector: e("sensor") }, { name: "ertrag", selector: e("sensor") }] },
@@ -137,8 +141,8 @@ class YapaiaStellplatzCard extends HTMLElement {
       ],
       computeLabel: (s) => ({
         stil: "Stil", titel: "Titel", ort: "Ort (leer = Titel)", raum: "Heizung Raum", wasser: "Warmwasser",
-        soc: "Ladestand Batterie 1", soc_2: "Ladestand Batterie 2 (optional)", spannung: "Spannung", strom: "Strom Batterie 1",
-        strom_2: "Strom Batterie 2 (optional)", restlaufzeit: "Restlaufzeit (Tage)", leistung: "Leistung Batterie 1 (W, − = Entladen)",
+        soc: "Ladestand Batterie 1", soc_2: "Ladestand Batterie 2 (optional)", spannung: "Spannung Batterie 1", spannung_2: "Spannung Batterie 2 (optional)", strom: "Strom Batterie 1",
+        strom_2: "Strom Batterie 2 (optional)", restlaufzeit: "Restlaufzeit (Tage)", leistung: "Leistung Batterie 1 (optional, sonst Spannung × Strom)",
         leistung_2: "Leistung Batterie 2 (optional)", kapazitaet_ah: "Kapazität aller Batterien", pv: "Solarleistung", ertrag: "Solarertrag heute",
         gas_1: "Gas 1", gas_2: "Gas 2", frischwasser: "Frischwasser", wasser_leer_v: "Wasser leer bei", wasser_voll_v: "Wasser voll bei",
         tuer: "Aufbautür", radio: "Radio", internet: "Router „Internet über“", wetter: "Wetter", sonne: "Sonne",
@@ -269,9 +273,13 @@ class YapaiaStellplatzCard extends HTMLElement {
     const c = this._config;
     const soc = socs.length ? socs.reduce((a, b) => a + b, 0) / socs.length : null;
     const volt = this._wert(c.spannung);
+    // Leistung: eigene Sensoren, wenn eingetragen; sonst je Batterie Spannung × Strom
     const leistungen = [this._wert(c.leistung), this._wert(c.leistung_2)].filter((v) => v !== null);
-    // Leistung: aus den Sensoren, sonst Spannung × Strom
-    const w = leistungen.length ? leistungen.reduce((a, b) => a + b, 0) : volt !== null && strom !== null ? volt * strom : null;
+    const teile = [[c.spannung, c.strom], [c.spannung_2, c.strom_2]]
+      .map(([v, i]) => [this._wert(v) ?? volt, this._wert(i)])
+      .filter(([v, i]) => v !== null && i !== null);
+    const w = leistungen.length ? leistungen.reduce((a, b) => a + b, 0)
+      : teile.length ? teile.reduce((sum, [v, i]) => sum + v * i, 0) : null;
     const richtung = w === null ? (strom === null ? null : strom > 0.2 ? "laden" : strom < -0.2 ? "entladen" : "ruhe")
       : w > 3 ? "laden" : w < -3 ? "entladen" : "ruhe";
     // Wann voll? Fehlende Ah ÷ Ladestrom (Ladestrom notfalls aus W ÷ V).
