@@ -34,9 +34,9 @@ const STANDARD = {
   stil: "retro",
   titel: "Stellplatz",
   ort: "",
-  // Ort aus einer Entität: Attribut „locality“ (z. B. Geocoded Location der
-  // Companion-App), sonst ihr Zustand
-  ort_entity: "sensor.autoradio_geocoded_location",
+  // Ort aus einer Entität: Sensor „Ort“ von Yapaia Go (offline, ab Go 0.65.0);
+  // auch eine Geocoded Location der Companion-App geht (Attribut „locality“)
+  ort_entity: "sensor.yapaia_go_ort",
   raum: "climate.heizung_truma_room",
   wasser: "climate.heizung_truma_water",
   soc: "sensor.btcollector_state_of_charge",

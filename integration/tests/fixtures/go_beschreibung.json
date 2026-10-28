@@ -142,6 +142,37 @@
       "symbol": "mdi:altimeter"
     },
     {
+      "schluessel": "ort",
+      "plattform": "sensor",
+      "name": {
+        "de": "Ort",
+        "en": "Place"
+      },
+      "symbol": "mdi:map-marker-radius",
+      "attribute": [
+        "land",
+        "land_code"
+      ]
+    },
+    {
+      "schluessel": "adresse",
+      "plattform": "sensor",
+      "name": {
+        "de": "Adresse",
+        "en": "Address"
+      },
+      "symbol": "mdi:home-map-marker",
+      "attribute": [
+        "strasse",
+        "hausnummer",
+        "plz",
+        "ort",
+        "land",
+        "land_code",
+        "entfernung_m"
+      ]
+    },
+    {
       "schluessel": "standort",
       "plattform": "device_tracker",
       "name": {

@@ -44,6 +44,11 @@ import { NavigationService } from './navigation/service.js';
 import { RouteAwareDeadReckoningProvider, MAX_DEAD_RECKONING_WINDOW_MS } from './navigation/deadreckoning.js';
 import { FileNavRecoveryStore } from './navigation/recoveryStore.js';
 import { searchPlugin, buildSearchService } from './search/routes.js';
+import { LiteBackend } from './search/lite/liteBackend.js';
+import { resolveLiteSearchDir } from './search/lite/paths.js';
+import { geoIndexAnlegen } from './search/lite/geoIndex.js';
+import { AdressDienst } from './search/adresseDienst.js';
+import { setInterval, setTimeout, clearInterval, clearTimeout } from 'node:timers';
 import { favoritesPlugin } from './favorites/routes.js';
 import { FavoriteService } from './favorites/service.js';
 import { settingsPlugin } from './settings/routes.js';
@@ -381,7 +386,17 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   // true (env `PHOTON_ENABLED=false` to turn Photon off, e.g. to save RAM) --
   // the offline `lite` fallback then takes over automatically (also used
   // whenever Photon is merely down).
+  // Ein gemeinsamer Lite-Leser fuer Suche und Adress-Sensoren (0.65.0)
+  const liteBackend = new LiteBackend({
+    dbDir: resolveLiteSearchDir(),
+    logger: {
+      info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+      error: (msg, meta) => fastify.log.error(meta ?? {}, msg),
+    },
+  });
   const searchService = buildSearchService(fastify, {
+    liteBackend,
     photonUrl: process.env.PHOTON_URL,
     onlineFallback: process.env.SEARCH_ONLINE_FALLBACK === 'true',
     photonEnabled: process.env.PHOTON_ENABLED !== 'false',
@@ -858,6 +873,26 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     tempolimitDienst.melde(pos as SharedPosition);
   });
 
+  // ─── ORT UND ADRESSE (0.65.0) ───────────────────────────────────────────
+  // Offline aus dem Suchindex, fuer die Sensoren „Ort" und „Adresse". Fehlende
+  // Koordinaten-Indizes legt der Dienst im Worker an: kurz nach dem Start und
+  // danach alle 30 Minuten (eine neu geladene Region hat ihn noch nicht).
+  const adressDienst = new AdressDienst({
+    quelle: liteBackend,
+    indexAnlegen: geoIndexAnlegen,
+    logger: {
+      info: (msg, meta) => fastify.log.info(meta ?? {}, msg),
+      warn: (msg, meta) => fastify.log.warn(meta ?? {}, msg),
+    },
+  });
+  eventBus.subscribe('pos/update', (pos) => adressDienst.melde(pos as { lat?: unknown; lon?: unknown }));
+  const adressStart = setTimeout(() => void adressDienst.indexPflegen(), 60_000);
+  const adressPflege = setInterval(() => void adressDienst.indexPflegen(), 30 * 60_000);
+  fastify.addHook('onClose', async () => {
+    clearTimeout(adressStart);
+    clearInterval(adressPflege);
+  });
+
   // ─── DAS YAPAIA-PROTOKOLL (0.44) ─────────────────────────────────────────
   // Go als Geraet „Yapaia Go" in der zentralen Integration „Yapaia": echte,
   // bedienbare Entitaeten, Aktionen und Ausloeser. Solange die Integration
@@ -878,6 +913,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
         fahrzeug: aktiv ? { weight_t: aktiv.weight_t, tempo_100: aktiv.tempo_100 === true } : null,
         profile: profileService.getAll().map((p) => p.name),
         profil: aktiv?.name ?? null,
+        adresse: adressDienst.aktuell(),
       };
     },
     aktionen: goAktionen({

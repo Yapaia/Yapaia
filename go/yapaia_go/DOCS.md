@@ -365,6 +365,8 @@ have history, survive an HA restart and can be operated:
 | `sensor.yapaia_go_tempo`, `…_tempolimit`, `…_tempolimit_fahrzeug`, `…_hoehe` | speed, posted limit, limit for this vehicle, altitude |
 | `binary_sensor.yapaia_go_zu_schnell` | speeding (sign or vehicle limit, whichever is lower) |
 | `device_tracker.yapaia_go_standort` | the vehicle on the map |
+| `sensor.yapaia_go_ort` | the place (town/village) where the vehicle is, offline from the search index; attributes `land`, `land_code` |
+| `sensor.yapaia_go_adresse` | the address at the vehicle (e.g. “Birkenstraße 1, 67368 Westheim (Pfalz)”); attributes `strasse`, `hausnummer`, `plz`, `ort`, `land`, `land_code`, `entfernung_m` |
 | `select.yapaia_go_profil` | vehicle profile |
 | `text.yapaia_go_ziel_eingabe` | type a destination → route and go |
 | `button.yapaia_go_pausieren`, `…_fortsetzen`, `…_beenden` | pause, resume, stop |

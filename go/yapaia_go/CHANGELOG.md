@@ -10,6 +10,27 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.65.0
+
+**Ort und Adresse als Sensoren – offline.** Go bestimmt aus dem Suchindex,
+wo das Wohnmobil steht:
+
+- **`sensor.yapaia_go_ort`** – der Ort, z. B. „Westheim (Pfalz)“; Attribute
+  `land`, `land_code`.
+- **`sensor.yapaia_go_adresse`** – die Adresse, z. B. „Birkenstraße 1, 67368
+  Westheim (Pfalz)“; Attribute `strasse`, `hausnummer`, `plz`, `ort`, `land`,
+  `land_code`, `entfernung_m`. Ohne Haus in der Nähe nur Straße oder Ort.
+- Nachgeführt, sobald sich das Wohnmobil gut 40 m bewegt hat, höchstens alle 15 s.
+
+**„Was ist hier?“ ist viel schneller.** Die Rückwärtssuche dauerte mit großen
+Suchindizes 6–10 Sekunden, in denen Go für alles andere stand. Jetzt etwa
+0,4 Sekunden, und der nächste Treffer stimmt besser.
+
+- Dafür bekommt jeder Suchindex einen Koordinaten-Index. Neue haben ihn
+  gleich; vorhandene (auch die vom Kartenserver) bekommen ihn einmalig im
+  Hintergrund, Deutschland in etwa 10 Sekunden. Die Dateien werden dabei
+  2–5 % größer.
+
 ## 0.64.2
 
 **Bringt die Integration 0.6.0 mit:** Der GL.iNet-Router kann jetzt WLANs
