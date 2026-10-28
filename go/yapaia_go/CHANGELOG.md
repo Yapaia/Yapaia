@@ -10,6 +10,18 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.64.1
+
+**Kartenverwaltung für Kartenserver-Nutzer aufgeräumt.**
+
+- Ist ein Kartenserver eingerichtet und gibt es nichts zu bauen, steht
+  „Karten, Routing und Suche bauen“ nicht mehr ganz oben, sondern
+  zugeklappt unter der Kartenliste („Selbst bauen“).
+- Beim Versuch, die letzte Karte zu löschen, sagt Go jetzt, was stattdessen
+  geht: „Update“ nutzen oder erst eine andere Karte installieren.
+- Der Hinweis auf Länder im Routing, deren Karte gelöscht ist, sagt jetzt,
+  dass das nicht stört und wann es verschwindet.
+
 ## 0.64.0
 
 **Kartenpakete laden etwa halb so viel.** Der Kartenserver kann Suche und

@@ -96,7 +96,9 @@ function formatApiError(err: RegionApiError): string {
     return `Nicht genug freier Speicherplatz: benötigt ${required}, verfügbar ${free}.`;
   }
   if (err.code === 'LAST_REGION') {
-    return 'Die letzte installierte Region kann nicht gelöscht werden.';
+    // Sagen, was stattdessen geht: wer die einzige Karte loswerden will, will
+    // sie fast immer ERSETZEN -- und genau das macht „Update".
+    return 'Die letzte installierte Region kann nicht gelöscht werden. Zum Ersetzen „Update“ nutzen oder erst eine andere Karte installieren.';
   }
   if (err.code === 'ALREADY_INSTALLED') {
     return 'Diese Region ist bereits installiert.';
@@ -484,6 +486,77 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
   const ladenLaeuft = Object.values(jobs).some((state) => laeuft(state) && state.nurLaden);
   const geladen = karten.filter((eintrag) => eintrag.zustand === 'geladen');
 
+  // ─── WO DER BAU-KNOPF STEHT ───────────────────────────────────────────────
+  // Wer vom Kartenserver lädt, bekommt Karte, Suche und Routing fertig und
+  // baut nie selbst. Ganz oben wäre der Abschnitt dann nur im Weg; er rückt
+  // unter die Liste, zugeklappt. Oben steht er, sobald es etwas zu bauen gibt
+  // (heruntergeladene Karten) oder ein Bau läuft -- und ohne Kartenserver.
+  const bauOben = !kartenserver?.eingerichtet || geladen.length > 0 || Boolean(gesamtJob);
+  // ─── DER GEMEINSAME KNOPF ──────────────────────────────────────────────
+  // Er steht ÜBER der Liste und nicht darunter: nach einer Installation ist
+  // er der nächste Schritt, und was als nächstes zu tun ist, gehört nicht ans
+  // Ende einer Liste, die man dafür erst durchscrollen muss. Ausnahme: mit
+  // Kartenserver und nichts zu bauen (siehe `bauOben`).
+  const bauAbschnitt = (
+    <section className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-2">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <div className="font-semibold">Karten, Routing und Suche bauen</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Baut in einem Lauf, was fehlt: zuerst alle heruntergeladenen Karten, dann das
+            Routing als ein Netz über alle Karten (sonst endet es an der Grenze), dann die
+            Suche. Am besten erst alle gewünschten Karten herunterladen, dann einmal bauen.
+          </div>
+          {geladen.length > 0 && (
+            <div className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300" data-testid="gesamtbau-geladen">
+              Bereit zum Bauen: {geladen.map((eintrag) => eintrag.name).join(', ')}
+            </div>
+          )}
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-1">
+          <button
+            onClick={() => void handleGesamtbau(false)}
+            disabled={etwasLaeuft || (installed.length === 0 && geladen.length === 0)}
+            className="px-2 py-1 rounded-md border border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
+            data-testid="gesamtbau-button"
+          >
+            {gesamtJob && gesamtJob.status !== 'done' && gesamtJob.status !== 'error'
+              ? 'Baut…'
+              : 'Fehlendes bauen'}
+          </button>
+          <button
+            onClick={() => void handleGesamtbau(true)}
+            disabled={etwasLaeuft || (installed.length === 0 && geladen.length === 0)}
+            className="text-[11px] underline text-slate-500 dark:text-slate-400 disabled:opacity-50"
+            data-testid="gesamtbau-alles-button"
+          >
+            Alles neu bauen
+          </button>
+        </div>
+      </div>
+      {/* Nach einer Installation ist das der nächste Schritt — und
+          ohne diesen Satz weiss niemand, dass er ihn tun muss. Eine
+          frisch installierte Karte wird zwar sofort GEZEICHNET, aber
+          Routing und Suche entstehen daraus nicht von allein. */}
+      {installed.length === 0 && geladen.length === 0 && loaded && (
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-ohne-karte">
+          Erst eine Karte herunterladen — ohne Karte gibt es nichts zu bauen.
+        </p>
+      )}
+      {ladenLaeuft && (
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-wartet-auf-download">
+          Es wird noch heruntergeladen. Gebaut werden kann, sobald alle Downloads fertig sind.
+        </p>
+      )}
+      {gesamtJob && <GesamtFortschritt job={gesamtJob} />}
+      {errorByRegion[GESAMT_SCHLUESSEL] && (
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400" data-testid="gesamtbau-startfehler">
+          {errorByRegion[GESAMT_SCHLUESSEL]}
+        </p>
+      )}
+    </section>
+  );
+
   return (
     <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('regions'), right: TOP_RIGHT_INSET_PX }}>
       {isOpen && (
@@ -507,68 +580,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                 .join(',')}
             />
 
-            {/* ─── DER GEMEINSAME KNOPF ──────────────────────────────────────
-                Er steht ÜBER der Liste und nicht darunter: nach einer
-                Installation ist er der nächste Schritt, und was als nächstes
-                zu tun ist, gehört nicht ans Ende einer Liste, die man dafür
-                erst durchscrollen muss. */}
-            <section className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-2">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <div className="font-semibold">Karten, Routing und Suche bauen</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    Baut in einem Lauf, was fehlt: zuerst alle heruntergeladenen Karten, dann das
-                    Routing als ein Netz über alle Karten (sonst endet es an der Grenze), dann die
-                    Suche. Am besten erst alle gewünschten Karten herunterladen, dann einmal bauen.
-                  </div>
-                  {geladen.length > 0 && (
-                    <div className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300" data-testid="gesamtbau-geladen">
-                      Bereit zum Bauen: {geladen.map((eintrag) => eintrag.name).join(', ')}
-                    </div>
-                  )}
-                </div>
-                <div className="shrink-0 flex flex-col items-end gap-1">
-                  <button
-                    onClick={() => void handleGesamtbau(false)}
-                    disabled={etwasLaeuft || (installed.length === 0 && geladen.length === 0)}
-                    className="px-2 py-1 rounded-md border border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
-                    data-testid="gesamtbau-button"
-                  >
-                    {gesamtJob && gesamtJob.status !== 'done' && gesamtJob.status !== 'error'
-                      ? 'Baut…'
-                      : 'Fehlendes bauen'}
-                  </button>
-                  <button
-                    onClick={() => void handleGesamtbau(true)}
-                    disabled={etwasLaeuft || (installed.length === 0 && geladen.length === 0)}
-                    className="text-[11px] underline text-slate-500 dark:text-slate-400 disabled:opacity-50"
-                    data-testid="gesamtbau-alles-button"
-                  >
-                    Alles neu bauen
-                  </button>
-                </div>
-              </div>
-              {/* Nach einer Installation ist das der nächste Schritt — und
-                  ohne diesen Satz weiss niemand, dass er ihn tun muss. Eine
-                  frisch installierte Karte wird zwar sofort GEZEICHNET, aber
-                  Routing und Suche entstehen daraus nicht von allein. */}
-              {installed.length === 0 && geladen.length === 0 && loaded && (
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-ohne-karte">
-                  Erst eine Karte herunterladen — ohne Karte gibt es nichts zu bauen.
-                </p>
-              )}
-              {ladenLaeuft && (
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-wartet-auf-download">
-                  Es wird noch heruntergeladen. Gebaut werden kann, sobald alle Downloads fertig sind.
-                </p>
-              )}
-              {gesamtJob && <GesamtFortschritt job={gesamtJob} />}
-              {errorByRegion[GESAMT_SCHLUESSEL] && (
-                <p className="mt-1 text-xs text-red-600 dark:text-red-400" data-testid="gesamtbau-startfehler">
-                  {errorByRegion[GESAMT_SCHLUESSEL]}
-                </p>
-              )}
-            </section>
+            {bauOben && bauAbschnitt}
 
             <section>
               <h2 className="font-semibold mb-2 mt-4">Karten</h2>
@@ -701,6 +713,15 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                 })}
               </ul>
             </section>
+
+            {!bauOben && (
+              <details className="mt-4" data-testid="gesamtbau-zugeklappt">
+                <summary className="cursor-pointer text-xs text-slate-500 dark:text-slate-400">
+                  Selbst bauen (statt vom Kartenserver laden)
+                </summary>
+                {bauAbschnitt}
+              </details>
+            )}
 
             <KartenserverSection stand={kartenserver} gespeichert={() => void refresh()} />
           </DriveLockGate>
