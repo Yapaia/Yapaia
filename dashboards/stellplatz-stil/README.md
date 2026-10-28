@@ -25,7 +25,10 @@ dazu Wetter (`weather.forecast_home`) und Sonne (`sun.sun`).
 - **Aufbautür:** zweimal tippen (Schutz vor versehentlichem Öffnen).
 - **Frischwasser:** ohne `wasser_leer_v`/`wasser_voll_v` zeigt die Karte die
   Spannung des Drucksensors; mit beiden Werten Prozent.
-- **Ort:** Feld `ort` (sonst der Titel). „Tag 3 auf dem Platz“ aus dem Entwurf
+- **Ort:** statt „Stellplatz“ steht der aktuelle Ort in der Überschrift: aus
+  `ort_entity` (Standard `sensor.autoradio_geocoded_location` der Companion-App
+  auf dem Autoradio, Attribut `locality`; braucht dort Internet). Fest
+  eintragen geht mit `ort`; ohne beides steht der Titel da. „Tag 3 auf dem Platz“ aus dem Entwurf
   fehlt noch – dafür gibt es keinen Sensor.
 - **Schriften** (Fraunces, DM Sans, Instrument Serif, Inter) kommen von Google
   Fonts; ohne Internet nimmt die Karte Georgia bzw. die Systemschrift.
