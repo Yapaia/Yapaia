@@ -11,6 +11,7 @@
 
 import { buildHaStates, UNBEKANNT, type YapaiaZustand } from '../ha/statesBridge.js';
 import { EIGENER_FAHRZEUG_TRACKER } from '../ha/eigeneEntitaeten.js';
+import type { Adresse } from '../search/adresseDienst.js';
 
 export const PROTOKOLL = 1;
 export const MODUL = 'go';
@@ -127,6 +128,20 @@ export const ENTITAETEN: readonly Entitaet[] = [
     symbol: 'mdi:altimeter',
   },
   {
+    schluessel: 'ort',
+    plattform: 'sensor',
+    name: { de: 'Ort', en: 'Place' },
+    symbol: 'mdi:map-marker-radius',
+    attribute: ['land', 'land_code'],
+  },
+  {
+    schluessel: 'adresse',
+    plattform: 'sensor',
+    name: { de: 'Adresse', en: 'Address' },
+    symbol: 'mdi:home-map-marker',
+    attribute: ['strasse', 'hausnummer', 'plz', 'ort', 'land', 'land_code', 'entfernung_m'],
+  },
+  {
     schluessel: 'standort',
     plattform: 'device_tracker',
     name: { de: 'Standort', en: 'Location' },
@@ -229,6 +244,8 @@ export interface GoZustand extends YapaiaZustand {
   profile: string[];
   /** Name des aktiven Profils. */
   profil: string | null;
+  /** Ort und Adresse an der Position (search/adresseDienst.ts). */
+  adresse?: Adresse | null;
 }
 
 function zahl(s: string | undefined): number | null {
@@ -278,6 +295,14 @@ export function werte(z: GoZustand): Record<string, unknown> {
       : null,
     profile: z.profile,
     profil: z.profil,
+    ort: z.adresse?.ort ?? null,
+    adresse: z.adresse?.text ?? null,
+    strasse: z.adresse?.strasse ?? null,
+    hausnummer: z.adresse?.hausnummer ?? null,
+    plz: z.adresse?.plz ?? null,
+    land: z.adresse?.land ?? null,
+    land_code: z.adresse?.land_code ?? null,
+    entfernung_m: z.adresse?.entfernung_m ?? null,
   };
 }
 

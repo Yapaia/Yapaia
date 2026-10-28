@@ -28,6 +28,7 @@ import { dirname } from 'path';
 import type { AddressRecord, NormalizedRecord } from './extract.js';
 import { faltung } from './faltung.js';
 import { baueWortliste } from './tippfehler.js';
+import { GEO_INDEX_SQL } from './geoIndex.js';
 
 /** Was neben den Datensaetzen ueber diesen Index festgehalten wird. */
 export interface LiteIndexMeta {
@@ -244,6 +245,8 @@ export function buildLiteIndexFile(
     // Hausnummern (0.39.0). Fehlt der Eintrag, ist er aelter.
     insertMeta.run('format', String(LITE_INDEX_FORMAT));
     if (meta.region) insertMeta.run('region', meta.region);
+    // Koordinaten-Index fuer die Rueckwaertssuche (geoIndex.ts, 0.65.0)
+    db.exec(GEO_INDEX_SQL);
   } finally {
     db.close();
   }

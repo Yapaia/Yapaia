@@ -26,8 +26,9 @@ dazu Wetter (`weather.forecast_home`) und Sonne (`sun.sun`).
 - **Frischwasser:** ohne `wasser_leer_v`/`wasser_voll_v` zeigt die Karte die
   Spannung des Drucksensors; mit beiden Werten Prozent.
 - **Ort:** statt „Stellplatz“ steht der aktuelle Ort in der Überschrift: aus
-  `ort_entity` (Standard `sensor.autoradio_geocoded_location` der Companion-App
-  auf dem Autoradio, Attribut `locality`; braucht dort Internet). Fest
+  `ort_entity` (Standard `sensor.yapaia_go_ort`: Yapaia Go bestimmt den Ort
+  offline aus dem Suchindex; eine Geocoded Location der Companion-App mit
+  Attribut `locality` geht auch). Fest
   eintragen geht mit `ort`; ohne beides steht der Titel da. „Tag 3 auf dem Platz“ aus dem Entwurf
   fehlt noch – dafür gibt es keinen Sensor.
 - **Schriften** (Fraunces, DM Sans, Instrument Serif, Inter) kommen von Google

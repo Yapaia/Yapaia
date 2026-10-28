@@ -19,7 +19,7 @@ import { statSync } from 'fs';
 import type { SearchResult } from '@yapaia/shared';
 import { GeocoderBackendError } from '../errors.js';
 import type { GeocoderBackend, ReverseQuery, SearchLogger, SearchQuery } from '../types.js';
-import { LiteIndexReader, splitQueryTerms, type SuchKasten } from './reader.js';
+import { LiteIndexReader, splitQueryTerms, type AdressTreffer, type SuchKasten } from './reader.js';
 import { listLiteSearchDbFiles } from './paths.js';
 import { haversineKm, rankLiteCandidates, type LiteCandidate } from './ranking.js';
 import type { Korrektur } from './tippfehler.js';
@@ -185,6 +185,43 @@ export class LiteBackend implements GeocoderBackend {
    * Vorschlaegen aller Indizes gewinnt der mit weniger Fehlern, dann der
    * haeufigere.
    */
+  /**
+   * Die Adresse an einer Stelle (Sensoren „Ort"/„Adresse", 0.65.0). Gefragt
+   * werden nur Indizes, die das schnell koennen (`rueckwaertsTauglich`); an
+   * Grenzen ueberlappen sie, das naechste Haus gewinnt. Wirft nie.
+   */
+  adresseBei(lat: number, lon: number): (AdressTreffer & { region: string | null }) | null {
+    let readers: LiteIndexReader[];
+    try {
+      readers = this.getReaders();
+    } catch {
+      return null;
+    }
+    let best: (AdressTreffer & { region: string | null }) | null = null;
+    for (const r of readers) {
+      try {
+        if (!r.rueckwaertsTauglich()) continue;
+        const t = r.adresseBei(lat, lon);
+        if (!t) continue;
+        const rang = (x: AdressTreffer) => (x.hausnummer ? 0 : x.strasse ? 1 : 2) * 1e6 + (x.entfernungM ?? 1e5);
+        if (!best || rang(t) < rang(best)) best = { ...t, region: r.meta('region') };
+      } catch (err) {
+        this.logger.warn('Rueckwaertssuche fehlgeschlagen', { error: (err as Error).message });
+      }
+    }
+    return best;
+  }
+
+  /** Indexdateien ohne Koordinaten-Index (geoIndex.ts legt ihn nach). */
+  ohneGeoIndex(): string[] {
+    try {
+      this.getReaders();
+    } catch {
+      return [];
+    }
+    return [...this.readers.entries()].filter(([, e]) => !e.reader.hatGeoIndex()).map(([pfad]) => pfad);
+  }
+
   private korrigiereEingabe(q: string): string | null {
     const readers = this.getReaders();
     let neu = q;
@@ -343,9 +380,13 @@ export class LiteBackend implements GeocoderBackend {
   async reverse(query: ReverseQuery): Promise<SearchResult[]> {
     const readers = this.getReaders();
     const candidates = dedupe(
-      this.withErrorMapping('reverse', () =>
-        readers.flatMap((reader) => reader.nearest(query.lat, query.lon, query.limit)),
-      ),
+      this.withErrorMapping('reverse', () => {
+        // Erst alle Indizes eng fragen (±0,05°); den weiten Kasten nur, wenn
+        // zusammen zu wenig da ist -- sonst liest ein Nachbarland-Index, der
+        // hier nichts hat, einen 110 km breiten Streifen (0.65.0).
+        const nah = readers.flatMap((reader) => reader.nearest(query.lat, query.lon, query.limit, 0.05));
+        return nah.length >= query.limit ? nah : readers.flatMap((reader) => reader.nearest(query.lat, query.lon, query.limit));
+      }),
     );
     // No text query for a reverse lookup -- rank purely by distance
     // (reader.nearest already sorted by distance; rankLiteCandidates with an

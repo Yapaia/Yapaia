@@ -10,6 +10,7 @@ import { LITE_KINDS, type LiteCandidate, type LiteKind } from './ranking.js';
 import { faltung } from './faltung.js';
 import { korrigiere, type Korrektur } from './tippfehler.js';
 import { nummernSchluessel, strassenSchluessel } from './buildIndex.js';
+import { GEO_INDEX } from './geoIndex.js';
 
 export interface HausnummerTreffer {
   street: string;
@@ -19,6 +20,21 @@ export interface HausnummerTreffer {
   lat: number;
   lon: number;
 }
+
+/** Was an einer Stelle liegt (`adresseBei`). Jedes Feld kann fehlen. */
+export interface AdressTreffer {
+  strasse: string | null;
+  hausnummer: string | null;
+  plz: string | null;
+  ort: string | null;
+  /** Entfernung zum Haus bzw. zum Strassenpunkt, in Metern. */
+  entfernungM: number | null;
+}
+
+/** Siedlungen, deren Name als „Ort" taugt -- vom kleinsten zum groessten. */
+const SIEDLUNGEN = ['hamlet', 'village', 'suburb', 'quarter', 'borough', 'town', 'city'];
+/** Ohne Koordinaten-Index nur Indizes bis zu dieser Groesse (Vollscan). */
+const OHNE_INDEX_HOECHSTENS = 300_000;
 
 interface LiteSearchRow {
   name: string;
@@ -413,18 +429,23 @@ export class LiteIndexReader {
    *  same formula, duplicated here on purpose -- see that file's comment on
    *  why this codebase copies the ~6-line Haversine per module rather than
    *  sharing it) picks the closest rows in JS. */
-  nearest(lat: number, lon: number, limit: number): LiteCandidate[] {
+  nearest(lat: number, lon: number, limit: number, maxBoxDeg = 0.5): LiteCandidate[] {
     const db = this.open();
-    // ~0.5 degrees is generously larger than any plausible LI/DE reverse-geocode
-    // radius; if nothing falls inside it there's nothing nearby to find anyway.
-    const boxDeg = 0.5;
-    const rows = db
-      .prepare(
-        `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon, ${this.selectList(db)}
-         FROM places p
-         WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`,
-      )
-      .all(lat - boxDeg, lat + boxDeg, lon - boxDeg, lon + boxDeg) as LiteAllRow[];
+    // Wachsende Kaesten (0.65.0): mit dem Koordinaten-Index (geoIndex.ts)
+    // kostet ein enger Kasten Millisekunden, der alte feste von ±0,5° las
+    // dagegen einen 110 km breiten Streifen -- in Deutschland ueber eine
+    // Million Zeilen, 6 bis 9 s. Weiter wird nur gesucht, wenn zu wenig drin
+    // ist; ±0,5° bleibt die Obergrenze wie bisher.
+    const frage = db.prepare(
+      `SELECT p.name as name, p.kind as kind, p.lat as lat, p.lon as lon, ${this.selectList(db)}
+       FROM places p
+       WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`,
+    );
+    let rows: LiteAllRow[] = [];
+    for (const boxDeg of [0.01, 0.05, 0.5].filter((b) => b <= maxBoxDeg)) {
+      rows = frage.all(lat - boxDeg, lat + boxDeg, lon - boxDeg, lon + boxDeg) as LiteAllRow[];
+      if (rows.length >= limit) break;
+    }
 
     const withDistance = rows
       .filter((r): r is LiteAllRow & { kind: LiteKind } => isLiteKind(r.kind))
@@ -527,6 +548,119 @@ export class LiteIndexReader {
       }
     }
     return bestKm <= maxKm ? best : null;
+  }
+
+  /** Ob der Koordinaten-Index da ist -- ohne ihn ist `adresseBei` ein Vollscan
+   *  (geoIndex.ts). Nicht zwischengespeichert: er kann jederzeit dazukommen. */
+  hatGeoIndex(): boolean {
+    const db = this.open();
+    return db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?").get(GEO_INDEX) !== undefined;
+  }
+
+  /** Wert aus der Tabelle `meta` (region, record_count, ...), sonst null. */
+  meta(schluessel: string): string | null {
+    const db = this.open();
+    try {
+      const row = db.prepare('SELECT value FROM meta WHERE key = ?').get(schluessel) as { value: string } | undefined;
+      return row?.value ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Ob `adresseBei` hier schnell genug ist: mit Index, oder ein kleiner Index. */
+  rueckwaertsTauglich(): boolean {
+    if (this.hatGeoIndex()) return true;
+    const anzahl = Number(this.meta('record_count'));
+    return Number.isFinite(anzahl) && anzahl > 0 && anzahl <= OHNE_INDEX_HOECHSTENS;
+  }
+
+  /**
+   * Die Adresse an einer Stelle: naechstes Haus (Strasse, Nummer, PLZ, Ort),
+   * sonst naechste Strasse, sonst naechster Ort. `null`, wenn hier nichts liegt.
+   *
+   * ─── WIE, OHNE INDEX AUF DEN ADRESSEN ──────────────────────────────────────
+   * 37 Mio. Hausnummern bekommen keinen Koordinaten-Index (er waere fast ein
+   * Gigabyte). Stattdessen: die naechsten Strassen aus `places` (mit
+   * Koordinaten-Index), dann deren Hausnummern ueber den vorhandenen
+   * Strassen-Index -- im selben Ort, weil es „Hauptstrasse" ueberall gibt.
+   * Eine Strasse steht in `places` als EIN Punkt; bei langen Strassen liegt er
+   * weit weg, darum mehrere Strassen und das naechste HAUS gewinnt.
+   */
+  adresseBei(lat: number, lon: number): AdressTreffer | null {
+    const db = this.open();
+    const spalten = this.columns(db);
+    const loc = spalten.has('locality') ? 'locality' : 'NULL';
+    const kasten = (grad: number) => {
+      const lonGrad = grad / Math.max(0.2, Math.cos((lat * Math.PI) / 180));
+      return [lat - grad, lat + grad, lon - lonGrad, lon + lonGrad];
+    };
+    const nach = <T extends { lat: number; lon: number }>(rows: T[]) =>
+      rows.map((r) => ({ ...r, km: haversineKm(lat, lon, r.lat, r.lon) })).sort((a, b) => a.km - b.km);
+
+    const strassen = nach(
+      db
+        .prepare(
+          `SELECT name, ${loc} as locality, lat, lon FROM places
+           WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? AND kind = 'street'`,
+        )
+        .all(...kasten(0.012)) as Array<{ name: string; locality: string | null; lat: number; lon: number }>,
+    ).slice(0, 12);
+
+    // Das naechste Haus in diesen Strassen
+    if (this.hatAdressen === undefined) {
+      this.hatAdressen =
+        db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'addresses'").get() !== undefined;
+    }
+    let haus: (HausnummerTreffer & { km: number }) | null = null;
+    if (this.hatAdressen) {
+      const frage = db.prepare(
+        'SELECT street, number, postcode, city, lat, lon FROM addresses WHERE street_key = ? LIMIT 3000',
+      );
+      const gesehen = new Set<string>();
+      for (const s of strassen) {
+        const schluessel = strassenSchluessel(s.name);
+        if (gesehen.has(schluessel)) continue;
+        gesehen.add(schluessel);
+        const haeuser = (frage.all(schluessel) as HausnummerTreffer[]).filter(
+          (h) => !s.locality || !h.city || h.city === s.locality,
+        );
+        for (const h of haeuser) {
+          const km = haversineKm(lat, lon, h.lat, h.lon);
+          if (!haus || km < haus.km) haus = { ...h, km };
+        }
+      }
+    }
+    if (haus && haus.km <= 0.12) {
+      return { strasse: haus.street, hausnummer: haus.number, plz: haus.postcode, ort: haus.city, entfernungM: Math.round(haus.km * 1000) };
+    }
+
+    const ort = (): string | null => {
+      const rows = nach(
+        db
+          .prepare(
+            `SELECT name, kind, lat, lon FROM places
+             WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? AND kind IN (${SIEDLUNGEN.map(() => '?').join(', ')})`,
+          )
+          .all(...kasten(0.08), ...SIEDLUNGEN) as Array<{ name: string; kind: string; lat: number; lon: number }>,
+      );
+      return rows[0]?.name ?? null;
+    };
+
+    const strasse = strassen[0];
+    if (strasse && strasse.km <= 0.3) {
+      // PLZ der Strasse im selben Ort, wenn es Hausnummern gibt
+      const plz = haus && haus.street === strasse.name ? haus.postcode : null;
+      return {
+        strasse: strasse.name,
+        hausnummer: null,
+        plz,
+        ort: strasse.locality ?? ort(),
+        entfernungM: Math.round(strasse.km * 1000),
+      };
+    }
+    const name = strasse?.locality ?? ort();
+    return name ? { strasse: null, hausnummer: null, plz: null, ort: name, entfernungM: null } : null;
   }
 
   /** Hat dieses eine Wort ueberhaupt Treffer? Fuer die Tippfehler-Korrektur:
