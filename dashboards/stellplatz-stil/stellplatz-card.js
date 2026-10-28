@@ -34,6 +34,9 @@ const STANDARD = {
   stil: "retro",
   titel: "Stellplatz",
   ort: "",
+  // Ort aus einer Entität: Attribut „locality“ (z. B. Geocoded Location der
+  // Companion-App), sonst ihr Zustand
+  ort_entity: "sensor.autoradio_geocoded_location",
   raum: "climate.heizung_truma_room",
   wasser: "climate.heizung_truma_water",
   soc: "sensor.btcollector_state_of_charge",
@@ -120,6 +123,7 @@ class YapaiaStellplatzCard extends HTMLElement {
         { name: "stil", required: true, selector: { select: { mode: "box", options: [
           { value: "retro", label: "Retro-Camper" }, { value: "magazin", label: "Outdoor-Magazin" }, { value: "mix", label: "Mix" }] } } },
         { type: "grid", name: "", schema: [{ name: "titel", selector: { text: {} } }, { name: "ort", selector: { text: {} } }] },
+        { name: "ort_entity", selector: { entity: { domain: "sensor" } } },
         { type: "expandable", flatten: true, name: "", title: "Heizung", schema: [
           { name: "raum", selector: e("climate") }, { name: "wasser", selector: e("climate") }] },
         { type: "expandable", flatten: true, name: "", title: "Batterie und Solar", schema: [
@@ -140,7 +144,7 @@ class YapaiaStellplatzCard extends HTMLElement {
         { name: "lichter", selector: { object: {} } },
       ],
       computeLabel: (s) => ({
-        stil: "Stil", titel: "Titel", ort: "Ort (leer = Titel)", raum: "Heizung Raum", wasser: "Warmwasser",
+        stil: "Stil", titel: "Titel", ort: "Ort fest eintragen (sonst aus der Entität)", ort_entity: "Ort aus Entität", raum: "Heizung Raum", wasser: "Warmwasser",
         soc: "Ladestand Batterie 1", soc_2: "Ladestand Batterie 2 (optional)", spannung: "Spannung Batterie 1", spannung_2: "Spannung Batterie 2 (optional)", strom: "Strom Batterie 1",
         strom_2: "Strom Batterie 2 (optional)", restlaufzeit: "Restlaufzeit (Tage)", leistung: "Leistung Batterie 1 (optional, sonst Spannung × Strom)",
         leistung_2: "Leistung Batterie 2 (optional)", kapazitaet_ah: "Kapazität aller Batterien", pv: "Solarleistung", ertrag: "Solarertrag heute",
@@ -233,7 +237,7 @@ class YapaiaStellplatzCard extends HTMLElement {
     const jetzt = new Date();
     return {
       titel: c.titel,
-      ort: c.ort || c.titel,
+      ort: c.ort || this._ortAusEntitaet() || c.titel,
       uhr: jetzt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
       wochentag: jetzt.toLocaleDateString("de-DE", { weekday: "long" }),
       datum: jetzt.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }),
@@ -290,6 +294,24 @@ class YapaiaStellplatzCard extends HTMLElement {
       vollIn = (((100 - soc) / 100) * zahl(c.kapazitaet_ah)) / ladestrom; // Stunden
     }
     return { soc, volt, strom, rest, w, richtung, laedt: richtung === "laden", vollIn, voll: soc !== null && soc >= 99.5 };
+  }
+
+  /** Ortsname aus der Entität: `locality`, sonst der Zustand (ohne Straße). */
+  _ortAusEntitaet() {
+    const s = this._s(this._config.ort_entity);
+    if (!s || ["unknown", "unavailable", ""].includes(s.state)) return null;
+    const a = s.attributes ?? {};
+    if (a.locality) return a.locality;
+    // „Straße 4, 67368 Ort, Land“ → „Ort“
+    const teile = String(s.state).split(",").map((t) => t.trim());
+    const mitPlz = teile.find((t) => /^\d{4,5}\s/.test(t));
+    return mitPlz ? mitPlz.replace(/^\d{4,5}\s+/, "") : teile[0];
+  }
+
+  /** Lange Ortsnamen bekommen eine kleinere Überschrift. */
+  _laenge(text) {
+    const n = String(text ?? "").length;
+    return n > 22 ? "sehrlang" : n > 13 ? "lang" : "";
   }
 
   // ---- Bausteine (für alle Stile gleich) -----------------------------------
@@ -388,7 +410,7 @@ class YapaiaStellplatzCard extends HTMLElement {
     <div class="wurzel retro">
       <div class="streifen" aria-hidden="true"><i></i><i></i><i></i></div>
       <header>
-        <div><div class="dach">${esc(d.wochentag)} · ${d.uhr}</div><h1>${esc(d.titel)}</h1></div>
+        <div><div class="dach">${esc(d.wochentag)} · ${d.uhr}</div><h1 class="${this._laenge(d.ort)}">${esc(d.ort)}</h1></div>
         <div class="chip">
           <span class="ic">${ICON.wlan}</span>
           <div class="chiptext"><b>${esc(d.wlan?.ssid ?? "kein WLAN")}</b><small>Internet über ${esc(d.wlan?.quelle ?? "–")}</small></div>
@@ -472,7 +494,7 @@ class YapaiaStellplatzCard extends HTMLElement {
         ${mix ? `<div class="streifen" aria-hidden="true"><i></i><i></i><i></i></div>` : ""}
         <div class="oben">
           <div class="dach">${esc(d.datum)}</div>
-          <h1>${esc(d.ort)}</h1>
+          <h1 class="${this._laenge(d.ort)}">${esc(d.ort)}</h1>
         </div>
         <div class="unten">
           ${d.wetter ? `<div class="wetter"><span class="temp">${de(d.wetter.temp)}°</span><span>${wetterZeile}</span></div>` : ""}
@@ -618,6 +640,8 @@ svg { display: block; }
 .retro header { position: relative; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .retro .dach { font-size: 15px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--hellbraun); }
 .retro h1 { margin: 0; font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 76px; line-height: .9; letter-spacing: -.02em; }
+.retro h1.lang { font-size: 58px; }
+.retro h1.sehrlang { font-size: 44px; }
 .retro .chip { display: flex; gap: 12px; align-items: center; background: var(--papier); border: 2px solid var(--braun); border-radius: 999px; padding: 10px 18px 10px 14px; margin-top: 90px; }
 .retro .chiptext { display: flex; flex-direction: column; }
 .retro .chiptext small { color: var(--hellbraun); font-size: 13px; }
@@ -710,6 +734,8 @@ aside > div { position: relative; }
 aside .dach { font-size: 13px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--seitegrau); }
 aside h1 { margin: 6px 0 0; font-family: var(--schrift); font-weight: var(--zahlgewicht); font-size: 60px; line-height: .95; overflow-wrap: anywhere; }
 .magazin aside h1 { font-style: italic; }
+aside h1.lang { font-size: 46px; }
+aside h1.sehrlang { font-size: 36px; }
 aside .unten { display: flex; flex-direction: column; gap: 18px; }
 aside .wetter { display: flex; align-items: baseline; gap: 14px; }
 aside .temp { font-family: var(--schrift); font-weight: var(--zahlgewicht); font-size: 112px; line-height: .8; }
