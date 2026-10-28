@@ -12,6 +12,7 @@ einen eigenen Ordner mit
 | [Cockpit Sport](cockpit-sport/) | Navigation, Radio und Fahrdaten im Stil eines Auto-Infotainments |
 | [Rangieren](rangieren/) | Parkmanöver: Rückfahrkamera, Nivellierung, Licht Dinette, Aufbautür |
 | [Stellplatz](stellplatz/) | Stellplatz/Camping: Heizung, Licht, Tür, Batterie, Gas, Wasser, Radio |
+| [Stellplatz Stil](stellplatz-stil/) | Dasselbe als eigene Karte in drei Stilen: Retro-Camper, Outdoor-Magazin, Mix |
 
 Rangieren, Stellplatz und Teile von Cockpit Sport zeigen auch Werte der
 ESPHome-Geräte aus [`devices/esphome/`](../devices/esphome/) (Heizung, Tür,
