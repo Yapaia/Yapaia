@@ -170,49 +170,44 @@ Der **C6 hat zwei** (der P4 hat drei, aber kein eigenes WLAN). ESPHome legt für
 ein MCP2515 über SPI locker. Die beiden schnelleren Busse laufen auf den eingebauten Controllern.
 Welches Paar welche Bitrate hat, steht erst nach Schritt 1 fest. Die Zuordnung oben ist der Plan.
 
-### Pins am ESP32-C6 (Vorschlag)
+**Bauteileliste, Schaltplan und Verdrahtungsliste:** [`hardware/`](hardware/README.md).
+Dort gibt es vier Pläne (A–D). Welcher gebaut wird, entscheidet die Messung in Schritt 1.
 
-| Funktion | GPIO |
-|---|---|
-| CAN 1 TX / RX (Pin 6/14) | 4 / 5 |
-| CAN 2 TX / RX (Pin 3/11) | 6 / 7 |
-| MCP2515 SCK / MOSI / MISO / CS | 18 / 19 / 20 / 21 |
-| MCP2515 INT (optional) | 22 |
+### Pins am ESP32-C6-DevKitC-1
 
-Die GPIOs 8, 9 und 15 (Startpins) sowie 12/13 (USB) bleiben frei. Beim Bau mit dem Datenblatt des
-gewählten Boards abgleichen.
+| Funktion | GPIO | Stiftleiste |
+|---|---|---|
+| CAN-Controller 1 TX / RX | 2 / 3 | J1-12 / J1-13 |
+| CAN-Controller 2 TX / RX | 6 / 7 | J1-5 / J1-6 |
+| MCP2515 SCK / MOSI / MISO / CS | 18 / 19 / 20 / 21 | J3-10 / 9 / 8 / 7 |
+| MCP2515 INT | 22 | J3-6 |
+| TJA1055 ERR (optional) | 23 | J3-5 |
+
+Frei bleiben die Startpins (GPIO4, 5, 8, 9, 15), USB (12/13) und die Log-Ausgabe (16/17).
+GPIO3 und GPIO7 können den ESP32 aus dem Tiefschlaf wecken, wenn der Bus aktiv wird.
 
 ### Worauf es ankommt
 
-- **3,3-V-Transceiver:** SN65HVD230 oder TCAN1051 je Kanal. **Keine fertigen MCP2515-Module** mit
+- **3,3-V-Transceiver:** SN65HVD230 je Kanal. **Keine fertigen MCP2515-Module** mit
   TJA1050: Der braucht 5 V und passt nicht zu den 3,3-V-Pins des ESP32. Der MCP2515 selbst läuft
-  mit 3,3 V und braucht einen Quarz (8 oder 16 MHz).
-- **Keine Abschlusswiderstände:** Auf fertigen Transceiver-Modulen den 120-Ω-Widerstand entfernen
-  (meist „R2“ oder „120“). Die Busse im Auto sind schon abgeschlossen.
+  mit 3,3 V und braucht einen Quarz (8 MHz).
+- **Keine Abschlusswiderstände:** Die Busse im Auto sind schon abgeschlossen.
 - **B-CAN eventuell fehlertolerant:** Ein normaler Transceiver liest so einen Bus meist trotzdem mit,
   solange beide Adern intakt sind (der 2009er wurde so gelesen). Falls nicht, kommt auf diesen Kanal
-  ein **TJA1055** (5 V, Ausgänge über Spannungsteiler an 3,3 V anpassen). Auf der Lochrasterplatine
-  dafür Platz lassen.
-- **Schutz je Kanal:** eine CAN-TVS-Diode (z. B. PESD1CAN) auf CAN-H/L. Gemeinsame Masse über Pin 4/5.
-- **Bauform:** zuerst Lochraster. Wenn alle drei Kanäle laufen, wird daraus eine kleine Platine.
+  ein **TJA1055T/3** (Variante für 3,3-V-Logik), Plan B oder D.
+- **Nur lesen, dreifach abgesichert:** Nur-Hören-Modus in der Firmware, Sendeeingang der Transceiver
+  per Steckbrücke abgetrennt, Sendetreiber im SN65HVD230 abgeschaltet.
+- **Schutz:** Sicherung, Verpolschutz, TVS-Diode im Bordnetz, CAN-Schutzdiode (PESD1CAN) je Kanal.
+- **Bauform:** zuerst Lochraster. Wenn alle Kanäle laufen, wird daraus eine kleine Platine.
 
 ## Einkaufsliste
 
-Die Preise sind grobe Schätzungen.
-
 ### Das Gerät im Fahrzeug
 
-| # | Teil | Beispiel | Anzahl | ca. € | Hinweis |
-|---|---|---|---|---|---|
-| 1 | ESP32-C6-Board | ESP32-C6-DevKitC-1 oder Seeed XIAO ESP32-C6 | 1 | 8–12 | zwei CAN-Controller, WLAN. Beim XIAO reichen die Pins knapp, das DevKitC hat Reserve. |
-| 2 | CAN-Transceiver 3,3 V | Modul mit SN65HVD230 | 3 | 3–5 je | **120-Ω-Widerstand auf dem Modul entfernen** |
-| 3 | CAN-Controller | MCP2515 (Chip, SOIC-18 oder DIP-18) + Quarz 8 MHz + 2× 22 pF | 1 | 3–5 | kein fertiges Modul mit TJA1050 |
-| 3b | *Optional:* fehlertoleranter Transceiver | TJA1055 | 1 | 5–10 | nur, falls der B-CAN mit dem SN65 nichts liefert |
-| 4 | Spannungswandler 12 V → 5 V | Pololu D36V6F5 oder Traco TSR 1-2450 | 1 | 6–10 | Eingang bis ca. 36 V, wenig Ruhestrom |
-| 5 | Schutz | TVS-Diode SMBJ24A, selbstrückstellende Sicherung 500 mA, Verpolschutz-Diode (z. B. SS34), 3× PESD1CAN | 1 Satz | 5 | gegen Spannungsspitzen im Bordnetz und auf den CAN-Leitungen |
-| 6 | OBD-Y-Kabel (1 Stecker auf 2 Buchsen) | **alle 16 Pins belegt** | 1 | 10–15 | Billige Kabel führen oft nur einen Teil der Pins durch. Mindestens 1, 3, 4, 5, 6, 7, 9, 11, 14 und 16 müssen durchgehen. Mit dem Multimeter prüfen. |
-| 7 | OBD-Stecker mit offenen Kabelenden | 16-polig mit Litzen | 1 | 5–8 | hängt am zweiten Abgang des Y-Kabels |
-| 8 | Kleinkram | verdrilltes Zweidrahtkabel (3 Paare), Gehäuse, Lochraster, Stiftleisten, Schrumpfschlauch | | 10 | |
+Vollständige Liste mit Stückzahlen je Plan: [`hardware/README.md`](hardware/README.md#bauteileliste).
+Kurzfassung: ESP32-C6-DevKitC-1, 3× SN65HVD230, 1× TJA1055T/3, MCP2515 mit 8-MHz-Quarz,
+Traco TSR 1-2450, Sicherung, Schutzdioden, OBD-Y-Kabel mit **allen 16 Pins** und OBD-Stecker mit
+Litzen. Alles für alle Pläne zusammen: ca. **75 €**.
 
 ### Zum Messen und Mitschneiden
 
@@ -222,7 +217,7 @@ Die Preise sind grobe Schätzungen.
 | 10 | USB-CAN-Adapter für den Laptop | CANable 2.0 (candleLight/slcan) | 25–40 | für die erste Messung, bevor das ESP32-Gerät fertig ist. Liest einen Bus auf einmal. **Abschluss-Jumper offen lassen.** |
 | 11 | Multimeter | | – | |
 
-Insgesamt ca. **60–90 €** für das Gerät und **40–65 €** fürs Messen.
+Fürs Messen ca. **40–65 €**.
 
 ### Ruhestrom
 
@@ -272,8 +267,8 @@ spi:
 canbus:
   - platform: esp32_can
     id: can_c          # Pin 6/14
-    tx_pin: GPIO4
-    rx_pin: GPIO5
+    tx_pin: GPIO2
+    rx_pin: GPIO3
     can_id: 0          # wird im Nur-Hören-Modus nicht benutzt
     bit_rate: 500KBPS
     mode: LISTENONLY
@@ -320,7 +315,7 @@ Busse schlafen. Dann an der Breakout-Box messen:
 | Pin 16 ≈ 12 V, auch bei Zündung aus | Dauerplus |
 | ein Pin ≈ 12 V in Ruhe, flackert bei Diagnose | K-Line |
 | beide Adern ≈ 2,5 V | **klassischer CAN**, SN65HVD230 passt |
-| eine Ader ≈ 0 V, die andere ≈ 5 V | **fehlertoleranter Low-Speed-CAN** (ISO 11898-3), eher TJA1055 |
+| eine Ader ≈ 0 V, die andere ≈ 5 V | **fehlertoleranter Low-Speed-CAN** (ISO 11898-3), TJA1055T/3 (Plan B/D) |
 
 Ergebnis hier eintragen:
 
