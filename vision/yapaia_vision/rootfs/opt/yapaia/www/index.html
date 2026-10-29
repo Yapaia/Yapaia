@@ -5,22 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Yapaia Vision</title>
 <style>
-  :root { --bg: #111418; --karte: #1b2028; --rand: #2c3340; --text: #e8eaed; --blass: #9aa3b2; --akzent: #c8794a; }
+  /* Aus dem Yapaia-Design-Schema (docs/design-schemata.md), Rückfall: bisheriges Aussehen */
+  :root { --bg: var(--y-grund, #111418); --karte: var(--y-flaeche, #1b2028); --rand: var(--y-rand, #2c3340); --text: var(--y-text, #e8eaed);
+          --blass: var(--y-text-gedaempft, #9aa3b2); --akzent: var(--y-akzent, #c8794a); color-scheme: dark; }
+  :root[data-y-hell="true"] { color-scheme: light; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 var(--y-schrift-text, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif); }
   main { max-width: 1100px; margin: 0 auto; padding: 16px; }
   h1 { font-size: 20px; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; }
   h1 small { color: var(--blass); font-weight: 400; font-size: 13px; }
   .knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
   .knoepfe button { background: var(--karte); color: var(--text); border: 1px solid var(--rand); border-radius: 8px;
     padding: 8px 14px; font: inherit; cursor: pointer; }
-  .knoepfe button.an { background: var(--akzent); border-color: var(--akzent); color: #14161b; font-weight: 600; }
+  .knoepfe button.an { background: var(--akzent); border-color: var(--akzent); color: var(--y-akzent-text, #14161b); font-weight: 600; }
   .raster { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
   figure { margin: 0; background: #000; border: 1px solid var(--rand); border-radius: 10px; overflow: hidden; }
   figure img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #000; }
   figcaption { padding: 8px 12px; background: var(--karte); display: flex; justify-content: space-between; gap: 8px; }
   figcaption span:last-child { color: var(--blass); }
-  .hinweis { background: #3a2a14; border: 1px solid #6b4a1e; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+  .hinweis { background: rgba(var(--y-akzent-rgb, 200, 121, 74), .18); border: 1px solid var(--akzent); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
   details { margin-top: 16px; color: var(--blass); }
   pre { white-space: pre-wrap; font-size: 12px; }
 </style>
@@ -143,6 +146,27 @@
   };
   laden();
   setInterval(laden, 3000);
+
+// ---- Yapaia Design (docs/integration-protokoll.md §8a) --------------------
+async function designHolen() {
+  try {
+    const d = await (await fetch("api/design", { cache: "no-store" })).json();
+    const s = d && d.schema;
+    if (!s || !s.css) return;
+    const root = document.documentElement;
+    for (const [k, v] of Object.entries(s.css)) root.style.setProperty(k, v);
+    root.dataset.ySchema = s.id;
+    root.dataset.yHell = String(s.hell);
+    if (d.schriften && location.pathname.includes("/api/hassio_ingress/") && !document.querySelector(`link[href="${d.schriften}"]`)) {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = d.schriften;
+      document.head.appendChild(l);
+    }
+  } catch { /* ohne Integration: eigenes Aussehen */ }
+}
+designHolen();
+setInterval(designHolen, 60000);
 </script>
 </body>
 </html>

@@ -191,12 +191,42 @@ async def _partner(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+DESIGN_DATEI = DATA_DIR / "design.json"
+
+
+def design_laden() -> dict[str, Any] | None:
+    """Das zuletzt von der Integration geschickte Design (§8a), auch nach Neustart."""
+    with contextlib.suppress(OSError, ValueError):
+        daten = json.loads(DESIGN_DATEI.read_text())
+        if isinstance(daten, dict) and isinstance(daten.get("schema"), dict):
+            return daten
+    return None
+
+
+async def _design(request: web.Request) -> web.Response:
+    """Das Design-Schema von der Integration (docs/integration-protokoll.md §8a)."""
+    try:
+        daten = await request.json()
+    except ValueError:
+        return web.json_response({"ok": False, "fehler": "kein JSON"}, status=400)
+    if not isinstance(daten, dict) or not isinstance(daten.get("schema"), dict):
+        return web.json_response({"ok": False, "fehler": "schema fehlt"}, status=400)
+    request.app["yapaia_design"] = daten
+    with contextlib.suppress(OSError):
+        DESIGN_DATEI.parent.mkdir(parents=True, exist_ok=True)
+        DESIGN_DATEI.write_text(json.dumps(daten))
+    _LOGGER.info("Design: %s", daten["schema"].get("name"))
+    return web.json_response({"ok": True})
+
+
 def einbinden(app: web.Application, ident: Identitaet) -> None:
     app["yapaia_identitaet"] = ident
     app["yapaia_partner"] = []
+    app["yapaia_design"] = design_laden()
     app["yapaia_beschreibung_neu"] = beschreibung_neu(ident)
     app.middlewares.insert(0, nur_mit_token)
     app.router.add_get(f"{API}/beschreibung", _beschreibung)
     app.router.add_get(f"{API}/live", _live)
     app.router.add_post(API + "/aktion/{name}", _aktion)
     app.router.add_post(f"{API}/partner", _partner)
+    app.router.add_post(f"{API}/design", _design)

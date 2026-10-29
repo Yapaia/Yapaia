@@ -130,6 +130,7 @@ class Design:
 
     async def _geaendert(self) -> None:
         await self._store.async_save(self.daten)
+        verteilen_bald(self.hass)
         self.hass.bus.async_fire(EREIGNIS, {"gesamt": self.daten["gesamt"], "module": dict(self.daten["module"])})
         for fn in list(self._hoerer):
             fn()
@@ -203,6 +204,44 @@ class Design:
             (add_extra_js_url if an else remove_extra_js_url)(self.hass, SCHRIFTEN_JS)
         except (KeyError, ValueError):
             pass
+
+
+def nachricht(d: Design, kennung: str) -> dict[str, Any]:
+    """Was ein Modul bekommt (POST /yapaia/v1/design, docs/integration-protokoll.md §9)."""
+    schema_id = d.fuer(kennung)
+    schema = next((s for s in d.schemata if s["id"] == schema_id), None)
+    return {
+        "schema": schema,
+        "eigenes": d.eigenes(kennung) is not None,
+        "schriften": f"{STATISCH}/schriften/schriften.css",
+    }
+
+
+async def senden(hass: HomeAssistant, modul: Any) -> None:
+    """Einem Modul sein Schema schicken (wirft nie)."""
+    d = holen(hass)
+    client = getattr(modul, "client", None)
+    if d is None or not hasattr(client, "design"):
+        return
+    try:
+        if not await client.design(nachricht(d, modul.kennung)):
+            _LOGGER.debug("%s kennt /design noch nicht", modul.kennung)
+    except Exception as err:  # noqa: BLE001 – ein Modul ohne Verbindung bekommt es beim nächsten Verbinden
+        _LOGGER.debug("%s: Design nicht zugestellt (%s)", getattr(modul, "kennung", "?"), err)
+
+
+@callback
+def senden_bald(hass: HomeAssistant, modul: Any) -> None:
+    hass.async_create_background_task(senden(hass, modul), f"{DOMAIN}_design_{getattr(modul, 'kennung', '')}")
+
+
+@callback
+def verteilen_bald(hass: HomeAssistant) -> None:
+    """Allen verbundenen Modulen ihr Schema schicken (nach jeder Änderung)."""
+    for e in hass.config_entries.async_entries(DOMAIN):
+        m = getattr(e, "runtime_data", None)
+        if m is not None and getattr(m, "verbunden", False):
+            senden_bald(hass, m)
 
 
 def holen(hass: HomeAssistant) -> Design | None:

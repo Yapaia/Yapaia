@@ -53,8 +53,10 @@ Die Integration liefert unter `/yapaia_design/` aus:
   | Beat-Karte | Modul Beat; Schemata mit `deko.holz` → Holzgehäuse, sonst modern in Schemafarben; altes `style: retro/modern` gilt als feste Wahl |
   | WLAN | Modul Router |
   | Stellplatz Stil, Rangieren (Kamera, Nivellierung, Reifen) | Gesamt-Schema |
-- Add-on-Oberflächen bekommen das geltende Schema über ihre Verbindung zur
-  Integration (geplant, Stufe 4) und setzen nur die CSS-Variablen.
+- **Add-on-Oberflächen** bekommen das geltende Schema über ihre Verbindung zur
+  Integration (`POST /yapaia/v1/design`, [Protokoll §8a](integration-protokoll.md#8a-design)),
+  merken es sich und reichen es an ihre Seite weiter (`GET api/design`); die
+  setzt nur die CSS-Variablen auf `:root`. Beat und Vision ab 1.18.0 bzw. 0.3.0.
 
 ### CSS-Variablen
 
@@ -143,5 +145,5 @@ Oberflächen, die sie zeichnen sollen – unbekannte Einträge werden ignoriert.
 1. ✅ Format, Schemata, Generator, HA-Themes, Doku, CI-Prüfung
 2. ✅ Auswahl in der Integration (gesamt, je Modul, HA-Design)
 3. ✅ Karten: Cockpit Sport, Stellplatz Stil, Rangieren, WLAN, Beat-Karte
-4. Add-on-Oberflächen: Beat, Vision, Go (Go: feste Tailwind-Farben auf Variablen umstellen)
+4. Add-on-Oberflächen: ✅ Beat, ✅ Vision, Go (feste Tailwind-Farben auf Variablen umstellen)
 5. ESPHome-Displays: der Generator gibt zusätzlich Farben/Schriften für ESPHome aus

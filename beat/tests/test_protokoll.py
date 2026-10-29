@@ -157,3 +157,22 @@ def test_ohne_gebuendelte_integration_nichts(tmp_path, monkeypatch):
     assert ha.install_integration() is None
 
 
+
+
+def test_design_wird_gemerkt(tmp_path, monkeypatch):
+    """§8a: das Schema der Integration, auch über Neustarts."""
+    monkeypatch.setattr(protokoll, "DESIGN_DATEI", tmp_path / "design.json")
+
+    async def go():
+        app = _app(tmp_path, FakeRadio())
+        assert app["yapaia_design"] is None
+        kopf = {"Authorization": f"Bearer {app['yapaia_identitaet'].token}"}
+        daten = {"schema": {"id": "retro", "css": {"--y-grund": "#F4ECDC"}}, "eigenes": False}
+        async with TestClient(TestServer(app)) as c:
+            assert (await c.post("/yapaia/v1/design", json=daten)).status == 401
+            assert (await c.post("/yapaia/v1/design", json={"x": 1}, headers=kopf)).status == 400
+            assert (await c.post("/yapaia/v1/design", json=daten, headers=kopf)).status == 200
+        assert app["yapaia_design"] == daten
+        assert protokoll.design_laden() == daten
+
+    run(go())

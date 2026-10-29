@@ -16,6 +16,7 @@ from custom_components.yapaia import design
 from custom_components.yapaia.const import DOMAIN
 
 from .glinet import FakeRouter
+from .test_integration import einrichten as modul_einrichten, warten
 from .test_router import einrichten
 
 REPO = Path(__file__).resolve().parents[2]
@@ -94,3 +95,22 @@ async def test_ha_design_nur_auf_wunsch(hass: HomeAssistant, patch_router: FakeR
     # Ohne Frontend lädt HA keine Themes → Hinweis, wie man es einschaltet
     assert f"{DOMAIN}_design_theme" in _async_get_or_create_notifications(hass)
     assert design.holen(hass).daten["ha_design"] == "gesamt"
+
+
+async def test_module_bekommen_ihr_schema(hass: HomeAssistant, modul_fabrik) -> None:
+    """POST /yapaia/v1/design beim Verbinden und nach jeder Änderung."""
+    m = await modul_fabrik()
+    await modul_einrichten(hass, m)
+    await warten(lambda: m.design)
+    assert m.design[-1]["schema"]["id"] == "retro" and m.design[-1]["eigenes"] is False
+    assert m.design[-1]["schema"]["css"]["--y-akzent"] == "#C8551F"
+    assert m.design[-1]["schriften"] == "/yapaia_design/schriften/schriften.css"
+
+    await hass.services.async_call("select", "select_option",
+                                   {"entity_id": "select.yapaia_go_design", "option": "Sport"}, blocking=True)
+    await warten(lambda: m.design[-1]["schema"]["id"] == "sport")
+    assert m.design[-1]["eigenes"] is True
+    await hass.services.async_call("select", "select_option",
+                                   {"entity_id": "select.yapaia_design_schema", "option": "Magazin"}, blocking=True)
+    await hass.async_block_till_done()
+    assert m.design[-1]["schema"]["id"] == "sport"  # eigenes bleibt

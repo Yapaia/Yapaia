@@ -114,6 +114,9 @@ class YapaiaModul:
                         self.verbunden = True
                         pause = 1
                         _LOGGER.debug("%s verbunden", self.kennung)
+                        from . import design
+
+                        design.senden_bald(self.hass, self)
                     self._verarbeiten(nachricht)
             except asyncio.CancelledError:
                 raise
