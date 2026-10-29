@@ -81,11 +81,44 @@ def familie(t: dict, ersatz: str) -> str:
     return f"{name if name in GENERISCH else json.dumps(name)}, {ersatz}"
 
 
+def rgb(farbe: str) -> str:
+    h = farbe.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    return ", ".join(str(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+
+
+def leuchtdichte(farbe: str) -> float:
+    def kanal(c: int) -> float:
+        c = c / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(x) for x in rgb(farbe).split(", "))
+    return 0.2126 * kanal(r) + 0.7152 * kanal(g) + 0.0722 * kanal(b)
+
+
+def kontrast(a: str, b: str) -> float:
+    la, lb = sorted((leuchtdichte(a), leuchtdichte(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def lesbar_auf(hintergrund: str, *kandidaten: str) -> str:
+    """Die erste Schema-Farbe, die auf `hintergrund` gut lesbar ist (4,5 : 1),
+    sonst die beste von ihnen oder Schwarz/Weiß, falls die klar besser sind."""
+    for k in kandidaten:
+        if kontrast(k, hintergrund) >= 4.5:
+            return k
+    return max([*kandidaten, "#000000", "#ffffff"], key=lambda k: kontrast(k, hintergrund))
+
+
 def css_variablen(s: dict) -> dict[str, str]:
     """Die CSS-Variablen eines Schemas – das, was Oberflächen benutzen."""
     v: dict[str, str] = {}
     for k in FARBEN:
         v[f"--y-{k.replace('_', '-')}"] = s["farben"][k]
+    # RGB-Tripel für halbdurchsichtige Flächen: rgba(var(--y-grund-rgb), .8).
+    # color-mix() kennt die WebView des Autoradios (Chrome < 111) nicht.
+    for k in ("grund", "flaeche", "flaeche2", "text", "akzent", "akzent_text"):
+        v[f"--y-{k.replace('_', '-')}-rgb"] = rgb(s["farben"][k])
     for k in SCHRIFTEN:
         v[f"--y-schrift-{k}"] = familie(s["schrift"][k], s["schrift"]["ersatz"])
         v[f"--y-gewicht-{k}"] = str(s["schrift"][k]["gewicht"])
@@ -94,10 +127,15 @@ def css_variablen(s: dict) -> dict[str, str]:
     v["--y-rand-breite"] = f"{s['form']['rand_breite']}px"
     v["--y-schatten"] = s["form"]["schatten"]
     deko = s.get("deko") or {}
+    f = s["farben"]
+    # Abgeleitet (immer da): Text auf dem zweiten Akzent, Seitenspalte und Text darauf
+    v["--y-auf-akzent2"] = lesbar_auf(f["akzent2"], f["text"], f["grund"])
+    seite = deko.get("seite") if isinstance(deko.get("seite"), str) else f["flaeche2"]
+    v["--y-seite"] = seite
+    v["--y-seite-text"] = lesbar_auf(seite, f["text"], f["grund"], f["flaeche"], f["akzent_text"])
+    v["--y-seite-text-rgb"] = rgb(v["--y-seite-text"])
     for i, farbe in enumerate(deko.get("streifen") or [], 1):
         v[f"--y-streifen-{i}"] = farbe
-    if isinstance(deko.get("seite"), str):
-        v["--y-seite"] = deko["seite"]
     lcd = deko.get("lcd")
     if isinstance(lcd, dict):
         for k in ("grund", "text", "leuchten"):

@@ -111,7 +111,6 @@ views:
             icon: mdi:radio
           - type: custom:yapaia-beat-card
             entity: media_player.yapaia_beat
-            style: modern
 
       - type: grid
         cards:

@@ -1,41 +1,50 @@
 /**
  * Yapaia Design – Hilfe für Karten und Oberflächen (docs/design-schemata.md).
  *
- *   await import("/yapaia_design/yapaia-design.js");
- *   const schema = await window.YapaiaDesign.schema(hass, "go_ab12" | null, wahl?);
- *   window.YapaiaDesign.anwenden(element, schema);   // setzt --y-… auf dem Element
- *   const weg = window.YapaiaDesign.beobachten(hass, () => neu zeichnen);
+ *   import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit);
+ *   const s = window.YapaiaDesign.waehle(hass, { wahl: config.design, quelle: "select.yapaia_go_design" });
+ *   window.YapaiaDesign.anwenden(element, s);   // setzt --y-… und data-y-… am Element
  *
- * `wahl`: ein fest eingestelltes Schema (id) der Karte; leer/„auto" = was die
- * Integration für dieses Modul bzw. gesamt vorgibt.
+ * Welches Schema gilt (synchron, aus den Zuständen in `hass` – ändert sich
+ * eine Auswahl, zeichnet die Karte ohnehin neu):
+ *   1. `wahl` – fest an der Karte eingestellt (eine Schema-ID; leer/„auto" = nicht gesetzt)
+ *   2. `quelle` – Auswahl „Design" des zugehörigen Moduls (Attribut `gilt`)
+ *   3. `select.yapaia_design_schema` – das Gesamt-Schema
  */
 (() => {
   if (window.YapaiaDesign) return;
   const BASIS = "/yapaia_design";
-  let schemataPromise = null;
-  let standPromise = null;
+  const GESAMT = "select.yapaia_design_schema";
+  let liste = [];
 
-  const schemata = () =>
-    (schemataPromise ??= fetch(`${BASIS}/schemata.json`).then((r) => r.json()).then((j) => j.schemata));
+  const bereit = fetch(`${BASIS}/schemata.json`)
+    .then((r) => r.json())
+    .then((j) => (liste = j.schemata))
+    .catch(() => (liste = []));
 
-  const stand = (hass) =>
-    (standPromise ??= hass.connection.sendMessagePromise({ type: "yapaia/design" }).catch(() => null));
-
-  async function schema(hass, modul = null, wahl = null) {
-    const alle = await schemata();
-    let id = wahl && wahl !== "auto" ? wahl : null;
-    if (!id && hass) {
-      const s = await stand(hass);
-      id = (modul && s?.module?.[modul]) || s?.gesamt;
-    }
-    return alle.find((x) => x.id === id) ?? alle.find((x) => x.id === "retro") ?? alle[0];
+  function waehle(hass, { wahl = null, quelle = null } = {}) {
+    if (!liste.length) return null;
+    const finde = (x) => liste.find((s) => s.id === x || s.name === x);
+    const st = hass?.states ?? {};
+    return (
+      (wahl && wahl !== "auto" && finde(wahl)) ||
+      (quelle && finde(st[quelle]?.attributes?.gilt)) ||
+      finde(st[GESAMT]?.state) ||
+      finde("retro") ||
+      liste[0]
+    );
   }
 
   function anwenden(el, s) {
     if (!el || !s) return;
     for (const [k, v] of Object.entries(s.css)) el.style.setProperty(k, v);
+    const deko = s.deko || {};
     el.dataset.ySchema = s.id;
     el.dataset.yHell = String(s.hell);
+    el.dataset.yStreifen = String(Array.isArray(deko.streifen) && deko.streifen.length > 0);
+    el.dataset.yHoehenlinien = String(!!deko.hoehenlinien);
+    el.dataset.yHolz = String(!!deko.holz);
+    el.dataset.yLcd = String(!!deko.lcd);
     schriften();
   }
 
@@ -48,17 +57,10 @@
     document.head.appendChild(l);
   }
 
-  function beobachten(hass, fn) {
-    let weg = null;
-    hass.connection
-      .subscribeEvents(() => {
-        standPromise = null;
-        fn();
-      }, "yapaia_design_geaendert")
-      .then((u) => (weg = u))
-      .catch(() => {});
-    return () => weg?.();
+  /** Auswahl für Karten-Editoren: auto + alle Schemata. */
+  function optionen() {
+    return [{ value: "auto", label: "Automatisch (wie eingestellt)" }, ...liste.map((s) => ({ value: s.id, label: s.name }))];
   }
 
-  window.YapaiaDesign = { schema, schemata, anwenden, schriften, beobachten };
+  window.YapaiaDesign = { bereit, waehle, anwenden, schriften, optionen, liste: () => liste };
 })();

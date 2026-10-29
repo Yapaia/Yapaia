@@ -19,6 +19,10 @@ const RAEDER = [
   { k: "rr", name: "Hinten rechts" },
 ];
 
+// Yapaia Design (docs/design-schemata.md); ohne die Integration gelten die HA-Farben
+const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
+const DESIGN_QUELLE = null;
+
 const STANDARD = {
   name: "Reifendruck",
   ...Object.fromEntries(
@@ -36,7 +40,7 @@ const STANDARD = {
   stale_hours: 12,
 };
 
-const FARBE = { ok: "#2e9d4f", fast: "#e69500", schief: "#d93a2b", aus: "#8a8f98" };
+const FARBE = { ok: "var(--y-ok, #2e9d4f)", fast: "var(--y-warnung, #e69500)", schief: "var(--y-fehler, #d93a2b)", aus: "var(--y-text-gedaempft, #8a8f98)" };
 
 const zahl = (v) => {
   const n = parseFloat(v);
@@ -65,6 +69,7 @@ class YapaiaReifenCard extends HTMLElement {
     const bar = (min, max, step) => ({ number: { min, max, step, mode: "box", unit_of_measurement: "bar" } });
     return {
       schema: [
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
         { name: "name", selector: { text: {} } },
         ...RAEDER.map(({ k, name }) => ({
           type: "expandable",
@@ -103,6 +108,7 @@ class YapaiaReifenCard extends HTMLElement {
         const rad = RAEDER.find(({ k }) => s.name.startsWith(`${k}_`));
         if (rad) return { pressure: "Druck", temperature: "Temperatur (optional)", battery: "Batteriespannung (optional)" }[s.name.slice(3)];
         return {
+          design: "Design-Schema",
           name: "Titel",
           target_front: "Solldruck vorne",
           target_rear: "Solldruck hinten",
@@ -124,6 +130,10 @@ class YapaiaReifenCard extends HTMLElement {
     this._config = { ...STANDARD, ...config };
     this._key = null;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    DESIGN.then(() => {
+      this._key = null;
+      this._render();
+    });
     this._render();
   }
 
@@ -166,7 +176,8 @@ class YapaiaReifenCard extends HTMLElement {
     if (!this._config || !this.shadowRoot) return;
     const c = this._config;
     const raeder = RAEDER.map((r) => this._rad(r));
-    const key = JSON.stringify([c, raeder.map((r) => [r.druck, r.temp, r.batt, r.zeit && alter(r.zeit)])]);
+    const yschema = window.YapaiaDesign?.waehle(this._hass, { wahl: this._config.design, quelle: DESIGN_QUELLE }) ?? null;
+    const key = JSON.stringify([yschema?.id, c, raeder.map((r) => [r.druck, r.temp, r.batt, r.zeit && alter(r.zeit)])]);
     if (key === this._key) return;
     this._key = key;
 
@@ -213,10 +224,12 @@ class YapaiaReifenCard extends HTMLElement {
     const [fl, fr, rl, rr] = raeder;
     this.shadowRoot.innerHTML = `
       <style>
+        ha-card { background: var(--y-flaeche, var(--ha-card-background, var(--card-background-color, #fff))); color: var(--y-text, var(--primary-text-color));
+          font-family: var(--y-schrift-text, inherit); border-radius: var(--y-radius-klein, var(--ha-card-border-radius, 12px)); box-shadow: var(--y-schatten, var(--ha-card-box-shadow, none)); }
         :host { display:block; }
         ha-card { padding:16px; }
         .kopf { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-        .kopf h2 { margin:0; font-size:20px; font-weight:500; flex:1; color:var(--primary-text-color); }
+        .kopf h2 { margin:0; font-size:20px; font-weight:500; flex:1; color:var(--y-text, var(--primary-text-color)); }
         .status { padding:4px 12px; border-radius:16px; color:#fff; font-weight:600; font-size:14px; white-space:nowrap; }
         .feld { display:grid; grid-template-columns: 1fr minmax(70px, 120px) 1fr; max-width:560px; margin:0 auto; grid-template-rows: auto auto; gap:8px 12px; align-items:center; }
         .auto { grid-column:2; grid-row:1 / span 2; width:100%; height:auto; display:block; }
@@ -226,21 +239,21 @@ class YapaiaReifenCard extends HTMLElement {
         .rr { grid-column:3; grid-row:2; }
         .rad { display:flex; flex-direction:column; gap:2px; }
         .fl .neben, .rl .neben { justify-content:flex-end; }
-        .radname { font-size:13px; color:var(--secondary-text-color); }
+        .radname { font-size:13px; color:var(--y-text-gedaempft, var(--secondary-text-color)); }
         .druck { font-size:30px; font-weight:600; line-height:1.1; font-variant-numeric:tabular-nums; white-space:nowrap; }
         .druck small { font-size:15px; font-weight:500; }
-        .soll { font-size:13px; color:var(--secondary-text-color); min-height:17px; }
-        .neben { display:flex; gap:10px; flex-wrap:wrap; font-size:14px; color:var(--primary-text-color); }
+        .soll { font-size:13px; color:var(--y-text-gedaempft, var(--secondary-text-color)); min-height:17px; }
+        .neben { display:flex; gap:10px; flex-wrap:wrap; font-size:14px; color:var(--y-text, var(--primary-text-color)); }
         .neben span { display:inline-flex; align-items:center; gap:2px; white-space:nowrap; }
-        .neben ha-icon { --mdc-icon-size:16px; color:var(--secondary-text-color); }
+        .neben ha-icon { --mdc-icon-size:16px; color:var(--y-text-gedaempft, var(--secondary-text-color)); }
         .neben .warn, .neben .warn ha-icon { color:${FARBE.fast}; }
-        .zeit { font-size:12px; color:var(--secondary-text-color); }
+        .zeit { font-size:12px; color:var(--y-text-gedaempft, var(--secondary-text-color)); }
         .zeit.alt { color:${FARBE.fast}; }
-        .karosse { fill:var(--card-background-color, #fff); stroke:var(--primary-text-color); stroke-width:2.5; stroke-linejoin:round; }
-        .glas { fill:#9cc3e6; stroke:var(--primary-text-color); stroke-width:1.5; opacity:.85; }
-        .fuge { fill:none; stroke:var(--primary-text-color); stroke-width:1; opacity:.35; }
-        .reifen { stroke:var(--primary-text-color); stroke-width:1.5; }
-        .hinweis { margin-top:12px; font-size:13px; color:var(--secondary-text-color); }
+        .karosse { fill:var(--y-flaeche, var(--card-background-color, #fff)); stroke:var(--y-text, var(--primary-text-color)); stroke-width:2.5; stroke-linejoin:round; }
+        .glas { fill:#9cc3e6; stroke:var(--y-text, var(--primary-text-color)); stroke-width:1.5; opacity:.85; }
+        .fuge { fill:none; stroke:var(--y-text, var(--primary-text-color)); stroke-width:1; opacity:.35; }
+        .reifen { stroke:var(--y-text, var(--primary-text-color)); stroke-width:1.5; }
+        .hinweis { margin-top:12px; font-size:13px; color:var(--y-text-gedaempft, var(--secondary-text-color)); }
         .hinweis.warn { color:${FARBE.fast}; }
       </style>
       <ha-card>
@@ -256,6 +269,7 @@ class YapaiaReifenCard extends HTMLElement {
         <div class="hinweis">Soll vorne ${fmt(zahl(c.target_front), 1)} bar, hinten ${fmt(zahl(c.target_rear), 1)} bar.
           Die Sensoren senden meist nur während der Fahrt.</div>
       </ha-card>`;
+    window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector("ha-card"), yschema);
   }
 }
 

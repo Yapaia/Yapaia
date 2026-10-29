@@ -33,15 +33,26 @@ Die Integration liefert unter `/yapaia_design/` aus:
 | Datei | Inhalt |
 |---|---|
 | `schemata.json` | alle Schemata mit fertigen CSS-Variablen (`css`) |
-| `yapaia-design.js` | Hilfe für Karten: `YapaiaDesign.schema(hass, modul, wahl)`, `.anwenden(el, schema)`, `.beobachten(hass, fn)` |
+| `yapaia-design.js` | Hilfe für Karten: `YapaiaDesign.waehle(hass, {wahl, quelle})`, `.anwenden(el, schema)`, `.optionen()` |
 | `schriften/` | die Schriften (lokal, SIL OFL 1.1) und `schriften.css` |
 
 - WebSocket `yapaia/design` (optional `modul: "<kennung>"`) → `gesamt`,
   `module`, `ha_design`, `schemata`, mit `modul` auch `gilt`.
   `yapaia/design/setzen` (nur Admin): `gesamt` bzw. `modul` + `schema` (`null` = wie gesamt).
 - Ereignis `yapaia_design_geaendert` bei jeder Änderung.
-- Karten: Option `design: auto` (Standard, folgt der Integration) oder eine
-  Schema-ID. Dashboards gelten als eigenes „Modul“ erst in einer späteren Stufe.
+- **Karten** haben die Option `design`: `auto` (Standard) oder eine Schema-ID.
+  Bei `auto` gilt das Design des zugehörigen Moduls, sonst das Gesamt-Schema.
+  `waehle()` liest das synchron aus `hass.states` (Attribut `gilt` der
+  Modul-Auswahl, Zustand von `select.yapaia_design_schema`) – ändert sich eine
+  Auswahl, zeichnet die Karte ohnehin neu. Jede Karte hat Rückfallfarben im
+  CSS (`var(--y-akzent, #c9895b)`), sieht also ohne die Integration aus wie vorher.
+
+  | Karte | folgt bei `auto` |
+  |---|---|
+  | Cockpit Sport | Modul Go (`select.yapaia_go_design`) |
+  | Beat-Karte | Modul Beat; Schemata mit `deko.holz` → Holzgehäuse, sonst modern in Schemafarben; altes `style: retro/modern` gilt als feste Wahl |
+  | WLAN | Modul Router |
+  | Stellplatz Stil, Rangieren (Kamera, Nivellierung, Reifen) | Gesamt-Schema |
 - Add-on-Oberflächen bekommen das geltende Schema über ihre Verbindung zur
   Integration (geplant, Stufe 4) und setzen nur die CSS-Variablen.
 
@@ -63,10 +74,14 @@ Jede Oberfläche benutzt nur diese Namen, nie feste Farben:
 | `--y-schrift-zahlen`, `--y-gewicht-zahlen` | Messwerte |
 | `--y-radius`, `--y-radius-klein` | Ecken großer bzw. kleiner Elemente |
 | `--y-rand-breite`, `--y-schatten` | Rahmenstärke, Schatten |
-| optional: `--y-streifen-1…3`, `--y-seite`, `--y-lcd-grund/-text/-leuchten` | Deko, nur wenn das Schema sie hat |
+| `--y-auf-akzent2` | lesbarer Text auf `akzent2` (abgeleitet) |
+| `--y-seite`, `--y-seite-text` | Seitenspalte (`deko.seite`, sonst `flaeche2`) und Text darauf (abgeleitet) |
+| `--y-grund-rgb`, `--y-flaeche-rgb`, `--y-flaeche2-rgb`, `--y-text-rgb`, `--y-akzent-rgb`, `--y-akzent-text-rgb`, `--y-seite-text-rgb` | „r, g, b“ für `rgba(var(--y-grund-rgb), .8)` – die WebView des Autoradios kennt kein `color-mix()` |
+| optional: `--y-streifen-1…3`, `--y-lcd-grund/-text/-leuchten` | Deko, nur wenn das Schema sie hat |
 
-Am Element setzt `anwenden` außerdem `data-y-schema="<id>"` und
-`data-y-hell="true|false"`. Deko (Streifen, Höhenlinien, Holz) zeichnet eine
+Am Element setzt `anwenden` außerdem `data-y-schema="<id>"`,
+`data-y-hell="true|false"` und `data-y-streifen`, `data-y-hoehenlinien`,
+`data-y-holz`, `data-y-lcd` („true|false“, für Deko per CSS). Deko (Streifen, Höhenlinien, Holz) zeichnet eine
 Oberfläche nur, wenn das Schema sie anbietet (`deko` in `schemata.json`).
 
 ## Die Schemata
@@ -127,6 +142,6 @@ Oberflächen, die sie zeichnen sollen – unbekannte Einträge werden ignoriert.
 
 1. ✅ Format, Schemata, Generator, HA-Themes, Doku, CI-Prüfung
 2. ✅ Auswahl in der Integration (gesamt, je Modul, HA-Design)
-3. Karten: Cockpit Sport, Stellplatz, Rangieren, WLAN, Beat-Karte
+3. ✅ Karten: Cockpit Sport, Stellplatz Stil, Rangieren, WLAN, Beat-Karte
 4. Add-on-Oberflächen: Beat, Vision, Go (Go: feste Tailwind-Farben auf Variablen umstellen)
 5. ESPHome-Displays: der Generator gibt zusätzlich Farben/Schriften für ESPHome aus

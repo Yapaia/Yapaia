@@ -1,13 +1,15 @@
 # Dashboard „Stellplatz Stil“
 
 Das Stellplatz-Dashboard als **eine eigene Karte** (`custom:yapaia-stellplatz-card`)
-in drei Stilen, je eine Ansicht:
+in drei Aufbauten (`stil`), je eine Ansicht. Farben, Schriften und Deko kommen
+aus dem [Yapaia-Design-Schema](../../docs/design-schemata.md) (`design: auto`
+= Gesamt-Schema, oder eine Schema-ID):
 
-| Ansicht | Stil | Aussehen |
+| Ansicht | `stil` | Aufbau |
 |---|---|---|
-| Retro | `retro` | Retro-Camper: Sahne, Rost, Senf, schräge Streifen, Fraunces |
-| Magazin | `magazin` | Outdoor-Magazin: Waldgrün mit Höhenlinien, große Serifenschrift, kurze Sätze |
-| Mix | `mix` | Retro-Farben und -Kacheln im Magazin-Aufbau |
+| Kacheln | `retro` | Kacheln (Entwurf „Retro-Camper“) |
+| Magazin | `magazin` | Seitenspalte mit Ort/Wetter, große Zahlen, kurze Sätze |
+| Magazin mit Karten | `mix` | wie Magazin, mit gerahmten Karten |
 
 Inhalt wie im Dashboard [Stellplatz](../stellplatz/): Heizung (Truma Raum, Warmwasser
 Eco/Heiß/Boost), Batterie mit Restlaufzeit, Solar, Gas und Frischwasser, alle
@@ -31,8 +33,7 @@ dazu Wetter (`weather.forecast_home`) und Sonne (`sun.sun`).
   Attribut `locality` geht auch). Fest
   eintragen geht mit `ort`; ohne beides steht der Titel da. „Tag 3 auf dem Platz“ aus dem Entwurf
   fehlt noch – dafür gibt es keinen Sensor.
-- **Schriften** (Fraunces, DM Sans, Instrument Serif, Inter) kommen von Google
-  Fonts; ohne Internet nimmt die Karte Georgia bzw. die Systemschrift.
+- **Schriften** liefert die Integration lokal mit (`/yapaia_design/schriften/`).
 - Passt sich der Breite an: 1280 px (iPad quer) voll, darunter zwei Spalten,
   am Telefon eine.
 

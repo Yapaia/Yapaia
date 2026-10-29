@@ -1,8 +1,11 @@
 /**
- * Stellplatz – eine Karte für das ganze Dashboard, in drei Stilen:
- *   retro    – Retro-Camper: Sahne, Rost, Senf, schräge Streifen, Fraunces
- *   magazin  – Outdoor-Magazin: Waldgrün, Höhenlinien, Instrument Serif
- *   mix      – Retro-Farben im Magazin-Aufbau
+ * Stellplatz – eine Karte für das ganze Dashboard, in drei Aufbauten (`stil`):
+ *   retro    – Kacheln (wie der Entwurf „Retro-Camper“)
+ *   magazin  – Magazin: Seitenspalte, große Zahlen, kurze Sätze
+ *   mix      – Magazin mit gerahmten Karten
+ * Farben, Schriften und Deko kommen aus dem Yapaia-Design-Schema
+ * (docs/design-schemata.md): `design: auto` (Standard) folgt dem Gesamt-Schema,
+ * eine Schema-ID legt es für diese Karte fest.
  *
  * Zeigt Heizung (Truma), Warmwasser, Batterie, Solar, Gas/Wasser, Licht,
  * Aufbautür, Radio (Yapaia Beat), WLAN (Yapaia Router), Wetter und Sonne.
@@ -13,10 +16,10 @@
  * Im Dashboard (am besten als einzige Karte einer Ansicht vom Typ „Panel“):
  *   type: custom:yapaia-stellplatz-card
  *   stil: retro | magazin | mix
+ *   design: auto | retro | magazin | sport | …
  * Alle Entitäten lassen sich im grafischen Editor einstellen.
  *
- * Schriften kommen von Google Fonts; ohne Internet springen Georgia bzw. die
- * Systemschrift ein.
+ * Schriften liefert die Integration lokal mit (/yapaia_design/schriften/).
  */
 
 const LICHTER = [
@@ -32,6 +35,7 @@ const LICHTER = [
 
 const STANDARD = {
   stil: "retro",
+  design: "auto",
   titel: "Stellplatz",
   ort: "",
   // Ort aus einer Entität: Sensor „Ort“ von Yapaia Go (offline, ab Go 0.65.0);
@@ -81,8 +85,8 @@ const WETTER = {
   rainy: "Regen", snowy: "Schnee", "snowy-rainy": "Schneeregen", sunny: "sonnig", windy: "windig", "windy-variant": "windig, bewölkt",
 };
 
-const SCHRIFTEN =
-  "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=DM+Sans:wght@400;500;700&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap";
+// Yapaia Design (Integration ab 0.7.0); ohne sie gelten die Rückfallfarben im CSS
+const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
 
 const zahl = (v) => {
   const n = parseFloat(v);
@@ -121,7 +125,8 @@ class YapaiaStellplatzCard extends HTMLElement {
     return {
       schema: [
         { name: "stil", required: true, selector: { select: { mode: "box", options: [
-          { value: "retro", label: "Retro-Camper" }, { value: "magazin", label: "Outdoor-Magazin" }, { value: "mix", label: "Mix" }] } } },
+          { value: "retro", label: "Kacheln" }, { value: "magazin", label: "Magazin" }, { value: "mix", label: "Magazin mit Karten" }] } } },
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
         { type: "grid", name: "", schema: [{ name: "titel", selector: { text: {} } }, { name: "ort", selector: { text: {} } }] },
         { name: "ort_entity", selector: { entity: { domain: "sensor" } } },
         { type: "expandable", flatten: true, name: "", title: "Heizung", schema: [
@@ -144,7 +149,7 @@ class YapaiaStellplatzCard extends HTMLElement {
         { name: "lichter", selector: { object: {} } },
       ],
       computeLabel: (s) => ({
-        stil: "Stil", titel: "Titel", ort: "Ort fest eintragen (sonst aus der Entität)", ort_entity: "Ort aus Entität", raum: "Heizung Raum", wasser: "Warmwasser",
+        stil: "Aufbau", design: "Design-Schema", titel: "Titel", ort: "Ort fest eintragen (sonst aus der Entität)", ort_entity: "Ort aus Entität", raum: "Heizung Raum", wasser: "Warmwasser",
         soc: "Ladestand Batterie 1", soc_2: "Ladestand Batterie 2 (optional)", spannung: "Spannung Batterie 1", spannung_2: "Spannung Batterie 2 (optional)", strom: "Strom Batterie 1",
         strom_2: "Strom Batterie 2 (optional)", restlaufzeit: "Restlaufzeit (Tage)", leistung: "Leistung Batterie 1 (optional, sonst Spannung × Strom)",
         leistung_2: "Leistung Batterie 2 (optional)", kapazitaet_ah: "Kapazität aller Batterien", pv: "Solarleistung", ertrag: "Solarertrag heute",
@@ -168,12 +173,10 @@ class YapaiaStellplatzCard extends HTMLElement {
       this.attachShadow({ mode: "open" });
       this.shadowRoot.addEventListener("click", (e) => this._klick(e));
     }
-    if (!document.querySelector(`link[href="${SCHRIFTEN}"]`)) {
-      const l = document.createElement("link");
-      l.rel = "stylesheet";
-      l.href = SCHRIFTEN;
-      document.head.appendChild(l);
-    }
+    DESIGN.then(() => {
+      this._key = null;
+      this._zeichnen();
+    });
     clearInterval(this._uhr);
     this._uhr = setInterval(() => this._zeichnen(), 30000);
     this._zeichnen();
@@ -557,12 +560,14 @@ class YapaiaStellplatzCard extends HTMLElement {
       return;
     }
     const d = this._daten();
-    const key = JSON.stringify([d, this._config.stil, this._tuerBestaetigen > Date.now()]);
+    const schema = window.YapaiaDesign?.waehle(this._hass, { wahl: this._config.design }) ?? null;
+    const key = JSON.stringify([d, this._config.stil, schema?.id, this._tuerBestaetigen > Date.now()]);
     if (key === this._key) return;
     this._key = key;
     const stil = this._config.stil;
     const html = stil === "magazin" ? this._magazin(d) : stil === "mix" ? this._magazin(d, true) : this._retro(d);
     this.shadowRoot.innerHTML = `<style>${STIL}</style><ha-card>${html}</ha-card>`;
+    window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector(".wurzel"), schema);
   }
 
   // ---- Bedienen ----------------------------------------------------------------
@@ -631,75 +636,81 @@ svg { display: block; }
 .ic svg { width: 100%; height: 100%; }
 
 /* ===== A: Retro ===== */
-.retro { --sahne: #F4ECDC; --papier: #FBF6EC; --braun: #3B2A20; --rost: #C8551F; --senf: #E3A72F; --hellbraun: #8A5A3B; --teal: #5E8C8A;
-  background: var(--sahne); color: var(--braun); font-family: "DM Sans", system-ui, sans-serif; padding: 26px 30px; display: flex; flex-direction: column; gap: 18px; }
+.retro { --sahne: var(--y-grund, #F4ECDC); --papier: var(--y-flaeche, #FBF6EC); --braun: var(--y-text, #3B2A20); --linie: var(--y-rand, #3B2A20);
+  --rost: var(--y-akzent, #C8551F); --rosttext: var(--y-akzent-text, #FBF6EC); --rosttext-rgb: var(--y-akzent-text-rgb, 251, 246, 236);
+  --senf: var(--y-akzent2, #E3A72F); --aufsenf: var(--y-auf-akzent2, #3B2A20); --hellbraun: var(--y-text-gedaempft, #8A5A3B); --teal: var(--y-info, #5E8C8A);
+  --dunkel-bg: var(--y-text, #3B2A20); --dunkel-text: var(--y-grund, #F4ECDC); --dunkel-text-rgb: var(--y-grund-rgb, 244, 236, 220);
+  --rahmen: var(--y-rand-breite, 2px) solid var(--linie);
+  background: var(--sahne); color: var(--braun); font-family: var(--y-schrift-text, "DM Sans", system-ui, sans-serif); font-weight: var(--y-gewicht-text, 400); padding: 26px 30px; display: flex; flex-direction: column; gap: 18px; }
 .retro .streifen { position: absolute; right: -60px; top: 34px; width: 52%; display: flex; flex-direction: column; gap: 8px; transform: skewX(-24deg); }
-.retro .streifen i { height: 18px; background: var(--braun); }
-.retro .streifen i:nth-child(2) { background: var(--rost); }
-.retro .streifen i:nth-child(3) { background: var(--senf); }
+.retro .streifen i { height: 18px; background: var(--y-streifen-1, var(--braun)); }
+.wurzel[data-y-streifen="false"] .streifen { display: none; }
+.retro .streifen i:nth-child(2) { background: var(--y-streifen-2, var(--rost)); }
+.retro .streifen i:nth-child(3) { background: var(--y-streifen-3, var(--senf)); }
 .retro header { position: relative; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .retro .dach { font-size: 15px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--hellbraun); }
-.retro h1 { margin: 0; font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 76px; line-height: .9; letter-spacing: -.02em; }
+.retro h1 { margin: 0; font-family: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); font-weight: var(--y-gewicht-anzeige, 900); font-size: 76px; line-height: .9; letter-spacing: -.02em; }
 .retro h1.lang { font-size: 58px; }
 .retro h1.sehrlang { font-size: 44px; }
-.retro .chip { display: flex; gap: 12px; align-items: center; background: var(--papier); border: 2px solid var(--braun); border-radius: 999px; padding: 10px 18px 10px 14px; margin-top: 90px; }
+.retro .chip { display: flex; gap: 12px; align-items: center; background: var(--papier); border: var(--rahmen); border-radius: 999px; padding: 10px 18px 10px 14px; margin-top: 90px; }
 .retro .chiptext { display: flex; flex-direction: column; }
 .retro .chiptext small { color: var(--hellbraun); font-size: 13px; }
-.retro .trenner { width: 2px; height: 32px; background: #E0D3BC; }
-.retro .chiptemp { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 22px; }
+.retro .trenner { width: 2px; height: 32px; background: var(--braun); opacity: .2; }
+.retro .chiptemp { font-family: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); font-weight: 600; font-size: 22px; }
 .retro .senf { color: var(--senf); }
 .retro main { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(250px, 1fr); gap: 18px; }
-.retro .k { border-radius: 32px; padding: 22px 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-width: 0; }
-.retro .hell { background: var(--papier); border: 2px solid var(--braun); }
-.retro .dunkel { background: var(--braun); color: var(--sahne); }
-.retro .senfk { background: var(--senf); }
+.retro .k { border-radius: var(--y-radius, 32px); padding: 22px 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; min-width: 0; }
+.retro .hell { background: var(--papier); border: var(--rahmen); box-shadow: var(--y-schatten, none); }
+.retro .dunkel { background: var(--dunkel-bg); color: var(--dunkel-text); box-shadow: var(--y-schatten, none); }
+.wurzel[data-y-hell="false"] { --dunkel-bg: var(--y-flaeche2); --dunkel-text: var(--y-text); --dunkel-text-rgb: var(--y-text-rgb); }
+.retro .senfk { background: var(--senf); color: var(--aufsenf); }
 .retro .label { font-size: 14px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
 .retro .label.braun { color: var(--hellbraun); }
-.retro .gross { font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 64px; line-height: .9; }
+.retro .gross { font-family: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); font-weight: var(--y-gewicht-anzeige, 900); font-size: 64px; line-height: .9; }
 .retro .einheit { font-size: 30px; }
-.retro .riesig { font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 108px; line-height: .85; }
-.retro .heizung { grid-column: span 2; background: var(--rost); color: var(--papier); flex-direction: row; align-items: stretch; gap: 24px; }
+.retro .riesig { font-family: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); font-weight: var(--y-gewicht-anzeige, 900); font-size: 108px; line-height: .85; }
+.retro .heizung { grid-column: span 2; background: var(--rost); color: var(--rosttext); box-shadow: var(--y-schatten, none); flex-direction: row; align-items: stretch; gap: 24px; }
 .retro .heizung .spalte { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
 .retro .heizung .schmal { flex: 0 0 170px; }
 .retro .heizung .label { opacity: .85; }
 .retro .rund { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
-.retro .rund button { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--papier); background: transparent; color: var(--papier); font-size: 32px; display: flex; align-items: center; justify-content: center; }
+.retro .rund button { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--rosttext); background: transparent; color: var(--rosttext); font-size: 32px; display: flex; align-items: center; justify-content: center; }
 .retro .rund button svg { width: 24px; height: 24px; }
-.retro .rund button.aktiv { background: var(--papier); color: var(--rost); }
-.retro .linie { width: 2px; background: rgba(251,246,236,.35); }
+.retro .rund button.aktiv { background: var(--rosttext); color: var(--rost); }
+.retro .linie { width: 2px; background: rgba(var(--rosttext-rgb), .35); }
 .retro .modi { display: flex; flex-wrap: wrap; gap: 6px; }
-.retro .modus { padding: 6px 11px; border-radius: 999px; border: 2px solid rgba(251,246,236,.6); background: transparent; color: var(--papier); font-weight: 700; font-size: 14px; }
-.retro .modus.an { background: var(--papier); color: var(--rost); border-color: var(--papier); }
+.retro .modus { padding: 6px 11px; border-radius: 999px; border: 2px solid rgba(var(--rosttext-rgb), .6); background: transparent; color: var(--rosttext); font-weight: 700; font-size: 14px; }
+.retro .modus.an { background: var(--rosttext); color: var(--rost); border-color: var(--rosttext); }
 .retro .batt { display: flex; align-items: center; gap: 18px; }
 .retro .batt small { color: var(--hellbraun); font-size: 15px; }
 .retro .akku { width: 58px; height: 118px; border: 3px solid var(--braun); border-radius: 12px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 5px; flex: none; }
 .retro .akku::before { content: ""; position: absolute; top: -10px; left: 17px; width: 18px; height: 7px; background: var(--braun); border-radius: 3px 3px 0 0; }
 .retro .akku i { background: var(--senf); border-radius: 6px; }
-.retro .leistung { font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 26px; margin: 4px 0 2px; display: flex; align-items: baseline; gap: 6px; }
-.retro .leistung small { font-family: "DM Sans", system-ui, sans-serif; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--hellbraun); }
-.retro .leistung.laden { color: #2F7A4F; }
-.retro .leistung.entladen { color: var(--rost); }
+.retro .leistung { font-family: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); font-weight: var(--y-gewicht-anzeige, 900); font-size: 26px; margin: 4px 0 2px; display: flex; align-items: baseline; gap: 6px; }
+.retro .leistung small { font-family: var(--y-schrift-text, "DM Sans", system-ui, sans-serif); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--hellbraun); }
+.retro .leistung.laden { color: var(--y-ok, #2F7A4F); }
+.retro .leistung.entladen { color: var(--y-fehler, var(--rost)); }
 .retro .battzeile { font-size: 15px; }
 .retro .kopf { display: flex; justify-content: space-between; align-items: center; }
 .retro .gross-ic { width: 34px; height: 34px; }
 .retro .lichter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex: 1; }
-.retro .licht { border-radius: 16px; border: 2px solid var(--braun); background: transparent; color: var(--braun); font-weight: 700; font-size: 15px; text-align: left; padding: 8px 12px; min-height: 44px; }
-.retro .licht.an { background: var(--senf); border-color: var(--senf); }
+.retro .licht { border-radius: var(--y-radius-klein, 16px); border: 2px solid var(--linie); background: transparent; color: var(--braun); font-weight: 700; font-size: 15px; text-align: left; padding: 8px 12px; min-height: 44px; }
+.retro .licht.an { background: var(--senf); border-color: var(--senf); color: var(--aufsenf); }
 .retro .tanks { flex: 1; display: flex; gap: 14px; }
 .retro .tank { flex: 1; display: flex; flex-direction: column; gap: 8px; align-items: center; min-width: 0; }
 .retro .tank span { font-weight: 700; font-size: 14px; text-align: center; }
-.retro .saeule { flex: 1; width: 100%; min-height: 90px; border: 2px solid var(--braun); border-radius: 16px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.retro .saeule { flex: 1; width: 100%; min-height: 90px; border: 2px solid var(--linie); border-radius: var(--y-radius-klein, 16px); display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
 .retro .saeule .rost { background: var(--rost); }
 .retro .saeule .teal { background: var(--teal); }
 .retro .tuerknopf { align-self: center; width: 124px; height: 124px; border-radius: 50%; border: 3px solid var(--braun); background: var(--papier); color: var(--braun); display: flex; align-items: center; justify-content: center; }
 .retro .tuerknopf svg { width: 52px; height: 52px; }
-.retro .tuertext { text-align: center; font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 26px; }
-.retro .sender { font-family: "Fraunces", Georgia, serif; font-weight: 900; font-size: 38px; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.retro .hellbraun { color: #D8C7AE; font-size: 15px; }
+.retro .tuertext { text-align: center; font-family: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); font-weight: var(--y-gewicht-anzeige, 900); font-size: 26px; }
+.retro .sender { font-family: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); font-weight: var(--y-gewicht-anzeige, 900); font-size: 38px; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.retro .hellbraun { opacity: .75; font-size: 15px; }
 .retro .steuer { display: flex; gap: 12px; align-items: center; }
-.retro .steuer button { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #6B4A36; background: transparent; color: var(--sahne); display: flex; align-items: center; justify-content: center; }
+.retro .steuer button { width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(var(--dunkel-text-rgb), .35); background: transparent; color: var(--dunkel-text); display: flex; align-items: center; justify-content: center; }
 .retro .steuer button svg { width: 20px; height: 20px; }
-.retro .steuer .pp { width: 64px; height: 64px; border: none; background: var(--rost); color: var(--papier); }
+.retro .steuer .pp { width: 64px; height: 64px; border: none; background: var(--rost); color: var(--rosttext); }
 .retro .steuer .pp svg { width: 24px; height: 24px; }
 @container (max-width: 1150px) {
   .retro main { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -722,36 +733,41 @@ svg { display: block; }
 }
 
 /* ===== C: Magazin (und Grundgerüst für Mix) ===== */
-.magazin, .mix { display: flex; flex-wrap: wrap; font-family: "Inter", system-ui, sans-serif; }
-.magazin { --grund: #F7F5EF; --tinte: #1C2620; --grau: #56645A; --linie: #CFC8B8; --spur: #E3DED2; --seite: #1F3A2E; --seitetext: #EEF2EA; --seitegrau: #B9CBB6;
-  --akzent: #D9893A; --blau: #3F6E8C; --schrift: "Instrument Serif", Georgia, serif; --zahlgewicht: 400; }
-.mix { --grund: #F4ECDC; --tinte: #3B2A20; --grau: #8A5A3B; --linie: #DCCDB4; --spur: #E9DCC4; --seite: #3B2A20; --seitetext: #F4ECDC; --seitegrau: #D8C7AE;
-  --akzent: #E3A72F; --rost: #C8551F; --blau: #5E8C8A; --schrift: "Fraunces", Georgia, serif; --zahlgewicht: 900; }
+.magazin, .mix { display: flex; flex-wrap: wrap; font-family: var(--textschrift); }
+.magazin, .mix { --grund: var(--y-grund, #F7F5EF); --tinte: var(--y-text, #1C2620); --grau: var(--y-text-gedaempft, #56645A); --linie: var(--y-rand, #CFC8B8);
+  --spur: var(--y-flaeche2, #E3DED2); --karte: var(--y-flaeche, #FBF6EC); --seite: var(--y-seite, #1F3A2E); --seitetext: var(--y-seite-text, #EEF2EA);
+  --seitetext-rgb: var(--y-seite-text-rgb, 238, 242, 234); --seitegrau: rgba(var(--seitetext-rgb), .72);
+  --akzent: var(--y-akzent2, #D9893A); --aufakzent: var(--y-auf-akzent2, #1C2620); --rost: var(--y-akzent, #C8551F); --rosttext: var(--y-akzent-text, #FBF6EC);
+  --rosttext-rgb: var(--y-akzent-text-rgb, 251, 246, 236); --blau: var(--y-info, #3F6E8C);
+  --schrift: var(--y-schrift-anzeige, "Instrument Serif", Georgia, serif); --zahlgewicht: var(--y-gewicht-anzeige, 400);
+  --textschrift: var(--y-schrift-text, "Inter", system-ui, sans-serif); }
 .magazin, .mix { background: var(--grund); color: var(--tinte); }
 aside { flex: 0 0 380px; background: var(--seite); color: var(--seitetext); padding: 34px 34px 28px; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; position: relative; overflow: hidden; }
 aside .topo { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--seitetext); opacity: .09; }
+.wurzel[data-y-hoehenlinien="false"] aside .topo { display: none; }
 aside > div { position: relative; }
 aside .dach { font-size: 13px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--seitegrau); }
 aside h1 { margin: 6px 0 0; font-family: var(--schrift); font-weight: var(--zahlgewicht); font-size: 60px; line-height: .95; overflow-wrap: anywhere; }
-.magazin aside h1 { font-style: italic; }
+.wurzel[data-y-schema="magazin"] aside h1 { font-style: italic; }
 aside h1.lang { font-size: 46px; }
 aside h1.sehrlang { font-size: 36px; }
 aside .unten { display: flex; flex-direction: column; gap: 18px; }
 aside .wetter { display: flex; align-items: baseline; gap: 14px; }
 aside .temp { font-family: var(--schrift); font-weight: var(--zahlgewicht); font-size: 112px; line-height: .8; }
 aside .wetter span:last-child { font-size: 17px; color: var(--seitegrau); }
-aside .zwei { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid rgba(238,242,234,.25); }
+aside .zwei { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid rgba(var(--seitetext-rgb), .25); }
 aside .zwei > div { padding: 12px 0; }
-aside .zwei > div + div { border-left: 1px solid rgba(238,242,234,.25); padding-left: 18px; }
+aside .zwei > div + div { border-left: 1px solid rgba(var(--seitetext-rgb), .25); padding-left: 18px; }
 aside .mini { color: var(--seitegrau); letter-spacing: .1em; font-size: 11px; }
 aside .zeit { font-family: var(--schrift); font-weight: var(--zahlgewicht); font-size: 34px; }
-aside .netz { display: flex; align-items: center; gap: 12px; background: rgba(238,242,234,.1); border-radius: 14px; padding: 12px 14px; }
+aside .netz { display: flex; align-items: center; gap: 12px; background: rgba(var(--seitetext-rgb), .1); border-radius: 14px; padding: 12px 14px; }
 aside .netz > div { display: flex; flex-direction: column; }
 aside .netz small { font-size: 13px; color: var(--seitegrau); }
 .mix aside .streifen { position: absolute; left: -40px; right: -40px; top: 40%; display: flex; flex-direction: column; gap: 7px; transform: skewY(-8deg); opacity: .95; }
-.mix aside .streifen i { height: 14px; background: var(--rost); }
-.mix aside .streifen i:nth-child(2) { background: var(--akzent); }
-.mix aside .streifen i:nth-child(3) { background: var(--seitetext); opacity: .85; }
+.mix aside .streifen i { height: 14px; background: var(--y-streifen-1, var(--rost)); }
+.wurzel[data-y-streifen="false"] aside .streifen { display: none; }
+.mix aside .streifen i:nth-child(2) { background: var(--y-streifen-2, var(--akzent)); }
+.mix aside .streifen i:nth-child(3) { background: var(--y-streifen-3, var(--seitetext)); opacity: .85; }
 .mini { font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--grau); }
 .magazin main, .mix main { flex: 1 1 560px; min-width: 0; padding: 32px 38px 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; grid-auto-flow: row dense; column-gap: 32px; row-gap: 24px; align-content: start; }
 .leiste { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--tinte); padding-bottom: 12px; font-size: 14px; font-weight: 500; color: var(--grau); }
@@ -763,19 +779,16 @@ aside .netz small { font-size: 13px; color: var(--seitegrau); }
 .balken i { display: block; height: 100%; background: var(--seite); }
 .mix .balken i { background: var(--akzent); }
 main p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--tinte); opacity: .88; }
-.akz { color: var(--akzent); }
+.akz { color: var(--rost); }
 .leistung-gross { display: flex; align-items: baseline; gap: 8px; font-family: var(--schrift); font-weight: var(--zahlgewicht); font-size: 34px; line-height: 1; }
-.leistung-gross span { font-family: "Inter", system-ui, sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--grau); }
-.leistung-gross.laden { color: #2F7A4F; }
-.leistung-gross.entladen { color: #B4532A; }
-.mix .leistung-gross.entladen { color: var(--rost); }
-.mix .energie .akz { color: var(--rost); }
-.magazin .akz { color: #B8692A; }
+.leistung-gross span { font-family: var(--textschrift); font-weight: 600; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--grau); }
+.leistung-gross.laden { color: var(--y-ok, #2F7A4F); }
+.leistung-gross.entladen { color: var(--y-fehler, #B4532A); }
 .plusminus { display: flex; gap: 10px; }
 .plusminus button { flex: 1; height: 48px; border-radius: 24px; border: 1.5px solid var(--tinte); background: transparent; color: var(--tinte); font-size: 22px; display: flex; align-items: center; justify-content: center; }
 .plusminus button.voll { background: var(--tinte); color: var(--grund); }
 .plusminus button svg { width: 20px; height: 20px; }
-.plusminus button.aktiv { background: var(--akzent); border-color: var(--akzent); color: var(--tinte); }
+.plusminus button.aktiv { background: var(--akzent); border-color: var(--akzent); color: var(--aufakzent); }
 main .modi { display: flex; flex-wrap: wrap; gap: 6px; }
 main .modus { padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--linie); background: transparent; color: var(--grau); font-weight: 600; font-size: 13px; min-height: 34px; }
 main .modus.an { background: var(--tinte); color: var(--grund); border-color: var(--tinte); }
@@ -798,7 +811,7 @@ main .modus.an { background: var(--tinte); color: var(--grund); border-color: va
 .link { background: none; border: none; padding: 8px 0; font-size: 13px; font-weight: 600; color: var(--tinte); text-decoration: underline; }
 .pillen { display: flex; flex-wrap: wrap; gap: 10px; }
 .pillen .licht { height: 48px; padding: 0 20px; border-radius: 24px; border: 1.5px solid var(--tinte); background: transparent; color: var(--tinte); font-weight: 600; font-size: 15px; }
-.pillen .licht.an { background: var(--akzent); border-color: var(--akzent); }
+.pillen .licht.an { background: var(--akzent); border-color: var(--akzent); color: var(--aufakzent); }
 .tuer-bereich { flex-direction: row !important; align-items: center; gap: 14px !important; }
 .tuer-bereich .tuerknopf { width: 64px; height: 64px; border-radius: 50%; border: none; background: var(--seite); color: var(--seitetext); display: flex; align-items: center; justify-content: center; flex: none; }
 .tuer-bereich .tuerknopf svg { width: 28px; height: 28px; }
@@ -815,21 +828,21 @@ main .modus.an { background: var(--tinte); color: var(--grund); border-color: va
 .favs { display: flex; gap: 8px; flex-wrap: wrap; }
 .fav { height: 40px; padding: 0 16px; border-radius: 20px; border: 1.5px solid var(--linie); background: transparent; color: inherit; font-weight: 600; font-size: 14px; opacity: .8; }
 .fav.an { border-color: currentColor; opacity: 1; }
-.mix .fav { border-color: rgba(244,236,220,.3); }
+.mix .fav { border-color: rgba(var(--seitetext-rgb), .3); }
 .mix .fav.an { border-color: var(--akzent); color: var(--akzent); }
 /* Mix: Retro-Karten im Magazin-Raster */
 .mix .karte { border-radius: 28px; padding: 20px 22px; }
-.mix .energie, .mix .vorraete, .mix .licht-bereich { background: #FBF6EC; border: 2px solid var(--tinte); }
-.mix .waerme { background: var(--rost); color: #FBF6EC; }
-.mix .waerme .mini, .mix .waerme p { color: #FBF6EC; }
-.mix .waerme .plusminus button { border-color: #FBF6EC; color: #FBF6EC; }
-.mix .waerme .plusminus button.voll { background: #FBF6EC; color: var(--rost); }
-.mix .waerme .plusminus button.aktiv { background: var(--akzent); border-color: var(--akzent); color: var(--tinte); }
-.mix .waerme .modus { border-color: rgba(251,246,236,.5); color: #FBF6EC; }
-.mix .waerme .modus.an { background: #FBF6EC; color: var(--rost); border-color: #FBF6EC; }
-.mix .senfk { background: var(--akzent); }
-.mix .senfk .mini { color: var(--tinte); }
-.mix .senfk .tuerknopf { background: #FBF6EC; color: var(--tinte); border: 3px solid var(--tinte); }
+.mix .energie, .mix .vorraete, .mix .licht-bereich { background: var(--karte); border: var(--y-rand-breite, 2px) solid var(--linie); box-shadow: var(--y-schatten, none); }
+.mix .waerme { background: var(--rost); color: var(--rosttext); box-shadow: var(--y-schatten, none); }
+.mix .waerme .mini, .mix .waerme p { color: var(--rosttext); }
+.mix .waerme .plusminus button { border-color: var(--rosttext); color: var(--rosttext); }
+.mix .waerme .plusminus button.voll { background: var(--rosttext); color: var(--rost); }
+.mix .waerme .plusminus button.aktiv { background: var(--akzent); border-color: var(--akzent); color: var(--aufakzent); }
+.mix .waerme .modus { border-color: rgba(var(--rosttext-rgb), .5); color: var(--rosttext); }
+.mix .waerme .modus.an { background: var(--rosttext); color: var(--rost); border-color: var(--rosttext); }
+.mix .senfk { background: var(--akzent); color: var(--aufakzent); }
+.mix .senfk .mini { color: var(--aufakzent); }
+.mix .senfk .tuerknopf { background: var(--karte); color: var(--tinte); border: 3px solid var(--tinte); }
 .mix .pillen .licht { border-radius: 16px; border-width: 2px; font-weight: 700; }
 .mix .leiste { border-bottom-width: 3px; }
 @container (max-width: 1150px) {

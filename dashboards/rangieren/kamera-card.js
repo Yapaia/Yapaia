@@ -11,6 +11,10 @@
  * Alles lässt sich im grafischen Editor einstellen.
  */
 
+// Yapaia Design (docs/design-schemata.md); ohne die Integration gelten die HA-Farben
+const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
+const DESIGN_QUELLE = null;
+
 const STANDARD = {
   name: "Rückfahrkamera",
   entity: "",
@@ -27,6 +31,7 @@ class YapaiaKameraCard extends HTMLElement {
   static getConfigForm() {
     return {
       schema: [
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
         { name: "name", selector: { text: {} } },
         { name: "entity", selector: { entity: { domain: "camera" } } },
         {
@@ -41,6 +46,7 @@ class YapaiaKameraCard extends HTMLElement {
       ],
       computeLabel: (s) =>
         ({
+          design: "Design-Schema",
           name: "Titel",
           entity: "Kamera",
           aspect_ratio: "Seitenverhältnis",
@@ -59,6 +65,10 @@ class YapaiaKameraCard extends HTMLElement {
     this._config = { ...STANDARD, ...config };
     this._key = null;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    DESIGN.then(() => {
+      this._key = null;
+      this._render();
+    });
     this._render();
   }
 
@@ -92,7 +102,8 @@ class YapaiaKameraCard extends HTMLElement {
     const st = c.entity ? this._hass?.states?.[c.entity] : undefined;
     const token = st?.attributes?.access_token;
     const bereit = st && token && !["unavailable", "unknown"].includes(st.state);
-    const key = JSON.stringify([c, bereit, token]);
+    const yschema = window.YapaiaDesign?.waehle(this._hass, { wahl: this._config.design, quelle: DESIGN_QUELLE }) ?? null;
+    const key = JSON.stringify([yschema?.id, c, bereit, token]);
     if (key === this._key || !this.isConnected) return;
     this._key = key;
 
@@ -108,8 +119,10 @@ class YapaiaKameraCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
+        ha-card { background: var(--y-flaeche, var(--ha-card-background, var(--card-background-color, #fff))); color: var(--y-text, var(--primary-text-color));
+          font-family: var(--y-schrift-text, inherit); border-radius: var(--y-radius-klein, var(--ha-card-border-radius, 12px)); box-shadow: var(--y-schatten, var(--ha-card-box-shadow, none)); }
         ha-card { overflow:hidden; }
-        h2 { margin:0; padding:12px 16px; font-size:20px; font-weight:500; color:var(--primary-text-color); }
+        h2 { margin:0; padding:12px 16px; font-size:20px; font-weight:500; color:var(--y-text, var(--primary-text-color)); }
         .rahmen { aspect-ratio:${verhaeltnis}; background:#111; position:relative; }
         img { width:100%; height:100%; object-fit:contain; display:block; ${c.mirror ? "transform:scaleX(-1);" : ""} }
         .platzhalter { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -121,6 +134,7 @@ class YapaiaKameraCard extends HTMLElement {
         ${c.name ? `<h2>${c.name}</h2>` : ""}
         <div class="rahmen">${bild}</div>
       </ha-card>`;
+    window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector("ha-card"), yschema);
   }
 }
 

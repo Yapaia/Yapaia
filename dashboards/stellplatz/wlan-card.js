@@ -13,6 +13,10 @@
  * Aktionen yapaia.router_wlan_suchen / _verbinden / _trennen.
  */
 
+// Yapaia Design (docs/design-schemata.md); ohne die Integration gelten die HA-Farben
+const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
+const DESIGN_QUELLE = "select.yapaia_router_design";
+
 const STANDARD = {
   name: "WLAN",
   internet: "sensor.yapaia_router_internet",
@@ -49,6 +53,7 @@ class YapaiaWlanCard extends HTMLElement {
   static getConfigForm() {
     return {
       schema: [
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
         { name: "name", selector: { text: {} } },
         { name: "internet", required: true, selector: { entity: { domain: "sensor" } } },
         { name: "anmeldung", selector: { entity: { domain: "binary_sensor" } } },
@@ -56,6 +61,7 @@ class YapaiaWlanCard extends HTMLElement {
       ],
       computeLabel: (s) =>
         ({
+          design: "Design-Schema",
           name: "Titel",
           internet: "Sensor „Internet über“ des Routers",
           anmeldung: "Sensor „WLAN-Anmeldung nötig“",
@@ -91,10 +97,19 @@ class YapaiaWlanCard extends HTMLElement {
       });
     }
     this._geruest();
+    DESIGN.then(() => {
+      this._yschema = undefined;
+      if (this._hass) this.hass = this._hass;
+    });
   }
 
   set hass(hass) {
     this._hass = hass;
+    const yschema = window.YapaiaDesign?.waehle(hass, { wahl: this._config.design, quelle: DESIGN_QUELLE }) ?? null;
+    if (yschema?.id !== this._yschema) {
+      this._yschema = yschema?.id;
+      window.YapaiaDesign?.anwenden(this.shadowRoot?.querySelector("ha-card"), yschema);
+    }
     this._verbindungPruefen();
     this._statusZeichnen();
   }
@@ -217,18 +232,21 @@ class YapaiaWlanCard extends HTMLElement {
   // ---- Zeichnen -----------------------------------------------------------
 
   _geruest() {
+    this._yschema = undefined;
     this.shadowRoot.innerHTML = `
       <style>
+        ha-card { background: var(--y-flaeche, var(--ha-card-background, var(--card-background-color, #fff))); color: var(--y-text, var(--primary-text-color));
+          font-family: var(--y-schrift-text, inherit); border-radius: var(--y-radius-klein, var(--ha-card-border-radius, 12px)); box-shadow: var(--y-schatten, var(--ha-card-box-shadow, none)); }
         ha-card { padding: 16px; }
         .kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .titel { font-size: 1.2em; font-weight: 500; }
         .zeile { display: flex; align-items: center; gap: 10px; }
-        .klein { color: var(--secondary-text-color); font-size: 0.9em; }
-        button { font: inherit; cursor: pointer; border-radius: 8px; padding: 6px 12px; border: 1px solid var(--divider-color);
-                 background: var(--card-background-color); color: var(--primary-text-color); }
-        button.haupt { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
+        .klein { color: var(--y-text-gedaempft, var(--secondary-text-color)); font-size: 0.9em; }
+        button { font: inherit; cursor: pointer; border-radius: 8px; padding: 6px 12px; border: 1px solid var(--y-rand, var(--divider-color));
+                 background: var(--y-flaeche, var(--card-background-color)); color: var(--y-text, var(--primary-text-color)); }
+        button.haupt { background: var(--y-akzent, var(--primary-color)); color: var(--y-akzent-text, var(--text-primary-color, #fff)); border-color: var(--y-akzent, var(--primary-color)); }
         button:disabled { opacity: 0.5; cursor: default; }
-        .status { margin: 12px 0; padding: 10px 12px; border-radius: 10px; background: var(--secondary-background-color); }
+        .status { margin: 12px 0; padding: 10px 12px; border-radius: 10px; background: var(--y-flaeche2, var(--secondary-background-color)); }
         .portal { margin: 12px 0; padding: 12px; border-radius: 10px; background: rgba(230,149,0,0.15); border: 1px solid #e69500; }
         .portal b { display: block; margin-bottom: 4px; }
         .portal button { margin-top: 8px; }
@@ -236,22 +254,22 @@ class YapaiaWlanCard extends HTMLElement {
         .meldung.ok { background: rgba(46,157,79,0.15); }
         .meldung.warn { background: rgba(230,149,0,0.15); }
         .meldung.fehler { background: rgba(217,58,43,0.15); }
-        .meldung.info { background: var(--secondary-background-color); }
+        .meldung.info { background: var(--y-flaeche2, var(--secondary-background-color)); }
         ul { list-style: none; margin: 8px 0 0; padding: 0; }
-        li { border-top: 1px solid var(--divider-color); }
+        li { border-top: 1px solid var(--y-rand, var(--divider-color)); }
         .netz { display: flex; align-items: center; gap: 10px; padding: 10px 2px; cursor: pointer; }
         .netz .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .netz .name small { display: block; color: var(--secondary-text-color); }
-        .marke { font-size: 0.75em; padding: 1px 6px; border-radius: 6px; background: var(--secondary-background-color); margin-left: 4px; }
+        .netz .name small { display: block; color: var(--y-text-gedaempft, var(--secondary-text-color)); }
+        .marke { font-size: 0.75em; padding: 1px 6px; border-radius: 6px; background: var(--y-flaeche2, var(--secondary-background-color)); margin-left: 4px; }
         .marke.verbunden { background: rgba(46,157,79,0.2); }
         .form { padding: 0 2px 12px; display: grid; gap: 8px; }
-        .form input[type=password], .form input[type=text] { font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color);
-                 background: var(--card-background-color); color: var(--primary-text-color); }
+        .form input[type=password], .form input[type=text] { font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--y-rand, var(--divider-color));
+                 background: var(--y-flaeche, var(--card-background-color)); color: var(--y-text, var(--primary-text-color)); }
         .form label { display: flex; align-items: center; gap: 6px; }
         .balken { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; width: 22px; }
         .balken i { width: 4px; background: var(--disabled-text-color, #bbb); border-radius: 1px; }
-        .balken i.an { background: var(--primary-text-color); }
-        .schloss { width: 20px; color: var(--secondary-text-color); --mdc-icon-size: 18px; }
+        .balken i.an { background: var(--y-text, var(--primary-text-color)); }
+        .schloss { width: 20px; color: var(--y-text-gedaempft, var(--secondary-text-color)); --mdc-icon-size: 18px; }
       </style>
       <ha-card>
         <div class="kopf"><span class="titel"></span><button id="suchen" class="haupt">Suchen</button></div>

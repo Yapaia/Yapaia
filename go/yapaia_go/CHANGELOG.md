@@ -10,6 +10,16 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.65.2
+
+**Bringt die Integration 0.7.1 mit: die Karten folgen dem Design-Schema.**
+Beat-Karte, Cockpit Sport, Stellplatz, WLAN und die Rangieren-Karten nehmen
+Farben, Schriften und Deko aus dem gewählten Schema (Gerät „Yapaia Design“
+bzw. „Design“ am Modul). Jede Karte hat eine Option „Design-Schema“ (auto oder
+fest). Die Beat-Karte zeigt das Holzgehäuse im Schema „Beat Retro“, sonst ein
+modernes Gehäuse in den Schemafarben; ein alter Eintrag `style: retro/modern`
+wirkt weiter wie bisher. An Go selbst ändert sich nichts.
+
 ## 0.65.1
 
 **Bringt die Integration 0.7.0 mit: gemeinsame Design-Schemata.** Neues
