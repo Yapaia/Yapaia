@@ -4,14 +4,19 @@
  *   type: custom:yapaia-beat-card
  *   entity: media_player.yapaia_beat
  *   follow_entity: switch.yapaia_beat_auto_follow   # optional
- *   style: retro | modern                            # optional, default retro
+ *   design: auto | beat-retro | beat-modern | …      # optional: Yapaia-Design-Schema
+ *                                                    # (auto = Design des Moduls Beat bzw. gesamt;
+ *                                                    #  Holz-Deko → Holzgehäuse, sonst modern in Schemafarben)
+ *   style: retro | modern                            # alt: feste Wahl wie design: beat-retro / beat-modern
  *   max_presets: 12                                  # optional, 0 hides presets
  *   show_slide: true                                 # optional, DAB+ slideshow
  *   show_output: true                                # optional, output picker (Mini-PC / this device / HA speakers)
  */
 
-const CARD_VERSION = "0.7.0";
+const CARD_VERSION = "0.7.1";
 const STREAM_PATH = "/api/yapaia/beat/stream";
+// Yapaia Design (docs/design-schemata.md); ohne die Integration ab 0.7.0 gilt `style`
+const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
 const SENDSPIN_URL = "/yapaia/beat/sendspin.js";
 
 const ICONS = {
@@ -532,7 +537,7 @@ if (!window.__yapaiaUnlock) {
 class YapaiaBeatCard extends HTMLElement {
   static getStubConfig(hass) {
     const entity = Object.keys(hass.states).find((e) => e.startsWith("media_player.yapaia_beat")) || "media_player.yapaia_beat";
-    return { entity, style: "retro" };
+    return { entity, design: "auto" };
   }
 
   static getConfigForm() {
@@ -540,10 +545,7 @@ class YapaiaBeatCard extends HTMLElement {
       schema: [
         { name: "entity", required: true, selector: { entity: { domain: "media_player" } } },
         { name: "follow_entity", selector: { entity: { domain: "switch" } } },
-        {
-          name: "style",
-          selector: { select: { mode: "dropdown", options: [{ value: "retro", label: "Retro (Holz & LCD)" }, { value: "modern", label: "Modern" }] } },
-        },
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
         { name: "max_presets", selector: { number: { min: 0, max: 30, mode: "box" } } },
         { name: "show_slide", selector: { boolean: {} } },
         { name: "show_output", selector: { boolean: {} } },
@@ -551,7 +553,7 @@ class YapaiaBeatCard extends HTMLElement {
       computeLabel: (s) => ({
         entity: "Yapaia Beat Media Player",
         follow_entity: "Schalter Senderverfolgung",
-        style: "Design",
+        design: "Design-Schema",
         max_presets: "Anzahl Favoriten-Tasten",
         show_slide: "DAB+ Slideshow anzeigen",
         show_output: "Ausgabe-Auswahl (Mini-PC / dieses Gerät / Lautsprecher)",
@@ -561,12 +563,36 @@ class YapaiaBeatCard extends HTMLElement {
 
   setConfig(config) {
     if (!config.entity) throw new Error("entity muss gesetzt sein (media_player.yapaia_beat)");
-    this._config = { style: "retro", max_presets: 12, show_slide: true, show_output: true, ...config };
+    this._config = { max_presets: 12, show_slide: true, show_output: true, ...config };
     if (!this._config.follow_entity) {
       this._config.follow_entity = config.entity.replace("media_player.", "switch.") + "_auto_follow";
     }
     this._built = false;
+    this._yschema = undefined;
+    DESIGN.then(() => {
+      this._yschema = undefined;
+      if (this._hass) this._render();
+    });
     if (this._hass) this._render();
+  }
+
+  /** Welches Schema gilt: `design`, sonst altes `style`, sonst das Design des Moduls Beat. */
+  _schema() {
+    const c = this._config;
+    const wahl = c.design && c.design !== "auto" ? c.design : c.style ? `beat-${c.style === "modern" ? "modern" : "retro"}` : null;
+    const quelle = c.entity.replace("media_player.", "select.") + "_design";
+    return window.YapaiaDesign?.waehle(this._hass, { wahl, quelle }) ?? null;
+  }
+
+  _designAnwenden() {
+    const schema = this._schema();
+    if (schema?.id === this._yschema) return;
+    this._yschema = schema?.id;
+    const root = this._el.root;
+    const holz = schema ? !!schema.deko?.holz : this._config.style !== "modern";
+    root.classList.toggle("retro", holz);
+    root.classList.toggle("modern", !holz);
+    window.YapaiaDesign?.anwenden(root, schema);
   }
 
   set hass(hass) {
@@ -734,6 +760,7 @@ class YapaiaBeatCard extends HTMLElement {
   _render() {
     if (!this._config || !this._hass) return;
     if (!this._built) this._build();
+    this._designAnwenden();
     const e = this._el;
     const s = (this._stateObj = this._hass.states[this._config.entity]);
     if (!s) {
@@ -819,10 +846,20 @@ YapaiaBeatCard.styles = `
     border-radius: 18px; padding: 14px 16px 12px; box-shadow: inset 0 2px 0 #ffffff22, inset 0 -3px 8px #0006, 0 4px 14px #0005;
     background-image: repeating-linear-gradient(95deg, #ffffff06 0 2px, transparent 2px 9px), linear-gradient(180deg, #6b3d20, #4a2814 60%, #3a1f10);
   }
-  .yb.modern { --lcd-bg: #0c1030; --lcd-fg: #eef0ff; --lcd-glow: transparent; --accent: #ff6b35; }
-  .yb.modern .cabinet { background: linear-gradient(160deg, #262b5e, #120f2b); border-radius: 18px; padding: 14px 16px 12px; }
+  .yb.modern { --lcd-bg: var(--y-lcd-grund, var(--y-flaeche2, #0c1030)); --lcd-fg: var(--y-lcd-text, var(--y-text, #eef0ff)); --lcd-glow: transparent;
+    --accent: var(--y-akzent, #ff6b35); --t: var(--y-text-rgb, 255, 255, 255); color: var(--y-text, #eef0ff); font-family: var(--y-schrift-text, inherit); }
+  .yb.modern .cabinet { background: linear-gradient(160deg, var(--y-flaeche, #262b5e), var(--y-flaeche2, #120f2b)); border-radius: var(--y-radius, 18px); padding: 14px 16px 12px;
+    border: var(--y-rand-breite, 0) solid var(--y-rand, transparent); box-shadow: var(--y-schatten, none); }
+  .yb.modern .display { background: var(--lcd-bg); box-shadow: inset 0 0 0 1px rgba(var(--t), .08); }
+  .yb.modern .sig i { background: rgba(var(--t), .15); }
+  .yb.modern .b.big { background: var(--accent); color: var(--y-akzent-text, #fff); }
+  .yb.modern .outmenu button { border-color: rgba(var(--t), .17); background: rgba(var(--t), .06); color: var(--y-text, #f3e6d4); }
+  .yb.modern .outmenu button.active { color: var(--y-text, #fff); background: rgba(var(--y-akzent-rgb, 255, 138, 61), .3); }
+  .yb.modern .msg { color: var(--y-warnung, #ffd9a8); }
+  .yb.modern .volume::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--accent) 0 calc(10px + (100% - 20px) * var(--f)), rgba(var(--t), .17) 0); }
+  .yb.modern .volume::-moz-range-track { background: rgba(var(--t), .17); }
   .brand { display: flex; align-items: center; gap: 8px; color: #f3d9b5; font: 700 11px/1 sans-serif; letter-spacing: 4px; margin-bottom: 10px; }
-  .modern .brand { color: #9aa0c8; }
+  .modern .brand { color: var(--y-text-gedaempft, #9aa0c8); }
   .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: #551; box-shadow: none; transition: .3s; }
   .on .brand .dot { background: #ff4d3d; box-shadow: 0 0 8px #ff4d3d; }
   .brand .band { margin-left: auto; letter-spacing: 2px; color: var(--accent); }
@@ -852,17 +889,17 @@ YapaiaBeatCard.styles = `
   .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; margin-top: 12px; }
   .preset { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px 5px; border: 0; border-radius: 10px; cursor: pointer;
             background: linear-gradient(180deg, #f4efe6, #d8cfc0); color: #3a2a1a; box-shadow: 0 3px 0 #0007, inset 0 1px 0 #fff; transition: transform .08s; font: inherit; }
-  .modern .preset { background: #ffffff12; color: #eef0ff; box-shadow: none; border: 1px solid #ffffff1a; }
+  .modern .preset { background: rgba(var(--t), .07); color: var(--y-text, #eef0ff); box-shadow: none; border: 1px solid rgba(var(--t), .1); }
   .preset:active { transform: translateY(2px); box-shadow: 0 1px 0 #0007; }
   .preset.active { background: linear-gradient(180deg, #ffd9a0, #ff9f55); }
-  .modern .preset.active { background: #ff6b3533; border-color: var(--accent); }
+  .modern .preset.active { background: rgba(var(--y-akzent-rgb, 255, 107, 53), .2); border-color: var(--accent); }
   .preset img { width: 40px; height: 40px; object-fit: contain; border-radius: 8px; }
   .preset .num { position: absolute; top: 3px; left: 6px; font-size: 9px; font-weight: 700; opacity: .6; }
   .preset .pname { font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .panel { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .b { width: 42px; height: 42px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; padding: 0;
        background: radial-gradient(circle at 35% 30%, #5a5a5a, #1d1d1d); color: #eee; box-shadow: 0 2px 4px #0008, inset 0 1px 0 #ffffff33; }
-  .modern .b { background: #ffffff14; box-shadow: none; }
+  .modern .b { background: rgba(var(--t), .08); color: var(--y-text, #eee); box-shadow: none; }
   .b svg { width: 22px; height: 22px; fill: currentColor; }
   .b.big { width: 52px; height: 52px; background: radial-gradient(circle at 35% 30%, #ffb070, #e0551c); color: #fff; }
   .modern .b.big { background: var(--accent); }

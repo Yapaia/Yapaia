@@ -15,6 +15,10 @@
  * Anzeige verkehrt herum, im Editor „umkehren“ anhaken.
  */
 
+// Yapaia Design (docs/design-schemata.md); ohne die Integration gelten die HA-Farben
+const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
+const DESIGN_QUELLE = null;
+
 const STANDARD = {
   name: "Nivellierung",
   pitch_entity: "sensor.heizung_neigung_vorne_hinten",
@@ -29,7 +33,7 @@ const STANDARD = {
   exaggeration: 4,
 };
 
-const FARBE = { ok: "#2e9d4f", fast: "#e69500", schief: "#d93a2b", aus: "#8a8f98" };
+const FARBE = { ok: "var(--y-ok, #2e9d4f)", fast: "var(--y-warnung, #e69500)", schief: "var(--y-fehler, #d93a2b)", aus: "var(--y-text-gedaempft, #8a8f98)" };
 
 const zahl = (v) => {
   const n = parseFloat(v);
@@ -45,6 +49,7 @@ class YapaiaNivellierungCard extends HTMLElement {
     const sensor = { entity: { domain: "sensor" } };
     return {
       schema: [
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
         { name: "name", selector: { text: {} } },
         {
           type: "expandable",
@@ -82,6 +87,7 @@ class YapaiaNivellierungCard extends HTMLElement {
       ],
       computeLabel: (s) =>
         ({
+          design: "Design-Schema",
           name: "Titel",
           pitch_entity: "Neigung vorne/hinten (°)",
           roll_entity: "Neigung links/rechts (°)",
@@ -109,6 +115,10 @@ class YapaiaNivellierungCard extends HTMLElement {
     this._config = { ...STANDARD, ...config };
     this._key = null;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    DESIGN.then(() => {
+      this._key = null;
+      this._render();
+    });
     this._render();
   }
 
@@ -150,7 +160,8 @@ class YapaiaNivellierungCard extends HTMLElement {
     const c = this._config;
     const p = this._achse(c.pitch_entity, c.pitch_mm_entity, c.invert_pitch, Number(c.wheelbase) || 3800);
     const r = this._achse(c.roll_entity, c.roll_mm_entity, c.invert_roll, Number(c.track) || 2300);
-    const key = JSON.stringify([c, p, r]);
+    const yschema = window.YapaiaDesign?.waehle(this._hass, { wahl: this._config.design, quelle: DESIGN_QUELLE }) ?? null;
+    const key = JSON.stringify([yschema?.id, c, p, r]);
     if (key === this._key) return;
     this._key = key;
 
@@ -220,34 +231,36 @@ class YapaiaNivellierungCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
+        ha-card { background: var(--y-flaeche, var(--ha-card-background, var(--card-background-color, #fff))); color: var(--y-text, var(--primary-text-color));
+          font-family: var(--y-schrift-text, inherit); border-radius: var(--y-radius-klein, var(--ha-card-border-radius, 12px)); box-shadow: var(--y-schatten, var(--ha-card-box-shadow, none)); }
         :host { display:block; }
         ha-card { padding:16px; container-type:inline-size; }
         .kopf { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
         .wert small { font-size:18px; font-weight:500; }
-        .kopf h2 { margin:0; font-size:20px; font-weight:500; flex:1; color:var(--primary-text-color); }
+        .kopf h2 { margin:0; font-size:20px; font-weight:500; flex:1; color:var(--y-text, var(--primary-text-color)); }
         .status { padding:4px 12px; border-radius:16px; color:#fff; font-weight:600; font-size:14px; }
         .ansichten { display:grid; grid-template-columns: 3fr 2fr; gap:12px; }
         .ansicht { text-align:center; }
         .bild { width:100%; height:auto; display:block; }
         .wert { font-size:28px; white-space:nowrap; font-weight:600; font-variant-numeric:tabular-nums; }
-        .tipp { font-size:15px; color:var(--secondary-text-color); min-height:20px; }
+        .tipp { font-size:15px; color:var(--y-text-gedaempft, var(--secondary-text-color)); min-height:20px; }
         .unten { display:flex; align-items:center; gap:16px; margin-top:8px; }
         .libelle { width:96px; height:96px; flex:none; }
-        .hinweis { font-size:13px; color:var(--secondary-text-color); }
-        .boden { stroke:var(--secondary-text-color); stroke-width:2; }
-        .waage { stroke:var(--secondary-text-color); stroke-width:1; stroke-dasharray:4 4; opacity:.5; }
-        .karosse { fill:var(--card-background-color, #fff); stroke:var(--primary-text-color); stroke-width:2.5; stroke-linejoin:round; }
-        .glas { fill:#9cc3e6; stroke:var(--primary-text-color); stroke-width:1.5; opacity:.85; }
-        .fuge { stroke:var(--primary-text-color); stroke-width:1; opacity:.45; }
+        .hinweis { font-size:13px; color:var(--y-text-gedaempft, var(--secondary-text-color)); }
+        .boden { stroke:var(--y-text-gedaempft, var(--secondary-text-color)); stroke-width:2; }
+        .waage { stroke:var(--y-text-gedaempft, var(--secondary-text-color)); stroke-width:1; stroke-dasharray:4 4; opacity:.5; }
+        .karosse { fill:var(--y-flaeche, var(--card-background-color, #fff)); stroke:var(--y-text, var(--primary-text-color)); stroke-width:2.5; stroke-linejoin:round; }
+        .glas { fill:#9cc3e6; stroke:var(--y-text, var(--primary-text-color)); stroke-width:1.5; opacity:.85; }
+        .fuge { stroke:var(--y-text, var(--primary-text-color)); stroke-width:1; opacity:.45; }
         .rad { fill:#2b2d31; }
         .felge { fill:#b9bdc4; }
         .stoss { fill:#3a3d42; }
         .licht-h { fill:#d93a2b; }
         .licht-v { fill:#f4d35e; }
-        .klein { font-size:13px; font-weight:500; fill:var(--secondary-text-color); }
-        .glasrund { fill:color-mix(in srgb, var(--primary-color) 10%, transparent); stroke:var(--secondary-text-color); stroke-width:2; }
+        .klein { font-size:13px; font-weight:500; fill:var(--y-text-gedaempft, var(--secondary-text-color)); }
+        .glasrund { fill:color-mix(in srgb, var(--y-akzent, var(--primary-color)) 10%, transparent); stroke:var(--y-text-gedaempft, var(--secondary-text-color)); stroke-width:2; }
         .ziel { fill:none; stroke:${FARBE.ok}; stroke-width:1.5; stroke-dasharray:3 3; }
-        .kreuz { stroke:var(--secondary-text-color); stroke-width:.7; opacity:.5; }
+        .kreuz { stroke:var(--y-text-gedaempft, var(--secondary-text-color)); stroke-width:.7; opacity:.5; }
         .blase { opacity:.85; transition: cx .6s, cy .6s; }
         @container (max-width: 520px) { .ansichten { grid-template-columns: 1fr; gap:20px; } .bild { max-width:340px; margin:0 auto; } }
       </style>
@@ -274,6 +287,7 @@ class YapaiaNivellierungCard extends HTMLElement {
             Die Blase wandert zur höheren Seite.</div>
         </div>
       </ha-card>`;
+    window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector("ha-card"), yschema);
   }
 }
 

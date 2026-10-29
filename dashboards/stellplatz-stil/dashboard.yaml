@@ -1,11 +1,12 @@
 # Dashboard „Stellplatz Stil“ – Rohkonfiguration
 # (Dashboard → ⋮ → Bearbeiten → ⋮ → Raw-Konfigurationseditor)
 # Einspielen: python3 dashboards/deploy.py --dashboard stellplatz-stil
-# Drei Ansichten mit derselben Karte in drei Stilen. Entitäten und Lichter
-# stehen als Standard in der Karte und lassen sich im grafischen Editor ändern.
+# Drei Ansichten mit derselben Karte in drei Aufbauten. Farben und Schriften
+# kommen aus dem Yapaia-Design-Schema (Gerät „Yapaia Design“ → Schema).
+# Entitäten und Lichter stehen als Standard in der Karte (grafischer Editor).
 title: Stellplatz Stil
 views:
-  - title: Retro
+  - title: Kacheln
     path: retro
     icon: mdi:caravan
     type: panel
@@ -19,7 +20,7 @@ views:
     cards:
       - type: custom:yapaia-stellplatz-card
         stil: magazin
-  - title: Mix
+  - title: Magazin mit Karten
     path: mix
     icon: mdi:palette
     type: panel
