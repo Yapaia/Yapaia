@@ -59,7 +59,8 @@
 
   /** Auswahl für Karten-Editoren: auto + alle Schemata. */
   function optionen() {
-    return [{ value: "auto", label: "Automatisch (wie eingestellt)" }, ...liste.map((s) => ({ value: s.id, label: s.name }))];
+    const de = String(document.querySelector("home-assistant")?.hass?.locale?.language ?? "en").startsWith("de");
+    return [{ value: "auto", label: de ? "Automatisch (wie eingestellt)" : "Automatic (as set)" }, ...liste.map((s) => ({ value: s.id, label: s.name }))];
   }
 
   window.YapaiaDesign = { bereit, waehle, anwenden, schriften, optionen, liste: () => liste };

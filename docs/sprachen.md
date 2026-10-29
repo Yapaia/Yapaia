@@ -12,7 +12,8 @@ Eine eigene Sprache je Modul gibt es nicht.
 - **Neue Sprachen ohne Code:** eine weitere Datei je Bereich und den Code in
   `SPRACHEN` (Integration) ergänzen.
 - **CI prüft Vollständigkeit:** dieselben Schlüssel und Platzhalter in jeder
-  Sprache (`integration/tests/test_sprache.py`).
+  Sprache (`integration/tests/test_sprache.py`, für Karten
+  `node dashboards/sprachen-pruefen.mjs`).
 - Neue Module, Add-ons und Karten bauen das von Anfang an ein (wie die
   [Design-Schemata](design-schemata.md)).
 
@@ -25,13 +26,13 @@ Eine eigene Sprache je Modul gibt es nicht.
 | Benachrichtigungen der Integration | im Code als `text({"de": …, "en": …}, sprache(hass))` | `sprache.py` |
 | Add-on-Optionen | `<addon>/translations/de.yaml`, `en.yaml` | Supervisor |
 | Oberflächen der Add-ons (Go, Beat, Vision) | je Add-on (geplant) | `POST /yapaia/v1/sprache` (Protokoll §8b) |
-| Karten/Dashboards | je Karte (geplant) | `hass.language` |
+| Karten/Dashboards | je Karte oben `const TEXTE = { de: {…}, en: {…} }` mit `t(hass, schlüssel, werte)`; Zahlen/Datum über `gebiet(hass)` – geprüft von `dashboards/sprachen-pruefen.mjs` | `hass.locale.language` |
 
 ## Stufen
 
 1. Grundlage: Protokoll §8b, `sprache.py`, CI-Prüfung – **erledigt** (Integration 0.8.0)
 2. Integration: feste Namen und Meldungen übersetzt – **erledigt** (Integration 0.8.0)
-3. Karten und Dashboards
+3. Karten und Dashboards – **erledigt** (Integration 0.8.1, Go 0.66.1)
 4. Oberflächen von Beat und Vision
 5. Oberfläche von Go
 6. Go-Ansagen, Kartenbeschriftung, ESPHome-Geräte

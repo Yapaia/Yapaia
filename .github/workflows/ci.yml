@@ -80,6 +80,9 @@ jobs:
               - *shared
               - 'integration/**'
               - 'design/**'
+              # test_sprache.py prüft die Übersetzungen aller Karten
+              - 'dashboards/**'
+              - 'go/yapaia_go/lovelace/**'
               - '.github/workflows/integration.yml'
 
   go:
