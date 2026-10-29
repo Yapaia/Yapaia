@@ -117,8 +117,10 @@ const HOEHENLINIEN = `<svg class="topo" viewBox="0 0 420 800" preserveAspectRati
   <path d="M50 300c40-80 150-90 210-40s50 150-40 172-210-50-170-132z"/></svg>`;
 
 class YapaiaStellplatzCard extends HTMLElement {
+  // Neue Karte: alle Standard-Entitäten ausdrücklich, damit der Editor sie zeigt
   static getStubConfig() {
-    return { stil: "retro" };
+    const stub = Object.fromEntries(Object.entries(STANDARD).filter(([, v]) => v !== null && v !== ""));
+    return { ...stub, lichter: STANDARD.lichter.map((l) => ({ ...l })) };
   }
 
   static getConfigForm() {

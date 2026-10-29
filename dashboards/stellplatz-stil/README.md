@@ -45,6 +45,14 @@ Die Ansicht „Breitbild“ füllt die Höhe des Fensters abzüglich der HA-Kopf
 Browser im Vollbild) nutzt sie das ganze Display. Feste Höhe auf Wunsch über
 `card_mod` bzw. die CSS-Variable `--stellplatz-hoehe`.
 
+## Entitäten im Editor
+
+`dashboard.yaml` trägt alle Entitäten und Lichter ausdrücklich in die erste Karte
+ein (YAML-Anker `&karte`, die anderen Ansichten übernehmen sie mit `<<: *karte`).
+So zeigt der grafische Editor, welcher Sensor welchen Wert liefert. Eine neu
+hinzugefügte Karte bekommt dieselben Standard-Entitäten (`getStubConfig`).
+Fehlt ein Feld, nimmt die Karte weiterhin ihren Standard.
+
 ## Einspielen
 
 ```sh

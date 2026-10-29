@@ -3,7 +3,9 @@
 # Einspielen: python3 dashboards/deploy.py --dashboard stellplatz-stil
 # Drei Ansichten mit derselben Karte in drei Aufbauten. Farben und Schriften
 # kommen aus dem Yapaia-Design-Schema (Gerät „Yapaia Design“ → Schema).
-# Entitäten und Lichter stehen als Standard in der Karte (grafischer Editor).
+# Entitäten und Lichter stehen ausdrücklich in der ersten Karte (&karte) und
+# gelten über `<<: *karte` für alle Ansichten – so zeigt der grafische Editor,
+# welcher Sensor welchen Wert liefert. Fehlt ein Feld, nimmt die Karte ihren Standard.
 title: Stellplatz Stil
 views:
   - title: Kacheln
@@ -11,21 +13,61 @@ views:
     icon: mdi:caravan
     type: panel
     cards:
-      - type: custom:yapaia-stellplatz-card
+      - &karte
+        type: custom:yapaia-stellplatz-card
         stil: retro
+        design: auto
+        ort_entity: sensor.yapaia_go_ort
+        raum: climate.heizung_truma_room
+        wasser: climate.heizung_truma_water
+        soc: sensor.btcollector_state_of_charge
+        soc_2: sensor.btcollector_state_of_charge_2
+        spannung: sensor.btcollector_battery_voltage
+        spannung_2: sensor.btcollector_battery_voltage_2
+        strom: sensor.btcollector_current
+        strom_2: sensor.btcollector_current_2
+        restlaufzeit: sensor.batterien_restlaufzeit
+        kapazitaet_ah: 600
+        pv: sensor.btcollector_mppt_pv_power
+        ertrag: sensor.btcollector_mppt_yield_today
+        gas_1: sensor.btcollector_gas_sensor_1_level
+        gas_2: sensor.btcollector_gas_sensor_2_level
+        frischwasser: sensor.smartwomo_analog_pressure_sensor
+        tuer: lock.door_aufbautur
+        radio: media_player.yapaia_beat
+        internet: sensor.yapaia_router_internet
+        wetter: weather.forecast_home
+        sonne: sun.sun
+        lichter:
+          - entity: light.smartwomo_ausgang_out2
+            name: Dinette
+          - entity: light.smartwomo_ausgang_out1
+            name: Außen
+          - entity: light.smartwomo_ausgang_out5
+            name: Ambiente
+          - entity: light.smartwomo_ausgang_out6
+            name: Ambiente Bett
+          - entity: light.smartwomo_ausgang_out4
+            name: Bett
+          - entity: light.smartwomo_ausgang_out8
+            name: Bad
+          - entity: light.smartwomo_ausgang_out3
+            name: Eingang
+          - entity: light.smartwomo_ausgang_out7
+            name: Nachtlicht
   - title: Magazin
     path: magazin
     icon: mdi:pine-tree
     type: panel
     cards:
-      - type: custom:yapaia-stellplatz-card
+      - <<: *karte
         stil: magazin
   - title: Magazin mit Karten
     path: mix
     icon: mdi:palette
     type: panel
     cards:
-      - type: custom:yapaia-stellplatz-card
+      - <<: *karte
         stil: mix
   - title: Breitbild
     path: breit
@@ -33,5 +75,5 @@ views:
     type: panel
     cards:
       # Für 1920 × 720 (z. B. Wisecoco 12,3" Stretch-Display)
-      - type: custom:yapaia-stellplatz-card
+      - <<: *karte
         stil: breit
