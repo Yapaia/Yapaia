@@ -24,25 +24,30 @@ import PreflightPanel from '../settings/preflight/PreflightPanel.js';
 import SimulatorPanel from '../simulator/SimulatorPanel.js';
 import { fetchSimulatorStatus, SimulatorDisabledError } from '../simulator/client.js';
 import { useBedienSeite, PANEL_BREITE_PX } from './bedienSeite.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
+
+type TitelSchluessel =
+  'm_fahrzeuge' | 'm_sprache' | 'm_karte' | 'm_regionen' | 'm_store' | 'm_pruefung' | 'm_testfahrt';
 
 type Bereich = 'sprache' | 'fahrzeuge' | 'karte' | 'regionen' | 'store' | 'pruefung' | 'testfahrt';
 
 interface Eintrag {
   bereich: Bereich;
   symbol: string;
-  titel: string;
+  titel: TitelSchluessel;
   /** Die Kennung des früheren Knopfs -- Tests und Gewohnheit finden ihn so wieder. */
   testId: string;
 }
 
 const EINTRAEGE: readonly Eintrag[] = [
-  { bereich: 'fahrzeuge', symbol: '🚐', titel: 'Fahrzeuge', testId: 'profile-chip' },
-  { bereich: 'sprache', symbol: '🎙️', titel: 'Sprache & Home Assistant', testId: 'sprache-einstellungen-toggle' },
-  { bereich: 'karte', symbol: '🎨', titel: 'Karte & Darstellung', testId: 'style-panel-toggle' },
-  { bereich: 'regionen', symbol: '🗺️', titel: 'Karten verwalten', testId: 'regions-panel-toggle' },
-  { bereich: 'store', symbol: '🧩', titel: 'Add-on-Store', testId: 'store-panel-toggle' },
-  { bereich: 'pruefung', symbol: '🩺', titel: 'Installation prüfen', testId: 'preflight-panel-toggle' },
-  { bereich: 'testfahrt', symbol: '🧪', titel: 'Testfahrt', testId: 'simulator-panel-toggle' },
+  { bereich: 'fahrzeuge', symbol: '🚐', titel: 'm_fahrzeuge', testId: 'profile-chip' },
+  { bereich: 'sprache', symbol: '🎙️', titel: 'm_sprache', testId: 'sprache-einstellungen-toggle' },
+  { bereich: 'karte', symbol: '🎨', titel: 'm_karte', testId: 'style-panel-toggle' },
+  { bereich: 'regionen', symbol: '🗺️', titel: 'm_regionen', testId: 'regions-panel-toggle' },
+  { bereich: 'store', symbol: '🧩', titel: 'm_store', testId: 'store-panel-toggle' },
+  { bereich: 'pruefung', symbol: '🩺', titel: 'm_pruefung', testId: 'preflight-panel-toggle' },
+  { bereich: 'testfahrt', symbol: '🧪', titel: 'm_testfahrt', testId: 'simulator-panel-toggle' },
 ];
 
 function Inhalt({ bereich }: { bereich: Bereich }): React.ReactElement | null {
@@ -64,7 +69,12 @@ function Inhalt({ bereich }: { bereich: Bereich }): React.ReactElement | null {
   }
 }
 
-export default function EinstellungsMenue({ onSchliessen }: { onSchliessen: () => void }): React.ReactElement {
+export default function EinstellungsMenue({
+  onSchliessen,
+}: {
+  onSchliessen: () => void;
+}): React.ReactElement {
+  const t = useT(T);
   const seite = useBedienSeite();
   const [bereich, setBereich] = useState<Bereich | null>(null);
   // Die Testfahrt gibt es nur, wenn der Simulator freigeschaltet ist.
@@ -85,7 +95,7 @@ export default function EinstellungsMenue({ onSchliessen }: { onSchliessen: () =
   return (
     <div
       role="dialog"
-      aria-label="Einstellungen"
+      aria-label={t('einstellungen')}
       style={{ [seite]: 0, width: `min(${PANEL_BREITE_PX + 24}px, 100%)` }}
       className="pointer-events-auto fixed top-0 bottom-0 z-40 flex flex-col bg-flaeche shadow-2xl dark:bg-slate-800"
       data-testid="einstellungen-menue"
@@ -95,7 +105,7 @@ export default function EinstellungsMenue({ onSchliessen }: { onSchliessen: () =
           <button
             type="button"
             onClick={() => setBereich(null)}
-            aria-label="Zurück"
+            aria-label={t('zurueck')}
             className="h-10 w-10 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
             data-testid="einstellungen-zurueck"
           >
@@ -113,12 +123,12 @@ export default function EinstellungsMenue({ onSchliessen }: { onSchliessen: () =
           />
         )}
         <h2 className="flex-1 text-lg font-bold text-slate-900 dark:text-white">
-          {aktiv ? aktiv.titel : 'Yapaia Go'}
+          {aktiv ? t(aktiv.titel) : 'Yapaia Go'}
         </h2>
         <button
           type="button"
           onClick={onSchliessen}
-          aria-label="Einstellungen schließen"
+          aria-label={t('einstellungenSchliessen')}
           className="h-10 w-10 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
           data-testid="einstellungen-schliessen"
         >
@@ -142,7 +152,7 @@ export default function EinstellungsMenue({ onSchliessen }: { onSchliessen: () =
                   <span aria-hidden="true" className="text-xl">
                     {e.symbol}
                   </span>
-                  <span className="flex-1">{e.titel}</span>
+                  <span className="flex-1">{t(e.titel)}</span>
                   <span aria-hidden="true" className="text-slate-400">
                     ›
                   </span>
@@ -165,14 +175,13 @@ export default function EinstellungsMenue({ onSchliessen }: { onSchliessen: () =
                 <span aria-hidden="true" className="text-xl">
                   🧱
                 </span>
-                <span className="flex-1">Bildschirm anpassen</span>
+                <span className="flex-1">{t('bildschirmAnpassen')}</span>
                 <span aria-hidden="true" className="text-slate-400">
                   ›
                 </span>
               </button>
               <p className="px-3 pb-2 text-xs text-slate-500 dark:text-slate-400">
-                Knöpfe und Fenster verschieben und vergrößern. Die Ansicht während der Navigation
-                passt du im Fahrtmenü an.
+                {t('anordnungErklaerung')}
               </p>
             </li>
           </ul>

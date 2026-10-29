@@ -29,6 +29,7 @@ import { initServiceWorker } from '../pwa/registerServiceWorker.js';
 import { requestPersistentStorage } from '../pwa/persistentStorage.js';
 import '../index.css';
 import CrashScreen from './CrashScreen.js';
+import { spracheHolen } from '../i18n/index.js';
 
 function readModeFromQuery(): ShellMode {
   const params = new URLSearchParams(window.location.search);
@@ -48,6 +49,8 @@ if (!root) {
 initServiceWorker();
 void requestPersistentStorage();
 
+// Sprache der Oberfläche (i18n): Einstellung `language` des Kerns
+void spracheHolen();
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     {/* Ohne diese Grenze raeumt React bei einem Fehler beim Zeichnen den
@@ -56,5 +59,5 @@ ReactDOM.createRoot(root).render(
       <DriveLockController />
       <Shell mode={readModeFromQuery()} />
     </CrashScreen>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

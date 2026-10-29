@@ -8,10 +8,14 @@
 import type { NavState } from '@yapaia/shared';
 import type { Widget } from '@yapaia/ui';
 import { formatDistance } from '../../routing/format.js';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const distanceWidget: Widget = {
   id: 'distance',
-  name: 'Restdistanz',
+  get name() {
+    return tx(T, 'w_restdistanz');
+  },
   sizes: ['S', 'M'],
   topics: ['nav/state'],
   render: ({ data }) => {
@@ -22,7 +26,9 @@ export const distanceWidget: Widget = {
         <span data-testid="widget-distance-value" className="text-2xl font-bold tabular-nums">
           {meters != null ? formatDistance(meters) : '–'}
         </span>
-        <span className="text-xs uppercase tracking-wide text-slate-400">Restdistanz</span>
+        <span className="text-xs uppercase tracking-wide text-slate-400">
+          {tx(T, 'w_restdistanz')}
+        </span>
       </div>
     );
   },

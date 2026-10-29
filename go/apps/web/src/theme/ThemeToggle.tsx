@@ -16,24 +16,27 @@
 import React from 'react';
 import { useThemeStore } from './themeStore.js';
 import type { ThemeMode } from './resolveTheme.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 /**
  * Vier Modi, und die beiden automatischen tragen bewusst UNTERSCHIEDLICHE
  * Namen. „Auto" fuer beides waere das Schlimmste: zwei verschiedene Verhalten
  * hinter einem Wort, und niemand weiss, welches gerade gilt.
  */
-const MODE_OPTIONS: Array<{ value: ThemeMode; label: string; hinweis: string }> = [
-  { value: 'light', label: 'Hell', hinweis: 'Immer hell.' },
-  { value: 'dark', label: 'Dunkel', hinweis: 'Immer dunkel.' },
-  { value: 'system', label: 'System', hinweis: 'Folgt der Einstellung dieses Geräts.' },
-  {
-    value: 'auto',
-    label: 'Sonne',
-    hinweis: 'Folgt dem Sonnenstand an Ihrer Position — dunkel, wenn es draußen dunkel wird.',
-  },
+const MODE_OPTIONS: Array<{
+  value: ThemeMode;
+  label: 'hell' | 'dunkel' | 'system' | 'sonne';
+  hinweis: 'hinweisHell' | 'hinweisDunkel' | 'hinweisSystem' | 'hinweisSonne';
+}> = [
+  { value: 'light', label: 'hell', hinweis: 'hinweisHell' },
+  { value: 'dark', label: 'dunkel', hinweis: 'hinweisDunkel' },
+  { value: 'system', label: 'system', hinweis: 'hinweisSystem' },
+  { value: 'auto', label: 'sonne', hinweis: 'hinweisSonne' },
 ];
 
 export default function ThemeToggle(): React.ReactElement {
+  const t = useT(T);
   const mode = useThemeStore((state) => state.mode);
   const overrideActive = useThemeStore((state) => state.override !== null);
   const setMode = useThemeStore((state) => state.setMode);
@@ -41,17 +44,17 @@ export default function ThemeToggle(): React.ReactElement {
 
   return (
     <section data-testid="theme-toggle">
-      <h2 className="font-semibold mb-2">Design</h2>
+      <h2 className="font-semibold mb-2">{t('design')}</h2>
       {/* `flex-wrap`: vier Knoepfe passen auf 390 Bildpunkten nicht mehr in
           eine Zeile, und das Panel ist nur `w-64` breit. */}
-      <div className="flex flex-wrap gap-1" role="group" aria-label="Design-Modus">
+      <div className="flex flex-wrap gap-1" role="group" aria-label={t('designModus')}>
         {MODE_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => setMode(opt.value)}
             aria-pressed={opt.value === mode}
-            title={opt.hinweis}
+            title={t(opt.hinweis)}
             data-testid={`theme-mode-${opt.value}`}
             className={`px-2 py-1 rounded-md border text-xs ${
               opt.value === mode
@@ -59,28 +62,32 @@ export default function ThemeToggle(): React.ReactElement {
                 : 'border-slate-300 dark:border-slate-600'
             }`}
           >
-            {opt.label}
+            {t(opt.label)}
           </button>
         ))}
       </div>
       {/* Der Unterschied zwischen „System" und „Sonne" ist nicht zu erraten --
           also steht er da, fuer den gewaehlten Modus. */}
-      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400" data-testid="theme-mode-hint">
-        {MODE_OPTIONS.find((opt) => opt.value === mode)?.hinweis}
+      <p
+        className="mt-1 text-[11px] text-slate-500 dark:text-slate-400"
+        data-testid="theme-mode-hint"
+      >
+        {(() => {
+          const h = MODE_OPTIONS.find((opt) => opt.value === mode)?.hinweis;
+          return h ? t(h) : null;
+        })()}
       </p>
       {mode === 'auto' && (
         <div className="mt-2">
-          <p className="mb-1 text-[11px] text-slate-500 dark:text-slate-400">
-            Vorübergehend übersteuern:
-          </p>
-          <div className="flex gap-1" role="group" aria-label="Auto-Override">
+          <p className="mb-1 text-[11px] text-slate-500 dark:text-slate-400">{t('uebersteuern')}</p>
+          <div className="flex gap-1" role="group" aria-label={t('autoOverride')}>
             <button
               type="button"
               onClick={() => setManualTheme('light')}
               data-testid="theme-override-light"
               className="px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-xs"
             >
-              ☀ Hell
+              {t('hellMitSymbol')}
             </button>
             <button
               type="button"
@@ -88,12 +95,15 @@ export default function ThemeToggle(): React.ReactElement {
               data-testid="theme-override-dark"
               className="px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-xs"
             >
-              🌙 Dunkel
+              {t('dunkelMitSymbol')}
             </button>
           </div>
           {overrideActive && (
-            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400" data-testid="theme-override-hint">
-              Manuell bis zum nächsten Auf-/Untergang
+            <p
+              className="mt-1 text-[11px] text-slate-500 dark:text-slate-400"
+              data-testid="theme-override-hint"
+            >
+              {t('manuellBis')}
             </p>
           )}
         </div>

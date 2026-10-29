@@ -9,6 +9,7 @@ import SprachFenster from './sprache/SprachFenster.js';
 import SpeedDisplay from './drive/SpeedDisplay.js';
 import ThemeController from './theme/ThemeController.js';
 import DesignController from './design/DesignController.js';
+import SprachController from './i18n/SprachController.js';
 import DriveLockController from './drive/DriveLockController.js';
 import HandednessController from './shell/HandednessController.js';
 import ScreenAwakeController from './shell/ScreenAwakeController.js';
@@ -30,6 +31,7 @@ export default function App(): React.ReactElement {
     <div id="yapaia-sicht" className="overflow-hidden bg-flaeche dark:bg-slate-900">
       <ThemeController />
       <DesignController />
+      <SprachController />
       <DriveLockController />
       <HandednessController />
       {/* Der Bildschirm bleibt an, solange Yapaia zu sehen ist -- „quasi

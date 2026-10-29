@@ -20,6 +20,8 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { gebiet, tx, useSprache, useT } from '../../i18n/index.js';
+import { T } from './texte.js';
 import {
   fetchPreflight,
   fetchTrackers,
@@ -43,13 +45,14 @@ const STATUS_CLASS: Record<string, string> = {
   fail: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700',
 };
 
-const SEVERITY_LABEL: Record<string, string> = {
+const SEVERITY_LABEL = {
   required: 'erforderlich',
   recommended: 'empfohlen',
   optional: 'optional',
-};
+} as const;
 
 function CheckRow({ check }: { check: PreflightCheck }): React.ReactElement {
+  const t = useT(T);
   return (
     <li
       className={`border rounded-lg p-2 ${STATUS_CLASS[check.status] ?? ''}`}
@@ -61,7 +64,7 @@ function CheckRow({ check }: { check: PreflightCheck }): React.ReactElement {
           <span aria-hidden="true">{STATUS_ICON[check.status] ?? '?'}</span> {check.label}
         </span>
         <span className="shrink-0 text-xs opacity-70">
-          {SEVERITY_LABEL[check.severity] ?? check.severity}
+          {check.severity in SEVERITY_LABEL ? t(SEVERITY_LABEL[check.severity]) : check.severity}
         </span>
       </div>
       <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">{check.detail}</p>
@@ -70,7 +73,7 @@ function CheckRow({ check }: { check: PreflightCheck }): React.ReactElement {
           className="mt-1 text-xs text-slate-600 dark:text-slate-300"
           data-testid={`preflight-remedy-${check.id}`}
         >
-          <strong>Zu tun:</strong> {check.remedy}
+          <strong>{t('zuTun')}</strong> {check.remedy}
         </p>
       )}
     </li>
@@ -91,6 +94,7 @@ function CheckRow({ check }: { check: PreflightCheck }): React.ReactElement {
  * meldet: eine leere Auswahl waere ein Bedienelement, das sicher nichts tut.
  */
 function TrackerAuswahlFeld(): React.ReactElement | null {
+  const t = useT(T);
   const [trackers, setTrackers] = useState<HaTracker[]>([]);
   const [gewaehlt, setGewaehlt] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -112,13 +116,14 @@ function TrackerAuswahlFeld(): React.ReactElement | null {
   if (trackers.length === 0) return null;
 
   return (
-    <div className="border rounded-lg p-2 border-slate-300 dark:border-slate-600" data-testid="tracker-picker">
+    <div
+      className="border rounded-lg p-2 border-slate-300 dark:border-slate-600"
+      data-testid="tracker-picker"
+    >
       <label className="block text-xs font-medium" htmlFor="yapaia-tracker-select">
-        Gerät der Companion App
+        {t('trackerGeraet')}
       </label>
-      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-        Damit läuft die Anzeige weiter, wenn Yapaia nicht offen ist. Die Wahl gilt sofort.
-      </p>
+      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{t('trackerHinweis')}</p>
       <select
         id="yapaia-tracker-select"
         data-testid="tracker-select"
@@ -131,11 +136,11 @@ function TrackerAuswahlFeld(): React.ReactElement | null {
           void waehleTracker(wert)
             .then((bestaetigt) => setGewaehlt(bestaetigt))
             .catch((err: unknown) =>
-              setFehler(err instanceof Error ? err.message : 'Auswahl fehlgeschlagen.'),
+              setFehler(err instanceof Error ? err.message : t('auswahlFehler'))
             );
         }}
       >
-        <option value="">— keine —</option>
+        <option value="">{t('keine')}</option>
         {trackers.map((tracker) => (
           <option key={tracker.entity_id} value={tracker.entity_id}>
             {tracker.friendly_name} ({tracker.entity_id})
@@ -151,8 +156,12 @@ function TrackerAuswahlFeld(): React.ReactElement | null {
   );
 }
 
-export default function PreflightPanel({ eingebettet = false }: { eingebettet?: boolean } = {}): React.ReactElement {
+export default function PreflightPanel({
+  eingebettet = false,
+}: { eingebettet?: boolean } = {}): React.ReactElement {
   // Eingebettet (im ⚙-Menü, shell/EinstellungsMenue.tsx) ist der Inhalt immer offen.
+  const t = useT(T);
+  const sprache = useSprache((s) => s.sprache);
   const [isOpen, setIsOpen] = useState(eingebettet);
   const [report, setReport] = useState<PreflightReport | null>(null);
   const [running, setRunning] = useState(false);
@@ -169,10 +178,8 @@ export default function PreflightPanel({ eingebettet = false }: { eingebettet?: 
       // die Seite -- nicht nur in die Browser-Konsole.
       setError(
         err instanceof Error
-          ? `Die Prüfung konnte nicht ausgeführt werden: ${err.message} ` +
-            'Wenn hier gar nichts ankommt, läuft der Yapaia-Dienst selbst nicht — ' +
-            'sehen Sie im Home-Assistant-Add-on unter „Protokoll" nach.'
-          : 'Die Prüfung konnte nicht ausgeführt werden.',
+          ? tx(T, 'pruefFehler', { meldung: err.message })
+          : tx(T, 'pruefFehlerKurz')
       );
     } finally {
       setRunning(false);
@@ -188,21 +195,30 @@ export default function PreflightPanel({ eingebettet = false }: { eingebettet?: 
   const toggleOpen = useCallback(() => setIsOpen((open) => !open), []);
 
   return (
-    <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('preflight'), right: TOP_RIGHT_INSET_PX }}>
+    <div
+      className={eingebettet ? '' : 'fixed z-10'}
+      style={
+        eingebettet ? undefined : { top: topRightSlotPx('preflight'), right: TOP_RIGHT_INSET_PX }
+      }
+    >
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-96 max-h-[calc(var(--sicht-h,100vh)*0.75)] overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3"}
+          className={
+            eingebettet
+              ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100'
+              : 'absolute top-14 right-0 mb-2 w-96 max-h-[calc(var(--sicht-h,100vh)*0.75)] overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3'
+          }
           data-testid="preflight-panel"
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 className="font-semibold">Installation prüfen</h2>
+            <h2 className="font-semibold">{t('titel')}</h2>
             <button
               onClick={() => void run()}
               disabled={running}
               className="shrink-0 px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
               data-testid="preflight-rerun"
             >
-              {running ? 'Prüfe…' : 'Erneut prüfen'}
+              {running ? t('pruefe') : t('erneut')}
             </button>
           </div>
 
@@ -238,15 +254,23 @@ export default function PreflightPanel({ eingebettet = false }: { eingebettet?: 
                   nach. Gefragt: „wie führe ich nun deine Prüfung aus? Ich
                   sehe den Knopf nicht." */}
               <OnlineDiagnose />
-              <p className="text-xs text-slate-400 dark:text-slate-500" data-testid="preflight-checked-at">
-                Geprüft: {new Date(report.checkedAt).toLocaleString('de-DE')}
+              <p
+                className="text-xs text-slate-400 dark:text-slate-500"
+                data-testid="preflight-checked-at"
+              >
+                {t('geprueft', {
+                  zeit: new Date(report.checkedAt).toLocaleString(gebiet(sprache)),
+                })}
               </p>
             </>
           )}
 
           {!report && !error && running && (
-            <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="preflight-loading">
-              Prüfe Kacheln, Routing, Suche, Position, Speicher…
+            <p
+              className="text-xs text-slate-500 dark:text-slate-400"
+              data-testid="preflight-loading"
+            >
+              {t('ladeText')}
             </p>
           )}
         </div>
@@ -256,9 +280,9 @@ export default function PreflightPanel({ eingebettet = false }: { eingebettet?: 
         <button
           onClick={toggleOpen}
           className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
-          aria-label="Installation prüfen"
+          aria-label={t('titel')}
           aria-expanded={isOpen}
-          title="Installation prüfen"
+          title={t('titel')}
           data-testid="preflight-panel-toggle"
         >
           🩺

@@ -6,9 +6,11 @@
 
 import React, { useEffect, useState } from 'react';
 import type { Widget } from '@yapaia/ui';
+import { T } from '../texte.js';
+import { gebiet, tx } from '../../i18n/index.js';
 
 function formatClock(date: Date): string {
-  return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return date.toLocaleTimeString(gebiet(), { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function ClockDisplay(): React.ReactElement {
@@ -28,7 +30,9 @@ function ClockDisplay(): React.ReactElement {
 
 export const clockWidget: Widget = {
   id: 'clock',
-  name: 'Uhrzeit',
+  get name() {
+    return tx(T, 'w_uhrzeit');
+  },
   sizes: ['S'],
   topics: [],
   render: () => <ClockDisplay />,

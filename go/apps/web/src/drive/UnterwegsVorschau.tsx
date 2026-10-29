@@ -21,6 +21,8 @@ import { recenterOnPosition, useFollowMeStore } from '../map/followMe.js';
 import { stationsZeile } from '../bord/bordStore.js';
 import type { UnterwegsErgebnis } from './UnterwegsFinden.js';
 import PreisMarke, { useSpritpreise } from '../tanken/PreisMarke.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export interface Vorschau {
   ergebnis: UnterwegsErgebnis;
@@ -42,10 +44,14 @@ export default function UnterwegsVorschau({
   onListe: () => void;
   onSchliessen: () => void;
 }): React.ReactElement {
+  const tt = useT(T);
   const treffer = vorschau.ergebnis.treffer;
   const t = treffer[vorschau.index]!;
   const istTanke = vorschau.ergebnis.kategorie.id === 'fuel';
-  const punkte = React.useMemo(() => (istTanke ? [{ lat: t.lat, lon: t.lon }] : []), [istTanke, t.lat, t.lon]);
+  const punkte = React.useMemo(
+    () => (istTanke ? [{ lat: t.lat, lon: t.lon }] : []),
+    [istTanke, t.lat, t.lon]
+  );
   const [preis] = useSpritpreise(punkte);
 
   // Karte zum Ort, Markierung setzen; beim Wechsel oder Schließen wieder weg.
@@ -54,7 +60,9 @@ export default function UnterwegsVorschau({
     if (!map) return undefined;
     useFollowMeStore.getState().halten();
     map.flyTo({ center: [t.lon, t.lat], zoom: Math.max(map.getZoom(), 14), duration: 600 });
-    const markierung = new maplibregl.Marker({ color: '#7C3AED' }).setLngLat([t.lon, t.lat]).addTo(map);
+    const markierung = new maplibregl.Marker({ color: '#7C3AED' })
+      .setLngLat([t.lon, t.lat])
+      .addTo(map);
     markierung.getElement().setAttribute('data-testid', 'unterwegs-vorschau-markierung');
     return () => {
       markierung.remove();
@@ -69,7 +77,7 @@ export default function UnterwegsVorschau({
   return (
     <div
       role="dialog"
-      aria-label={`Vorschau: ${t.name}`}
+      aria-label={tt('vorschau_aria', { name: t.name })}
       style={{ bottom: bottomPx }}
       className="absolute left-1/2 z-30 w-[min(calc(var(--sicht-b,100vw)*0.92),26rem)] -translate-x-1/2 space-y-2 rounded-xl bg-flaeche/95 p-3 text-sm text-slate-800 shadow-xl dark:bg-slate-800/95 dark:text-slate-100"
       data-testid="unterwegs-vorschau"
@@ -82,7 +90,7 @@ export default function UnterwegsVorschau({
         <button
           type="button"
           onClick={schliessen}
-          aria-label="Vorschau schließen"
+          aria-label={tt('vorschau_schliessen')}
           className="h-10 w-10 shrink-0 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
           data-testid="unterwegs-vorschau-schliessen"
         >
@@ -95,19 +103,22 @@ export default function UnterwegsVorschau({
             <button
               type="button"
               onClick={() => onBlaettern((vorschau.index - 1 + treffer.length) % treffer.length)}
-              aria-label="Vorheriger Treffer"
+              aria-label={tt('vorheriger')}
               className="min-h-[48px] min-w-[48px] rounded-full bg-slate-100 dark:bg-slate-700"
               data-testid="unterwegs-vorschau-zurueck"
             >
               ◀
             </button>
-            <span className="text-xs tabular-nums text-slate-500" data-testid="unterwegs-vorschau-zaehler">
+            <span
+              className="text-xs tabular-nums text-slate-500"
+              data-testid="unterwegs-vorschau-zaehler"
+            >
               {vorschau.index + 1}/{treffer.length}
             </span>
             <button
               type="button"
               onClick={() => onBlaettern((vorschau.index + 1) % treffer.length)}
-              aria-label="Nächster Treffer"
+              aria-label={tt('naechster')}
               className="min-h-[48px] min-w-[48px] rounded-full bg-slate-100 dark:bg-slate-700"
               data-testid="unterwegs-vorschau-weiter"
             >
@@ -121,7 +132,7 @@ export default function UnterwegsVorschau({
           className="min-h-[48px] rounded-full bg-slate-100 px-3 dark:bg-slate-700"
           data-testid="unterwegs-vorschau-liste"
         >
-          Liste
+          {tt('liste')}
         </button>
         <button
           type="button"
@@ -132,7 +143,7 @@ export default function UnterwegsVorschau({
           className="ml-auto min-h-[48px] rounded-full bg-blue-600 px-4 font-semibold text-white"
           data-testid="unterwegs-vorschau-einfuegen"
         >
-          Als Zwischenziel
+          {tt('als_zwischenziel')}
         </button>
       </div>
     </div>

@@ -16,6 +16,9 @@
  * Meldungen ohne Ort, die es nicht auf die Karte geschafft haben.
  */
 
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 export interface HinweisEingabe {
   strassen: ReadonlyArray<{
     strasse: string;
@@ -56,10 +59,10 @@ export const HINWEIS_SICHTBAR_MS = 10_000;
 /** Minuten, gerundet, mit passender Einzahl. */
 function alterInWorten(sekunden: number): string {
   const minuten = Math.round(sekunden / 60);
-  if (minuten <= 1) return 'etwa eine Minute';
-  if (minuten < 60) return `etwa ${minuten} Minuten`;
+  if (minuten <= 1) return tx(T, 'etwaMinute');
+  if (minuten < 60) return tx(T, 'etwaMinuten', { n: minuten });
   const stunden = Math.round(minuten / 60);
-  return stunden === 1 ? 'etwa eine Stunde' : `etwa ${stunden} Stunden`;
+  return stunden === 1 ? tx(T, 'etwaStunde') : tx(T, 'etwaStunden', { n: stunden });
 }
 
 /**
@@ -76,9 +79,7 @@ export function verkehrHinweis(eingabe: HinweisEingabe): Hinweis | null {
   if (fehlend.length > 0) {
     return {
       stufe: 'warnung',
-      text:
-        `Für ${fehlend.join(', ')} liegen gerade keine Verkehrsdaten vor — ` +
-        'dort kann etwas sein, das hier nicht steht.',
+      text: tx(T, 'keineDaten', { strassen: fehlend.join(', ') }),
       schluessel: `fehlt:${fehlend.join(',')}`,
     };
   }
@@ -93,7 +94,10 @@ export function verkehrHinweis(eingabe: HinweisEingabe): Hinweis | null {
     const aeltest = Math.max(...alt.map((s) => s.alter_s ?? 0));
     return {
       stufe: 'hinweis',
-      text: `Verkehrsdaten für ${alt.map((s) => s.strasse).join(', ')} sind ${alterInWorten(aeltest)} alt.`,
+      text: tx(T, 'veraltet', {
+        strassen: alt.map((s) => s.strasse).join(', '),
+        alter: alterInWorten(aeltest),
+      }),
       schluessel: `alt:${alt.map((s) => s.strasse).join(',')}`,
     };
   }
@@ -101,8 +105,7 @@ export function verkehrHinweis(eingabe: HinweisEingabe): Hinweis | null {
   if (eingabe.ohneOrt > 0) {
     return {
       stufe: 'hinweis',
-      text:
-        `${eingabe.ohneOrt} Meldung(en) ohne Ortsangabe — sie stehen nicht auf der Karte.`,
+      text: tx(T, 'ohneOrt', { n: eingabe.ohneOrt }),
       schluessel: 'ohne-ort',
     };
   }

@@ -13,6 +13,9 @@
  * gibt es die Prüfung.
  */
 
+import { tx } from '../../i18n/index.js';
+import { T } from './texte.js';
+
 /** Wie lange auf die Prüfung gewartet wird. Sie ruft bis zu sechs Adressen
  *  nacheinander, jede mit acht Sekunden Grenze. */
 const DIAGNOSE_TIMEOUT_MS = 60_000;
@@ -59,9 +62,7 @@ export async function fetchOnlineStatus(): Promise<OnlineStatus | null> {
   }
 }
 
-export type DiagnoseErgebnis =
-  | { urteil: string; zeilen: DiagnoseZeile[] }
-  | { fehler: string };
+export type DiagnoseErgebnis = { urteil: string; zeilen: DiagnoseZeile[] } | { fehler: string };
 
 /**
  * Stößt die Prüfung an.
@@ -88,19 +89,19 @@ export async function starteDiagnose(strasse?: string): Promise<DiagnoseErgebnis
       // Die Meldung des Kerns sagt bereits, wo der Schalter sitzt. Sie hier
       // durch etwas Eigenes zu ersetzen hiesse, sie zu verlieren.
       return {
-        fehler: body?.error?.message ?? `Die Prüfung antwortete mit Status ${response.status}.`,
+        fehler: body?.error?.message ?? tx(T, 'statusFehler', { status: response.status }),
       };
     }
     if (!body?.data || !Array.isArray(body.data.zeilen)) {
-      return { fehler: 'Die Antwort der Prüfung hatte nicht die erwartete Form.' };
+      return { fehler: tx(T, 'formFehler') };
     }
     return body.data;
   } catch (err) {
     const abgebrochen = (err as Error)?.name === 'AbortError';
     return {
       fehler: abgebrochen
-        ? 'Die Prüfung hat zu lange gedauert und wurde abgebrochen.'
-        : `Die Prüfung war nicht erreichbar: ${(err as Error)?.message ?? 'unbekannter Fehler'}.`,
+        ? tx(T, 'zuLange')
+        : tx(T, 'unerreichbar', { meldung: (err as Error)?.message ?? tx(T, 'unbekannterFehler') }),
     };
   } finally {
     clearTimeout(timer);

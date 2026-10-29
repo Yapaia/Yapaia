@@ -6,8 +6,11 @@
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAnordnungStore } from './anordnung.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 export default function AnordnungsLeiste(): React.ReactElement | null {
+  const t = useT(T);
   const bearbeiten = useAnordnungStore((s) => s.bearbeiten);
   const beende = useAnordnungStore((s) => s.beende);
   const zuruecksetzen = useAnordnungStore((s) => s.zuruecksetzen);
@@ -45,7 +48,7 @@ export default function AnordnungsLeiste(): React.ReactElement | null {
     <div
       ref={leiste}
       role="toolbar"
-      aria-label="Bildschirm anpassen"
+      aria-label={t('bildschirmAnpassen')}
       className={`fixed z-[70] flex max-w-[calc(100vw-1rem)] flex-wrap items-center gap-2 rounded-2xl bg-slate-900/95 px-3 py-2 text-sm text-white shadow-xl ${
         platz ? '' : 'left-1/2 top-3 -translate-x-1/2'
       }`}
@@ -59,23 +62,23 @@ export default function AnordnungsLeiste(): React.ReactElement | null {
         onPointerUp={griffHoch}
         onPointerCancel={griffHoch}
         className="flex h-9 w-7 cursor-move touch-none items-center justify-center rounded text-lg text-slate-300 hover:bg-slate-700"
-        title="Leiste verschieben"
-        aria-label="Leiste verschieben"
+        title={t('leisteVerschieben')}
+        aria-label={t('leisteVerschieben')}
         data-testid="anordnung-leiste-griff"
       >
         ⠿
       </span>
       <span className="font-semibold">
-        {bearbeiten === 'fahrt' ? 'Navigation' : 'Ruhe & Planung'} anpassen
+        {bearbeiten === 'fahrt' ? t('navigationAnpassen') : t('ruheAnpassen')}
       </span>
-      <span className="text-xs text-slate-300">Ziehen verschiebt · blauer Punkt: Größe · Fadenkreuz: Position</span>
+      <span className="text-xs text-slate-300">{t('anordnungHinweis')}</span>
       <button
         type="button"
         onClick={() => zuruecksetzen(bearbeiten)}
         className="rounded-full bg-slate-700 px-3 py-1.5 hover:bg-slate-600"
         data-testid="anordnung-zuruecksetzen"
       >
-        Zurücksetzen
+        {t('zuruecksetzen')}
       </button>
       <button
         type="button"
@@ -83,9 +86,9 @@ export default function AnordnungsLeiste(): React.ReactElement | null {
         className="rounded-full bg-blue-600 px-4 py-1.5 font-semibold hover:bg-blue-700"
         data-testid="anordnung-fertig"
       >
-        Fertig
+        {t('fertig')}
       </button>
     </div>,
-    document.getElementById('yapaia-sicht') ?? document.body,
+    document.getElementById('yapaia-sicht') ?? document.body
   );
 }

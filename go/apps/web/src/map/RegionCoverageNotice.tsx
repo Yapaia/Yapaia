@@ -29,12 +29,15 @@
  * heruntergeladen" und nichts anderes mehr.
  */
 
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import React from 'react';
 import { pickActiveRegion } from './activeRegion';
 import { useRegionStore } from './regionStore';
 import { usePosition } from '../position/positionStore';
 
 export default function RegionCoverageNotice(): React.ReactElement | null {
+  const t = useT(T);
   const regions = useRegionStore((state) => state.regions);
   const position = usePosition();
 
@@ -54,11 +57,10 @@ export default function RegionCoverageNotice(): React.ReactElement | null {
         data-testid="region-coverage-notice"
       >
         <p>
-          <span className="font-semibold">Für Ihre Position gibt es keine Karte.</span> Die
-          aktuelle Position liegt außerhalb aller installierten Regionen
-          {regions.length > 0 && ` (${regions.map((r) => r.region).join(', ')})`} — die Karte
-          bleibt hier leer, obwohl mit ihr nichts nicht in Ordnung ist. Passende Region unter
-          ⚙️ → „Karten verwalten" installieren.
+          <span className="font-semibold">{t('keineKartePos')}</span>{' '}
+          {t('keineKarteRest', {
+            regionen: regions.length > 0 ? ` (${regions.map((r) => r.region).join(', ')})` : '',
+          })}
         </p>
       </div>
     </div>

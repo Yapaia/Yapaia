@@ -21,6 +21,10 @@ import { CORE_BASE_URL } from './support/constants.js';
 import { collectPageErrors } from './support/network.js';
 import { langDruecken, zielAufKartenmitte } from './support/zielGeste.js';
 import { formatDistance, formatDuration } from '../src/routing/format.js';
+import { useSprache } from '../src/i18n/index.js';
+
+// Die Seite läuft mit locale de-DE; die Erwartungen hier also auch auf Deutsch
+useSprache.getState().setzen('de');
 import { oeffneEinstellung } from './support/einstellungen.js';
 
 async function waitForMapReady(page: Page): Promise<void> {

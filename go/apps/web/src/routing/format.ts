@@ -1,3 +1,6 @@
+import { gebiet, tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 /**
  * Single source of truth for how route distance/duration/ETA are formatted
  * in the UI (E03-T3 plausibility requirement: the displayed distance/duration
@@ -8,10 +11,10 @@
 /** `distance_m` -> localized string, e.g. "850 m" or "12,3 km". */
 export function formatDistance(meters: number): string {
   if (!Number.isFinite(meters) || meters < 1000) {
-    return `${Math.round(meters)} m`;
+    return `${Math.round(meters).toLocaleString(gebiet())} m`;
   }
   const km = meters / 1000;
-  return `${km.toFixed(1).replace('.', ',')} km`;
+  return `${km.toLocaleString(gebiet(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
 }
 
 /** `duration_s` -> localized string, e.g. "23 Min" or "1 Std 23 Min". */
@@ -20,9 +23,9 @@ export function formatDuration(seconds: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   if (hours === 0) {
-    return `${minutes} Min`;
+    return tx(T, 'minKurz', { min: minutes });
   }
-  return `${hours} Std ${minutes} Min`;
+  return tx(T, 'stdMinKurz', { std: hours, min: minutes });
 }
 
 /**

@@ -22,8 +22,11 @@
 import React, { useEffect, useState } from 'react';
 import { useVerkehrStore } from './verkehrStore.js';
 import { HINWEIS_SICHTBAR_MS, verkehrHinweis } from './verkehrHinweisText.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export default function VerkehrHinweis(): React.ReactElement | null {
+  const t = useT(T);
   const strassen = useVerkehrStore((s) => s.strassen);
   const ohneOrt = useVerkehrStore((s) => s.ohneOrt);
   const fehler = useVerkehrStore((s) => s.fehler);
@@ -45,8 +48,8 @@ export default function VerkehrHinweis(): React.ReactElement | null {
   const vergeht = hinweis?.stufe === 'hinweis';
   useEffect(() => {
     if (schluessel === null || !vergeht || weg === schluessel) return;
-    const t = setTimeout(() => setWeg(schluessel), HINWEIS_SICHTBAR_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setWeg(schluessel), HINWEIS_SICHTBAR_MS);
+    return () => clearTimeout(timer);
   }, [schluessel, vergeht, weg]);
 
   if (hinweis === null || weg === hinweis.schluessel) return null;
@@ -62,7 +65,7 @@ export default function VerkehrHinweis(): React.ReactElement | null {
       <div
         role="status"
         onClick={() => setWeg(hinweis.schluessel)}
-        title="Antippen zum Ausblenden"
+        title={t('tippen')}
         className={
           'pointer-events-auto cursor-pointer rounded-lg px-3 py-2 text-xs shadow-lg ' +
           (warnung

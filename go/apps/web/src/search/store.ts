@@ -18,6 +18,8 @@
  */
 
 import { create } from 'zustand';
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 import type { LatLng, SearchResult } from '@yapaia/shared';
 import * as client from './client.js';
 import { SearchApiError } from './client.js';
@@ -112,7 +114,7 @@ async function runSearch(q: string, bias: LatLng | null | undefined): Promise<vo
     } else {
       useSearchStore.setState({
         status: 'error',
-        error: { code: 'UNKNOWN', message: 'Suche fehlgeschlagen.' },
+        error: { code: 'UNKNOWN', message: tx(T, 'fehlgeschlagenKurz') },
         results: [],
       });
     }

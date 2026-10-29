@@ -6,6 +6,8 @@
  */
 
 import { create } from 'zustand';
+import { T } from './texte.js';
+import { gebiet, tx } from '../i18n/index.js';
 
 export type BordArt = 'grauwasser' | 'frischwasser' | 'batterie' | 'frost';
 
@@ -48,7 +50,11 @@ export const useBordStore = create<BordStore>((set) => ({
       if (!antwort.ok) return;
       const { data } = (await antwort.json()) as { data?: BordZustand };
       if (!data || !Array.isArray(data.hinweise)) return;
-      set({ eingerichtet: Boolean(data.eingerichtet), hinweise: data.hinweise, stand: data.stand ?? null });
+      set({
+        eingerichtet: Boolean(data.eingerichtet),
+        hinweise: data.hinweise,
+        stand: data.stand ?? null,
+      });
     } catch {
       // Kein Netz zum Kern: die letzten Hinweise bleiben stehen. Ein Aussetzer
       // ist kein Grund, einen vollen Grauwassertank für leer zu erklären.
@@ -70,9 +76,17 @@ export function hinweisSchluessel(h: Pick<BordHinweis, 'art' | 'station'>): stri
 
 /** „Entsorgungsstation Musterhof — in 12 km, 300 m neben der Strecke". */
 export function stationsZeile(s: BordStation): string {
-  const km = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(m >= 10_000 ? 0 : 1).replace('.', ',')} km` : `${Math.round(m / 10) * 10} m`);
-  if (s.voraus_m === null) return `${s.name} — ${km(s.abseits_m)} entfernt`;
+  const km = (m: number): string =>
+    m >= 1000
+      ? tx(T, 'km', {
+          wert: (m / 1000).toLocaleString(gebiet(), {
+            minimumFractionDigits: m >= 10_000 ? 0 : 1,
+            maximumFractionDigits: m >= 10_000 ? 0 : 1,
+          }),
+        })
+      : tx(T, 'm', { wert: Math.round(m / 10) * 10 });
+  if (s.voraus_m === null) return tx(T, 'entfernt', { name: s.name, weg: km(s.abseits_m) });
   return s.abseits_m < 150
-    ? `${s.name} — in ${km(s.voraus_m)} an der Strecke`
-    : `${s.name} — in ${km(s.voraus_m)}, ${km(s.abseits_m)} neben der Strecke`;
+    ? tx(T, 'ander', { name: s.name, voraus: km(s.voraus_m) })
+    : tx(T, 'neben', { name: s.name, voraus: km(s.voraus_m), abseits: km(s.abseits_m) });
 }

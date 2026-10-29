@@ -19,6 +19,9 @@
  *    zeigt sie einen Knopf an, der immer scheitert.
  */
 
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 export type SimulatorPlaybackState = 'idle' | 'playing' | 'paused' | 'stopped';
 
 export interface SimulatorStatus {
@@ -32,11 +35,7 @@ export interface SimulatorStatus {
 /** Der Simulator ist in dieser Installation nicht freigeschaltet. */
 export class SimulatorDisabledError extends Error {
   constructor() {
-    super(
-      'Der GPS-Simulator ist gesperrt. Einschalten in Home Assistant unter ' +
-        'Einstellungen → Add-ons → Yapaia Go → Konfiguration → „gps_simulator", ' +
-        'danach das Add-on neu starten.',
-    );
+    super(tx(T, 'gesperrt'));
     this.name = 'SimulatorDisabledError';
   }
 }
@@ -58,7 +57,7 @@ function apiUrl(path: string): string {
 async function call(
   method: 'GET' | 'POST',
   path: string,
-  body?: unknown,
+  body?: unknown
 ): Promise<SimulatorStatus> {
   const response = await fetch(apiUrl(path), {
     method,

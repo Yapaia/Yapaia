@@ -28,8 +28,11 @@ import { useNavState, useNavStore } from '../drive/navStore.js';
 import { isDriveActive } from '../drive/ManeuverPanel.js';
 import { confirmProfileChangeReroute } from '../drive/client.js';
 import { useProfileStore } from './store.js';
+import { useT, tx } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export default function ProfileChangeBanner(): React.ReactElement | null {
+  const t = useT(T);
   const navState = useNavState();
   const pending = useNavStore((state) => state.pendingProfileChange);
   const warning = useNavStore((state) => state.profileChangeWarning);
@@ -48,7 +51,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
       // reroute actually lands, but the banner shouldn't linger until then.
       setPendingProfileChange(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Neuberechnung fehlgeschlagen.');
+      setError(err instanceof Error ? err.message : tx(T, 'neuFehler'));
     } finally {
       setIsBusy(false);
     }
@@ -62,7 +65,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
       await activateProfile(pending.previous_profile_id);
       setPendingProfileChange(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Vorheriges Profil konnte nicht reaktiviert werden.');
+      setError(err instanceof Error ? err.message : tx(T, 'reaktivFehler'));
     } finally {
       setIsBusy(false);
     }
@@ -70,7 +73,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
 
   const handleDismissWarning = useCallback(
     () => setProfileChangeWarning(null),
-    [setProfileChangeWarning],
+    [setProfileChangeWarning]
   );
 
   if (!isDriveActive(navState?.status)) return null;
@@ -83,11 +86,17 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
           className="pointer-events-auto rounded-xl bg-flaeche dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3"
           data-testid="profile-change-confirm-banner"
         >
-          <p className="text-sm text-slate-800 dark:text-slate-100" data-testid="profile-change-confirm-text">
-            Mit &apos;{pending.profile_name}&apos; neu berechnen?
+          <p
+            className="text-sm text-slate-800 dark:text-slate-100"
+            data-testid="profile-change-confirm-text"
+          >
+            {t('neuBerechnen', { name: pending.profile_name })}
           </p>
           {error && (
-            <p className="text-xs text-red-600 dark:text-red-400" data-testid="profile-change-confirm-error">
+            <p
+              className="text-xs text-red-600 dark:text-red-400"
+              data-testid="profile-change-confirm-error"
+            >
               {error}
             </p>
           )}
@@ -99,7 +108,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
               data-testid="profile-change-confirm-cancel"
               className="px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
-              Abbrechen
+              {t('abbrechen')}
             </button>
             <button
               type="button"
@@ -108,7 +117,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
               data-testid="profile-change-confirm-yes"
               className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              Ja
+              {t('ja')}
             </button>
           </div>
         </div>
@@ -123,7 +132,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
             ⚠️
           </span>
           <p className="flex-1 text-sm text-amber-900 dark:text-amber-100">
-            Neue Route ist ca. {warning.pct}&nbsp;% länger als zuvor.
+            {t('laenger', { pct: warning.pct })}
           </p>
           <button
             type="button"
@@ -131,7 +140,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
             data-testid="profile-change-warning-dismiss"
             className="text-amber-700 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-50 text-sm font-medium"
           >
-            OK
+            {t('ok')}
           </button>
         </div>
       )}

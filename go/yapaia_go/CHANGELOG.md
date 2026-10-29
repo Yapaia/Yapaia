@@ -10,6 +10,16 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.67.0
+
+- **Go spricht die Sprache von Home Assistant** (Deutsch, sonst Englisch):
+  die ganze Oberfläche, Fehlermeldungen, Zahlen- und Uhrzeitformat und die
+  Ansagen im Browser. Die Integration meldet die HA-Sprache (Protokoll §8b);
+  sie gilt auch für die Abbiegehinweise. Ohne Integration bleibt die Sprache
+  aus der Einrichtung bzw. die des Browsers.
+- Noch deutsch: Sprachbefehle (Go versteht nur Deutsch) und Texte, die der
+  Kern selbst erzeugt (Bordhinweise, Verkehrsmeldungen, Prüfhinweise).
+
 ## 0.66.1
 
 - **Die Karten sprechen jetzt die Sprache von Home Assistant** (Deutsch,

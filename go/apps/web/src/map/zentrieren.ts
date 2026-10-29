@@ -12,6 +12,8 @@
  * Hand wollen das verschieden.
  */
 
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 import { create } from 'zustand';
 
 /** Die Stufen des Reglers, in Sekunden. 0 = aus. */
@@ -57,7 +59,7 @@ export const useZentrierenStore = create<ZentrierenState>((set) => ({
 }));
 
 export function zentrierenText(s: number): string {
-  if (s === 0) return 'aus';
+  if (s === 0) return tx(T, 'zentrierenAus');
   if (s < 60) return `${s} s`;
-  return `${s / 60} min`;
+  return tx(T, 'zentrierenMin', { n: s / 60 });
 }

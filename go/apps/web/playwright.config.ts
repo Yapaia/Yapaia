@@ -18,6 +18,8 @@ export default defineConfig({
   timeout: 30_000,
   globalSetup: join(__dirname, 'e2e/support/globalSetup.ts'),
   use: {
+    // Die Specs prüfen die deutsche Oberfläche (i18n folgt sonst der Browsersprache)
+    locale: 'de-DE',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     // Block the PWA Service Worker (E07-T5) by DEFAULT for every spec. The SW

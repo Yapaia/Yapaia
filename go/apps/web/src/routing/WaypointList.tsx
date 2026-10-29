@@ -21,7 +21,9 @@
  */
 
 import React from 'react';
+import { useT } from '../i18n/index.js';
 import { useRoutingStore } from './store.js';
+import { T } from './texte.js';
 import { canMove, MAX_WAYPOINTS, waypointLabel } from './waypoints.js';
 import type { RequestRouteParams } from './store.js';
 
@@ -34,6 +36,7 @@ export interface WaypointListProps {
 }
 
 export default function WaypointList({ rerouteParams }: WaypointListProps): React.ReactElement {
+  const t = useT(T);
   const waypoints = useRoutingStore((state) => state.waypoints);
   const pickTarget = useRoutingStore((state) => state.pickTarget);
   const setPickTarget = useRoutingStore((state) => state.setPickTarget);
@@ -52,7 +55,7 @@ export default function WaypointList({ rerouteParams }: WaypointListProps): Reac
     >
       <div className="flex items-center justify-between gap-2">
         <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
-          Zwischenziele
+          {t('zwischenziele')}
           {waypoints.length > 0 && (
             <span className="ml-1 opacity-70" data-testid="waypoint-count">
               ({waypoints.length})
@@ -71,26 +74,25 @@ export default function WaypointList({ rerouteParams }: WaypointListProps): Reac
           }
           data-testid="add-waypoint-button"
         >
-          {waehlt ? 'Auf Karte tippen…' : 'Zwischenziel'}
+          {waehlt ? t('aufKarteTippen') : t('zwischenziel')}
         </button>
       </div>
 
       {waehlt && (
         <p className="text-xs text-blue-700 dark:text-blue-400" data-testid="pick-waypoint-hint">
-          Tippe auf die Karte, um ein Zwischenziel anzuhängen. Der nächste Tipp danach
-          wählt wieder ein Ziel.
+          {t('zwischenzielHinweis')}
         </p>
       )}
 
       {voll && (
         <p className="text-xs text-amber-700 dark:text-amber-400" data-testid="waypoint-limit-hint">
-          Mehr als {MAX_WAYPOINTS} Zwischenziele nimmt die Routenberechnung nicht an.
+          {t('zwischenzielLimit', { max: MAX_WAYPOINTS })}
         </p>
       )}
 
       {waypoints.length === 0 ? (
         <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="waypoint-empty">
-          Keine — die Route führt direkt zum Ziel.
+          {t('zwischenzielKeine')}
         </p>
       ) : (
         <ol className="space-y-1" data-testid="waypoint-list">
@@ -114,7 +116,7 @@ export default function WaypointList({ rerouteParams }: WaypointListProps): Reac
                 type="button"
                 onClick={() => moveWaypoint(waypoint.id, 'up', rerouteParams)}
                 disabled={!canMove(waypoints, waypoint.id, 'up')}
-                aria-label={`${waypointLabel(waypoint)} nach oben`}
+                aria-label={t('nachOben', { name: waypointLabel(waypoint) })}
                 className="shrink-0 px-1.5 py-1 rounded border border-slate-300 dark:border-slate-600 disabled:opacity-30"
                 data-testid={`waypoint-up-${waypoint.id}`}
               >
@@ -124,7 +126,7 @@ export default function WaypointList({ rerouteParams }: WaypointListProps): Reac
                 type="button"
                 onClick={() => moveWaypoint(waypoint.id, 'down', rerouteParams)}
                 disabled={!canMove(waypoints, waypoint.id, 'down')}
-                aria-label={`${waypointLabel(waypoint)} nach unten`}
+                aria-label={t('nachUnten', { name: waypointLabel(waypoint) })}
                 className="shrink-0 px-1.5 py-1 rounded border border-slate-300 dark:border-slate-600 disabled:opacity-30"
                 data-testid={`waypoint-down-${waypoint.id}`}
               >
@@ -133,7 +135,7 @@ export default function WaypointList({ rerouteParams }: WaypointListProps): Reac
               <button
                 type="button"
                 onClick={() => removeWaypoint(waypoint.id, rerouteParams)}
-                aria-label={`${waypointLabel(waypoint)} entfernen`}
+                aria-label={t('entfernenName', { name: waypointLabel(waypoint) })}
                 className="shrink-0 px-1.5 py-1 rounded border border-slate-300 dark:border-slate-600 text-red-600 dark:text-red-400"
                 data-testid={`waypoint-remove-${waypoint.id}`}
               >
@@ -160,7 +162,7 @@ export default function WaypointList({ rerouteParams }: WaypointListProps): Reac
           className="w-full text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
           data-testid="optimize-waypoints-button"
         >
-          ↕ Reihenfolge optimieren
+          {t('reihenfolgeOptimieren')}
         </button>
       )}
     </div>

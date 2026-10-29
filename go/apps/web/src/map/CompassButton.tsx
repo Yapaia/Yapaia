@@ -6,6 +6,8 @@
  * Click: returns to bearing 0 (north) with smooth animation and switches to 2d-north mode.
  */
 
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import { useKartenSeite } from '../shell/bedienSeite.js';
 import React, { useEffect, useState, useCallback } from 'react';
 import { mapController, useMapStore } from '../state/mapStore';
@@ -17,6 +19,7 @@ import { isDriveActive } from '../drive/driveActive.js';
 import { useAnordnung } from '../shell/useAnordnung.js';
 
 export default function CompassButton(): React.ReactElement | null {
+  const t = useT(T);
   const anordnung = useAnordnung('kompass');
   // Gegenüber dem Seitenpanel (shell/bedienSeite.ts).
   const kartenSeite = useKartenSeite();
@@ -72,10 +75,13 @@ export default function CompassButton(): React.ReactElement | null {
     <button
       ref={anordnung.ref}
       onClick={handleClick}
-      style={{ bottom: rightStackBottomPx('compass', driveActive, schmal), [kartenSeite]: EDGE_INSET_PX }}
+      style={{
+        bottom: rightStackBottomPx('compass', driveActive, schmal),
+        [kartenSeite]: EDGE_INSET_PX,
+      }}
       className="fixed w-12 h-12 rounded-full bg-flaeche dark:bg-slate-800 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-      aria-label="Zurück zu Nord"
-      title="Zurück zu Nord"
+      aria-label={t('zurueckNord')}
+      title={t('zurueckNord')}
       data-testid="compass-button"
     >
       {/* Compass needle pointing north, rotated by current bearing */}

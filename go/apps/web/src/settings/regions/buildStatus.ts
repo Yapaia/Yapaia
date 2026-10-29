@@ -6,6 +6,9 @@
  * darf danach nicht spurlos sein — sonst baut man im Zweifel noch einmal.
  */
 
+import { gebiet, tx } from '../../i18n/index.js';
+import { T } from './texte.js';
+
 /** Relativ zu `BASE_URL`, nie ein fest verdrahtetes `/api/...` -- sonst
  *  bricht es unter dem HA-Ingress-Unterpfad (W-15). Gleiche Form wie in
  *  `apps/web/src/map/regions.ts`. */
@@ -75,18 +78,18 @@ export function formatBuiltAt(iso: string | undefined, now: Date = new Date()): 
   const diffMs = now.getTime() - then.getTime();
   // Eine Uhr, die in der Zukunft liegt (Zeitzone, NTP-Sprung), darf nicht
   // „vor -3 Stunden" ergeben.
-  if (diffMs < 0) return then.toLocaleDateString('de-DE');
+  if (diffMs < 0) return then.toLocaleDateString(gebiet());
 
   const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return 'gerade eben';
-  if (minutes < 60) return `vor ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'}`;
+  if (minutes < 1) return tx(T, 'gerade');
+  if (minutes < 60) return minutes === 1 ? tx(T, 'vorMinute') : tx(T, 'vorMinuten', { n: minutes });
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `vor ${hours} ${hours === 1 ? 'Stunde' : 'Stunden'}`;
+  if (hours < 24) return hours === 1 ? tx(T, 'vorStunde') : tx(T, 'vorStunden', { n: hours });
 
   const days = Math.floor(hours / 24);
-  if (days === 1) return 'gestern';
-  if (days < 7) return `vor ${days} Tagen`;
+  if (days === 1) return tx(T, 'gestern');
+  if (days < 7) return tx(T, 'vorTagen', { n: days });
 
-  return `am ${then.toLocaleDateString('de-DE')}`;
+  return tx(T, 'amDatum', { datum: then.toLocaleDateString(gebiet()) });
 }

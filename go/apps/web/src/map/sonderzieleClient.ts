@@ -13,6 +13,9 @@
  * den Verkehrsmeldungen passiert.
  */
 
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 /** Ein Sonderziel, wie die Karte es zeichnet. */
 export interface SonderzielEigenschaften {
   name: string;
@@ -77,9 +80,7 @@ export function pruefeAntwort(roh: unknown): SonderzieleAntwort {
     type: 'FeatureCollection',
     features: features.filter(istMerkmal),
     befund: {
-      indizes: Array.isArray(befund.indizes)
-        ? (befund.indizes as SonderzielBefund['indizes'])
-        : [],
+      indizes: Array.isArray(befund.indizes) ? (befund.indizes as SonderzielBefund['indizes']) : [],
       kategorien: Array.isArray(befund.kategorien)
         ? (befund.kategorien as SonderzielBefund['kategorien'])
         : [],
@@ -138,6 +139,6 @@ function apiUrl(path: string): string {
 /** Holt die Sonderziele vom Kern. */
 export async function holeSonderziele(): Promise<SonderzieleAntwort> {
   const antwort = await fetch(apiUrl('api/v1/map/sonderziele'));
-  if (!antwort.ok) throw new Error(`Sonderziele: HTTP ${antwort.status}`);
+  if (!antwort.ok) throw new Error(tx(T, 'sonderzieleHttp', { status: antwort.status }));
   return pruefeAntwort(await antwort.json());
 }

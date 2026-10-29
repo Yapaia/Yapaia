@@ -48,8 +48,11 @@ import { useBedienSeite, useKartenSeite, PANEL_BREITE_PX } from './bedienSeite.j
 import { TOP_BAR_HEIGHT_PX, TOP_BAR_RIGHT_RESERVE_PX } from './mapControlLayout.js';
 import { useSchmal } from './useSchmal.js';
 import { useFahrtAnsicht } from '../drive/useFahrtAnsicht.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 export default function TopBar(): React.ReactElement | null {
+  const t = useT(T);
   const schmal = useSchmal();
   // ─── WAEHREND DER FAHRT: GAR NICHT ────────────────────────────────────────
   // Marke, Fahrzeugwahl und Suche braucht man beim Suchen und Planen. Waehrend
@@ -138,9 +141,9 @@ export default function TopBar(): React.ReactElement | null {
           <button
             type="button"
             onClick={() => setMenueOffen(true)}
-            aria-label="Einstellungen"
+            aria-label={t('einstellungen')}
             aria-expanded={menueOffen}
-            title="Einstellungen"
+            title={t('einstellungen')}
             className="pointer-events-auto flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-flaeche/95 text-lg shadow-md hover:bg-slate-100 dark:bg-slate-800/95 dark:hover:bg-slate-700"
             data-testid="einstellungen-toggle"
           >

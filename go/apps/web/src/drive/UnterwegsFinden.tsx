@@ -16,6 +16,8 @@ import React, { useState } from 'react';
 import { UNTERWEGS_KATEGORIEN, type UnterwegsKategorie } from '@yapaia/shared';
 import { stationsZeile, type BordStation } from '../bord/bordStore.js';
 import PreisMarke, { useSpritpreise } from '../tanken/PreisMarke.js';
+import { tx, useT } from '../i18n/index.js';
+import { T, kategorieName } from './texte.js';
 
 export interface UnterwegsErgebnis {
   kategorie: UnterwegsKategorie;
@@ -32,7 +34,7 @@ type Stand =
 export async function holeUnterwegs(kategorie: string): Promise<UnterwegsErgebnis | null> {
   try {
     const antwort = await fetch(
-      `${import.meta.env.BASE_URL}api/v1/unterwegs?kategorie=${encodeURIComponent(kategorie)}&anzahl=3`,
+      `${import.meta.env.BASE_URL}api/v1/unterwegs?kategorie=${encodeURIComponent(kategorie)}&anzahl=3`
     );
     if (!antwort.ok) return null;
     const { data } = (await antwort.json()) as { data?: UnterwegsErgebnis };
@@ -44,10 +46,10 @@ export async function holeUnterwegs(kategorie: string): Promise<UnterwegsErgebni
 
 /** Was man sagt, wenn nichts gefunden wurde -- mit dem Grund. */
 export function nichtsGefunden(e: UnterwegsErgebnis): string {
-  const was = e.kategorie.name;
-  if (e.bezug === 'keiner') return `Ohne Position lässt sich keine ${was} in der Nähe suchen.`;
-  if (e.bezug === 'route') return `Keine ${was} in den nächsten 80 km an der Strecke.`;
-  return `Keine ${was} im Umkreis von 25 km.`;
+  const was = kategorieName(e.kategorie, true);
+  if (e.bezug === 'keiner') return tx(T, 'nichts_keiner', { was });
+  if (e.bezug === 'route') return tx(T, 'nichts_route', { was });
+  return tx(T, 'nichts_umkreis', { was });
 }
 
 export default function UnterwegsFinden({
@@ -60,7 +62,10 @@ export default function UnterwegsFinden({
   /** Das letzte Ergebnis, wenn man aus der Vorschau zur Liste zurückkehrt. */
   anfang?: UnterwegsErgebnis | null;
 }): React.ReactElement {
-  const [stand, setStand] = useState<Stand>(anfang ? { art: 'fertig', ergebnis: anfang } : { art: 'leer' });
+  const t = useT(T);
+  const [stand, setStand] = useState<Stand>(
+    anfang ? { art: 'fertig', ergebnis: anfang } : { art: 'leer' }
+  );
 
   const suche = async (k: UnterwegsKategorie) => {
     setStand({ art: 'laedt', kategorie: k });
@@ -70,17 +75,25 @@ export default function UnterwegsFinden({
 
   // 0.42.0: bei Tankstellen gleich den Preis (Tankerkönig), sonst nichts.
   const tankTreffer = React.useMemo(
-    () => (stand.art === 'fertig' && stand.ergebnis.kategorie.id === 'fuel' ? stand.ergebnis.treffer : []),
-    [stand],
+    () =>
+      stand.art === 'fertig' && stand.ergebnis.kategorie.id === 'fuel'
+        ? stand.ergebnis.treffer
+        : [],
+    [stand]
   );
   const preise = useSpritpreise(tankTreffer);
 
-  const aktiv = stand.art === 'laedt' ? stand.kategorie.id : stand.art === 'fertig' ? stand.ergebnis.kategorie.id : null;
+  const aktiv =
+    stand.art === 'laedt'
+      ? stand.kategorie.id
+      : stand.art === 'fertig'
+        ? stand.ergebnis.kategorie.id
+        : null;
 
   return (
     <section aria-labelledby="fahrt-menue-unterwegs" data-testid="unterwegs-finden">
       <h2 id="fahrt-menue-unterwegs" className="mb-2 font-semibold">
-        Unterwegs finden
+        {t('unterwegs_finden')}
       </h2>
       <ul className="flex flex-wrap gap-2">
         {UNTERWEGS_KATEGORIEN.map((k) => (
@@ -96,17 +109,21 @@ export default function UnterwegsFinden({
               }`}
               data-testid={`unterwegs-kategorie-${k.id}`}
             >
-              <span aria-hidden="true">{k.symbol}</span> {k.name}
+              <span aria-hidden="true">{k.symbol}</span> {kategorieName(k)}
             </button>
           </li>
         ))}
       </ul>
 
       <div className="mt-2" aria-live="polite">
-        {stand.art === 'laedt' && <p className="text-xs text-slate-500">Suche {stand.kategorie.name} …</p>}
+        {stand.art === 'laedt' && (
+          <p className="text-xs text-slate-500">
+            {t('suche_laeuft', { was: kategorieName(stand.kategorie, true) })}
+          </p>
+        )}
         {stand.art === 'fehler' && (
           <p className="text-xs text-red-700 dark:text-red-300" data-testid="unterwegs-fehler">
-            Die Suche hat nicht geantwortet.
+            {t('suche_keine_antwort')}
           </p>
         )}
         {stand.art === 'fertig' &&

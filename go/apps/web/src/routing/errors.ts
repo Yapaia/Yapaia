@@ -1,5 +1,8 @@
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 /**
- * Maps routing error codes to user-facing German messages (E03-T3, E03-T6).
+ * Maps routing error codes to user-facing messages (German/English) (E03-T3, E03-T6).
  * `NO_POSITION` (409, thrown by the Core when `origin: 'current'` can't be
  * resolved because there's no live GPS fix) gets a dedicated, actionable
  * hint; `OUT_OF_COVERAGE` (422, E03-T6) gets a hint about downloading regions.
@@ -8,11 +11,11 @@
 export function friendlyRoutingErrorMessage(code: string, message: string): string {
   switch (code) {
     case 'NO_POSITION':
-      return 'Aktuelle Position nicht verfügbar. Bitte GPS aktivieren und erneut versuchen.';
+      return tx(T, 'keinePosition');
     case 'NO_ACTIVE_PROFILE':
-      return 'Kein aktives Fahrzeugprofil ausgewählt. Bitte zuerst ein Profil aktivieren.';
+      return tx(T, 'keinProfilAktivieren');
     case 'OUT_OF_COVERAGE':
-      return 'Ziel liegt außerhalb der installierten Kartenabdeckung. Bitte weitere Regionen herunterladen.';
+      return tx(T, 'ausserhalbAbdeckung');
     default:
       return message;
   }

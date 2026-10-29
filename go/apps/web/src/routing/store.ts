@@ -21,6 +21,8 @@
  */
 
 import { create } from 'zustand';
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 import type { LatLng, Route, RouteAvoidOverrides, RouteMode } from '@yapaia/shared';
 import * as client from './client.js';
 import { RoutingApiError } from './client.js';
@@ -153,7 +155,11 @@ export interface RoutingState {
   /** Haengt ein Zwischenziel ans Ende an und berechnet neu, wenn schon eine Route steht. */
   addWaypoint: (latlng: LatLng, name: string | null, params: RequestRouteParams | null) => void;
   /** Ein Zwischenziel als NAECHSTEN Halt einschieben -- siehe `waypoints.ts#addWaypointVorn`. */
-  zwischenstoppVorn: (latlng: LatLng, name: string | null, params: RequestRouteParams | null) => void;
+  zwischenstoppVorn: (
+    latlng: LatLng,
+    name: string | null,
+    params: RequestRouteParams | null
+  ) => void;
   /** Entfernt ein Zwischenziel und berechnet neu, wenn schon eine Route steht. */
   removeWaypoint: (id: string, params: RequestRouteParams | null) => void;
   /** Verschiebt ein Zwischenziel um eine Position und berechnet neu. */
@@ -168,7 +174,7 @@ export interface RoutingState {
   toggleAvoidOverride: (
     flag: keyof RouteAvoidOverrides,
     profileDefault: boolean,
-    params: RequestRouteParams,
+    params: RequestRouteParams
   ) => void;
   /** Adds a temporary avoidance polygon and immediately reroutes with `params`. */
   /** Setzt die Routenart und berechnet neu, wenn schon eine Route steht. */
@@ -225,7 +231,7 @@ function nextAvoidanceId(): string {
 function applyWaypointChange(
   waypoints: Waypoint[],
   params: RequestRouteParams | null,
-  get: () => RoutingState,
+  get: () => RoutingState
 ): void {
   if (isDriveActive(useNavStore.getState().navState?.status)) {
     void updateNavigationWaypoints(toRequestWaypoints(waypoints)).catch(() => {
@@ -341,7 +347,7 @@ export const useRoutingStore = create<RoutingState>((set, get) => ({
     if (!profileId) {
       set({
         status: 'error',
-        error: { code: 'NO_ACTIVE_PROFILE', message: 'Kein aktives Fahrzeugprofil ausgewählt.' },
+        error: { code: 'NO_ACTIVE_PROFILE', message: tx(T, 'keinProfil') },
         routes: [],
         activeRouteId: null,
       });
@@ -368,18 +374,23 @@ export const useRoutingStore = create<RoutingState>((set, get) => ({
           routes: [],
           activeRouteId: null,
           status: 'error',
-          error: { code: 'NO_ROUTES', message: 'Keine Route gefunden.' },
+          error: { code: 'NO_ROUTES', message: tx(T, 'keineRoute') },
         });
         return;
       }
       set({ routes, activeRouteId: routes[0].id, status: 'success', error: null });
     } catch (err) {
       if (err instanceof RoutingApiError) {
-        set({ status: 'error', error: { code: err.code, message: err.message }, routes: [], activeRouteId: null });
+        set({
+          status: 'error',
+          error: { code: err.code, message: err.message },
+          routes: [],
+          activeRouteId: null,
+        });
       } else {
         set({
           status: 'error',
-          error: { code: 'UNKNOWN', message: 'Route konnte nicht berechnet werden.' },
+          error: { code: 'UNKNOWN', message: tx(T, 'routeFehlgeschlagen') },
           routes: [],
           activeRouteId: null,
         });
@@ -488,7 +499,7 @@ export const useRoutingStore = create<RoutingState>((set, get) => ({
       } else {
         set({
           status: 'error',
-          error: { code: 'UNKNOWN', message: 'Reihenfolge konnte nicht optimiert werden.' },
+          error: { code: 'UNKNOWN', message: tx(T, 'reihenfolgeFehlgeschlagen') },
         });
       }
     }

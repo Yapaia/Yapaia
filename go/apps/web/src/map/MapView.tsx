@@ -1,3 +1,5 @@
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 // ─── NAMENSRAUM STATT STANDARD-EXPORT ─────────────────────────────────────
 // MapLibre 6 hat den Standard-Export entfernt (`TS1192: has no default
@@ -23,7 +25,12 @@ import { useStyleStore, wirksamesPoiAus } from '../state/styleStore';
 import { useKartenSeite } from '../shell/bedienSeite.js';
 import { useDegradationStore } from '../perf/degrade';
 import { useViewModeStore, syncHeadingToBearing } from './viewMode';
-import { RECENTER_MIN_ZOOM, initializeFollowMe, recenterOnPosition, updateFollowMePosition } from './followMe';
+import {
+  RECENTER_MIN_ZOOM,
+  initializeFollowMe,
+  recenterOnPosition,
+  updateFollowMePosition,
+} from './followMe';
 import { useStartPosition } from '../position/PositionInitializer';
 import { usePosition, usePositionStore } from '../position/positionStore';
 import { pickActiveRegion } from './activeRegion';
@@ -113,6 +120,7 @@ export interface MapViewProps {
 }
 
 export default function MapView({ chrome = true }: MapViewProps = {}): React.ReactElement {
+  const t = useT(T);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const setMap = useMapStore((state) => state.setMap);
@@ -152,8 +160,11 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
   const chipFilter = useStyleStore((state) => state.chipFilter);
   // Ein aktiver Chip in der Kopfzeile filtert, ohne die Einstellung zu ändern.
   const userStyleOptions = useMemo(
-    () => ({ ...gespeicherteOptionen, poiAus: wirksamesPoiAus(gespeicherteOptionen.poiAus, chipFilter) }),
-    [gespeicherteOptionen, chipFilter],
+    () => ({
+      ...gespeicherteOptionen,
+      poiAus: wirksamesPoiAus(gespeicherteOptionen.poiAus, chipFilter),
+    }),
+    [gespeicherteOptionen, chipFilter]
   );
   // Transient performance-degradation caps (E01-T6). These clamp the effective
   // render options DOWN from the user's persisted choice under low FPS; they
@@ -428,14 +439,17 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
           erste.lon >= r.bounds[0] &&
           erste.lon <= r.bounds[2] &&
           erste.lat >= r.bounds[1] &&
-          erste.lat <= r.bounds[3],
+          erste.lat <= r.bounds[3]
       );
       if (inKarte) {
         // Läuft gerade eine Kamerafahrt (etwa das Neigen in die 3D-Ansicht
         // beim Start), erst danach -- ein Sprung bräche sie ab.
         const heran = (): void => {
           if (!recenterOnPosition()) {
-            mapController.setCamera({ center: [erste.lon, erste.lat], zoom: Math.max(map.getZoom(), RECENTER_MIN_ZOOM) });
+            mapController.setCamera({
+              center: [erste.lon, erste.lat],
+              zoom: Math.max(map.getZoom(), RECENTER_MIN_ZOOM),
+            });
           }
         };
         if (map.isMoving()) map.once('moveend', heran);
@@ -513,17 +527,14 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
       >
         <div className="text-center p-6 max-w-sm">
           <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-            Keine Karte installiert
+            {t('keineKarteTitel')}
           </p>
           {/* Vorher stand hier „Lade eine Region herunter". Das war eine
               Anweisung, die nicht ausführbar war: die mitgelieferten
               Katalogeinträge haben keine fertige Datei zum Herunterladen,
               die Kacheln werden gebaut (siehe
               `apps/core/src/map/regions/catalog.ts`). */}
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-            Für dieses Gerät sind noch keine Kartenkacheln vorhanden. Öffne ⚙️ →
-            „Installation prüfen" — dort steht, was genau fehlt und was dagegen zu tun ist.
-          </p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('keineKarteText')}</p>
         </div>
         {/* Regionen, Store und Installationspruefung sind auch ohne Karte
             erreichbar -- seit 0.23 ueber das ⚙-Menue im Seitenpanel. */}

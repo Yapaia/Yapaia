@@ -7,6 +7,8 @@
  */
 
 import React from 'react';
+import { T } from '../texte.js';
+import { useT } from '../../i18n/index.js';
 
 export interface EditToolbarProps {
   onSave: () => void;
@@ -14,7 +16,12 @@ export interface EditToolbarProps {
   onRequestReset: () => void;
 }
 
-export function EditToolbar({ onSave, onCancel, onRequestReset }: EditToolbarProps): React.ReactElement {
+export function EditToolbar({
+  onSave,
+  onCancel,
+  onRequestReset,
+}: EditToolbarProps): React.ReactElement {
+  const t = useT(T);
   return (
     <div
       data-testid="edit-toolbar"
@@ -23,8 +30,8 @@ export function EditToolbar({ onSave, onCancel, onRequestReset }: EditToolbarPro
       <button
         type="button"
         data-testid="edit-reset-button"
-        aria-label="Auf Standard zurücksetzen"
-        title="Auf Standard zurücksetzen"
+        aria-label={t('aufStandardAria')}
+        title={t('aufStandardAria')}
         onClick={onRequestReset}
         className="rounded bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-600"
       >
@@ -33,8 +40,8 @@ export function EditToolbar({ onSave, onCancel, onRequestReset }: EditToolbarPro
       <button
         type="button"
         data-testid="edit-cancel-button"
-        aria-label="Bearbeiten abbrechen"
-        title="Abbrechen (verwirft alle Änderungen)"
+        aria-label={t('abbrechenAria')}
+        title={t('abbrechenTitel')}
         onClick={onCancel}
         className="rounded bg-rose-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-600"
       >
@@ -43,8 +50,8 @@ export function EditToolbar({ onSave, onCancel, onRequestReset }: EditToolbarPro
       <button
         type="button"
         data-testid="edit-save-button"
-        aria-label="Layout speichern"
-        title="Speichern"
+        aria-label={t('layoutSpeichern')}
+        title={t('speichern')}
         onClick={onSave}
         className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500"
       >
@@ -63,14 +70,18 @@ export interface ResetConfirmDialogProps {
  *  unstyleable, blocks the whole page, and Playwright can only drive via a
  *  separate `page.on('dialog', ...)` side-channel rather than ordinary
  *  `getByTestId` assertions like every other flow in this app's e2e suite). */
-export function ResetConfirmDialog({ onConfirm, onCancel }: ResetConfirmDialogProps): React.ReactElement {
+export function ResetConfirmDialog({
+  onConfirm,
+  onCancel,
+}: ResetConfirmDialogProps): React.ReactElement {
+  const t = useT(T);
   return (
     <div
       data-testid="edit-reset-confirm"
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
     >
       <div className="max-w-xs rounded-lg bg-slate-900 p-4 text-slate-100 shadow-xl">
-        <p className="mb-3 text-sm">Layout auf Standard zurücksetzen? Alle Änderungen an diesem Layout gehen verloren.</p>
+        <p className="mb-3 text-sm">{t('resetFrage')}</p>
         <div className="flex justify-end gap-2">
           <button
             type="button"
@@ -78,7 +89,7 @@ export function ResetConfirmDialog({ onConfirm, onCancel }: ResetConfirmDialogPr
             onClick={onCancel}
             className="rounded bg-slate-700 px-3 py-1.5 text-sm text-white hover:bg-slate-600"
           >
-            Abbrechen
+            {t('abbrechen')}
           </button>
           <button
             type="button"
@@ -86,7 +97,7 @@ export function ResetConfirmDialog({ onConfirm, onCancel }: ResetConfirmDialogPr
             onClick={onConfirm}
             className="rounded bg-rose-600 px-3 py-1.5 text-sm text-white hover:bg-rose-500"
           >
-            Zurücksetzen
+            {t('zuruecksetzen')}
           </button>
         </div>
       </div>

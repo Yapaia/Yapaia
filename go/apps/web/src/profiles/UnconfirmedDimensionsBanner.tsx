@@ -43,6 +43,8 @@ import { useNavState } from '../drive/navStore.js';
 import { isDriveActive } from '../drive/ManeuverPanel.js';
 import { useOnboardingStore, selectShouldShowWizard } from '../onboarding/store.js';
 import { useProfileStore } from './store.js';
+import { useT, tx } from '../i18n/index.js';
+import { T } from './texte.js';
 import { formatDimensions, needsDimensionConfirmation } from './unconfirmedDimensions.js';
 
 export interface UnconfirmedDimensionsBannerProps {
@@ -54,6 +56,7 @@ export interface UnconfirmedDimensionsBannerProps {
 export default function UnconfirmedDimensionsBanner({
   onEdit,
 }: UnconfirmedDimensionsBannerProps = {}): React.ReactElement | null {
+  const t = useT(T);
   const activeProfile = useProfileStore((state) => state.activeProfile);
   // Solange der Assistent laeuft, schweigt der Hinweis: dort gibt es den
   // Fahrzeug-Schritt, und beide sind Vollbild-Overlays mit `z-50` -- das
@@ -72,7 +75,7 @@ export default function UnconfirmedDimensionsBanner({
     try {
       await confirmDimensions(activeProfile.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bestätigen fehlgeschlagen.');
+      setError(err instanceof Error ? err.message : tx(T, 'bestaetigenFehler'));
     } finally {
       setIsBusy(false);
     }
@@ -94,15 +97,14 @@ export default function UnconfirmedDimensionsBanner({
         className="max-w-md rounded-lg border-t-4 border-amber-500 bg-amber-50 px-5 py-4 text-amber-950 shadow-xl dark:bg-slate-800 dark:text-amber-50"
       >
         <p id="unconfirmed-dimensions-title" className="text-lg font-semibold">
-          Stimmen die Maße deines Fahrzeugs?
+          {t('stimmenMasse')}
         </p>
         <p className="mt-1 text-sm">
-          Routen werden gerade für{' '}
+          {t('routenFuer')}{' '}
           <span data-testid="unconfirmed-dimensions-values" className="font-mono font-semibold">
             {formatDimensions(activeProfile)}
-          </span>{' '}
-          geplant. Diese Werte sind eine Voreinstellung — sie wurden nie bestätigt. Sind sie zu
-          klein, führt die Route unter zu niedrigen Brücken hindurch.
+          </span>
+          {t('geplant')}
         </p>
         {error && (
           <p className="mt-1 text-sm font-semibold" data-testid="unconfirmed-dimensions-error">
@@ -117,7 +119,7 @@ export default function UnconfirmedDimensionsBanner({
             disabled={isBusy}
             className="rounded bg-amber-700 px-4 py-2 font-semibold text-white disabled:opacity-60"
           >
-            Maße stimmen
+            {t('masseStimmen')}
           </button>
           {onEdit && (
             <button
@@ -127,7 +129,7 @@ export default function UnconfirmedDimensionsBanner({
               disabled={isBusy}
               className="rounded border border-amber-700 px-4 py-2 font-semibold disabled:opacity-60"
             >
-              Maße ändern
+              {t('masseAendern')}
             </button>
           )}
         </div>

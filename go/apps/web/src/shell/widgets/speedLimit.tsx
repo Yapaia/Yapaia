@@ -10,10 +10,14 @@
 import type { NavState } from '@yapaia/shared';
 import type { Widget } from '@yapaia/ui';
 import SpeedLimitSign from '../../drive/SpeedLimitSign.js';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const speedLimitWidget: Widget = {
   id: 'speed-limit',
-  name: 'Tempolimit',
+  get name() {
+    return tx(T, 'w_tempolimit');
+  },
   sizes: ['S'],
   topics: ['nav/state'],
   render: ({ data }) => {

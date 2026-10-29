@@ -9,6 +9,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchAuthStatus } from '../client.js';
+import { useT } from '../../i18n/index.js';
+import { T } from '../texte.js';
 
 function apiUrl(path: string): string {
   return `${import.meta.env.BASE_URL}${path}`;
@@ -24,6 +26,7 @@ interface MqttFormValue {
 const BLANK: MqttFormValue = { broker_url: '', username: '', password: '', prefix: 'yapaia' };
 
 export default function MqttStep(): React.ReactElement {
+  const t = useT(T);
   const [ingress, setIngress] = useState<boolean | null>(null);
   const [form, setForm] = useState<MqttFormValue>(BLANK);
   const [saved, setSaved] = useState(false);
@@ -64,8 +67,7 @@ export default function MqttStep(): React.ReactElement {
           className="rounded-md border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-800 dark:text-green-300"
           data-testid="onboarding-mqtt-auto-configured"
         >
-          MQTT wird als Home-Assistant-Add-on automatisch konfiguriert (Broker-Zugangsdaten via
-          Supervisor). Keine weitere Eingabe nötig.
+          {t('mqttAuto')}
         </p>
       </div>
     );
@@ -73,13 +75,10 @@ export default function MqttStep(): React.ReactElement {
 
   return (
     <div className="space-y-3" data-testid="onboarding-step-mqtt">
-      <p className="text-sm text-slate-600 dark:text-slate-300">
-        Optional: Verbinde Yapaia Go mit einem MQTT-Broker (z. B. für Home-Assistant-Integration).
-        Kann jederzeit übersprungen werden.
-      </p>
+      <p className="text-sm text-slate-600 dark:text-slate-300">{t('mqttOptional')}</p>
       <input
         type="text"
-        placeholder="Broker-URL (z. B. mqtt://192.168.1.10:1883)"
+        placeholder={t('mqttBroker')}
         value={form.broker_url}
         onChange={(e) => setForm((prev) => ({ ...prev, broker_url: e.target.value }))}
         className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1.5 text-sm"
@@ -87,7 +86,7 @@ export default function MqttStep(): React.ReactElement {
       />
       <input
         type="text"
-        placeholder="Benutzername (optional)"
+        placeholder={t('mqttUser')}
         value={form.username}
         onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
         className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1.5 text-sm"
@@ -95,7 +94,7 @@ export default function MqttStep(): React.ReactElement {
       />
       <input
         type="password"
-        placeholder="Passwort (optional)"
+        placeholder={t('mqttPass')}
         value={form.password}
         onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
         className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1.5 text-sm"
@@ -107,11 +106,14 @@ export default function MqttStep(): React.ReactElement {
         className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium"
         data-testid="onboarding-mqtt-save-button"
       >
-        Speichern
+        {t('speichern')}
       </button>
       {saved && (
-        <p className="text-xs text-green-700 dark:text-green-400" data-testid="onboarding-mqtt-saved">
-          Gespeichert.
+        <p
+          className="text-xs text-green-700 dark:text-green-400"
+          data-testid="onboarding-mqtt-saved"
+        >
+          {t('gespeichert')}
         </p>
       )}
     </div>

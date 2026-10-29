@@ -16,9 +16,22 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { fetchMarktplatz, saveMarktplatz, setEntwicklermodus, StoreApiError, type MarktplatzStand } from './client.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
+import {
+  fetchMarktplatz,
+  saveMarktplatz,
+  setEntwicklermodus,
+  StoreApiError,
+  type MarktplatzStand,
+} from './client.js';
 
-export default function MarktplatzSection({ gespeichert }: { gespeichert: () => void }): React.ReactElement {
+export default function MarktplatzSection({
+  gespeichert,
+}: {
+  gespeichert: () => void;
+}): React.ReactElement {
+  const t = useT(T);
   const [stand, setStand] = useState<MarktplatzStand | null>(null);
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
@@ -43,11 +56,16 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
       setToken('');
       setMeldung({
         ok: true,
-        text: entfernen ? 'Marktplatz entfernt.' : `Verbunden mit ${s.name || s.url}${s.token_gesetzt ? ' (Konto hinterlegt)' : ''}.`,
+        text: entfernen
+          ? t('mpEntfernt')
+          : t('mpVerbunden', { name: s.name || s.url, konto: s.token_gesetzt ? t('mpKonto') : '' }),
       });
       gespeichert();
     } catch (err) {
-      setMeldung({ ok: false, text: err instanceof StoreApiError ? err.message : 'Speichern fehlgeschlagen.' });
+      setMeldung({
+        ok: false,
+        text: err instanceof StoreApiError ? err.message : t('mpSpeichernFehler'),
+      });
     } finally {
       setLaeuft(false);
     }
@@ -58,18 +76,22 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
     try {
       setStand(await setEntwicklermodus(an));
     } catch (err) {
-      setMeldung({ ok: false, text: err instanceof StoreApiError ? err.message : 'Speichern fehlgeschlagen.' });
+      setMeldung({
+        ok: false,
+        text: err instanceof StoreApiError ? err.message : t('mpSpeichernFehler'),
+      });
     }
   };
 
   return (
-    <section className="rounded-lg border border-slate-200 dark:border-slate-700 p-2" data-testid="marktplatz">
-      <div className="font-semibold text-xs">Marktplatz</div>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Signierte Add-ons, auch gekaufte, aus dem Yapaia-Marktplatz.
-      </p>
+    <section
+      className="rounded-lg border border-slate-200 dark:border-slate-700 p-2"
+      data-testid="marktplatz"
+    >
+      <div className="font-semibold text-xs">{t('mpTitel')}</div>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{t('mpUntertitel')}</p>
       <label className="block mt-2 text-xs">
-        Adresse
+        {t('mpAdresse')}
         <input
           type="url"
           inputMode="url"
@@ -82,11 +104,11 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
         />
       </label>
       <label className="block mt-2 text-xs">
-        Konto-Token
+        {t('mpToken')}
         <input
           type="password"
           autoComplete="off"
-          placeholder={stand?.token_gesetzt ? 'hinterlegt – leer lassen zum Behalten' : 'Token aus deinem Marktplatz-Konto (optional)'}
+          placeholder={stand?.token_gesetzt ? t('mpTokenHinterlegt') : t('mpTokenLeer')}
           value={token}
           onChange={(e) => setToken(e.target.value)}
           className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-sm"
@@ -100,7 +122,7 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
           className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
           data-testid="marktplatz-speichern"
         >
-          {laeuft ? 'Prüfe…' : 'Verbinden'}
+          {laeuft ? t('mpPruefe') : t('mpVerbinden')}
         </button>
         {stand?.url && (
           <button
@@ -109,7 +131,7 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
             className="text-[11px] underline text-slate-500 dark:text-slate-400 disabled:opacity-50"
             data-testid="marktplatz-entfernen"
           >
-            Entfernen
+            {t('mpEntfernen')}
           </button>
         )}
       </div>
@@ -130,15 +152,16 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
           data-testid="marktplatz-entwicklermodus"
         />
         <span>
-          Entwicklermodus
-          <span className="block text-slate-500 dark:text-slate-400">
-            Erlaubt unsignierte Add-ons und einen Marktplatz ohne https. Nur für eigene Tests einschalten.
-          </span>
+          {t('mpEntwickler')}
+          <span className="block text-slate-500 dark:text-slate-400">{t('mpEntwicklerText')}</span>
         </span>
       </label>
       {stand?.installation_id && (
-        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400" data-testid="marktplatz-installation">
-          Installations-Id: <span className="font-mono">{stand.installation_id}</span>
+        <p
+          className="mt-2 text-[11px] text-slate-500 dark:text-slate-400"
+          data-testid="marktplatz-installation"
+        >
+          {t('mpInstallationsId')} <span className="font-mono">{stand.installation_id}</span>
         </p>
       )}
     </section>

@@ -9,44 +9,41 @@
 
 import React, { useState } from 'react';
 import { hasValidConsent, type OnboardingState } from '../state.js';
+import { gebiet, useSprache, useT } from '../../i18n/index.js';
+import { T } from '../texte.js';
 
 export interface DisclaimerStepProps {
   state: OnboardingState;
   onAccept: () => void;
 }
 
-export default function DisclaimerStep({ state, onAccept }: DisclaimerStepProps): React.ReactElement {
+export default function DisclaimerStep({
+  state,
+  onAccept,
+}: DisclaimerStepProps): React.ReactElement {
+  const t = useT(T);
+  const sprache = useSprache((s) => s.sprache);
   const [checked, setChecked] = useState(hasValidConsent(state));
   const accepted = hasValidConsent(state);
 
   return (
     <div className="space-y-4" data-testid="onboarding-step-disclaimer">
       <div className="rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-900 dark:text-amber-200 space-y-2 max-h-[50vh] overflow-y-auto">
-        <p className="font-semibold">Hinweise zur Nutzung und Haftungsausschluss</p>
+        <p className="font-semibold">{t('dTitel')}</p>
         <p>
-          <strong>Du fährst, nicht Yapaia.</strong> Die Verantwortung für das Führen des Fahrzeugs
-          liegt jederzeit bei der Person am Steuer. Verkehrszeichen, Beschilderung und Anweisungen
-          vor Ort haben immer Vorrang vor der Navigation. Bediene Yapaia nicht während der Fahrt.
+          <strong>{t('d1Fett')}</strong>
+          {t('d1')}
         </p>
         <p>
-          <strong>Alle Anzeigen sind Hinweise ohne Gewähr.</strong> Das gilt für Routen,
-          Durchfahrtshöhen, Gewichts- und Breitenbeschränkungen, Tempolimits, Spurempfehlungen,
-          Verkehrsmeldungen, Rückfahrkamera, Neigung, Reifendruck, Füllstände und Batteriewerte.
-          Sensoren und Kartendaten können ausfallen, ungenau, falsch oder veraltet sein. Sie ersetzen
-          weder den Blick nach draußen noch eigene Prüfung.
+          <strong>{t('d2Fett')}</strong>
+          {t('d2')}
         </p>
+        <p>{t('d3')}</p>
         <p>
-          Die Kartendaten stammen aus OpenStreetMap (© OpenStreetMap contributors). Höhen-, Gewichts-
-          und sonstige Einschränkungen sind dort nicht vollständig erfasst.
+          <strong>{t('d4Fett')}</strong>
+          {t('d4')}
         </p>
-        <p>
-          <strong>Software ohne Gewähr.</strong> Yapaia ist freie Software unter der GNU General
-          Public License 3.0 und wird unentgeltlich und ohne Gewährleistung bereitgestellt. Die
-          Haftung ist ausgeschlossen, soweit das Gesetz es zulässt; unberührt bleibt die Haftung für
-          Vorsatz und grobe Fahrlässigkeit sowie für Schäden aus der Verletzung des Lebens, des
-          Körpers oder der Gesundheit nach den gesetzlichen Vorschriften.
-        </p>
-        <p>Es findet keine Telemetrie ohne deine Zustimmung statt; alle Daten bleiben lokal.</p>
+        <p>{t('d5')}</p>
       </div>
 
       <label className="flex items-start gap-2 text-sm cursor-pointer">
@@ -57,11 +54,7 @@ export default function DisclaimerStep({ state, onAccept }: DisclaimerStepProps)
           className="mt-0.5"
           data-testid="onboarding-disclaimer-checkbox"
         />
-        <span>
-          Ich habe die Hinweise und den Haftungsausschluss gelesen und verstanden. Mir ist bewusst,
-          dass alle Anzeigen fehlerhaft sein können und ich als Fahrer für das Fahrzeug
-          verantwortlich bleibe.
-        </span>
+        <span>{t('dHaken')}</span>
       </label>
 
       {accepted ? (
@@ -69,8 +62,10 @@ export default function DisclaimerStep({ state, onAccept }: DisclaimerStepProps)
           className="text-xs text-green-700 dark:text-green-400"
           data-testid="onboarding-disclaimer-accepted-status"
         >
-          Zugestimmt am {new Date(state.disclaimer!.acceptedAt).toLocaleString('de-DE')} (Version{' '}
-          {state.disclaimer!.version}).
+          {t('zugestimmt', {
+            datum: new Date(state.disclaimer!.acceptedAt).toLocaleString(gebiet(sprache)),
+            version: state.disclaimer!.version,
+          })}
         </p>
       ) : (
         <button
@@ -80,7 +75,7 @@ export default function DisclaimerStep({ state, onAccept }: DisclaimerStepProps)
           className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           data-testid="onboarding-disclaimer-accept-button"
         >
-          Zustimmen
+          {t('zustimmen')}
         </button>
       )}
     </div>

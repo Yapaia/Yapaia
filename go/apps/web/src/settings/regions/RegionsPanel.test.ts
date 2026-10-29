@@ -170,6 +170,6 @@ describe('ein Vorgang bleibt sichtbar', () => {
   it('es steht etwas da, wenn es noch keine Erfahrungswerte gibt', () => {
     // Beim ERSTEN Bau einer Karte ist das der Normalfall. Ein leeres Feld
     // sähe aus wie ein Fehler.
-    expect(CODE).toContain('Restzeit noch unbekannt');
+    expect(CODE).toContain("t('restzeitUnbekannt')");
   });
 });

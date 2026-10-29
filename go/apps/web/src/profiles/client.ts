@@ -6,6 +6,8 @@
  * `import.meta.env.BASE_URL` so this keeps working under an ingress sub-path.
  */
 
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 import type { VehicleProfile } from '@yapaia/shared';
 
 interface ApiErrorBody {
@@ -39,7 +41,7 @@ async function toApiError(response: Response): Promise<ProfileApiError> {
   } catch {
     // Body wasn't the expected error shape; fall through to a generic error.
   }
-  return new ProfileApiError('UNKNOWN', `Request failed with status ${response.status}`);
+  return new ProfileApiError('UNKNOWN', tx(T, 'anfrageFehler', { status: response.status }));
 }
 
 /** List all profiles. Returns [] (never throws) on network/parse failure. */
@@ -72,7 +74,7 @@ export async function fetchProfile(id: string): Promise<VehicleProfile | null> {
 
 /** Create a new profile. Throws ProfileApiError on any non-2xx response. */
 export async function createProfile(
-  data: Omit<VehicleProfile, 'id' | 'is_active'>,
+  data: Omit<VehicleProfile, 'id' | 'is_active'>
 ): Promise<VehicleProfile> {
   const response = await fetch(apiUrl('api/v1/profiles'), {
     method: 'POST',
@@ -89,7 +91,7 @@ export async function createProfile(
 /** Update an existing profile. Throws ProfileApiError on any non-2xx response. */
 export async function updateProfile(
   id: string,
-  data: Partial<VehicleProfile>,
+  data: Partial<VehicleProfile>
 ): Promise<VehicleProfile> {
   const response = await fetch(apiUrl(`api/v1/profiles/${encodeURIComponent(id)}`), {
     method: 'PUT',
@@ -132,7 +134,7 @@ export async function activateProfile(id: string): Promise<VehicleProfile> {
 export async function confirmProfileDimensions(id: string): Promise<VehicleProfile> {
   const response = await fetch(
     apiUrl(`api/v1/profiles/${encodeURIComponent(id)}/confirm_dimensions`),
-    { method: 'PUT' },
+    { method: 'PUT' }
   );
   if (!response.ok) {
     throw await toApiError(response);

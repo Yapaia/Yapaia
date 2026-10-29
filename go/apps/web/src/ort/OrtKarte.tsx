@@ -24,10 +24,13 @@ import { iconForFavoriteCategory } from '../favorites/icons.js';
 import { usePositionStore } from '../position/positionStore.js';
 import { haversineMeters } from '../search/distance.js';
 import { CHIP_ZEICHEN } from '../shell/PoiChips.js';
+import { gebiet, useSprache, useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
-function entfernungText(m: number): string {
+function entfernungText(m: number, ort: string): string {
   if (m < 1000) return `${Math.round(m / 10) * 10} m`;
-  if (m < 10_000) return `${(m / 1000).toFixed(1).replace('.', ',')} km`;
+  if (m < 10_000)
+    return `${(m / 1000).toLocaleString(ort, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
   return `${Math.round(m / 1000)} km`;
 }
 
@@ -48,6 +51,7 @@ function favoritKategorie(symbol: string | null): 'campsite' | 'poi' {
 }
 
 function OnlineTeil({ ort }: { ort: GewaehlterOrt }): React.ReactElement {
+  const t = useT(T);
   const [ergebnis, setErgebnis] = useState<OrtErgebnis | null>(null);
 
   useEffect(() => {
@@ -64,22 +68,21 @@ function OnlineTeil({ ort }: { ort: GewaehlterOrt }): React.ReactElement {
   if (!ergebnis) {
     return (
       <p className="text-sm text-slate-500 dark:text-slate-400" data-testid="ort-online-laedt">
-        Infos aus dem Internet werden geladen …
+        {t('laedt')}
       </p>
     );
   }
   if (ergebnis.art === 'aus') {
     return (
       <p className="text-sm text-slate-500 dark:text-slate-400" data-testid="ort-online-aus">
-        Mehr Infos (Öffnungszeiten, Wikipedia, Bilder) gibt es, wenn „online" in der
-        Add-on-Konfiguration eingeschaltet ist.
+        {t('aus')}
       </p>
     );
   }
   if (ergebnis.art === 'fehler') {
     return (
       <p className="text-sm text-slate-500 dark:text-slate-400" data-testid="ort-online-fehler">
-        Keine Infos aus dem Internet: {ergebnis.text}
+        {t('keineInfos', { text: ergebnis.text })}
       </p>
     );
   }
@@ -90,11 +93,7 @@ function OnlineTeil({ ort }: { ort: GewaehlterOrt }): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-2 text-sm" data-testid="ort-online">
-      {leer && (
-        <p className="text-slate-500 dark:text-slate-400">
-          Im Internet ist zu diesem Ort nichts zu finden.
-        </p>
-      )}
+      {leer && <p className="text-slate-500 dark:text-slate-400">{t('nichtsGefunden')}</p>}
       {osm && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1" data-testid="ort-osm">
           {osm.oeffnungszeiten && (
@@ -163,7 +162,7 @@ function OnlineTeil({ ort }: { ort: GewaehlterOrt }): React.ReactElement {
             rel="noopener noreferrer"
             className="text-xs text-blue-600 underline dark:text-blue-400"
           >
-            Wikipedia: {wikipedia.titel}
+            {t('wikipedia', { titel: wikipedia.titel })}
           </a>
         </div>
       )}
@@ -180,7 +179,7 @@ function OnlineTeil({ ort }: { ort: GewaehlterOrt }): React.ReactElement {
               <img src={b.daten} alt="" className="aspect-square w-full rounded object-cover" />
               {b.art === 'umgebung' && (
                 <span className="absolute bottom-0 left-0 right-0 rounded-b bg-black/50 px-1 text-[10px] text-white">
-                  in der Nähe
+                  {t('inDerNaehe')}
                 </span>
               )}
             </a>
@@ -192,6 +191,8 @@ function OnlineTeil({ ort }: { ort: GewaehlterOrt }): React.ReactElement {
 }
 
 export default function OrtKarte(): React.ReactElement | null {
+  const t = useT(T);
+  const sprache = useSprache((s) => s.sprache);
   const ort = useOrtStore((s) => s.ort);
   const schliesse = useOrtStore((s) => s.schliesse);
   const position = usePositionStore((s) => s.position);
@@ -218,7 +219,7 @@ export default function OrtKarte(): React.ReactElement | null {
       ? '⛔'
       : '🚧'
     : (ort.symbol && CHIP_ZEICHEN[ort.symbol]) || '📍';
-  const titel = ort.name ?? ort.kategorie ?? 'Ort';
+  const titel = ort.name ?? ort.kategorie ?? t('ort');
 
   const route = (): void => {
     const routing = useRoutingStore.getState();
@@ -248,7 +249,7 @@ export default function OrtKarte(): React.ReactElement | null {
   return (
     <section
       className="pointer-events-auto flex max-h-[calc(var(--sicht-h,100vh)-150px)] flex-col gap-3 overflow-y-auto rounded-2xl bg-flaeche p-4 shadow-lg dark:bg-slate-800 dark:text-slate-100"
-      aria-label={`Ort: ${titel}`}
+      aria-label={t('ortAria', { titel })}
       data-testid="ort-karte"
     >
       <div className="flex items-start gap-3">
@@ -269,14 +270,14 @@ export default function OrtKarte(): React.ReactElement | null {
           )}
           {abstand !== null && (
             <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="ort-abstand">
-              {entfernungText(abstand)} Luftlinie
+              {t('luftlinie', { abstand: entfernungText(abstand, gebiet(sprache)) })}
             </p>
           )}
         </div>
         <button
           type="button"
           onClick={schliesse}
-          aria-label="Ortskarte schließen"
+          aria-label={t('schliessen')}
           className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
           data-testid="ort-schliessen"
         >
@@ -293,9 +294,7 @@ export default function OrtKarte(): React.ReactElement | null {
               {ort.verkehr.beschreibung}
             </p>
           )}
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Quelle: Autobahn GmbH des Bundes
-          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{t('quelle')}</p>
         </div>
       ) : (
         <>
@@ -306,7 +305,7 @@ export default function OrtKarte(): React.ReactElement | null {
               className="flex-1 rounded-full bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
               data-testid="ort-route"
             >
-              Route
+              {t('route')}
             </button>
             <button
               type="button"
@@ -315,12 +314,10 @@ export default function OrtKarte(): React.ReactElement | null {
               className="rounded-full border border-slate-300 px-4 py-2 hover:bg-slate-100 disabled:opacity-70 dark:border-slate-600 dark:hover:bg-slate-700"
               data-testid="ort-favorit"
             >
-              {favorit === 'gespeichert' ? '★ Gemerkt' : '☆ Favorit'}
+              {favorit === 'gespeichert' ? t('gemerkt') : t('favorit')}
             </button>
           </div>
-          {favorit === 'fehler' && (
-            <p className="text-sm text-red-600">Favorit konnte nicht gespeichert werden.</p>
-          )}
+          {favorit === 'fehler' && <p className="text-sm text-red-600">{t('favoritFehler')}</p>}
 
           <OnlineTeil ort={ort} />
         </>

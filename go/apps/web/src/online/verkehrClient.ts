@@ -15,6 +15,8 @@
  */
 
 import type { KartenMeldung } from './verkehrGeoJson.js';
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 
 /** Wie lange gewartet wird. Der Kern fragt bis zu acht Straßen nacheinander. */
 const ZEITGRENZE_MS = 45_000;
@@ -48,7 +50,7 @@ function apiUrl(pfad: string): string {
  */
 export async function holeVerkehr(strassen: readonly string[]): Promise<VerkehrErgebnis> {
   if (strassen.length === 0) {
-    return { meldungen: [], strassen: [], ohne_ort: 0, urteil: 'Keine Autobahn auf der Strecke.' };
+    return { meldungen: [], strassen: [], ohne_ort: 0, urteil: tx(T, 'keineAutobahn') };
   }
 
   const abbruch = new AbortController();
@@ -70,25 +72,27 @@ export async function holeVerkehr(strassen: readonly string[]): Promise<VerkehrE
     // jeder Fahrt ist Tapete. Ohne Online-Dienste gibt es eben keine
     // Verkehrslage -- wie auf einer Strecke ohne Autobahn.
     if (antwort.status === 409 && rumpf?.error?.code === 'ONLINE_DISABLED') {
-      return { meldungen: [], strassen: [], ohne_ort: 0, urteil: 'Online-Dienste ausgeschaltet.' };
+      return { meldungen: [], strassen: [], ohne_ort: 0, urteil: tx(T, 'onlineAus') };
     }
     if (!antwort.ok) {
       // Die Meldung des Kerns sagt bereits, wo der Schalter sitzt. Sie durch
       // etwas Eigenes zu ersetzen hiesse, sie zu verlieren.
       return {
-        fehler: rumpf?.error?.message ?? `Die Verkehrslage antwortete mit Status ${antwort.status}.`,
+        fehler: rumpf?.error?.message ?? tx(T, 'statusFehler', { status: antwort.status }),
       };
     }
     if (!rumpf?.data || !Array.isArray(rumpf.data.meldungen)) {
-      return { fehler: 'Die Antwort hatte nicht die erwartete Form.' };
+      return { fehler: tx(T, 'formFehler') };
     }
     return rumpf.data;
   } catch (err) {
     const abgebrochen = (err as Error)?.name === 'AbortError';
     return {
       fehler: abgebrochen
-        ? 'Die Verkehrslage hat zu lange gedauert und wurde abgebrochen.'
-        : `Die Verkehrslage war nicht erreichbar: ${(err as Error)?.message ?? 'unbekannter Fehler'}.`,
+        ? tx(T, 'zuLange')
+        : tx(T, 'nichtErreichbar', {
+            grund: (err as Error)?.message ?? tx(T, 'unbekannterFehler'),
+          }),
     };
   } finally {
     clearTimeout(wecker);

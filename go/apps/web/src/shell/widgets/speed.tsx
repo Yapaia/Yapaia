@@ -6,10 +6,14 @@
 
 import type { NavState } from '@yapaia/shared';
 import type { Widget } from '@yapaia/ui';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const speedWidget: Widget = {
   id: 'speed',
-  name: 'Tempo',
+  get name() {
+    return tx(T, 'w_tempo');
+  },
   sizes: ['M', 'L'],
   topics: ['nav/state'],
   render: ({ data, size }) => {

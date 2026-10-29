@@ -8,18 +8,23 @@
 
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
+import { T } from '../texte.js';
+import { useT } from '../../i18n/index.js';
 
 export function TrashZone(): React.ReactElement {
+  const t = useT(T);
   const { setNodeRef, isOver } = useDroppable({ id: 'trash' });
 
   return (
     <div
       ref={setNodeRef}
       data-testid="edit-trash-zone"
-      aria-label="Widget entfernen"
-      title="Hierher ziehen zum Entfernen"
+      aria-label={t('widgetEntfernen')}
+      title={t('zumEntfernenZiehen')}
       className={`fixed bottom-4 right-4 z-50 flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed text-2xl transition-colors ${
-        isOver ? 'border-red-500 bg-red-500/30 text-red-100' : 'border-slate-400 bg-slate-800/80 text-slate-300'
+        isOver
+          ? 'border-red-500 bg-red-500/30 text-red-100'
+          : 'border-slate-400 bg-slate-800/80 text-slate-300'
       }`}
     >
       🗑

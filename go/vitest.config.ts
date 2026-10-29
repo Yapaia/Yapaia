@@ -15,6 +15,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Tests erwarten die deutsche Oberfläche (i18n: sonst Browsersprache)
+    setupFiles: ['./vitest.setup.ts'],
     globals: true,
     environment: 'node',
     include: [

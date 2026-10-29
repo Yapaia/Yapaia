@@ -7,10 +7,14 @@
 
 import type { Widget } from '@yapaia/ui';
 import { latestPosition } from './positionUtils.js';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const compassWidget: Widget = {
   id: 'compass',
-  name: 'Kompass',
+  get name() {
+    return tx(T, 'w_kompass');
+  },
   sizes: ['S'],
   topics: ['pos/update', 'pos/extrapolated'],
   render: ({ data }) => {

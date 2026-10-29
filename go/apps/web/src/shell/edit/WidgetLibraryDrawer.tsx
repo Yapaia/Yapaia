@@ -13,12 +13,15 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Widget } from '@yapaia/ui';
 import type { WidgetRegistry } from '@yapaia/ui';
 import type { DragItemData } from './editModel.js';
+import { T } from '../texte.js';
+import { useT } from '../../i18n/index.js';
 
 interface LibraryWidgetCardProps {
   widget: Widget;
 }
 
 function LibraryWidgetCard({ widget }: LibraryWidgetCardProps): React.ReactElement {
+  useT(T); // neu zeichnen beim Sprachwechsel (Widget-Name)
   const dragData: DragItemData = { kind: 'library', widgetId: widget.id };
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `library:${widget.id}`,
@@ -39,7 +42,9 @@ function LibraryWidgetCard({ widget }: LibraryWidgetCardProps): React.ReactEleme
       }`}
     >
       <div className="font-semibold">{widget.name}</div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{widget.sizes.join(' / ')}</div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-400">
+        {widget.sizes.join(' / ')}
+      </div>
     </div>
   );
 }
@@ -49,6 +54,7 @@ export interface WidgetLibraryDrawerProps {
 }
 
 export function WidgetLibraryDrawer({ registry }: WidgetLibraryDrawerProps): React.ReactElement {
+  const t = useT(T);
   const widgets = registry.list();
 
   return (
@@ -56,7 +62,9 @@ export function WidgetLibraryDrawer({ registry }: WidgetLibraryDrawerProps): Rea
       data-testid="widget-library"
       className="fixed left-2 top-2 bottom-2 z-50 flex w-40 flex-col gap-2 overflow-y-auto rounded-lg bg-slate-900/95 p-2 shadow-lg"
     >
-      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Widget-Bibliothek</div>
+      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+        {t('widgetBibliothek')}
+      </div>
       {widgets.map((widget) => (
         <LibraryWidgetCard key={widget.id} widget={widget} />
       ))}

@@ -37,6 +37,7 @@ import EinbettungsAnker from './EinbettungsAnker.js';
 import AnkerGriff from '../shell/AnkerGriff.js';
 import { einbettungSteuerung } from './steuerung.js';
 import '../index.css';
+import { spracheHolen } from '../i18n/index.js';
 
 function EmbeddedMap(): React.ReactElement {
   return (
@@ -68,8 +69,10 @@ const root = document.getElementById('root');
 if (!root) {
   throw new Error('Root element not found');
 }
+// Sprache der Oberfläche (i18n): Einstellung `language` des Kerns
+void spracheHolen();
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <EmbeddedMap />
-  </React.StrictMode>,
+  </React.StrictMode>
 );

@@ -4,6 +4,8 @@
  */
 
 import type { LatLng, Route } from '@yapaia/shared';
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export interface SprachTreffer {
   name: string;
@@ -36,11 +38,11 @@ export async function sendeSprachbefehl(text: string): Promise<SprachAntwort> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
-    if (!r.ok) return { antwort: `Das hat nicht geklappt (Fehler ${r.status}).`, absicht: 'fehler' };
+    if (!r.ok) return { antwort: tx(T, 'nicht_geklappt', { status: r.status }), absicht: 'fehler' };
     const body = (await r.json()) as { data?: SprachAntwort };
-    return body.data ?? { antwort: 'Keine Antwort erhalten.', absicht: 'fehler' };
+    return body.data ?? { antwort: tx(T, 'keine_antwort'), absicht: 'fehler' };
   } catch {
-    return { antwort: 'Yapaia ist gerade nicht erreichbar.', absicht: 'fehler' };
+    return { antwort: tx(T, 'nicht_erreichbar'), absicht: 'fehler' };
   }
 }
 

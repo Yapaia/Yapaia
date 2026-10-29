@@ -17,19 +17,24 @@ import type { Position } from '@yapaia/shared';
 import type { Widget, WidgetRenderContext } from '@yapaia/ui';
 import { deriveSignalState, type GpsSignalState } from '../../position/gpsSignal.js';
 import { wasStandingStill } from '../../position/standstill.js';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
-const LABELS: Record<GpsSignalState, string> = {
-  acquiring: 'GPS wird gesucht…',
-  live: 'GPS aktiv',
+const LABELS: Record<GpsSignalState, () => string> = {
+  acquiring: () => tx(T, 'gpsSuche'),
+  live: () => tx(T, 'gpsAktiv'),
   // Kein Ausfall: das Fahrzeug steht, und eine Quelle, die nur bei
   // Aenderungen meldet, hat dann nichts zu melden (siehe `standstill.ts`).
-  standstill: 'GPS aktiv (Fahrzeug steht)',
-  lost: 'GPS-Signal verloren',
+  standstill: () => tx(T, 'gpsStehend'),
+  lost: () => tx(T, 'gpsVerloren'),
 };
 
 const TICK_INTERVAL_MS = 500;
 
-function GpsStatusDisplay({ connected, data }: Pick<WidgetRenderContext, 'connected' | 'data'>): React.ReactElement {
+function GpsStatusDisplay({
+  connected,
+  data,
+}: Pick<WidgetRenderContext, 'connected' | 'data'>): React.ReactElement {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -60,15 +65,17 @@ function GpsStatusDisplay({ connected, data }: Pick<WidgetRenderContext, 'connec
       data-gps-state={state}
       className={`text-xs font-medium ${state === 'lost' ? 'text-red-500' : state === 'live' || state === 'standstill' ? 'text-green-600' : 'text-slate-400'}`}
     >
-      {LABELS[state]}
-      {deadReckoning ? ' (Schätzung)' : ''}
+      {LABELS[state]()}
+      {deadReckoning ? tx(T, 'schaetzung') : ''}
     </div>
   );
 }
 
 export const gpsStatusWidget: Widget = {
   id: 'gps-status',
-  name: 'GPS-Status',
+  get name() {
+    return tx(T, 'w_gpsStatus');
+  },
   sizes: ['S'],
   topics: ['pos/update', 'pos/extrapolated'],
   render: ({ connected, data }) => <GpsStatusDisplay connected={connected} data={data} />,

@@ -22,17 +22,20 @@ import RegionStep from './steps/RegionStep.js';
 import VehicleProfileStep from './steps/VehicleProfileStep.js';
 import GpsStep from './steps/GpsStep.js';
 import MqttStep from './steps/MqttStep.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
-const STEP_LABELS: Record<OnboardingStep, string> = {
-  language: 'Sprache & Einheiten',
-  disclaimer: 'Haftungsausschluss',
-  region: 'Kartenregion',
-  profile: 'Fahrzeugprofil',
-  gps: 'GPS-Quelle',
-  mqtt: 'MQTT (optional)',
+const STEP_LABELS: Record<OnboardingStep, keyof typeof T.de> = {
+  language: 'stepLanguage',
+  disclaimer: 'stepDisclaimer',
+  region: 'stepRegion',
+  profile: 'stepProfile',
+  gps: 'stepGps',
+  mqtt: 'stepMqtt',
 };
 
 export default function OnboardingWizard(): React.ReactElement | null {
+  const t = useT(T);
   const load = useOnboardingStore((s) => s.load);
   const storeState = useOnboardingStore();
   const advanceStep = useOnboardingStore((s) => s.advanceStep);
@@ -81,16 +84,24 @@ export default function OnboardingWizard(): React.ReactElement | null {
     >
       <div className="bg-flaeche dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[calc(var(--sicht-h,100vh)*0.9)] overflow-y-auto p-6 space-y-4">
         <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1" data-testid="onboarding-step-indicator">
-            Schritt {stepIndex + 1} von {ONBOARDING_STEPS.length}
+          <p
+            className="text-xs text-slate-500 dark:text-slate-400 mb-1"
+            data-testid="onboarding-step-indicator"
+          >
+            {t('schritt', { n: stepIndex + 1, gesamt: ONBOARDING_STEPS.length })}
           </p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{STEP_LABELS[step]}</h2>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+            {t(STEP_LABELS[step])}
+          </h2>
         </div>
 
         <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
           {step === 'language' && <LanguageUnitsStep />}
           {step === 'disclaimer' && (
-            <DisclaimerStep state={storeState.state} onAccept={() => void acceptDisclaimerConsent()} />
+            <DisclaimerStep
+              state={storeState.state}
+              onAccept={() => void acceptDisclaimerConsent()}
+            />
           )}
           {step === 'region' && <RegionStep />}
           {step === 'profile' && <VehicleProfileStep />}
@@ -106,7 +117,7 @@ export default function OnboardingWizard(): React.ReactElement | null {
               className="px-4 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm"
               data-testid="onboarding-skip-button"
             >
-              Überspringen
+              {t('ueberspringen')}
             </button>
           )}
           <button
@@ -116,7 +127,7 @@ export default function OnboardingWizard(): React.ReactElement | null {
             className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid={isLastStep ? 'onboarding-finish-button' : 'onboarding-next-button'}
           >
-            {isLastStep ? 'Fertig' : 'Weiter'}
+            {isLastStep ? t('fertig') : t('weiter')}
           </button>
         </div>
       </div>

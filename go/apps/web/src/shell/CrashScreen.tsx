@@ -31,6 +31,8 @@
  */
 
 import React from 'react';
+import { T } from './texte.js';
+import { tx } from '../i18n/index.js';
 
 interface CrashScreenState {
   error: Error | null;
@@ -73,11 +75,7 @@ export default class CrashScreen extends React.Component<CrashScreenProps, Crash
   /** Alles, was zum Weitergeben taugt, in einem Stueck. */
   private report(): string {
     const { error, componentStack } = this.state;
-    return [
-      error?.message ?? String(error),
-      error?.stack ?? '',
-      componentStack ?? '',
-    ]
+    return [error?.message ?? String(error), error?.stack ?? '', componentStack ?? '']
       .filter((teil) => teil.trim().length > 0)
       .join('\n\n');
   }
@@ -92,18 +90,19 @@ export default class CrashScreen extends React.Component<CrashScreenProps, Crash
   render(): React.ReactNode {
     const { error } = this.state;
     if (!error) return this.props.children;
+    const t = (k: keyof typeof T.de): string => tx(T, k);
 
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-flaeche p-6 text-center text-slate-800 dark:bg-slate-900 dark:text-slate-100"
         data-testid="crash-screen"
       >
-        <h1 className="text-lg font-semibold">Die Anzeige hat sich verabschiedet.</h1>
+        <h1 className="text-lg font-semibold">{t('crashTitel')}</h1>
 
         <p className="max-w-md text-sm">
           {/* Das Wichtigste zuerst: die Fahrt laeuft weiter. */}
-          <strong>Die Navigation läuft weiter</strong> — sie liegt im Yapaia-Dienst, nicht in
-          dieser Anzeige. Ansagen kommen also weiterhin.
+          <strong>{t('crashFett')}</strong>
+          {t('crashRest')}
         </p>
 
         <button
@@ -112,14 +111,12 @@ export default class CrashScreen extends React.Component<CrashScreenProps, Crash
           className="min-h-[64px] min-w-[200px] rounded-xl bg-blue-600 px-6 text-base font-medium text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
           data-testid="crash-reload"
         >
-          Anzeige neu laden
+          {t('crashNeuLaden')}
         </button>
 
         <details className="w-full max-w-2xl text-left text-xs text-slate-600 dark:text-slate-300">
-          <summary className="cursor-pointer">Was ist passiert?</summary>
-          <p className="mt-2">
-            Bitte diesen Text weitergeben — ohne ihn lässt sich der Fehler nicht finden:
-          </p>
+          <summary className="cursor-pointer">{t('crashWasPassiert')}</summary>
+          <p className="mt-2">{t('crashWeitergeben')}</p>
           <pre
             className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-100 p-2 dark:bg-slate-800"
             data-testid="crash-message"
@@ -132,7 +129,7 @@ export default class CrashScreen extends React.Component<CrashScreenProps, Crash
             className="mt-2 min-h-[44px] rounded-lg border border-slate-300 px-4 text-xs dark:border-slate-600"
             data-testid="crash-copy"
           >
-            Text kopieren
+            {t('crashKopieren')}
           </button>
         </details>
       </div>

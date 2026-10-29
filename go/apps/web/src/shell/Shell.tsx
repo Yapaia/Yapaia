@@ -33,7 +33,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ShellMode, SlotId, Widget } from '@yapaia/ui';
 import { SLOT_IDS } from '@yapaia/ui';
 import type { Position } from '@yapaia/shared';
-import { resolveSlotWidgets, defaultLayout, type WidgetInstance, type SlotLayout } from './layout.js';
+import {
+  resolveSlotWidgets,
+  defaultLayout,
+  type WidgetInstance,
+  type SlotLayout,
+} from './layout.js';
 import { useLayoutStore } from './layoutStore.js';
 import { shellWidgetRegistry } from './widgets/registry.js';
 import { shellWsManager, useShellWsStore } from './wsStore.js';
@@ -68,6 +73,8 @@ import { TrashZone } from './edit/TrashZone.js';
 import { isControlLocked } from '../drive/driveLock.js';
 import { useDriveLockStore } from '../drive/driveLockStore.js';
 import DriveLockOverlay from '../drive/DriveLockOverlay.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 interface WidgetHostProps {
   instance: WidgetInstance;
@@ -78,6 +85,7 @@ interface WidgetHostProps {
 function WidgetHost({ instance, widget, mode }: WidgetHostProps): React.ReactElement {
   const data = useWidgetData(widget.topics);
   const connected = useShellWsStore((state) => state.connected);
+  useT(T); // neu zeichnen beim Sprachwechsel (Widget-Namen, Beschriftungen)
 
   return (
     <div data-testid={`widget-${widget.id}`} role="group" aria-label={widget.name}>
@@ -101,9 +109,15 @@ interface EditableWidgetInstanceProps extends WidgetHostProps {
  *  badge overlaid. Keeps the SAME `data-testid="widget-<id>"` as the
  *  non-edit `WidgetHost` so an e2e flow can find a moved widget by id
  *  regardless of which slot it's currently in. */
-function EditableWidgetInstance({ instance, widget, mode, onCycleSize }: EditableWidgetInstanceProps): React.ReactElement {
+function EditableWidgetInstance({
+  instance,
+  widget,
+  mode,
+  onCycleSize,
+}: EditableWidgetInstanceProps): React.ReactElement {
   const data = useWidgetData(widget.topics);
   const connected = useShellWsStore((state) => state.connected);
+  const t = useT(T);
   const dragData: DragItemData = {
     kind: 'instance',
     instanceId: instance.instanceId,
@@ -145,8 +159,8 @@ function EditableWidgetInstance({ instance, widget, mode, onCycleSize }: Editabl
       <button
         type="button"
         data-testid={`edit-size-badge-${instance.instanceId}`}
-        aria-label={`Größe wechseln (aktuell ${instance.size})`}
-        title="Tippen, um die Größe zu wechseln"
+        aria-label={t('groesseWechseln', { groesse: instance.size })}
+        title={t('groesseTippen')}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
           event.stopPropagation();
@@ -176,7 +190,14 @@ interface SlotProps {
   onCycleSize: (instanceId: string) => void;
 }
 
-function Slot({ slotId, instances, mode, editActive, activeDrag, onCycleSize }: SlotProps): React.ReactElement {
+function Slot({
+  slotId,
+  instances,
+  mode,
+  editActive,
+  activeDrag,
+  onCycleSize,
+}: SlotProps): React.ReactElement {
   const resolved = useMemo(() => resolveSlotWidgets(instances, shellWidgetRegistry), [instances]);
   // Safe to call unconditionally even when no `DndContext` is mounted
   // (non-edit render path) -- `@dnd-kit/core` falls back to an inert default
@@ -217,7 +238,7 @@ function Slot({ slotId, instances, mode, editActive, activeDrag, onCycleSize }: 
           />
         ) : (
           <WidgetHost key={instance.instanceId} instance={instance} widget={widget} mode={mode} />
-        ),
+        )
       )}
     </div>
   );
@@ -236,6 +257,7 @@ export interface ShellProps {
 }
 
 export default function Shell({ mode }: ShellProps): React.ReactElement | null {
+  const t = useT(T);
   const ready = useLayoutStore((state) => state.ready);
   const init = useLayoutStore((state) => state.init);
   const modeLayout = useLayoutStore((state) => state.layouts[mode]);
@@ -357,7 +379,7 @@ export default function Shell({ mode }: ShellProps): React.ReactElement | null {
     setActiveDrag(
       data.kind === 'instance'
         ? { kind: 'instance', widget, size: data.size }
-        : { kind: 'library', widget, size: widget.sizes[0] },
+        : { kind: 'library', widget, size: widget.sizes[0] }
     );
   }, []);
 
@@ -400,7 +422,7 @@ export default function Shell({ mode }: ShellProps): React.ReactElement | null {
       // task's touch-AND-mouse requirement, `PointerSensor` covers both
       // input types uniformly (no separate touch sensor needed).
       activationConstraint: { distance: 4 },
-    }),
+    })
   );
 
   // Avoid a flash of the built-in defaults before local/server reconciliation
@@ -451,34 +473,41 @@ export default function Shell({ mode }: ShellProps): React.ReactElement | null {
         editorLocked ? (
           <DriveLockOverlay />
         ) : (
-        <DndContext
-          sensors={sensors}
-          // `pointerWithin` (pointer-position based) rather than the default
-          // `rectIntersection` (overlap-AREA based): a widget with no
-          // current data (e.g. `next-instruction` before navigation starts,
-          // see `nextInstruction.tsx`) renders with zero size, so its
-          // dragged rect would have zero intersection AREA with every
-          // droppable -- `rectIntersection` would then never register an
-          // `over` slot at all, regardless of where the pointer actually is.
-          collisionDetection={pointerWithin}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          {/* `pl-44`: the Widget Library drawer is `fixed left-2 w-40` (168px
+          <DndContext
+            sensors={sensors}
+            // `pointerWithin` (pointer-position based) rather than the default
+            // `rectIntersection` (overlap-AREA based): a widget with no
+            // current data (e.g. `next-instruction` before navigation starts,
+            // see `nextInstruction.tsx`) renders with zero size, so its
+            // dragged rect would have zero intersection AREA with every
+            // droppable -- `rectIntersection` would then never register an
+            // `over` slot at all, regardless of where the pointer actually is.
+            collisionDetection={pointerWithin}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            {/* `pl-44`: the Widget Library drawer is `fixed left-2 w-40` (168px
               total) -- without this, slot content flush against the left
               edge (e.g. `map-overlay-tl`'s default widget) would render
               UNDERNEATH the opaque, higher-z-index drawer, both visually
               hidden AND unreachable to pointer events (the drawer, not the
               widget, is what's actually on top and receives the click/drag). */}
-          <div className="pl-44 pr-2 pt-1">{slotElements}</div>
-          <WidgetLibraryDrawer registry={shellWidgetRegistry} />
-          <TrashZone />
-          <EditToolbar onSave={handleSave} onCancel={handleCancel} onRequestReset={() => setShowResetConfirm(true)} />
-          {showResetConfirm && (
-            <ResetConfirmDialog onConfirm={handleResetConfirmed} onCancel={() => setShowResetConfirm(false)} />
-          )}
-        </DndContext>
+            <div className="pl-44 pr-2 pt-1">{slotElements}</div>
+            <WidgetLibraryDrawer registry={shellWidgetRegistry} />
+            <TrashZone />
+            <EditToolbar
+              onSave={handleSave}
+              onCancel={handleCancel}
+              onRequestReset={() => setShowResetConfirm(true)}
+            />
+            {showResetConfirm && (
+              <ResetConfirmDialog
+                onConfirm={handleResetConfirmed}
+                onCancel={() => setShowResetConfirm(false)}
+              />
+            )}
+          </DndContext>
         )
       ) : (
         <>
@@ -486,14 +515,14 @@ export default function Shell({ mode }: ShellProps): React.ReactElement | null {
           <button
             type="button"
             data-testid="edit-mode-enter-button"
-            aria-label="Widget-Layout bearbeiten"
-            title={atStandstill ? 'Layout bearbeiten' : 'Nur im Stand verfügbar (< 5 km/h)'}
+            aria-label={t('layoutBearbeitenAria')}
+            title={atStandstill ? t('layoutBearbeiten') : t('nurImStand')}
             disabled={!atStandstill}
             aria-disabled={!atStandstill}
             onClick={enterEditMode}
             className="fixed top-2 right-2 z-40 rounded bg-slate-800/85 px-3 py-1.5 text-sm font-semibold text-white shadow disabled:cursor-not-allowed disabled:opacity-40"
           >
-            ⚙ Bearbeiten
+            {t('bearbeiten')}
           </button>
         </>
       )}
