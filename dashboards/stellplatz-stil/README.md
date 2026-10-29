@@ -10,6 +10,7 @@ aus dem [Yapaia-Design-Schema](../../docs/design-schemata.md) (`design: auto`
 | Kacheln | `retro` | Kacheln (Entwurf „Retro-Camper“) |
 | Magazin | `magazin` | Seitenspalte mit Ort/Wetter, große Zahlen, kurze Sätze |
 | Magazin mit Karten | `mix` | wie Magazin, mit gerahmten Karten |
+| Breitbild | `breit` | eine Zeile, sechs Spalten – für Stretch-Displays 1920 × 720 (z. B. Wisecoco 12,3"); schmaler bricht sie in drei Spalten um |
 
 Inhalt wie im Dashboard [Stellplatz](../stellplatz/): Heizung (Truma Raum, Warmwasser
 Eco/Heiß/Boost), Batterie mit Restlaufzeit, Solar, Gas und Frischwasser, alle
@@ -36,6 +37,13 @@ dazu Wetter (`weather.forecast_home`) und Sonne (`sun.sun`).
 - **Schriften** liefert die Integration lokal mit (`/yapaia_design/schriften/`).
 - Passt sich der Breite an: 1280 px (iPad quer) voll, darunter zwei Spalten,
   am Telefon eine.
+
+## Breitbild-Display (1920 × 720)
+
+Die Ansicht „Breitbild“ füllt die Höhe des Fensters abzüglich der HA-Kopfzeile
+(`--header-height`). Ohne Kopfzeile und Seitenleiste (Kiosk-Modus, z. B. per
+Browser im Vollbild) nutzt sie das ganze Display. Feste Höhe auf Wunsch über
+`card_mod` bzw. die CSS-Variable `--stellplatz-hoehe`.
 
 ## Einspielen
 

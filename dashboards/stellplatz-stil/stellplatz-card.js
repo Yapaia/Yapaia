@@ -3,6 +3,7 @@
  *   retro    – Kacheln (wie der Entwurf „Retro-Camper“)
  *   magazin  – Magazin: Seitenspalte, große Zahlen, kurze Sätze
  *   mix      – Magazin mit gerahmten Karten
+ *   breit    – Breitbild, eine Zeile mit sechs Spalten (für 1920 × 720, z. B. Wisecoco 12,3")
  * Farben, Schriften und Deko kommen aus dem Yapaia-Design-Schema
  * (docs/design-schemata.md): `design: auto` (Standard) folgt dem Gesamt-Schema,
  * eine Schema-ID legt es für diese Karte fest.
@@ -15,7 +16,7 @@
  *
  * Im Dashboard (am besten als einzige Karte einer Ansicht vom Typ „Panel“):
  *   type: custom:yapaia-stellplatz-card
- *   stil: retro | magazin | mix
+ *   stil: retro | magazin | mix | breit
  *   design: auto | retro | magazin | sport | …
  * Alle Entitäten lassen sich im grafischen Editor einstellen.
  *
@@ -125,7 +126,8 @@ class YapaiaStellplatzCard extends HTMLElement {
     return {
       schema: [
         { name: "stil", required: true, selector: { select: { mode: "box", options: [
-          { value: "retro", label: "Kacheln" }, { value: "magazin", label: "Magazin" }, { value: "mix", label: "Magazin mit Karten" }] } } },
+          { value: "retro", label: "Kacheln" }, { value: "magazin", label: "Magazin" }, { value: "mix", label: "Magazin mit Karten" },
+          { value: "breit", label: "Breitbild (1920 × 720)" }] } } },
         { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
         { type: "grid", name: "", schema: [{ name: "titel", selector: { text: {} } }, { name: "ort", selector: { text: {} } }] },
         { name: "ort_entity", selector: { entity: { domain: "sensor" } } },
@@ -551,6 +553,84 @@ class YapaiaStellplatzCard extends HTMLElement {
     </div>`;
   }
 
+  // ---- Breitbild (1920 × 720) ------------------------------------------------
+
+  _breit(d) {
+    const b = d.batt;
+    const r = d.raum;
+    const zeitSonne = d.sonne ? uhrzeit(d.sonne.oben ? d.sonne.unter : d.sonne.auf) : null;
+    return `
+    <div class="wurzel breit">
+      <aside class="b-seite">
+        ${HOEHENLINIEN}
+        <div class="b-oben">
+          <div class="b-mini">${esc(d.datum)}</div>
+          <h1 class="${this._laenge(d.ort)}">${esc(d.ort)}</h1>
+        </div>
+        <div class="b-uhr">${d.uhr}</div>
+        <div class="streifen" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="b-unten">
+          ${d.wetter ? `<div class="b-wetter"><span class="b-temp">${de(d.wetter.temp)}°</span><span>${esc(d.wetter.text)}${d.wetter.wind !== null ? `<br>Wind ${de(d.wetter.wind)} km/h` : ""}</span></div>` : ""}
+          ${zeitSonne ? `<div class="b-zeile"><span class="ic">${ICON.sonne}</span>${d.sonne.oben ? "Sonnenuntergang" : "Sonnenaufgang"} ${zeitSonne}</div>` : ""}
+          <div class="b-zeile"><span class="ic">${ICON.wlan}</span>${esc(d.wlan?.ssid ?? "kein WLAN")} · ${esc(d.wlan?.quelle ?? "–")}</div>
+        </div>
+      </aside>
+
+      <section class="b-k b-akzent">
+        <div class="b-label">Wärme</div>
+        <div class="b-riesig">${r?.an ? `${de(r.soll, 1)}°` : "aus"}</div>
+        <div class="b-text">${esc(this._raumText(d))}</div>
+        <div class="b-knoepfe">
+          <button data-a="raum" data-id="-" aria-label="Kälter">−</button>
+          <button data-a="raum" data-id="+" aria-label="Wärmer">+</button>
+          <button data-a="raum" data-id="an" aria-label="Heizung an/aus" class="${r?.an ? "aktiv" : ""}">${ICON.power}</button>
+        </div>
+        <div class="b-trenner"></div>
+        <div class="b-label">Warmwasser ${d.wasser?.soll ? `· ${de(d.wasser.soll)}°` : ""}</div>
+        <div class="modi">${this._wasserKnoepfe(d)}</div>
+      </section>
+
+      <section class="b-k">
+        <div class="b-label">Energie</div>
+        <div class="b-riesig">${b.soc === null ? "–" : de(b.soc)}<span class="b-einheit">%</span></div>
+        <div class="b-balken"><i style="width:${b.soc ?? 0}%"></i></div>
+        <div class="b-leistung ${b.richtung ?? ""}">${this._wText(b)} <small>${{ laden: "lädt", entladen: "Verbrauch", ruhe: "Ruhe" }[b.richtung] ?? ""}</small></div>
+        <div class="b-text">${esc(this._battZeile(b))}</div>
+        <div class="b-trenner"></div>
+        <div class="b-solar"><span class="ic">${ICON.sonne}</span><b>${de(d.solar.w)} W</b><span>heute ${de(d.solar.kwh, 1)} kWh</span></div>
+      </section>
+
+      <section class="b-k">
+        <div class="b-kopf"><div class="b-label">Licht</div><button class="b-link" data-a="alle_aus">Alles aus</button></div>
+        <div class="b-lichter">${this._lichtKnoepfe(d)}</div>
+      </section>
+
+      <div class="b-stapel">
+        <section class="b-k">
+          <div class="b-label">Vorräte</div>
+          ${[["Gas 1", this._gasText(d.gas[0]), d.gas[0], ""], ["Gas 2", this._gasText(d.gas[1]), d.gas[1], ""], ["Wasser", this._fwText(d.fw), d.fw.pct, "blau"]]
+            .map(([n, t, v, f]) => `<div class="b-vorrat"><div class="b-vz"><span>${n}</span><b>${t}</b></div><div class="b-vl"><i class="${f}" style="width:${v ?? 0}%"></i></div></div>`).join("")}
+        </section>
+        <section class="b-k b-tuer ${d.tuer?.zu ? "" : "offen"}">
+          <button class="tuerknopf" data-a="tuer" aria-label="Aufbautür">${d.tuer?.zu ? ICON.schloss : ICON.offen}</button>
+          <div><div class="b-label">Aufbautür</div><div class="b-tuertext">${esc(this._tuerText(d))}</div></div>
+        </section>
+      </div>
+
+      <section class="b-k b-dunkel">
+        <div class="b-label">Radio</div>
+        <div class="b-sender">${esc(d.radio?.sender ?? "Radio")}</div>
+        <div class="b-text">${esc(d.radio?.titel || (d.radio?.sender ? "" : "Sender wählen"))}</div>
+        <div class="b-steuer">
+          <button data-a="radio" data-id="previous" aria-label="Voriger Sender">${ICON.zurueck}</button>
+          <button class="pp" data-a="radio" data-id="play_pause" aria-label="Wiedergabe">${d.radio?.spielt ? ICON.pause : ICON.play}</button>
+          <button data-a="radio" data-id="next" aria-label="Nächster Sender">${ICON.vor}</button>
+        </div>
+        <div class="b-favs">${this._radioFavoriten(d)}</div>
+      </section>
+    </div>`;
+  }
+
   // ---- Zeichnen ----------------------------------------------------------------
 
   _zeichnen() {
@@ -565,7 +645,7 @@ class YapaiaStellplatzCard extends HTMLElement {
     if (key === this._key) return;
     this._key = key;
     const stil = this._config.stil;
-    const html = stil === "magazin" ? this._magazin(d) : stil === "mix" ? this._magazin(d, true) : this._retro(d);
+    const html = stil === "magazin" ? this._magazin(d) : stil === "mix" ? this._magazin(d, true) : stil === "breit" ? this._breit(d) : this._retro(d);
     this.shadowRoot.innerHTML = `<style>${STIL}</style><ha-card>${html}</ha-card>`;
     window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector(".wurzel"), schema);
   }
@@ -860,6 +940,101 @@ main .modus.an { background: var(--tinte); color: var(--grund); border-color: va
   .magazin main, .mix main { grid-template-columns: minmax(0, 1fr); }
   .licht-bereich { grid-column: auto; }
   aside h1 { font-size: 44px; }
+}
+
+/* ===== Breitbild (1920 × 720) ===== */
+.breit { --grund: var(--y-grund, #F4ECDC); --karte: var(--y-flaeche, #FBF6EC); --tinte: var(--y-text, #3B2A20); --grau: var(--y-text-gedaempft, #8A5A3B);
+  --linie: var(--y-rand, #3B2A20); --spur: var(--y-flaeche2, #EFE3CC); --rost: var(--y-akzent, #C8551F); --rosttext: var(--y-akzent-text, #FBF6EC);
+  --rosttext-rgb: var(--y-akzent-text-rgb, 251, 246, 236); --senf: var(--y-akzent2, #E3A72F); --aufsenf: var(--y-auf-akzent2, #3B2A20);
+  --seite: var(--y-seite, #3B2A20); --seitetext: var(--y-seite-text, #F4ECDC); --seitetext-rgb: var(--y-seite-text-rgb, 244, 236, 220);
+  --dunkel-bg: var(--y-text, #3B2A20); --dunkel-text: var(--y-grund, #F4ECDC); --dunkel-text-rgb: var(--y-grund-rgb, 244, 236, 220);
+  --anzeige: var(--y-schrift-anzeige, "Fraunces", Georgia, serif); --anzeigegewicht: var(--y-gewicht-anzeige, 900);
+  --r: var(--y-radius, 28px); --rk: var(--y-radius-klein, 14px); --rahmen: var(--y-rand-breite, 2px) solid var(--linie);
+  display: grid; grid-template-columns: minmax(300px, 1.05fr) 1fr 1.1fr 1.25fr 0.95fr 1fr; gap: 16px; padding: 16px;
+  height: var(--stellplatz-hoehe, calc(100vh - var(--header-height, 56px))); min-height: 560px; min-width: 0;
+  background: var(--grund); color: var(--tinte); font-family: var(--y-schrift-text, "DM Sans", system-ui, sans-serif); }
+.wurzel.breit[data-y-hell="false"] { --dunkel-bg: var(--y-flaeche2); --dunkel-text: var(--y-text); --dunkel-text-rgb: var(--y-text-rgb); }
+.breit .ic { width: 22px; height: 22px; }
+.breit section, .breit aside { min-width: 0; min-height: 0; }
+.b-seite { position: relative; overflow: hidden; border-radius: var(--r); background: var(--seite); color: var(--seitetext);
+  padding: 24px 26px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
+.b-seite .topo { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--seitetext); opacity: .08; }
+.wurzel[data-y-hoehenlinien="false"] .b-seite .topo { display: none; }
+.b-seite .streifen { position: relative; margin: 0 -40px; display: flex; flex-direction: column; gap: 6px; transform: skewY(-8deg); }
+.b-seite .streifen i { height: 11px; background: var(--y-streifen-1, var(--rost)); }
+.b-seite .streifen i:nth-child(2) { background: var(--y-streifen-2, var(--senf)); }
+.b-seite .streifen i:nth-child(3) { background: var(--y-streifen-3, var(--seitetext)); opacity: .85; }
+.wurzel[data-y-streifen="false"] .b-seite .streifen { display: none; }
+.b-seite > div { position: relative; }
+.b-mini, .b-label { font-size: 13px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.b-seite .b-mini { color: rgba(var(--seitetext-rgb), .72); }
+.b-seite h1 { margin: 6px 0 0; font-family: var(--anzeige); font-weight: var(--anzeigegewicht); font-size: 46px; line-height: .95; overflow-wrap: anywhere; }
+.b-seite h1.lang { font-size: 36px; } .b-seite h1.sehrlang { font-size: 28px; }
+.b-uhr { font-family: var(--anzeige); font-weight: var(--anzeigegewicht); font-size: 92px; line-height: 1; }
+.b-unten { display: flex; flex-direction: column; gap: 10px; }
+.b-wetter { display: flex; align-items: baseline; gap: 12px; }
+.b-temp { font-family: var(--anzeige); font-weight: var(--anzeigegewicht); font-size: 52px; line-height: 1; }
+.b-wetter span:last-child { font-size: 15px; color: rgba(var(--seitetext-rgb), .8); }
+.b-zeile { display: flex; align-items: center; gap: 10px; font-size: 15px; padding-top: 8px; border-top: 1px solid rgba(var(--seitetext-rgb), .2); }
+.b-k { border-radius: var(--r); background: var(--karte); border: var(--rahmen); box-shadow: var(--y-schatten, none);
+  padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.b-k .b-label { color: var(--grau); }
+.b-akzent { background: var(--rost); color: var(--rosttext); border-color: var(--rost); }
+.b-akzent .b-label, .b-akzent .b-text { color: var(--rosttext); opacity: .9; }
+.b-dunkel { background: var(--dunkel-bg); color: var(--dunkel-text); border-color: var(--dunkel-bg); }
+.b-dunkel .b-label, .b-dunkel .b-text { color: var(--dunkel-text); opacity: .75; }
+.b-riesig { font-family: var(--anzeige); font-weight: var(--anzeigegewicht); font-size: 84px; line-height: .9; }
+.b-einheit { font-size: 38px; }
+.b-text { font-size: 15px; line-height: 1.4; }
+.b-trenner { height: 1px; background: currentColor; opacity: .2; margin: 2px 0; }
+.b-knoepfe { display: flex; gap: 10px; }
+.b-knoepfe button { flex: 1; height: 54px; border-radius: 27px; border: 2px solid var(--rosttext); background: transparent; color: var(--rosttext);
+  font-size: 26px; display: flex; align-items: center; justify-content: center; }
+.b-knoepfe button svg { width: 22px; height: 22px; }
+.b-knoepfe button.aktiv { background: var(--rosttext); color: var(--rost); }
+.breit .modi { display: flex; flex-wrap: wrap; gap: 6px; }
+.breit .modus { padding: 7px 12px; border-radius: 999px; border: 2px solid rgba(var(--rosttext-rgb), .55); background: transparent; color: var(--rosttext); font-weight: 700; font-size: 14px; min-height: 36px; }
+.breit .modus.an { background: var(--rosttext); color: var(--rost); border-color: var(--rosttext); }
+.b-balken { height: 10px; background: var(--spur); border-radius: 5px; overflow: hidden; }
+.b-balken i { display: block; height: 100%; background: var(--senf); }
+.b-leistung { font-family: var(--anzeige); font-weight: var(--anzeigegewicht); font-size: 32px; }
+.b-leistung small { font-family: var(--y-schrift-text, sans-serif); font-weight: 700; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--grau); }
+.b-leistung.laden { color: var(--y-ok, #2F7A4F); } .b-leistung.entladen { color: var(--y-fehler, #B23A2B); }
+.b-solar { display: flex; align-items: center; gap: 10px; font-size: 15px; } .b-solar .ic { color: var(--senf); } .b-solar b { font-size: 22px; }
+.b-kopf { display: flex; justify-content: space-between; align-items: center; }
+.b-link { background: none; border: none; color: var(--tinte); text-decoration: underline; font-weight: 700; font-size: 14px; padding: 8px 0; }
+.b-lichter { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 10px; }
+.b-lichter .licht { border-radius: var(--rk); border: 2px solid var(--linie); background: transparent; color: var(--tinte); font-weight: 700; font-size: 16px; text-align: left; padding: 6px 14px; min-height: 44px; }
+.b-lichter .licht.an { background: var(--senf); border-color: var(--senf); color: var(--aufsenf); }
+.b-stapel { display: grid; grid-template-rows: 1fr auto; gap: 16px; min-height: 0; }
+.b-vorrat { display: flex; flex-direction: column; gap: 5px; }
+.b-vz { display: flex; justify-content: space-between; font-size: 16px; } .b-vz b { white-space: nowrap; }
+.b-vl { height: 9px; background: var(--spur); border-radius: 5px; overflow: hidden; }
+.b-vl i { display: block; height: 100%; background: var(--rost); } .b-vl i.blau { background: var(--y-info, #5E8C8A); }
+.b-tuer { flex-direction: row; align-items: center; gap: 14px; background: var(--senf); color: var(--aufsenf); border-color: var(--senf); }
+.b-tuer .b-label { color: var(--aufsenf); opacity: .8; }
+.b-tuer .tuerknopf { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--aufsenf); background: var(--karte); color: var(--tinte);
+  display: flex; align-items: center; justify-content: center; flex: none; }
+.b-tuer .tuerknopf svg { width: 32px; height: 32px; }
+.b-tuertext { font-family: var(--anzeige); font-weight: var(--anzeigegewicht); font-size: 24px; line-height: 1.1; }
+.b-sender { font-family: var(--anzeige); font-weight: var(--anzeigegewicht); font-size: 34px; line-height: 1.05; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.b-steuer { display: flex; gap: 10px; align-items: center; }
+.b-steuer button { width: 50px; height: 50px; border-radius: 50%; border: 2px solid rgba(var(--dunkel-text-rgb), .35); background: transparent; color: var(--dunkel-text);
+  display: flex; align-items: center; justify-content: center; }
+.b-steuer button svg { width: 20px; height: 20px; }
+.b-steuer .pp { width: 64px; height: 64px; border: none; background: var(--rost); color: var(--rosttext); }
+.b-favs { margin-top: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.b-favs .fav { height: 44px; border-radius: var(--rk); border: 1.5px solid rgba(var(--dunkel-text-rgb), .3); background: transparent; color: var(--dunkel-text);
+  font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 10px; }
+.b-favs .fav.an { border-color: var(--senf); color: var(--senf); }
+/* Schmaler als das Breitbild: in zwei Zeilen umbrechen */
+@container (max-width: 1500px) {
+  .breit { grid-template-columns: repeat(3, minmax(0, 1fr)); height: auto; }
+  .b-seite { grid-row: span 2; }
+}
+@container (max-width: 800px) {
+  .breit { grid-template-columns: minmax(0, 1fr); }
+  .b-seite { grid-row: auto; }
 }
 `;
 
