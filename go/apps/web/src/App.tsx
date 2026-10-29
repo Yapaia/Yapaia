@@ -8,6 +8,7 @@ import AnkerGriff from './shell/AnkerGriff.js';
 import SprachFenster from './sprache/SprachFenster.js';
 import SpeedDisplay from './drive/SpeedDisplay.js';
 import ThemeController from './theme/ThemeController.js';
+import DesignController from './design/DesignController.js';
 import DriveLockController from './drive/DriveLockController.js';
 import HandednessController from './shell/HandednessController.js';
 import ScreenAwakeController from './shell/ScreenAwakeController.js';
@@ -26,8 +27,9 @@ export default function App(): React.ReactElement {
     // `#yapaia-sicht` (index.css) ist nur so groß wie der SICHTBARE Teil des
     // Fensters, und alle `fixed`-Elemente darin richten sich nach ihm statt
     // nach dem ganzen Rahmen -- siehe shell/sichtbarerBereich.ts.
-    <div id="yapaia-sicht" className="overflow-hidden bg-white dark:bg-slate-900">
+    <div id="yapaia-sicht" className="overflow-hidden bg-flaeche dark:bg-slate-900">
       <ThemeController />
+      <DesignController />
       <DriveLockController />
       <HandednessController />
       {/* Der Bildschirm bleibt an, solange Yapaia zu sehen ist -- „quasi

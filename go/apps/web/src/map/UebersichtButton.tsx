@@ -40,7 +40,7 @@ export default function UebersichtButton(): React.ReactElement | null {
       title={titel}
       style={{ bottom: rightStackBottomPx('uebersicht', driveActive, schmal), [kartenSeite]: EDGE_INSET_PX }}
       className={`fixed z-10 flex h-12 w-12 items-center justify-center rounded-full text-xl shadow-lg ${
-        aktiv ? 'bg-blue-600 text-white' : 'bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100'
+        aktiv ? 'bg-blue-600 text-white' : 'bg-flaeche text-slate-800 dark:bg-slate-800 dark:text-slate-100'
       }`}
       data-testid="uebersicht-button"
     >

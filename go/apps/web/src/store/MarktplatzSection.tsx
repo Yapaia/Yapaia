@@ -77,7 +77,7 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
           placeholder="https://addons.yapaia.cloud"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-sm"
+          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-sm"
           data-testid="marktplatz-url"
         />
       </label>
@@ -89,7 +89,7 @@ export default function MarktplatzSection({ gespeichert }: { gespeichert: () => 
           placeholder={stand?.token_gesetzt ? 'hinterlegt – leer lassen zum Behalten' : 'Token aus deinem Marktplatz-Konto (optional)'}
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-sm"
+          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-sm"
           data-testid="marktplatz-token"
         />
       </label>

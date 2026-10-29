@@ -87,7 +87,7 @@ export default function EinstellungsMenue({ onSchliessen }: { onSchliessen: () =
       role="dialog"
       aria-label="Einstellungen"
       style={{ [seite]: 0, width: `min(${PANEL_BREITE_PX + 24}px, 100%)` }}
-      className="pointer-events-auto fixed top-0 bottom-0 z-40 flex flex-col bg-white shadow-2xl dark:bg-slate-800"
+      className="pointer-events-auto fixed top-0 bottom-0 z-40 flex flex-col bg-flaeche shadow-2xl dark:bg-slate-800"
       data-testid="einstellungen-menue"
     >
       <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-3 dark:border-slate-700">

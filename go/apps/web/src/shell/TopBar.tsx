@@ -141,7 +141,7 @@ export default function TopBar(): React.ReactElement | null {
             aria-label="Einstellungen"
             aria-expanded={menueOffen}
             title="Einstellungen"
-            className="pointer-events-auto flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-white/95 text-lg shadow-md hover:bg-slate-100 dark:bg-slate-800/95 dark:hover:bg-slate-700"
+            className="pointer-events-auto flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-flaeche/95 text-lg shadow-md hover:bg-slate-100 dark:bg-slate-800/95 dark:hover:bg-slate-700"
             data-testid="einstellungen-toggle"
           >
             ⚙️

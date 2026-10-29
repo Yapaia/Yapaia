@@ -52,6 +52,8 @@ export const ROUTE_DOCS: Record<string, RouteDoc> = {
   'GET /yapaia/v1/live': { summary: 'Yapaia-Protokoll: Live-Verbindung (WebSocket) mit Zuständen und Ereignissen', tags: ['Yapaia'] },
   'POST /yapaia/v1/aktion/:name': { summary: 'Yapaia-Protokoll: Aktion ausführen (ziel_setzen, navigation_pausieren …)', tags: ['Yapaia'] },
   'POST /yapaia/v1/partner': { summary: 'Yapaia-Protokoll: die anderen Yapaia-Module und ihre Fähigkeiten', tags: ['Yapaia'] },
+  'POST /yapaia/v1/design': { summary: 'Yapaia-Protokoll: das Design-Schema, das für Go gilt', tags: ['Yapaia'] },
+  'GET /api/v1/design': { summary: 'Design-Schema für die Oberfläche (von der Integration)', tags: ['Yapaia'] },
   'GET /api/v1/auth/status': { summary: 'Auth-Status (Token konfiguriert? Ingress-Modus?)', tags: ['Auth'] },
   'POST /api/v1/auth/token': { summary: 'API-Token setzen/ändern', tags: ['Auth'] },
   'DELETE /api/v1/auth/token': { summary: 'API-Token entfernen (App wird wieder offen)', tags: ['Auth'] },

@@ -122,7 +122,7 @@ function TrackerAuswahlFeld(): React.ReactElement | null {
       <select
         id="yapaia-tracker-select"
         data-testid="tracker-select"
-        className="mt-2 w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-1 text-xs"
+        className="mt-2 w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-800 p-1 text-xs"
         value={gewaehlt}
         onChange={(event) => {
           const wert = event.target.value;
@@ -191,7 +191,7 @@ export default function PreflightPanel({ eingebettet = false }: { eingebettet?: 
     <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('preflight'), right: TOP_RIGHT_INSET_PX }}>
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-96 max-h-[calc(var(--sicht-h,100vh)*0.75)] overflow-y-auto rounded-xl bg-white/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3"}
+          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-96 max-h-[calc(var(--sicht-h,100vh)*0.75)] overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3"}
           data-testid="preflight-panel"
         >
           <div className="flex items-center justify-between gap-2">
@@ -255,7 +255,7 @@ export default function PreflightPanel({ eingebettet = false }: { eingebettet?: 
       {!eingebettet && (
         <button
           onClick={toggleOpen}
-          className="w-12 h-12 rounded-full bg-white/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
+          className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
           aria-label="Installation prüfen"
           aria-expanded={isOpen}
           title="Installation prüfen"

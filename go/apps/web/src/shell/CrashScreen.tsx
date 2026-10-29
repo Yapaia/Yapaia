@@ -95,7 +95,7 @@ export default class CrashScreen extends React.Component<CrashScreenProps, Crash
 
     return (
       <div
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white p-6 text-center text-slate-800 dark:bg-slate-900 dark:text-slate-100"
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-flaeche p-6 text-center text-slate-800 dark:bg-slate-900 dark:text-slate-100"
         data-testid="crash-screen"
       >
         <h1 className="text-lg font-semibold">Die Anzeige hat sich verabschiedet.</h1>

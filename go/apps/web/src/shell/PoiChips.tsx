@@ -59,7 +59,7 @@ export default function PoiChips(): React.ReactElement | null {
               className={`flex min-h-[40px] items-center gap-1.5 rounded-full px-3 text-sm shadow-md ${
                 an
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white/95 text-slate-800 hover:bg-slate-100 dark:bg-slate-800/95 dark:text-slate-100 dark:hover:bg-slate-700'
+                  : 'bg-flaeche/95 text-slate-800 hover:bg-slate-100 dark:bg-slate-800/95 dark:text-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <span aria-hidden="true">{CHIP_ZEICHEN[e.schluessel] ?? '📍'}</span>

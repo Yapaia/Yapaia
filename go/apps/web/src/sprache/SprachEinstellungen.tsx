@@ -320,7 +320,7 @@ export default function SprachEinstellungen(): React.ReactElement {
             value={stand?.lautsprecherWahl ?? ''}
             onChange={(e) => void lautsprecherSetzen(e.target.value)}
             disabled={!stand?.verfuegbar}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
+            className="w-full rounded-md border border-slate-300 bg-flaeche px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
             data-testid="sprach-lautsprecher"
           >
             <option value="">Automatisch</option>
@@ -344,7 +344,7 @@ export default function SprachEinstellungen(): React.ReactElement {
             value={stand?.ansageMaWeg ?? 'browser'}
             onChange={(e) => void maWegSetzen(e.target.value as 'browser' | 'mischen' | 'sofort')}
             disabled={!stand?.verfuegbar}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
+            className="w-full rounded-md border border-slate-300 bg-flaeche px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
             data-testid="sprach-ma-weg"
           >
             <option value="browser">Im Browser einmischen – sofort, Musik läuft leiser weiter</option>
@@ -411,7 +411,7 @@ export default function SprachEinstellungen(): React.ReactElement {
           value={stand?.agent ?? ''}
           onChange={(e) => void agentWaehlen(e.target.value)}
           disabled={!stand?.verfuegbar}
-          className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
+          className="w-full rounded-md border border-slate-300 bg-flaeche px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
           data-testid="sprach-agent"
         >
           <option value="">Keine KI (nur eingebaute Befehle)</option>

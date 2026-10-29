@@ -257,7 +257,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
             bottom: tripInfoBottomPx() + TRIP_BAR_HEIGHT_PX + STACK_GAP_PX,
             ...(schmal ? {} : { [kartenSeite]: FAHRT_SEITENABSTAND_PX }),
           }}
-          className={`absolute z-30 max-h-[calc(var(--sicht-h,100vh)*0.7)] space-y-3 overflow-y-auto rounded-xl bg-white/95 p-3 text-sm text-slate-800 shadow-xl dark:bg-slate-800/95 dark:text-slate-100 ${
+          className={`absolute z-30 max-h-[calc(var(--sicht-h,100vh)*0.7)] space-y-3 overflow-y-auto rounded-xl bg-flaeche/95 p-3 text-sm text-slate-800 shadow-xl dark:bg-slate-800/95 dark:text-slate-100 ${
             schmal
               ? 'left-1/2 w-[min(calc(var(--sicht-b,100vw)*0.92),26rem)] -translate-x-1/2'
               : 'w-[min(calc(100%-24px),26rem)]'

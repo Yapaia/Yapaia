@@ -63,7 +63,7 @@ export default function SpeedLimitSign(props: SpeedLimitSignProps = {}): React.R
       data-speeding={speeding ? 'true' : 'false'}
       style={{ [kartenSeite]: TOP_RIGHT_INSET_PX }}
       className={`absolute top-3 z-20 flex items-center justify-center w-16 h-16 rounded-full border-4 shadow-lg ${
-        speeding ? 'bg-red-600 border-red-700' : 'bg-white border-red-600'
+        speeding ? 'bg-red-600 border-red-700' : 'bg-flaeche border-red-600'
       }`}
     >
       <span

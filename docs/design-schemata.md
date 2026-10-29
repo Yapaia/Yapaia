@@ -55,8 +55,12 @@ Die Integration liefert unter `/yapaia_design/` aus:
   | Stellplatz Stil, Rangieren (Kamera, Nivellierung, Reifen) | Gesamt-Schema |
 - **Add-on-Oberflächen** bekommen das geltende Schema über ihre Verbindung zur
   Integration (`POST /yapaia/v1/design`, [Protokoll §8a](integration-protokoll.md#8a-design)),
-  merken es sich und reichen es an ihre Seite weiter (`GET api/design`); die
-  setzt nur die CSS-Variablen auf `:root`. Beat und Vision ab 1.18.0 bzw. 0.3.0.
+  merken es sich und reichen es an ihre Seite weiter (`GET api/design`, bei Go
+  `GET /api/v1/design`); die setzt nur die CSS-Variablen auf `:root`. Beat und
+  Vision ab 1.18.0 bzw. 0.3.0, Go ab 0.66.0. Go rechnet die Tailwind-Paletten
+  aus dem Schema (`slate` = von der hellsten zur dunkelsten Schemafarbe,
+  `blue` = Akzent) und lässt das Schema hell/dunkel bestimmen; der Kartenstil
+  folgt weiter dem Tag/Nacht-Thema von Go.
 
 ### CSS-Variablen
 
@@ -145,5 +149,5 @@ Oberflächen, die sie zeichnen sollen – unbekannte Einträge werden ignoriert.
 1. ✅ Format, Schemata, Generator, HA-Themes, Doku, CI-Prüfung
 2. ✅ Auswahl in der Integration (gesamt, je Modul, HA-Design)
 3. ✅ Karten: Cockpit Sport, Stellplatz Stil, Rangieren, WLAN, Beat-Karte
-4. Add-on-Oberflächen: ✅ Beat, ✅ Vision, Go (feste Tailwind-Farben auf Variablen umstellen)
+4. ✅ Add-on-Oberflächen: Beat, Vision, Go (Go: Tailwind-Paletten `slate`/`blue`/`flaeche` auf Variablen, Stufen berechnet in `apps/web/src/design/palette.ts`; hell/dunkel vom Schema)
 5. ESPHome-Displays: der Generator gibt zusätzlich Farben/Schriften für ESPHome aus

@@ -83,7 +83,7 @@ export default function KartenserverSection({
           placeholder="https://karten.example.org"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-sm"
+          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-sm"
           data-testid="kartenserver-url"
         />
       </label>
@@ -95,7 +95,7 @@ export default function KartenserverSection({
           placeholder={tokenGesetzt ? 'hinterlegt – leer lassen zum Behalten' : 'Download-Token vom Kartenserver'}
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-sm"
+          className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-sm"
           data-testid="kartenserver-token"
         />
       </label>

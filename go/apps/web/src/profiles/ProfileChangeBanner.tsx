@@ -80,7 +80,7 @@ export default function ProfileChangeBanner(): React.ReactElement | null {
     <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 w-[min(calc(var(--sicht-b,100vw)*0.92),26rem)] space-y-2 pointer-events-none">
       {pending && (
         <div
-          className="pointer-events-auto rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3"
+          className="pointer-events-auto rounded-xl bg-flaeche dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3"
           data-testid="profile-change-confirm-banner"
         >
           <p className="text-sm text-slate-800 dark:text-slate-100" data-testid="profile-change-confirm-text">

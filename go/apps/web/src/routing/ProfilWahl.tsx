@@ -51,7 +51,7 @@ export default function ProfilWahl(): React.ReactElement | null {
         <select
           value={activeProfile?.id ?? ''}
           onChange={(e) => void wechsel(e.target.value)}
-          className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 dark:border-slate-600 dark:bg-slate-700"
+          className="min-w-0 flex-1 rounded-md border border-slate-300 bg-flaeche px-2 py-1.5 dark:border-slate-600 dark:bg-slate-700"
           data-testid="routing-profil-wahl"
         >
           {!activeProfile && <option value="">Fahrzeug wählen …</option>}

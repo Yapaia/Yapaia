@@ -10,6 +10,18 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.66.0
+
+**Die Go-Oberfläche folgt dem Yapaia-Design-Schema.** Farben, Schrift und
+Hell/Dunkel kommen aus dem Schema, das in Home Assistant für Go gilt (Gerät
+„Yapaia Design“ bzw. Auswahl „Design“ am Gerät Yapaia Go) – z. B. „Sport“
+dunkel mit Kupfer oder „Retro“ in Sahne und Rost. Der Kartenstil folgt weiter
+dem Thema von Go (Tag/Nacht). Für Nachtfahrten empfiehlt sich für Go ein
+dunkles Schema. Ohne die Integration sieht Go aus wie bisher.
+
+- Die Integration schickt das Schema über `POST /yapaia/v1/design`; Go merkt
+  es sich und gibt es der Oberfläche über `GET /api/v1/design`.
+
 ## 0.65.2
 
 **Bringt die Integration 0.7.1 mit: die Karten folgen dem Design-Schema.**
