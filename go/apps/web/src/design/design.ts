@@ -44,7 +44,11 @@ export function designAnwenden(schema: DesignSchema | null, schriften?: string):
   root.dataset.ySchema = schema.id;
   root.classList.toggle('dark', schema.hell === false);
   // Schriften liegen auf dem HA-Server: nur über Ingress (gleiche Herkunft) ladbar
-  if (schriften && location.pathname.includes('/api/hassio_ingress/') && !document.querySelector(`link[href="${schriften}"]`)) {
+  if (
+    schriften &&
+    location.pathname.includes('/api/hassio_ingress/') &&
+    !document.querySelector(`link[href="${schriften}"]`)
+  ) {
     const l = document.createElement('link');
     l.rel = 'stylesheet';
     l.href = schriften;

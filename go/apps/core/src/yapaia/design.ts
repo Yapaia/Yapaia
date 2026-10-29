@@ -12,14 +12,22 @@ import type { FastifyInstance } from 'fastify';
 import { tokenPasst } from './protokoll.js';
 
 export interface DesignNachricht {
-  schema: { id: string; name?: string; hell?: boolean; css: Record<string, string>; deko?: Record<string, unknown> };
+  schema: {
+    id: string;
+    name?: string;
+    hell?: boolean;
+    css: Record<string, string>;
+    deko?: Record<string, unknown>;
+  };
   eigenes?: boolean;
   schriften?: string;
 }
 
 function gueltig(d: unknown): d is DesignNachricht {
   const s = (d as DesignNachricht | null)?.schema;
-  return !!s && typeof s === 'object' && typeof s.id === 'string' && !!s.css && typeof s.css === 'object';
+  return (
+    !!s && typeof s === 'object' && typeof s.id === 'string' && !!s.css && typeof s.css === 'object'
+  );
 }
 
 export class DesignSpeicher {
@@ -51,9 +59,14 @@ export class DesignSpeicher {
   }
 }
 
-export async function registriereDesign(fastify: FastifyInstance, speicher: DesignSpeicher, token: string): Promise<void> {
+export async function registriereDesign(
+  fastify: FastifyInstance,
+  speicher: DesignSpeicher,
+  token: string
+): Promise<void> {
   fastify.post('/yapaia/v1/design', async (request, reply) => {
-    if (!tokenPasst(token, request.headers.authorization)) return reply.code(401).send({ ok: false, fehler: 'Token fehlt oder falsch' });
+    if (!tokenPasst(token, request.headers.authorization))
+      return reply.code(401).send({ ok: false, fehler: 'Token fehlt oder falsch' });
     if (!gueltig(request.body)) return reply.code(400).send({ ok: false, fehler: 'schema fehlt' });
     speicher.setzen(request.body);
     request.log.info({ schema: request.body.schema.id }, 'Design');

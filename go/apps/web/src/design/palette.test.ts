@@ -1,9 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { hexZuRgb, palette } from './palette.js';
 
-const retro = { '--y-grund': '#F4ECDC', '--y-flaeche': '#FBF6EC', '--y-text': '#3B2A20', '--y-akzent': '#C8551F' };
-const sport = { '--y-grund': '#0a0d14', '--y-flaeche': '#14161b', '--y-text': '#f2f3f5', '--y-akzent': '#c9895b' };
-const summe = (s: string) => s.split(' ').map(Number).reduce((a, b) => a + b, 0);
+const retro = {
+  '--y-grund': '#F4ECDC',
+  '--y-flaeche': '#FBF6EC',
+  '--y-text': '#3B2A20',
+  '--y-akzent': '#C8551F',
+};
+const sport = {
+  '--y-grund': '#0a0d14',
+  '--y-flaeche': '#14161b',
+  '--y-text': '#f2f3f5',
+  '--y-akzent': '#c9895b',
+};
+const summe = (s: string) =>
+  s
+    .split(' ')
+    .map(Number)
+    .reduce((a, b) => a + b, 0);
 
 describe('palette', () => {
   it('liest Hex-Farben', () => {
