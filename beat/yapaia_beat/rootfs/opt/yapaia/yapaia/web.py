@@ -67,6 +67,12 @@ async def status(request: web.Request) -> web.Response:
     return web.json_response(_radio(request).status())
 
 
+@routes.get("/api/design")
+async def design(request: web.Request) -> web.Response:
+    """Das Design-Schema der Integration für die eigene Seite (oder {} ohne)."""
+    return web.json_response(request.app.get("yapaia_design") or {}, headers={"Cache-Control": "no-cache"})
+
+
 @routes.get("/api/info")
 async def info(request: web.Request) -> web.Response:
     return web.json_response({"name": "Yapaia Beat", "version": VERSION})

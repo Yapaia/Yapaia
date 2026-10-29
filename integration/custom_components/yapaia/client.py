@@ -58,6 +58,20 @@ class YapaiaClient:
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             raise YapaiaFehler(f"nicht erreichbar: {err}") from err
 
+    async def design(self, daten: dict[str, Any]) -> bool:
+        """Das geltende Design-Schema schicken. `False`, wenn das Modul es (noch) nicht kennt."""
+        try:
+            async with self._session.post(
+                f"{self.url}{API}/design", json=daten, headers=self._kopf,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as r:
+                if r.status == 404:
+                    return False
+                r.raise_for_status()
+                return True
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            raise YapaiaFehler(f"nicht erreichbar: {err}") from err
+
     async def bild(self, pfad: str) -> bytes | None:
         """Ein Standbild (Kameras). `None`, wenn das Modul gerade keins hat."""
         try:

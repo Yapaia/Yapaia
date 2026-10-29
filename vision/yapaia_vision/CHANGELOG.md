@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.0
+
+**Die Vision-Oberfläche folgt dem Yapaia-Design-Schema** (Gerät „Yapaia
+Design“ bzw. Auswahl „Design“ am Gerät Yapaia Vision); Standard ist das
+Gesamt-Schema. Ohne die Integration wie bisher. Bringt die Integration 0.7.2 mit.
+
 ## 0.2.4
 
 - Live-Bild auf der Seite jetzt auch in der Companion-App auf dem iPad: Die

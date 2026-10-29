@@ -40,8 +40,10 @@ Umgebungsvariablen, Entity-IDs und Dateinamen.
  │              │ ◀───────────────────────────────────────────── │                 │
  │              │  5. POST /yapaia/v1/partner  (wer ist noch da) │                 │
  │              │ ◀───────────────────────────────────────────── │                 │
+ │              │  6. POST /yapaia/v1/design   (wie aussehen)    │                 │
+ │              │ ◀───────────────────────────────────────────── │                 │
  └──────────────┘                                                └─────────────────┘
-        ▲  6. Modul ↔ Modul direkt (dokumentierte Fähigkeiten)
+        ▲  7. Modul ↔ Modul direkt (dokumentierte Fähigkeiten)
         ▼
  ┌──────────────┐
  │ Add-on Beat  │   … meldet sich genauso an
@@ -297,6 +299,31 @@ Modul die Liste der anderen:
   Fähigkeit nur, wenn der Partner sie **meldet** – nie anhand des Modulnamens.
 - Ohne Integration gibt es keine Partnerliste; jedes Modul arbeitet dann für
   sich.
+
+## 8a. Design
+
+Die Integration verwaltet ein gemeinsames Aussehen für alle Oberflächen
+([Design-Schemata](design-schemata.md)). Jedes Modul bekommt das Schema, das für
+es gilt (eigenes oder das gesamte):
+
+`POST /yapaia/v1/design`
+
+```json
+{"schema": {"id": "retro", "name": "Retro", "hell": true,
+            "css": {"--y-grund": "#F4ECDC", "--y-akzent": "#C8551F", "…": "…"},
+            "deko": {"streifen": ["#3B2A20", "#C8551F", "#E3A72F"]}, "…": "…"},
+ "eigenes": false,
+ "schriften": "/yapaia_design/schriften/schriften.css"}
+```
+
+- Gesendet beim Verbinden der Live-Verbindung und nach jeder Änderung.
+- Das Modul merkt es sich (auch über Neustarts) und gibt es an seine
+  Oberfläche weiter; die setzt nur die CSS-Variablen `css` und zeichnet Deko
+  nach `deko`. `schriften` ist ein Pfad auf dem Home-Assistant-Server – nur in
+  der HA-Oberfläche (Ingress, gleiche Herkunft) ladbar; außerhalb gelten die
+  Ersatzschriften des Schemas.
+- Optional: ein Modul ohne Oberfläche antwortet 404; die Integration nimmt
+  das hin. Ohne Integration bleibt das Modul bei seinem eigenen Aussehen.
 
 ## 9. Installation der Integration
 

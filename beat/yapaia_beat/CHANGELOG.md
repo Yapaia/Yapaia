@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.18.0
+
+**Die Beat-Oberfläche folgt dem Yapaia-Design-Schema.** Farben und Schrift
+kommen aus dem Schema, das in Home Assistant für Beat gilt (Gerät „Yapaia
+Design“ bzw. Auswahl „Design“ am Gerät Yapaia Beat). Standard ist das
+Gesamt-Schema; das bisherige Aussehen gibt es als „Beat Modern“ (Auswahl
+„Design“ am Gerät Yapaia Beat). Ohne die Integration bleibt Beat wie bisher.
+Bringt die Integration 0.7.2 mit: sie schickt jedem Modul sein Schema.
+
 ## 1.17.2
 
 **Die richtigen Senderlogos.** Gemeldet: Die richtigen Logos werden nicht

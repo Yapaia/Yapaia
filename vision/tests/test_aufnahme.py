@@ -210,3 +210,20 @@ def test_beschreibung_passt_zur_datei_der_integration(tmp_path):
     echt["version"] = "0.0.0"
     datei = Path(__file__).resolve().parents[2] / "integration" / "tests" / "fixtures" / "vision_beschreibung.json"
     assert json.loads(datei.read_text()) == echt
+
+
+def test_design_fuer_die_seite(ersatz_ffmpeg, tmp_path, monkeypatch):
+    """§8a: Schema von der Integration, die eigene Seite holt es über /api/design."""
+    monkeypatch.setattr(protokoll, "DESIGN_DATEI", tmp_path / "design.json")
+
+    async def ablauf():
+        v = Vision(_opts(), gefunden=[])
+        ident = protokoll.Identitaet(tmp_path / "yapaia.json")
+        async with TestClient(TestServer(create_app(v, ident))) as c:
+            assert await (await c.get("/api/design")).json() == {}
+            daten = {"schema": {"id": "sport", "css": {"--y-grund": "#0a0d14"}}}
+            kopf = {"Authorization": f"Bearer {ident.token}"}
+            assert (await c.post("/yapaia/v1/design", json=daten, headers=kopf)).status == 200
+            assert await (await c.get("/api/design")).json() == daten
+
+    asyncio.run(ablauf())

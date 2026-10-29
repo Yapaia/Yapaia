@@ -783,3 +783,26 @@ if (player.wanted && !player.playing) player.start(); // may be blocked until th
 
 connect();
 loadStations();
+
+// ---- Yapaia Design (docs/integration-protokoll.md §8a) --------------------
+// Das Schema schickt die Integration an Beat; hier nur die CSS-Variablen setzen.
+async function designHolen() {
+  try {
+    const d = await (await fetch("api/design", { cache: "no-store" })).json();
+    const s = d && d.schema;
+    if (!s || !s.css) return;
+    const root = document.documentElement;
+    for (const [k, v] of Object.entries(s.css)) root.style.setProperty(k, v);
+    root.dataset.ySchema = s.id;
+    root.dataset.yHell = String(s.hell);
+    // Schriften liegen auf dem HA-Server: nur über Ingress (gleiche Herkunft) ladbar
+    if (d.schriften && location.pathname.includes("/api/hassio_ingress/") && !document.querySelector(`link[href="${d.schriften}"]`)) {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = d.schriften;
+      document.head.appendChild(l);
+    }
+  } catch { /* ohne Integration: eigenes Aussehen */ }
+}
+designHolen();
+setInterval(designHolen, 60000);
