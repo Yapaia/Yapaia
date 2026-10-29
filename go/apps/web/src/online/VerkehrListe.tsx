@@ -66,7 +66,7 @@ export default function VerkehrListe(): React.ReactElement | null {
       ref={anordnung.ref}
       aria-label="Verkehr auf der Route"
       data-testid="verkehr-liste"
-      className="pointer-events-auto absolute z-20 rounded-xl bg-white/95 text-sm text-slate-800 shadow-lg dark:bg-slate-800/95 dark:text-slate-100"
+      className="pointer-events-auto absolute z-20 rounded-xl bg-flaeche/95 text-sm text-slate-800 shadow-lg dark:bg-slate-800/95 dark:text-slate-100"
       style={
         schmal
           ? { left: 8, right: 8, top: MANEUVER_PANEL_TOP_PX + 120 }

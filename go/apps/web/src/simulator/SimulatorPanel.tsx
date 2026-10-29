@@ -131,7 +131,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
     <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('simulator'), right: TOP_RIGHT_INSET_PX }}>
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-80 rounded-xl bg-white/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3"}
+          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-80 rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3"}
           data-testid="simulator-panel"
         >
           <h2 className="font-semibold">Testfahrt</h2>
@@ -263,7 +263,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
         <button
           type="button"
           onClick={() => setIsOpen((open) => !open)}
-          className="w-12 h-12 rounded-full bg-white/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
+          className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
           aria-label="Testfahrt"
           aria-expanded={isOpen}
           title="Testfahrt (GPS-Simulator)"

@@ -67,7 +67,7 @@ export default function VerkehrHinweis(): React.ReactElement | null {
           'pointer-events-auto cursor-pointer rounded-lg px-3 py-2 text-xs shadow-lg ' +
           (warnung
             ? 'border border-amber-300 bg-amber-50/95 text-amber-900 dark:border-amber-700 dark:bg-amber-950/95 dark:text-amber-100'
-            : 'border border-slate-300 bg-white/95 text-slate-700 dark:border-slate-600 dark:bg-slate-900/95 dark:text-slate-200')
+            : 'border border-slate-300 bg-flaeche/95 text-slate-700 dark:border-slate-600 dark:bg-slate-900/95 dark:text-slate-200')
         }
       >
         {hinweis.text}

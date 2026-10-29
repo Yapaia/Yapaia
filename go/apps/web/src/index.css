@@ -2,6 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Schrift des Yapaia-Design-Schemas, sonst die Tailwind-Systemschrift */
+body { font-family: var(--y-schrift-text, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"); }
+
+/* Yapaia-Design-Schema: Standardfarben der Paletten (= Tailwind). Mit einem
+   Schema überschreibt src/design/design.ts sie am <html>-Element. */
+:root {
+  --tw-flaeche: 255 255 255;
+  --tw-slate-50: 248 250 252;
+  --tw-slate-100: 241 245 249;
+  --tw-slate-200: 226 232 240;
+  --tw-slate-300: 203 213 225;
+  --tw-slate-400: 148 163 184;
+  --tw-slate-500: 100 116 139;
+  --tw-slate-600: 71 85 105;
+  --tw-slate-700: 51 65 85;
+  --tw-slate-800: 30 41 59;
+  --tw-slate-900: 15 23 42;
+  --tw-slate-950: 2 6 23;
+  --tw-blue-50: 239 246 255;
+  --tw-blue-100: 219 234 254;
+  --tw-blue-200: 191 219 254;
+  --tw-blue-300: 147 197 253;
+  --tw-blue-400: 96 165 250;
+  --tw-blue-500: 59 130 246;
+  --tw-blue-600: 37 99 235;
+  --tw-blue-700: 29 78 216;
+  --tw-blue-800: 30 64 175;
+  --tw-blue-900: 30 58 138;
+  --tw-blue-950: 23 37 84;
+}
+
 /*
  * ─── DIE SEITE SELBST SCROLLT NIE ────────────────────────────────────────────
  * Gemeldet (iPad, Home-Assistant-Seitenleiste): „ich sehe die Suchzeile am

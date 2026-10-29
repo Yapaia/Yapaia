@@ -284,7 +284,7 @@ export default function FavoritesDrawer({
                                 type="text"
                                 value={renameDraft}
                                 onChange={(e) => setRenameDraft(e.target.value)}
-                                className="flex-1 min-w-0 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-xs"
+                                className="flex-1 min-w-0 rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-xs"
                                 data-testid={`favorite-rename-input-${fav.id}`}
                               />
                               <button

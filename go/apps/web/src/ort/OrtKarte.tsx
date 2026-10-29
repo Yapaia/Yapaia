@@ -247,7 +247,7 @@ export default function OrtKarte(): React.ReactElement | null {
 
   return (
     <section
-      className="pointer-events-auto flex max-h-[calc(var(--sicht-h,100vh)-150px)] flex-col gap-3 overflow-y-auto rounded-2xl bg-white p-4 shadow-lg dark:bg-slate-800 dark:text-slate-100"
+      className="pointer-events-auto flex max-h-[calc(var(--sicht-h,100vh)-150px)] flex-col gap-3 overflow-y-auto rounded-2xl bg-flaeche p-4 shadow-lg dark:bg-slate-800 dark:text-slate-100"
       aria-label={`Ort: ${titel}`}
       data-testid="ort-karte"
     >

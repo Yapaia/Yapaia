@@ -183,7 +183,7 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
     <div className={eingebettet ? '' : 'fixed left-4 z-10'} style={eingebettet ? undefined : { bottom: bottomInsetPx(schmal, driveActive) }}>
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute bottom-14 left-0 mb-2 w-64 max-h-[calc(var(--sicht-h,100dvh)-7rem)] overflow-y-auto overscroll-contain rounded-xl bg-white/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4"}
+          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute bottom-14 left-0 mb-2 w-64 max-h-[calc(var(--sicht-h,100dvh)-7rem)] overflow-y-auto overscroll-contain rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4"}
           data-testid="style-panel"
         >
           {/* Speed-Lock (E07-T4): Settings is one of docs/06 §4's "complex
@@ -344,7 +344,7 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
       {!eingebettet && (
         <button
           onClick={toggleOpen}
-          className="w-12 h-12 rounded-full bg-white/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
+          className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
           aria-label="Karten-Einstellungen"
           aria-expanded={isOpen}
           title="Karten-Einstellungen"

@@ -268,7 +268,7 @@ export default function RoutingPanel(): React.ReactElement | null {
       // `docs/entwurf-ui-umbau.md` auf der Fahrerseite unter Suche und
       // Chips; dort darf es bis zum unteren Rand reichen, die Karte daneben
       // bleibt frei. Auf Telefon und Tablet hochkant bleibt es das Blatt von unten.
-      className={`fixed z-20 overflow-y-auto rounded-xl bg-white/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3 ${
+      className={`fixed z-20 overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3 ${
         schmal
           ? 'bottom-4 left-1/2 -translate-x-1/2 w-[min(calc(var(--sicht-b,100vw)*0.92),28rem)] max-h-[calc(var(--sicht-h,100vh)*0.45)]'
           : 'bottom-3'
@@ -455,13 +455,13 @@ export default function RoutingPanel(): React.ReactElement | null {
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
               placeholder="Name"
-              className="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-xs"
+              className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-xs"
               data-testid="save-favorite-name-input"
             />
             <select
               value={saveCategory}
               onChange={(e) => setSaveCategory(e.target.value as Favorite['category'])}
-              className="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-xs"
+              className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-xs"
               data-testid="save-favorite-category-select"
             >
               {FAVORITE_CATEGORIES.map((cat) => (
@@ -542,7 +542,7 @@ export default function RoutingPanel(): React.ReactElement | null {
                 className={
                   effective
                     ? 'px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white border border-blue-600'
-                    : 'px-3 py-1 rounded-full text-xs font-medium bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600'
+                    : 'px-3 py-1 rounded-full text-xs font-medium bg-flaeche dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600'
                 }
               >
                 {AVOID_LABELS[flag]}

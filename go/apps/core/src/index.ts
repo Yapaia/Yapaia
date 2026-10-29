@@ -48,6 +48,7 @@ import { LiteBackend } from './search/lite/liteBackend.js';
 import { resolveLiteSearchDir } from './search/lite/paths.js';
 import { geoIndexAnlegen } from './search/lite/geoIndex.js';
 import { AdressDienst } from './search/adresseDienst.js';
+import { DesignSpeicher, registriereDesign } from './yapaia/design.js';
 import { setInterval, setTimeout, clearInterval, clearTimeout } from 'node:timers';
 import { favoritesPlugin } from './favorites/routes.js';
 import { FavoriteService } from './favorites/service.js';
@@ -947,6 +948,12 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     },
   });
   await registriereProtokoll(fastify, yapaia, yapaiaIdent.token);
+  // Design-Schema der Integration (Protokoll §8a) für die eigene Oberfläche
+  await registriereDesign(
+    fastify,
+    new DesignSpeicher(dbPfad && dbPfad !== ':memory:' ? join(dirname(dbPfad), 'design.json') : null),
+    yapaiaIdent.token,
+  );
   fastify.addHook('onClose', async () => {
     yapaia.dispose();
   });

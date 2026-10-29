@@ -73,7 +73,7 @@ export default function CompassButton(): React.ReactElement | null {
       ref={anordnung.ref}
       onClick={handleClick}
       style={{ bottom: rightStackBottomPx('compass', driveActive, schmal), [kartenSeite]: EDGE_INSET_PX }}
-      className="fixed w-12 h-12 rounded-full bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+      className="fixed w-12 h-12 rounded-full bg-flaeche dark:bg-slate-800 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
       aria-label="Zurück zu Nord"
       title="Zurück zu Nord"
       data-testid="compass-button"

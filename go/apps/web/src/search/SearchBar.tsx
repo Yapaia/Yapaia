@@ -91,7 +91,7 @@ function FavoritesQuickSelect({ thresholdKmh }: { thresholdKmh: number }): React
     <div className="relative flex-1 min-w-0 max-w-[26rem] pointer-events-none">
       <div className="pointer-events-auto">
         <div
-          className="flex items-center gap-2 overflow-x-auto rounded-full bg-white/95 dark:bg-slate-800/95 shadow-md px-3 py-2"
+          className="flex items-center gap-2 overflow-x-auto rounded-full bg-flaeche/95 dark:bg-slate-800/95 shadow-md px-3 py-2"
           data-testid="search-favorites-quickselect"
         >
           <span className="flex-shrink-0" aria-hidden="true">
@@ -347,7 +347,7 @@ export default function SearchBar(): React.ReactElement {
               showDropdown && highlightedIndex >= 0 ? `search-option-${highlightedIndex}` : undefined
             }
             aria-label="Ziel suchen"
-            className="w-full rounded-full bg-white/95 dark:bg-slate-800/95 shadow-md px-4 py-2 pr-9 text-sm text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-full bg-flaeche/95 dark:bg-slate-800/95 shadow-md px-4 py-2 pr-9 text-sm text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
             data-testid="search-input"
           />
           {/* ─── DAS KREUZ ZUM LEEREN ──────────────────────────────────────
@@ -395,7 +395,7 @@ export default function SearchBar(): React.ReactElement {
 
         {favoritenOffen && !showDropdown && trimmedLength === 0 && (
           <div
-            className="pointer-events-auto absolute mt-2 max-h-[calc(var(--sicht-h,100vh)-8rem)] w-full overflow-y-auto overscroll-contain rounded-xl bg-white/95 shadow-xl dark:bg-slate-800/95"
+            className="pointer-events-auto absolute mt-2 max-h-[calc(var(--sicht-h,100vh)-8rem)] w-full overflow-y-auto overscroll-contain rounded-xl bg-flaeche/95 shadow-xl dark:bg-slate-800/95"
             data-testid="search-favoriten"
             onKeyDown={(e) => {
               if (e.key === 'Escape') setFavoritenOffen(false);
@@ -409,7 +409,7 @@ export default function SearchBar(): React.ReactElement {
           <div
             id={PANEL_ID}
             data-testid="search-panel"
-            className="absolute mt-2 w-full rounded-xl bg-white/95 dark:bg-slate-800/95 shadow-xl overflow-hidden text-sm text-slate-800 dark:text-slate-100"
+            className="absolute mt-2 w-full rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl overflow-hidden text-sm text-slate-800 dark:text-slate-100"
           >
             {status === 'loading' && (
               <p className="px-4 py-3 text-slate-500 dark:text-slate-400" data-testid="search-loading">

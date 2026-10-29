@@ -17,12 +17,14 @@
  * allein der Fahrer im Kartenmenü.
  */
 
+import { designDunkel } from '../design/design.js';
 import type { ThemeResolution } from './resolveTheme.js';
 import { useStyleStore } from '../state/styleStore.js';
 
 function setDarkClass(isDark: boolean): void {
   if (typeof document === 'undefined') return;
-  document.documentElement.classList.toggle('dark', isDark);
+  // Ein Yapaia-Design-Schema gibt hell/dunkel für die Oberfläche vor (design/design.ts)
+  document.documentElement.classList.toggle('dark', designDunkel() ?? isDark);
 }
 
 /** UI-Klasse und Kartenstil im selben Takt. */

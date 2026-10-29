@@ -191,7 +191,7 @@ export default function ProfileEditor({
           type="text"
           value={profile.name ?? ''}
           onChange={(e) => handleFieldChange('name', e.target.value)}
-          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-flaeche dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="z.B. Kastenwagen"
           data-testid="profile-name-input"
         />
@@ -317,7 +317,7 @@ export default function ProfileEditor({
           onChange={(e) =>
             handleFieldChange('fuel_type', (e.target.value || null) as VehicleProfile['fuel_type'])
           }
-          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700"
+          className="mt-1 w-full rounded-lg border border-slate-300 bg-flaeche px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700"
           data-testid="fuel-type-select"
         >
           <option value="">Nicht angegeben</option>
@@ -395,7 +395,7 @@ export default function ProfileEditor({
       {/* Height Disclaimer Dialog (W-08) */}
       {dialog.type === 'height-disclaimer' && dialog.isVisible && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" data-testid="height-disclaimer-dialog">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg max-w-md p-6 space-y-4">
+          <div className="bg-flaeche dark:bg-slate-800 rounded-lg shadow-lg max-w-md p-6 space-y-4">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
               Höhenwarnung (W-08)
             </h2>
@@ -509,7 +509,7 @@ function SliderInput({
           aria-label={label}
           // Breiter als vorher: „3.49" plus die Pfeilchen des Browsers
           // passten in `w-16` nicht mehr.
-          className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-md bg-flaeche dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           data-testid={`${testId}-number`}
         />
       </div>

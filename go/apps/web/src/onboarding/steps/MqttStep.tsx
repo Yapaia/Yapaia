@@ -82,7 +82,7 @@ export default function MqttStep(): React.ReactElement {
         placeholder="Broker-URL (z. B. mqtt://192.168.1.10:1883)"
         value={form.broker_url}
         onChange={(e) => setForm((prev) => ({ ...prev, broker_url: e.target.value }))}
-        className="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm"
+        className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1.5 text-sm"
         data-testid="onboarding-mqtt-broker-url"
       />
       <input
@@ -90,7 +90,7 @@ export default function MqttStep(): React.ReactElement {
         placeholder="Benutzername (optional)"
         value={form.username}
         onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
-        className="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm"
+        className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1.5 text-sm"
         data-testid="onboarding-mqtt-username"
       />
       <input
@@ -98,7 +98,7 @@ export default function MqttStep(): React.ReactElement {
         placeholder="Passwort (optional)"
         value={form.password}
         onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-        className="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm"
+        className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1.5 text-sm"
         data-testid="onboarding-mqtt-password"
       />
       <button

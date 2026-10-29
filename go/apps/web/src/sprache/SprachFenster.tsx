@@ -96,7 +96,7 @@ export default function SprachFenster(): React.ReactElement | null {
     <div
       role="dialog"
       aria-label="Sprachbefehl"
-      className="pointer-events-auto fixed z-50 flex max-h-[calc(var(--sicht-h,100vh)*0.7)] flex-col rounded-2xl bg-white text-sm text-slate-800 shadow-2xl dark:bg-slate-800 dark:text-slate-100"
+      className="pointer-events-auto fixed z-50 flex max-h-[calc(var(--sicht-h,100vh)*0.7)] flex-col rounded-2xl bg-flaeche text-sm text-slate-800 shadow-2xl dark:bg-slate-800 dark:text-slate-100"
       style={
         schmal
           ? { left: 8, right: 8, bottom: 8 }
@@ -214,7 +214,7 @@ export default function SprachFenster(): React.ReactElement | null {
           onChange={(e) => setEingabe(e.target.value)}
           placeholder={verfuegbar === 'ja' ? 'Oder tippen …' : 'Befehl tippen …'}
           enterKeyHint="send"
-          className="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700"
+          className="min-w-0 flex-1 rounded-full border border-slate-300 bg-flaeche px-3 py-2 dark:border-slate-600 dark:bg-slate-700"
           data-testid="sprach-eingabe"
         />
         {verfuegbar === 'ja' ? (

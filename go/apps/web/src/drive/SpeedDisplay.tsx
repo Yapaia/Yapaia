@@ -38,7 +38,7 @@ export default function SpeedDisplay(): React.ReactElement | null {
       data-testid="speed-display"
       // Auf schmalen Schirmen ueber der Fahrtdaten-Leiste, sonst wie bisher.
       style={{ bottom: schmal ? bottomInsetPx(true, true) + FAB_SIZE_PX + STACK_GAP_PX : undefined, [seite]: 16 }}
-      className={`fixed z-10 flex items-baseline gap-1 rounded-xl bg-white/90 dark:bg-slate-800/90 px-3 py-2 shadow-lg pointer-events-none ${
+      className={`fixed z-10 flex items-baseline gap-1 rounded-xl bg-flaeche/90 dark:bg-slate-800/90 px-3 py-2 shadow-lg pointer-events-none ${
         schmal ? '' : 'bottom-20'
       }`}
     >

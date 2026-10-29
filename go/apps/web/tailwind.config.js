@@ -1,3 +1,8 @@
+const STUFEN = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+function stufen(name) {
+  return Object.fromEntries(STUFEN.map((s) => [s, `rgb(var(--tw-${name}-${s}) / <alpha-value>)`]));
+}
+
 export default {
   content: ['./index.html', './shell.html', './src/**/*.{js,ts,jsx,tsx}'],
   // E07-T3: theme is driven by the theme controller (`src/theme/`), not the
@@ -13,7 +18,17 @@ export default {
   // OS-driven.
   darkMode: 'class',
   theme: {
-    extend: {},
+    extend: {
+      // ─── YAPAIA-DESIGN-SCHEMA ────────────────────────────────────────────
+      // slate, blue und `flaeche` (statt bg-white) zeigen auf CSS-Variablen.
+      // Standard = die Tailwind-Farben (src/index.css), mit Schema berechnet
+      // src/design/palette.ts die Stufen aus dessen Farben.
+      colors: {
+        slate: stufen('slate'),
+        blue: stufen('blue'),
+        flaeche: 'rgb(var(--tw-flaeche) / <alpha-value>)',
+      },
+    },
   },
   plugins: [],
 };

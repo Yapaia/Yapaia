@@ -71,7 +71,7 @@ export default function UnterwegsVorschau({
       role="dialog"
       aria-label={`Vorschau: ${t.name}`}
       style={{ bottom: bottomPx }}
-      className="absolute left-1/2 z-30 w-[min(calc(var(--sicht-b,100vw)*0.92),26rem)] -translate-x-1/2 space-y-2 rounded-xl bg-white/95 p-3 text-sm text-slate-800 shadow-xl dark:bg-slate-800/95 dark:text-slate-100"
+      className="absolute left-1/2 z-30 w-[min(calc(var(--sicht-b,100vw)*0.92),26rem)] -translate-x-1/2 space-y-2 rounded-xl bg-flaeche/95 p-3 text-sm text-slate-800 shadow-xl dark:bg-slate-800/95 dark:text-slate-100"
       data-testid="unterwegs-vorschau"
     >
       <div className="flex items-start gap-2">

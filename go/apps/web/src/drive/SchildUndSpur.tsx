@@ -69,7 +69,7 @@ export function SpurLeiste({ spuren }: { spuren: SpurAnzeige[] }): React.ReactEl
           // wegzulassen hiesse, dem Fahrer die Zählung zu nehmen: „zweite von
           // rechts" geht nur, wenn man alle sieht.
           className={`flex items-center rounded px-1 py-0.5 ${
-            spur.aktiv ? 'bg-white text-slate-900' : 'text-white/35'
+            spur.aktiv ? 'bg-flaeche text-slate-900' : 'text-white/35'
           }`}
         >
           {spur.pfeile.map((key) => (

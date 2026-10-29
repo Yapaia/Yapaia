@@ -228,7 +228,7 @@ export default function ProfilesPanel(): React.ReactElement {
           er bleibt im sichtbaren Teil des Fensters. */}
       {editorMode && editingProfile && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 pointer-events-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[calc(var(--sicht-h,100vh)*0.9)] overflow-y-auto p-6 space-y-4">
+          <div className="bg-flaeche dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[calc(var(--sicht-h,100vh)*0.9)] overflow-y-auto p-6 space-y-4">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
               {editorMode === 'create' ? 'Neues Profil' : 'Profil bearbeiten'}
             </h2>
