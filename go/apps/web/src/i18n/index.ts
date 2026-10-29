@@ -18,6 +18,7 @@
  * React: `tx(T, 'laden')` (liest die aktuelle Sprache, ohne neu zu zeichnen).
  */
 
+import { useCallback } from 'react';
 import { create } from 'zustand';
 
 export type Sprache = 'de' | 'en';
@@ -67,7 +68,12 @@ export function tx<K extends string>(t: Texte<K>, schluessel: K, werte?: Werte):
 /** Hook: Übersetzer für einen Bereich; zeichnet beim Sprachwechsel neu. */
 export function useT<K extends string>(t: Texte<K>): (schluessel: K, werte?: Werte) => string {
   const sp = useSprache((s) => s.sprache);
-  return (schluessel, werte) => format(t[sp][schluessel] ?? t.en[schluessel] ?? schluessel, werte);
+  // Stabil bis zum Sprachwechsel: `t` darf in Abhängigkeiten von useEffect/useCallback stehen
+  return useCallback(
+    (schluessel: K, werte?: Werte) =>
+      format(t[sp][schluessel] ?? t.en[schluessel] ?? schluessel, werte),
+    [t, sp]
+  );
 }
 
 /** Gebiet für Zahlen, Datum, Uhrzeit (`toLocaleString(gebiet())`). */
@@ -78,11 +84,12 @@ export function gebiet(sprache: Sprache = useSprache.getState().sprache): string
 /** Die Einstellung `language` vom Kern holen (beim Start und jede Minute, SprachController). */
 export async function spracheHolen(): Promise<void> {
   try {
-    const r = await fetch(`${import.meta.env.BASE_URL}api/v1/settings/language`, {
-      cache: 'no-store',
-    });
+    // Alle Einstellungen statt `settings/language`: das antwortet ohne
+    // Einstellung mit 404, und das stünde dann als Fehler in der Konsole.
+    const r = await fetch(`${import.meta.env.BASE_URL}api/v1/settings`, { cache: 'no-store' });
     if (!r.ok) return;
-    const s = spracheAus(((await r.json()) as { data?: unknown }).data);
+    const daten = ((await r.json()) as { data?: { language?: unknown } }).data;
+    const s = spracheAus(daten?.language);
     if (s && s !== useSprache.getState().sprache) useSprache.getState().setzen(s);
   } catch {
     // ohne Kern bleibt die Browsersprache

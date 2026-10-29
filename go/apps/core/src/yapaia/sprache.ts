@@ -4,7 +4,7 @@
  * Die Integration schickt die HA-Sprache (`de`/`en`); Go legt sie als
  * Einstellung `language` ab -- dieselbe, die die Einrichtung setzt und die
  * Routing-Anweisungen nutzen. Die Oberfläche liest sie über
- * `GET /api/v1/settings/language` (apps/web/src/i18n/).
+ * `GET /api/v1/settings` (apps/web/src/i18n/).
  */
 
 import type { FastifyInstance } from 'fastify';

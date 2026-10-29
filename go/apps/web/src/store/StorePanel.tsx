@@ -60,7 +60,7 @@ import {
 
 import { TOP_RIGHT_INSET_PX, topRightSlotPx } from '../shell/mapControlLayout.js';
 import MarktplatzSection from './MarktplatzSection.js';
-import { useT } from '../i18n/index.js';
+import { tx, useT } from '../i18n/index.js';
 import { T } from './texte.js';
 type InstallFlowState =
   | { kind: 'idle' }
@@ -159,7 +159,8 @@ function TrustBadges({ entry }: { entry: RegistryEntryView }): React.ReactElemen
 
 /** Notice INSTEAD of an install button: incompatible (W-11) or revoked. */
 function EntryBlocker({ entry }: { entry: RegistryEntryView }): React.ReactElement | null {
-  const t = useT(T);
+  // Wird als Funktion aufgerufen (nicht als <Komponente>) – also kein Hook hier
+  const t = (k: keyof typeof T.de): string => tx(T, k);
   if (entry.revoked) {
     return (
       <p
