@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.19.0
+
+**Die Beat-Oberfläche spricht die Sprache von Home Assistant** (Deutsch,
+sonst Englisch). Die Integration meldet die HA-Sprache (Protokoll §8b);
+ohne Integration gilt die Sprache des Browsers.
+
 ## 1.18.1
 
 - Add-on-Option „FM-Kanalraster“ hat jetzt auch auf Englisch eine Beschreibung.

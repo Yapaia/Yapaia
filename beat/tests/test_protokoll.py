@@ -176,3 +176,22 @@ def test_design_wird_gemerkt(tmp_path, monkeypatch):
         assert protokoll.design_laden() == daten
 
     run(go())
+
+
+def test_sprache_wird_gemerkt(tmp_path, monkeypatch):
+    """§8b: die HA-Sprache der Integration (de, sonst en), auch über Neustarts."""
+    monkeypatch.setattr(protokoll, "SPRACHE_DATEI", tmp_path / "sprache.json")
+
+    async def go():
+        app = _app(tmp_path, FakeRadio())
+        assert app["yapaia_sprache"] is None
+        kopf = {"Authorization": f"Bearer {app['yapaia_identitaet'].token}"}
+        async with TestClient(TestServer(app)) as c:
+            assert (await c.post("/yapaia/v1/sprache", json={"sprache": "de"})).status == 401
+            assert (await c.post("/yapaia/v1/sprache", json={"sprache": 1}, headers=kopf)).status == 400
+            assert (await c.post("/yapaia/v1/sprache", json={"sprache": "de"}, headers=kopf)).status == 200
+            assert (await c.post("/yapaia/v1/sprache", json={"sprache": "fr"}, headers=kopf)).status == 200
+            assert app["yapaia_sprache"] == "en"
+        assert protokoll.sprache_laden() == "en"
+
+    run(go())

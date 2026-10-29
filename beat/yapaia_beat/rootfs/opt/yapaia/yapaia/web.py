@@ -73,6 +73,12 @@ async def design(request: web.Request) -> web.Response:
     return web.json_response(request.app.get("yapaia_design") or {}, headers={"Cache-Control": "no-cache"})
 
 
+@routes.get("/api/sprache")
+async def sprache(request: web.Request) -> web.Response:
+    """Die HA-Sprache von der Integration für die eigene Seite (null ohne)."""
+    return web.json_response({"sprache": request.app.get("yapaia_sprache")}, headers={"Cache-Control": "no-cache"})
+
+
 @routes.get("/api/info")
 async def info(request: web.Request) -> web.Response:
     return web.json_response({"name": "Yapaia Beat", "version": VERSION})

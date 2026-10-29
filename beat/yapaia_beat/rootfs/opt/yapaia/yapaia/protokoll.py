@@ -219,10 +219,41 @@ async def _design(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+SPRACHE_DATEI = DATA_DIR / "sprache.json"
+
+
+def sprache_laden() -> str | None:
+    """Die zuletzt von der Integration geschickte Sprache (§8b), auch nach Neustart."""
+    with contextlib.suppress(OSError, ValueError):
+        daten = json.loads(SPRACHE_DATEI.read_text())
+        if isinstance(daten, dict) and daten.get("sprache") in ("de", "en"):
+            return daten["sprache"]
+    return None
+
+
+async def _sprache(request: web.Request) -> web.Response:
+    """Die HA-Sprache von der Integration (docs/integration-protokoll.md §8b): de oder sonst en."""
+    try:
+        daten = await request.json()
+    except ValueError:
+        return web.json_response({"ok": False, "fehler": "kein JSON"}, status=400)
+    wert = daten.get("sprache") if isinstance(daten, dict) else None
+    if not isinstance(wert, str):
+        return web.json_response({"ok": False, "fehler": "sprache fehlt"}, status=400)
+    sprache = wert if wert in ("de", "en") else "en"
+    request.app["yapaia_sprache"] = sprache
+    with contextlib.suppress(OSError):
+        SPRACHE_DATEI.parent.mkdir(parents=True, exist_ok=True)
+        SPRACHE_DATEI.write_text(json.dumps({"sprache": sprache}))
+    _LOGGER.info("Sprache: %s", sprache)
+    return web.json_response({"ok": True})
+
+
 def einbinden(app: web.Application, ident: Identitaet) -> None:
     app["yapaia_identitaet"] = ident
     app["yapaia_partner"] = []
     app["yapaia_design"] = design_laden()
+    app["yapaia_sprache"] = sprache_laden()
     app["yapaia_beschreibung_neu"] = beschreibung_neu(ident)
     app.middlewares.insert(0, nur_mit_token)
     app.router.add_get(f"{API}/beschreibung", _beschreibung)
@@ -230,3 +261,4 @@ def einbinden(app: web.Application, ident: Identitaet) -> None:
     app.router.add_post(API + "/aktion/{name}", _aktion)
     app.router.add_post(f"{API}/partner", _partner)
     app.router.add_post(f"{API}/design", _design)
+    app.router.add_post(f"{API}/sprache", _sprache)

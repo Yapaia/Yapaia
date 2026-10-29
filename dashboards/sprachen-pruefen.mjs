@@ -1,4 +1,4 @@
-// Prüft die Übersetzungen der Karten (docs/sprachen.md):
+// Prüft die Übersetzungen der Karten und Add-on-Oberflächen (docs/sprachen.md):
 // jede Karte hat einen Block `const TEXTE = { de: {…}, en: {…} };` (reines
 // Objekt-Literal, schließendes `};` am Zeilenanfang) mit denselben Schlüsseln
 // und Platzhaltern {name} in beiden Sprachen.
@@ -18,6 +18,9 @@ const KARTEN = [
   'dashboards/rangieren/kamera-card.js',
   'integration/custom_components/yapaia/beat/www/yapaia-beat-card.js',
   'go/yapaia_go/lovelace/yapaia-map-card.js',
+  // Oberflächen der Add-ons (Protokoll §8b)
+  'beat/yapaia_beat/rootfs/opt/yapaia/www/app.js',
+  'vision/yapaia_vision/rootfs/opt/yapaia/www/index.html',
 ];
 
 const platzhalter = (t) => [...String(t).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
