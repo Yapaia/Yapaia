@@ -27,3 +27,11 @@ views:
     cards:
       - type: custom:yapaia-stellplatz-card
         stil: mix
+  - title: Breitbild
+    path: breit
+    icon: mdi:monitor-screenshot
+    type: panel
+    cards:
+      # Für 1920 × 720 (z. B. Wisecoco 12,3" Stretch-Display)
+      - type: custom:yapaia-stellplatz-card
+        stil: breit
