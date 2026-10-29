@@ -8,6 +8,9 @@
  * Eingabefeld, und gesprochen wird über Home Assistant Assist.
  */
 
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 interface ErgebnisListe {
   length: number;
   [i: number]: { isFinal: boolean; 0: { transcript: string } };
@@ -27,7 +30,10 @@ type ErkennerKlasse = new () => Erkenner;
 
 function klasse(): ErkennerKlasse | null {
   if (typeof window === 'undefined') return null;
-  const w = window as unknown as { SpeechRecognition?: ErkennerKlasse; webkitSpeechRecognition?: ErkennerKlasse };
+  const w = window as unknown as {
+    SpeechRecognition?: ErkennerKlasse;
+    webkitSpeechRecognition?: ErkennerKlasse;
+  };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
@@ -45,11 +51,11 @@ export function erkennungVerfuegbar(): Verfuegbarkeit {
  */
 export function hoereZu(
   onZwischen: (text: string) => void,
-  onFertig: (text: string | null, fehler?: string) => void,
+  onFertig: (text: string | null, fehler?: string) => void
 ): () => void {
   const K = klasse();
   if (!K) {
-    onFertig(null, 'Spracherkennung ist in diesem Browser nicht verfügbar.');
+    onFertig(null, tx(T, 'erkennung_fehlt'));
     return () => {};
   }
   const e = new K();
@@ -70,16 +76,16 @@ export function hoereZu(
   e.onerror = (ev) => {
     fehler =
       ev.error === 'not-allowed'
-        ? 'Das Mikrofon wurde nicht freigegeben.'
+        ? tx(T, 'mikrofon_verweigert')
         : ev.error === 'no-speech'
-          ? 'Ich habe nichts gehört.'
-          : `Spracherkennung: ${ev.error}`;
+          ? tx(T, 'nichts_gehoert')
+          : tx(T, 'erkennung_fehler', { fehler: ev.error });
   };
   e.onend = () => onFertig(endgueltig, endgueltig ? undefined : fehler);
   try {
     e.start();
   } catch {
-    onFertig(null, 'Spracherkennung ließ sich nicht starten.');
+    onFertig(null, tx(T, 'erkennung_start'));
   }
   return () => e.abort();
 }

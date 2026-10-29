@@ -17,8 +17,11 @@ import { useAnordnungStore } from './anordnung.js';
 import { useHandednessStore } from './handednessStore.js';
 import { ANKER_ID, ankerFuer, begrenzeAnker } from '../map/kartenAnker.js';
 import { useMapStore } from '../state/mapStore.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 export default function AnkerGriff(): React.ReactElement | null {
+  const t = useT(T);
   const bearbeiten = useAnordnungStore((s) => s.bearbeiten);
   const eintraege = useAnordnungStore((s) => (s.bearbeiten ? s.werte[s.bearbeiten] : undefined));
   const setze = useAnordnungStore((s) => s.setze);
@@ -28,7 +31,7 @@ export default function AnkerGriff(): React.ReactElement | null {
   // Die Karte kann sich verschieben (Drehen, Fenster) -- dann neu messen.
   const [, setTick] = useState(0);
   useEffect(() => {
-    const neu = (): void => setTick((t) => t + 1);
+    const neu = (): void => setTick((n) => n + 1);
     window.addEventListener('resize', neu);
     return () => window.removeEventListener('resize', neu);
   }, []);
@@ -40,16 +43,26 @@ export default function AnkerGriff(): React.ReactElement | null {
 
   const setzeAus = (e: React.PointerEvent): void => {
     const r = map.getContainer().getBoundingClientRect();
-    const a = begrenzeAnker({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
+    const a = begrenzeAnker({
+      x: (e.clientX - r.left) / r.width,
+      y: (e.clientY - r.top) / r.height,
+    });
     // `dx`/`dy` tragen hier Anteile, siehe `kartenAnker.ts`.
-    setze(bearbeiten, ANKER_ID, { dx: Math.round(a.x * 1000) / 1000, dy: Math.round(a.y * 1000) / 1000, s: 1 });
+    setze(bearbeiten, ANKER_ID, {
+      dx: Math.round(a.x * 1000) / 1000,
+      dy: Math.round(a.y * 1000) / 1000,
+      s: 1,
+    });
   };
 
   return createPortal(
     <div
       role="slider"
-      aria-label="Position auf der Karte verschieben"
-      aria-valuetext={`${Math.round(anker.x * 100)} % von links, ${Math.round(anker.y * 100)} % von oben`}
+      aria-label={t('positionAuf')}
+      aria-valuetext={t('positionWert', {
+        x: Math.round(anker.x * 100),
+        y: Math.round(anker.y * 100),
+      })}
       tabIndex={0}
       onPointerDown={(e) => {
         e.preventDefault();
@@ -70,15 +83,18 @@ export default function AnkerGriff(): React.ReactElement | null {
         ziehen.current = false;
       }}
       className="fixed z-[65] flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 cursor-move touch-none items-center justify-center rounded-full border-2 border-dashed border-blue-500 bg-blue-500/15"
-      style={{ left: rahmen.left + anker.x * rahmen.width, top: rahmen.top + anker.y * rahmen.height }}
+      style={{
+        left: rahmen.left + anker.x * rahmen.width,
+        top: rahmen.top + anker.y * rahmen.height,
+      }}
       data-testid="anordnung-anker"
     >
       <span className="pointer-events-none absolute h-px w-12 bg-blue-500" aria-hidden="true" />
       <span className="pointer-events-none absolute h-12 w-px bg-blue-500" aria-hidden="true" />
       <span className="pointer-events-none absolute top-full mt-1 whitespace-nowrap rounded bg-slate-900/90 px-2 py-0.5 text-xs text-white">
-        Position
+        {t('position')}
       </span>
     </div>,
-    document.body,
+    document.body
   );
 }

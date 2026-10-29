@@ -20,9 +20,12 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useT } from '../i18n/index.js';
 import { useRoutingStore } from './store.js';
+import { T } from './texte.js';
 
 export default function LangerDruckHinweis(): React.ReactElement | null {
+  const t = useT(T);
   const bis = useRoutingStore((s) => s.langerDruckHinweisBis);
   const [jetzt, setJetzt] = useState(() => Date.now());
 
@@ -56,7 +59,7 @@ export default function LangerDruckHinweis(): React.ReactElement | null {
       data-testid="langer-druck-hinweis"
     >
       <div className="rounded-full bg-slate-900/85 px-4 py-2 text-sm text-white shadow-lg dark:bg-slate-100/90 dark:text-slate-900">
-        Ziel setzen: lange auf die Karte drücken
+        {t('langerDruck')}
       </div>
     </div>
   );

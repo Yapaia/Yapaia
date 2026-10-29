@@ -17,6 +17,8 @@
  */
 import type { FuelType } from '@yapaia/shared';
 import { haversineMeters } from '../search/distance.js';
+import { T } from './texte.js';
+import { gebiet, tx } from '../i18n/index.js';
 
 export interface Tankstelle {
   id: string;
@@ -92,7 +94,7 @@ export function preisText(euro: number): string {
   const tausendstel = Math.round(euro * 1000);
   const ganz = Math.floor(tausendstel / 1000);
   const rest = String(tausendstel % 1000).padStart(3, '0');
-  return `${ganz},${rest.slice(0, 2)}${'⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(rest[2])]}`;
+  return `${ganz}${gebiet() === 'de-DE' ? ',' : '.'}${rest.slice(0, 2)}${'⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(rest[2])]}`;
 }
 
 export type Frische = 'frisch' | 'aelter' | 'alt' | 'zu';
@@ -120,22 +122,25 @@ export const FRISCHE_KLASSE: Readonly<Record<Frische, string>> = {
   zu: 'bg-slate-200 text-slate-500 line-through dark:bg-slate-700 dark:text-slate-400',
 };
 
-export const FRISCHE_TEXT: Readonly<Record<Frische, string>> = {
-  frisch: 'Preis aktuell',
-  aelter: 'Preis älter als 15 Minuten',
-  alt: 'Preis älter als eine Stunde',
-  zu: 'Tankstelle geschlossen',
-};
+/** Beschriftung der Frische in der aktuellen Sprache. */
+export function frischeText(f: Frische): string {
+  return tx(T, f);
+}
 
 /** Holt die Preise um einen Punkt. `null` bei jedem Fehler -- dann kein Preis. */
-export async function holePreise(p: Punkt, fetchFn: typeof fetch = fetch): Promise<Preisabfrage | null> {
+export async function holePreise(
+  p: Punkt,
+  fetchFn: typeof fetch = fetch
+): Promise<Preisabfrage | null> {
   try {
     const antwort = await fetchFn(
-      `${import.meta.env.BASE_URL}api/v1/tanken/preise?lat=${p.lat}&lon=${p.lon}&rad=${ABFRAGE_RADIUS_KM}`,
+      `${import.meta.env.BASE_URL}api/v1/tanken/preise?lat=${p.lat}&lon=${p.lon}&rad=${ABFRAGE_RADIUS_KM}`
     );
     if (!antwort.ok) return null;
     const { data } = (await antwort.json()) as { data?: Preisabfrage };
-    return data && Array.isArray(data.stationen) && typeof data.abgerufen === 'string' ? data : null;
+    return data && Array.isArray(data.stationen) && typeof data.abgerufen === 'string'
+      ? data
+      : null;
   } catch {
     return null;
   }
@@ -157,7 +162,7 @@ export interface Zuordnung {
  */
 export async function preiseZuPunkten(
   punkte: readonly Punkt[],
-  holen: (p: Punkt) => Promise<Preisabfrage | null> = holePreise,
+  holen: (p: Punkt) => Promise<Preisabfrage | null> = holePreise
 ): Promise<Array<Zuordnung | null>> {
   const abfragen = new Map<string, Promise<Preisabfrage | null>>();
   const je = punkte.slice(0, MAX_TREFFER).map((p) => {

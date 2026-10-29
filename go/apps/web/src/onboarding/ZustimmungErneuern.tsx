@@ -13,8 +13,11 @@ import React from 'react';
 import DisclaimerStep from './steps/DisclaimerStep.js';
 import { hasValidConsent } from './state.js';
 import { useOnboardingStore } from './store.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export default function ZustimmungErneuern(): React.ReactElement | null {
+  const t = useT(T);
   const store = useOnboardingStore();
   const accept = useOnboardingStore((s) => s.acceptDisclaimerConsent);
 
@@ -27,10 +30,8 @@ export default function ZustimmungErneuern(): React.ReactElement | null {
       data-testid="zustimmung-erneuern"
     >
       <div className="w-full max-w-lg rounded-lg bg-flaeche dark:bg-slate-800 p-5 shadow-xl space-y-3 text-slate-900 dark:text-slate-100">
-        <h2 className="text-lg font-semibold">Die Hinweise zur Nutzung wurden aktualisiert</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          Bitte lies sie einmal und stimme zu. Bis dahin lässt sich keine neue Navigation starten.
-        </p>
+        <h2 className="text-lg font-semibold">{t('erneuernTitel')}</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300">{t('erneuernText')}</p>
         <DisclaimerStep state={store.state} onAccept={() => void accept()} />
       </div>
     </div>

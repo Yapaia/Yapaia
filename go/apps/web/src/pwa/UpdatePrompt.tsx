@@ -14,8 +14,11 @@ import React from 'react';
 import { usePwaStore } from './pwaStore.js';
 import { shouldPromptReload } from './reloadGate.js';
 import { useDriveLockStore } from '../drive/driveLockStore.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 export default function UpdatePrompt(): React.ReactElement | null {
+  const t = useT(T);
   const updateAvailable = usePwaStore((state) => state.updateAvailable);
   const speedMps = usePwaStore((state) => state.speedMps);
   const reloadNow = usePwaStore((state) => state.reloadNow);
@@ -31,14 +34,14 @@ export default function UpdatePrompt(): React.ReactElement | null {
       data-testid="update-prompt"
       role="status"
     >
-      <p className="flex-1">Update verfügbar.</p>
+      <p className="flex-1">{t('update')}</p>
       <button
         type="button"
         onClick={reloadNow}
         className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm font-medium"
         data-testid="update-reload-button"
       >
-        Neu laden
+        {t('neuLaden')}
       </button>
     </div>
   );

@@ -24,7 +24,13 @@ import {
 } from '../../settings/regions/client.js';
 import { kartenliste, type Karteneintrag } from '../../settings/regions/kartenliste.js';
 import { fetchSystemResources } from '../client.js';
-import { recommendPhotonOff, LOW_DISK_THRESHOLD_BYTES, type SystemResources } from '../resourceRecommendation.js';
+import { useT, tx } from '../../i18n/index.js';
+import { T } from '../texte.js';
+import {
+  recommendPhotonOff,
+  LOW_DISK_THRESHOLD_BYTES,
+  type SystemResources,
+} from '../resourceRecommendation.js';
 
 const JOB_POLL_INTERVAL_MS = 400;
 
@@ -38,21 +44,29 @@ function formatBytes(bytes: number): string {
 function formatApiError(err: RegionApiError): string {
   if (err.code === 'INSUFFICIENT_SPACE') {
     const required =
-      typeof err.details?.requiredBytes === 'number' ? formatBytes(err.details.requiredBytes) : 'unbekannt';
-    const free = typeof err.details?.freeBytes === 'number' ? formatBytes(err.details.freeBytes) : 'unbekannt';
-    return `Nicht genug freier Speicherplatz: benötigt ${required}, verfügbar ${free}.`;
+      typeof err.details?.requiredBytes === 'number'
+        ? formatBytes(err.details.requiredBytes)
+        : tx(T, 'unbekannt');
+    const free =
+      typeof err.details?.freeBytes === 'number'
+        ? formatBytes(err.details.freeBytes)
+        : tx(T, 'unbekannt');
+    return tx(T, 'platzMangel', { req: required, free });
   }
-  if (err.code === 'ALREADY_INSTALLED') return 'Diese Region ist bereits installiert.';
-  if (err.code === 'BUILD_IN_PROGRESS') return 'Es läuft bereits ein Kartenbau. Bitte dessen Ende abwarten.';
-  if (err.code === 'ALREADY_DOWNLOADED') return 'Diese Region ist bereits heruntergeladen.';
-  return err.message || 'Unbekannter Fehler.';
+  if (err.code === 'ALREADY_INSTALLED') return tx(T, 'schonInstalliert');
+  if (err.code === 'BUILD_IN_PROGRESS') return tx(T, 'bauLaeuftSchon');
+  if (err.code === 'ALREADY_DOWNLOADED') return tx(T, 'schonGeladen');
+  return err.message || tx(T, 'unbekannterFehler');
 }
 
 export default function RegionStep(): React.ReactElement {
+  const t = useT(T);
   const [installed, setInstalled] = useState<InstalledRegion[]>([]);
   const [catalog, setCatalog] = useState<CatalogRegion[]>([]);
   const [resources, setResources] = useState<SystemResources | null>(null);
-  const [downloads, setDownloads] = useState<Record<string, { jobId: string; job: JobSnapshot | null }>>({});
+  const [downloads, setDownloads] = useState<
+    Record<string, { jobId: string; job: JobSnapshot | null }>
+  >({});
   const [errorByRegion, setErrorByRegion] = useState<Record<string, string>>({});
   /** Der gemeinsame Bau aller heruntergeladenen Karten (0.59.0). */
   const [bau, setBau] = useState<{ jobId: string; job: JobSnapshot | null } | null>(null);
@@ -81,17 +95,19 @@ export default function RegionStep(): React.ReactElement {
   useEffect(() => {
     const interval = setInterval(() => {
       const active = Object.entries(downloadsRef.current).filter(
-        ([, s]) => !s.job || (s.job.status !== 'done' && s.job.status !== 'error'),
+        ([, s]) => !s.job || (s.job.status !== 'done' && s.job.status !== 'error')
       );
       if (active.length === 0) return;
       void Promise.all(
         active.map(async ([regionId, s]) => {
           const job = await fetchJob(s.jobId);
-          setDownloads((prev) => (prev[regionId] ? { ...prev, [regionId]: { jobId: s.jobId, job } } : prev));
+          setDownloads((prev) =>
+            prev[regionId] ? { ...prev, [regionId]: { jobId: s.jobId, job } } : prev
+          );
           if (job && (job.status === 'done' || job.status === 'error')) {
             void refresh();
           }
-        }),
+        })
       );
     }, JOB_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -129,8 +145,7 @@ export default function RegionStep(): React.ReactElement {
           : await startExtraktDownload(eintrag.id);
       setDownloads((prev) => ({ ...prev, [eintrag.id]: { jobId, job: null } }));
     } catch (err) {
-      const message =
-        err instanceof RegionApiError ? formatApiError(err) : 'Der Vorgang konnte nicht gestartet werden.';
+      const message = err instanceof RegionApiError ? formatApiError(err) : tx(T, 'startFehler');
       setErrorByRegion((prev) => ({ ...prev, [eintrag.id]: message }));
     }
   }, []);
@@ -148,11 +163,11 @@ export default function RegionStep(): React.ReactElement {
         await refresh();
       } catch (err) {
         const message =
-          err instanceof RegionApiError ? formatApiError(err) : 'Der Download konnte nicht verworfen werden.';
+          err instanceof RegionApiError ? formatApiError(err) : tx(T, 'verwerfFehler');
         setErrorByRegion((prev) => ({ ...prev, [regionId]: message }));
       }
     },
-    [refresh],
+    [refresh]
   );
 
   const handleBauen = useCallback(async () => {
@@ -161,20 +176,24 @@ export default function RegionStep(): React.ReactElement {
       const jobId = await startGesamtbau(false);
       setBau({ jobId, job: null });
     } catch (err) {
-      setBauFehler(err instanceof RegionApiError ? formatApiError(err) : 'Der Bau konnte nicht gestartet werden.');
+      setBauFehler(err instanceof RegionApiError ? formatApiError(err) : tx(T, 'bauStartFehler'));
     }
   }, []);
 
   const karten = kartenliste(installed, catalog);
   const downloadableCatalog = karten.filter(
     (eintrag) =>
-      eintrag.zustand === 'verfuegbar' || eintrag.zustand === 'geladen' || eintrag.zustand === 'ohne_quelle',
+      eintrag.zustand === 'verfuegbar' ||
+      eintrag.zustand === 'geladen' ||
+      eintrag.zustand === 'ohne_quelle'
   );
   const geladen = karten.filter((eintrag) => eintrag.zustand === 'geladen');
   const ladenLaeuft = Object.values(downloads).some(
-    (s) => !s.job || (s.job.status !== 'done' && s.job.status !== 'error'),
+    (s) => !s.job || (s.job.status !== 'done' && s.job.status !== 'error')
   );
-  const bauLaeuft = Boolean(bau && (!bau.job || (bau.job.status !== 'done' && bau.job.status !== 'error')));
+  const bauLaeuft = Boolean(
+    bau && (!bau.job || (bau.job.status !== 'done' && bau.job.status !== 'error'))
+  );
   const photonOffRecommended = resources ? recommendPhotonOff(resources) : false;
 
   return (
@@ -185,37 +204,38 @@ export default function RegionStep(): React.ReactElement {
           data-testid="onboarding-resources-display"
         >
           <p>
-            Freier Speicherplatz:{' '}
+            {t('freierSpeicher')}{' '}
             <span data-testid="onboarding-disk-free" className="font-medium">
               {formatBytes(resources.disk_free_bytes)}
             </span>{' '}
-            von {formatBytes(resources.disk_total_bytes)}
+            {t('von')} {formatBytes(resources.disk_total_bytes)}
           </p>
           <p>
-            Freier Arbeitsspeicher:{' '}
+            {t('freierRam')}{' '}
             <span data-testid="onboarding-mem-free" className="font-medium">
               {formatBytes(resources.mem_free_bytes)}
             </span>{' '}
-            von {formatBytes(resources.mem_total_bytes)}
+            {t('von')} {formatBytes(resources.mem_total_bytes)}
           </p>
           {photonOffRecommended && (
             <p
               className="text-amber-700 dark:text-amber-400 font-medium pt-1"
               data-testid="onboarding-photon-off-recommendation"
             >
-              Weniger als {formatBytes(LOW_DISK_THRESHOLD_BYTES)} frei: Wir empfehlen, den
-              Online-Suchdienst „Photon“ in den Einstellungen zu deaktivieren, um Arbeitsspeicher
-              zu sparen.
+              {t('photonAus', { schwelle: formatBytes(LOW_DISK_THRESHOLD_BYTES) })}
             </p>
           )}
         </div>
       )}
 
       <section>
-        <h3 className="font-semibold mb-2">Installierte Regionen</h3>
+        <h3 className="font-semibold mb-2">{t('installierte')}</h3>
         {installed.length === 0 && (
-          <p className="text-slate-500 dark:text-slate-400 text-xs" data-testid="onboarding-regions-installed-empty">
-            Noch keine Karte installiert.
+          <p
+            className="text-slate-500 dark:text-slate-400 text-xs"
+            data-testid="onboarding-regions-installed-empty"
+          >
+            {t('nochKeine')}
           </p>
         )}
         <ul className="space-y-2">
@@ -232,12 +252,13 @@ export default function RegionStep(): React.ReactElement {
       </section>
 
       <section>
-        <h3 className="font-semibold mb-2">Verfügbare Regionen</h3>
+        <h3 className="font-semibold mb-2">{t('verfuegbare')}</h3>
         <ul className="space-y-2">
           {downloadableCatalog.map((entry) => {
             const download = downloads[entry.id];
             const job = download?.job;
-            const isActive = !!download && (!job || (job.status !== 'done' && job.status !== 'error'));
+            const isActive =
+              !!download && (!job || (job.status !== 'done' && job.status !== 'error'));
             return (
               <li
                 key={entry.id}
@@ -247,7 +268,9 @@ export default function RegionStep(): React.ReactElement {
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs">
                     <div className="font-medium">{entry.name}</div>
-                    <div className="text-slate-500 dark:text-slate-400">{formatBytes(entry.groesseBytes)}</div>
+                    <div className="text-slate-500 dark:text-slate-400">
+                      {formatBytes(entry.groesseBytes)}
+                    </div>
                   </div>
                   {/* Ohne jede Quelle kein Knopf: einer, der nicht
                       funktionieren KANN, schickt auf Fehlersuche. */}
@@ -259,7 +282,7 @@ export default function RegionStep(): React.ReactElement {
                       className="shrink-0 px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs disabled:opacity-50"
                       data-testid={`onboarding-download-button-${entry.id}`}
                     >
-                      Herunterladen
+                      {t('herunterladen')}
                     </button>
                   )}
                   {entry.zustand === 'geladen' && (
@@ -270,13 +293,16 @@ export default function RegionStep(): React.ReactElement {
                       className="shrink-0 px-2 py-1 rounded-md border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300 text-xs disabled:opacity-50"
                       data-testid={`onboarding-verwerfen-button-${entry.id}`}
                     >
-                      Verwerfen
+                      {t('verwerfen')}
                     </button>
                   )}
                 </div>
                 {entry.zustand === 'geladen' && !isActive && (
-                  <p className="mt-1 text-xs text-blue-700 dark:text-blue-300" data-testid={`onboarding-geladen-${entry.id}`}>
-                    ✓ Heruntergeladen — wird mit „Jetzt bauen" gebaut.
+                  <p
+                    className="mt-1 text-xs text-blue-700 dark:text-blue-300"
+                    data-testid={`onboarding-geladen-${entry.id}`}
+                  >
+                    {t('heruntergeladen')}
                   </p>
                 )}
                 {entry.quelle === 'bau' && entry.grosserBau && (
@@ -284,12 +310,12 @@ export default function RegionStep(): React.ReactElement {
                     className="mt-1 text-xs text-amber-700 dark:text-amber-400"
                     data-testid={`onboarding-grosser-bau-${entry.id}`}
                   >
-                    {entry.hinweis ?? 'Große Region: der Kartenbau dauert auf diesem Gerät mehrere Stunden.'}
+                    {entry.hinweis ?? t('grosseRegion')}
                   </p>
                 )}
                 {entry.zustand === 'ohne_quelle' && (
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    {entry.hinweis ?? 'Für diese Karte ist keine Quelle hinterlegt.'}
+                    {entry.hinweis ?? t('keineQuelle')}
                   </p>
                 )}
                 {job && !(job.status === 'done' && entry.zustand === 'geladen') && (
@@ -304,22 +330,29 @@ export default function RegionStep(): React.ReactElement {
                             ? 'h-full w-1/3 bg-blue-500 animate-pulse'
                             : 'h-full bg-blue-500 transition-[width]'
                         }
-                        style={job.totalBytes === null ? undefined : { width: `${Math.round(job.progress * 100)}%` }}
+                        style={
+                          job.totalBytes === null
+                            ? undefined
+                            : { width: `${Math.round(job.progress * 100)}%` }
+                        }
                       />
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       {job.status === 'error'
-                        ? `Fehler: ${job.error?.message ?? 'Vorgang fehlgeschlagen'}`
+                        ? t('fehlerMit', { text: job.error?.message ?? t('vorgangFehlgeschlagen') })
                         : job.status === 'done'
-                          ? (job.note ?? 'Fertig')
+                          ? (job.note ?? t('fertigPunkt'))
                           : job.totalBytes === null
-                            ? (job.note ?? 'Läuft…')
+                            ? (job.note ?? t('laeuft'))
                             : `${Math.round(job.progress * 100)}%`}
                     </div>
                   </div>
                 )}
                 {errorByRegion[entry.id] && (
-                  <p className="mt-1 text-xs text-red-600 dark:text-red-400" data-testid={`onboarding-region-error-${entry.id}`}>
+                  <p
+                    className="mt-1 text-xs text-red-600 dark:text-red-400"
+                    data-testid={`onboarding-region-error-${entry.id}`}
+                  >
                     {errorByRegion[entry.id]}
                   </p>
                 )}
@@ -341,12 +374,11 @@ export default function RegionStep(): React.ReactElement {
           <div className="text-xs">
             {geladen.length > 0 ? (
               <>
-                <span className="font-medium">Bereit zum Bauen:</span>{' '}
-                {geladen.map((eintrag) => eintrag.name).join(', ')}. Weitere Karten jetzt noch
-                herunterladen — gebaut wird alles in einem Lauf.
+                <span className="font-medium">{t('bereitZumBauen')}</span>{' '}
+                {geladen.map((eintrag) => eintrag.name).join(', ')}. {t('weitereKarten')}
               </>
             ) : (
-              'Die Karten werden gebaut.'
+              t('werdenGebaut')
             )}
           </div>
           <button
@@ -356,37 +388,42 @@ export default function RegionStep(): React.ReactElement {
             className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-medium disabled:opacity-50"
             data-testid="onboarding-bauen-button"
           >
-            {bauLaeuft ? 'Baut…' : 'Jetzt bauen'}
+            {bauLaeuft ? t('baut') : t('jetztBauen')}
           </button>
           {ladenLaeuft && !bauLaeuft && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Es wird noch heruntergeladen — gebaut werden kann, sobald alle Downloads fertig sind.
-            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t('nochDownload')}</p>
           )}
           {bau?.job && (
-            <div className="text-xs text-slate-600 dark:text-slate-300" data-testid="onboarding-bau-status">
+            <div
+              className="text-xs text-slate-600 dark:text-slate-300"
+              data-testid="onboarding-bau-status"
+            >
               {bau.job.status === 'error'
-                ? `Fehler: ${bau.job.error?.message ?? 'Bau fehlgeschlagen'}`
+                ? t('fehlerMit', { text: bau.job.error?.message ?? t('bauFehlgeschlagen') })
                 : bau.job.status === 'done'
-                  ? `✓ ${bau.job.note ?? 'Fertig.'}`
+                  ? `✓ ${bau.job.note ?? t('fertigMitPunkt')}`
                   : [
                       bau.job.gesamt
-                        ? `Schritt ${bau.job.gesamt.schritt} von ${bau.job.gesamt.schritte}: ${bau.job.gesamt.schrittText}`
-                        : 'Bau läuft…',
+                        ? t('bauSchritt', {
+                            n: bau.job.gesamt.schritt,
+                            gesamt: bau.job.gesamt.schritte,
+                            text: bau.job.gesamt.schrittText,
+                          })
+                        : t('bauLaeuft'),
                       bau.job.gesamt?.restText,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
               {bau.job.status === 'running' && (
-                <p className="mt-1 text-slate-500 dark:text-slate-400">
-                  Der Bau läuft im Hintergrund weiter. Sie können den Assistenten fortsetzen; den
-                  Stand zeigt auch ⚙ → „Karten verwalten".
-                </p>
+                <p className="mt-1 text-slate-500 dark:text-slate-400">{t('bauHintergrund')}</p>
               )}
             </div>
           )}
           {bauFehler && (
-            <p className="text-xs text-red-600 dark:text-red-400" data-testid="onboarding-bau-fehler">
+            <p
+              className="text-xs text-red-600 dark:text-red-400"
+              data-testid="onboarding-bau-fehler"
+            >
               {bauFehler}
             </p>
           )}

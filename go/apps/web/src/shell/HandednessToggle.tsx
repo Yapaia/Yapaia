@@ -8,13 +8,16 @@
 import React from 'react';
 import { useHandednessStore } from './handednessStore.js';
 import type { Handedness } from './handedness.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
-const OPTIONS: Array<{ value: Handedness; label: string }> = [
-  { value: 'lhd', label: 'Linkslenker (LHD)' },
-  { value: 'rhd', label: 'Rechtslenker (RHD)' },
+const OPTIONS: Array<{ value: Handedness; label: 'linkslenker' | 'rechtslenker' }> = [
+  { value: 'lhd', label: 'linkslenker' },
+  { value: 'rhd', label: 'rechtslenker' },
 ];
 
 export default function HandednessToggle(): React.ReactElement {
+  const t = useT(T);
   const handedness = useHandednessStore((state) => state.handedness);
   const setHandedness = useHandednessStore((state) => state.setHandedness);
 
@@ -24,18 +27,16 @@ export default function HandednessToggle(): React.ReactElement {
           Viertel das Fahrzeug waehrend der Fahrt sitzt
           (`map/drivePadding.ts#DRIVE_VEHICLE_X`). Die Knoepfe, die sie
           vorher auf die andere Seite legte, liegen jetzt im Fahrtmenue. */}
-      <h2 className="font-semibold mb-2">Lenkrad (LHD/RHD)</h2>
-      <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-        Während der Fahrt sitzt das Fahrzeug im unteren Viertel auf der Fahrerseite.
-      </p>
-      <div className="flex gap-1" role="group" aria-label="Lenkrad (LHD/RHD)">
+      <h2 className="font-semibold mb-2">{t('lenkrad')}</h2>
+      <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{t('lenkradHinweis')}</p>
+      <div className="flex gap-1" role="group" aria-label={t('lenkrad')}>
         {OPTIONS.map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => setHandedness(opt.value)}
             aria-pressed={opt.value === handedness}
-            aria-label={opt.label}
+            aria-label={t(opt.label)}
             data-testid={`handedness-option-${opt.value}`}
             className={`px-2 py-1 rounded-md border text-xs ${
               opt.value === handedness
@@ -43,7 +44,7 @@ export default function HandednessToggle(): React.ReactElement {
                 : 'border-slate-300 dark:border-slate-600'
             }`}
           >
-            {opt.label}
+            {t(opt.label)}
           </button>
         ))}
       </div>

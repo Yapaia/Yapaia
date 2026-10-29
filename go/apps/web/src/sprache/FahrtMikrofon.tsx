@@ -9,8 +9,11 @@ import { useKartenSeite } from '../shell/bedienSeite.js';
 import { useSchmal } from '../shell/useSchmal.js';
 import { EDGE_INSET_PX, rightStackBottomPx } from '../shell/mapControlLayout.js';
 import { useAnordnung } from '../shell/useAnordnung.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export default function FahrtMikrofon(): React.ReactElement {
+  const t = useT(T);
   const anordnung = useAnordnung('mikrofon');
   const oeffne = useSprachStore((s) => s.oeffne);
   const kartenSeite = useKartenSeite();
@@ -20,7 +23,7 @@ export default function FahrtMikrofon(): React.ReactElement {
       ref={anordnung.ref}
       type="button"
       onClick={oeffne}
-      aria-label="Sprachbefehl"
+      aria-label={t('sprachbefehl')}
       style={{ bottom: rightStackBottomPx('mikrofon', true, schmal), [kartenSeite]: EDGE_INSET_PX }}
       className="fixed z-20 flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-xl text-white shadow-lg hover:bg-blue-700"
       data-testid="fahrt-mikrofon"

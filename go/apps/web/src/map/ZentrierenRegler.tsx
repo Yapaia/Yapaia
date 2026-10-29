@@ -1,8 +1,11 @@
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import React from 'react';
 import { ZENTRIEREN_STUFEN, useZentrierenStore, zentrierenText } from './zentrieren.js';
 
 /** Regler für `zentrieren.ts`: aus, 5 s … 2 min. */
 export default function ZentrierenRegler(): React.ReactElement {
+  const t = useT(T);
   const sekunden = useZentrierenStore((s) => s.sekunden);
   const setSekunden = useZentrierenStore((s) => s.setSekunden);
   const index = Math.max(0, (ZENTRIEREN_STUFEN as readonly number[]).indexOf(sekunden));
@@ -16,7 +19,7 @@ export default function ZentrierenRegler(): React.ReactElement {
         step={1}
         value={index}
         onChange={(e) => setSekunden(ZENTRIEREN_STUFEN[Number(e.target.value)] ?? 10)}
-        aria-label="Automatisch zentrieren nach"
+        aria-label={t('zentrierenNach')}
         aria-valuetext={zentrierenText(sekunden)}
         className="h-8 flex-1 accent-blue-600"
         data-testid="zentrieren-slider"

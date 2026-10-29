@@ -8,6 +8,8 @@
  */
 
 import React, { useState } from 'react';
+import { useSprache, useT } from '../../i18n/index.js';
+import { T } from '../texte.js';
 
 export type Units = 'metric' | 'imperial';
 export type Language = 'de' | 'en';
@@ -29,8 +31,9 @@ async function patchSetting(key: string, value: unknown): Promise<void> {
 }
 
 export default function LanguageUnitsStep(): React.ReactElement {
+  const t = useT(T);
   const [units, setUnits] = useState<Units>('metric');
-  const [language, setLanguage] = useState<Language>('de');
+  const [language, setLanguage] = useState<Language>(useSprache.getState().sprache);
 
   const handleUnitsChange = (value: Units): void => {
     setUnits(value);
@@ -40,13 +43,14 @@ export default function LanguageUnitsStep(): React.ReactElement {
   const handleLanguageChange = (value: Language): void => {
     setLanguage(value);
     void patchSetting('language', value);
+    useSprache.getState().setzen(value);
   };
 
   return (
     <div className="space-y-6" data-testid="onboarding-step-language">
       <div>
-        <h3 className="font-semibold mb-2">Sprache</h3>
-        <div className="flex gap-2" role="group" aria-label="Sprache">
+        <h3 className="font-semibold mb-2">{t('sprache')}</h3>
+        <div className="flex gap-2" role="group" aria-label={t('sprache')}>
           {(
             [
               { value: 'de', label: 'Deutsch' },
@@ -72,12 +76,12 @@ export default function LanguageUnitsStep(): React.ReactElement {
       </div>
 
       <div>
-        <h3 className="font-semibold mb-2">Einheiten</h3>
-        <div className="flex gap-2" role="group" aria-label="Einheiten">
+        <h3 className="font-semibold mb-2">{t('einheiten')}</h3>
+        <div className="flex gap-2" role="group" aria-label={t('einheiten')}>
           {(
             [
-              { value: 'metric', label: 'Metrisch (km, °C)' },
-              { value: 'imperial', label: 'Imperial (mi, °F)' },
+              { value: 'metric', label: t('metrisch') },
+              { value: 'imperial', label: t('imperial') },
             ] as const
           ).map((opt) => (
             <button

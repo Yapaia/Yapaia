@@ -9,10 +9,18 @@
  * demonstrate the style system end-to-end.
  */
 
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { POI_AUSWAHL } from '@yapaia/shared';
+import { poiName } from '../i18n/texte.js';
 import { useStyleStore } from '../state/styleStore';
-import { fetchStyleSummaries, type StyleLang, type StylePoiDensity, type StyleSummary } from './styleClient';
+import {
+  fetchStyleSummaries,
+  type StyleLang,
+  type StylePoiDensity,
+  type StyleSummary,
+} from './styleClient';
 import ThemeToggle from '../theme/ThemeToggle.js';
 import FaltAbschnitt from './FaltAbschnitt.js';
 import LabelGroesseRegler from './LabelGroesseRegler.js';
@@ -26,17 +34,18 @@ import { useSchmal } from '../shell/useSchmal.js';
 import { useNavStore } from '../drive/navStore.js';
 import { isDriveActive } from '../drive/driveActive.js';
 
-const LANG_OPTIONS: Array<{ value: StyleLang; label: string }> = [
-  { value: 'name', label: 'Original' },
-  { value: 'name_de', label: 'Deutsch' },
-  { value: 'name_en', label: 'English' },
+const LANG_OPTIONS: Array<{ value: StyleLang; label: 'langOriginal' | null; text?: string }> = [
+  { value: 'name', label: 'langOriginal' },
+  { value: 'name_de', label: null, text: 'Deutsch' },
+  { value: 'name_en', label: null, text: 'English' },
 ];
 
-const POI_OPTIONS: Array<{ value: StylePoiDensity; label: string }> = [
-  { value: 'full', label: 'Voll' },
-  { value: 'reduced', label: 'Reduziert' },
-  { value: 'off', label: 'Aus' },
-];
+const POI_OPTIONS: Array<{ value: StylePoiDensity; label: 'poiVoll' | 'poiReduziert' | 'poiAus' }> =
+  [
+    { value: 'full', label: 'poiVoll' },
+    { value: 'reduced', label: 'poiReduziert' },
+    { value: 'off', label: 'poiAus' },
+  ];
 
 /**
  * Die Schalter für die einzelnen Sonderziele.
@@ -51,6 +60,7 @@ const POI_OPTIONS: Array<{ value: StylePoiDensity; label: string }> = [
  * zwei Listen, eine davon still abgedriftet.
  */
 function SonderzielSchalter(): React.ReactElement {
+  const t = useT(T);
   const poiAus = useStyleStore((state) => state.options.poiAus);
   const setPoiKategorie = useStyleStore((state) => state.setPoiKategorie);
   const setPoiAus = useStyleStore((state) => state.setPoiAus);
@@ -72,7 +82,7 @@ function SonderzielSchalter(): React.ReactElement {
           data-testid="poi-kategorie-alle"
           className="flex-1 px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-xs disabled:opacity-40"
         >
-          Alle an
+          {t('alleAn')}
         </button>
         <button
           type="button"
@@ -81,7 +91,7 @@ function SonderzielSchalter(): React.ReactElement {
           data-testid="poi-kategorie-keine"
           className="flex-1 px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-xs disabled:opacity-40"
         >
-          Alle aus
+          {t('alleAus')}
         </button>
       </div>
 
@@ -103,16 +113,18 @@ function SonderzielSchalter(): React.ReactElement {
                   className="h-4 w-4 shrink-0 accent-blue-600"
                 />
                 <span className={`text-xs ${an ? '' : 'text-slate-400 dark:text-slate-500'}`}>
-                  {eintrag.name}
+                  {poiName(eintrag)}
                 </span>
               </label>
               {/* 📌 = „als Chip oben unter der Suche zeigen" (shell/PoiChips.tsx). */}
               <button
                 type="button"
-                onClick={() => setPoiChip(eintrag.schluessel, !poiChips.includes(eintrag.schluessel))}
+                onClick={() =>
+                  setPoiChip(eintrag.schluessel, !poiChips.includes(eintrag.schluessel))
+                }
                 aria-pressed={poiChips.includes(eintrag.schluessel)}
-                aria-label={`${eintrag.name} als Chip oben zeigen`}
-                title="Als Chip oben zeigen"
+                aria-label={t('chipZeigenName', { name: poiName(eintrag) })}
+                title={t('chipZeigen')}
                 data-testid={`poi-chip-markierung-${eintrag.schluessel}`}
                 className={`h-8 w-8 shrink-0 rounded-md text-sm ${
                   poiChips.includes(eintrag.schluessel)
@@ -136,15 +148,16 @@ function SonderzielSchalter(): React.ReactElement {
           Ohne diesen Hinweis ist ein Schalter ohne Daten von einem kaputten
           Schalter nicht zu unterscheiden. */}
       <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-        📌 = als Chip oben unter der Suche zeigen. Entsorgung, Frischwasser,
-        Müll und Dusche stammen aus dem Suchindex.
-        Ohne gebauten Index bleiben sie leer — auch eingeschaltet.
+        {t('poiHinweis')}
       </p>
     </div>
   );
 }
 
-export default function StylePanel({ eingebettet = false }: { eingebettet?: boolean } = {}): React.ReactElement {
+export default function StylePanel({
+  eingebettet = false,
+}: { eingebettet?: boolean } = {}): React.ReactElement {
+  const t = useT(T);
   // Eingebettet (im ⚙-Menü, shell/EinstellungsMenue.tsx) ist der Inhalt immer offen.
   const [isOpen, setIsOpen] = useState(eingebettet);
   const schmal = useSchmal();
@@ -180,10 +193,17 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
   return (
     // Waehrend einer Fahrt liegt auf schmalen Schirmen unten die
     // Fahrtdaten-Leiste ueber die ganze Breite -- der Knopf muss darueber.
-    <div className={eingebettet ? '' : 'fixed left-4 z-10'} style={eingebettet ? undefined : { bottom: bottomInsetPx(schmal, driveActive) }}>
+    <div
+      className={eingebettet ? '' : 'fixed left-4 z-10'}
+      style={eingebettet ? undefined : { bottom: bottomInsetPx(schmal, driveActive) }}
+    >
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute bottom-14 left-0 mb-2 w-64 max-h-[calc(var(--sicht-h,100dvh)-7rem)] overflow-y-auto overscroll-contain rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4"}
+          className={
+            eingebettet
+              ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100'
+              : 'absolute bottom-14 left-0 mb-2 w-64 max-h-[calc(var(--sicht-h,100dvh)-7rem)] overflow-y-auto overscroll-contain rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4'
+          }
           data-testid="style-panel"
         >
           {/* Speed-Lock (E07-T4): Settings is one of docs/06 §4's "complex
@@ -192,16 +212,15 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
               Beifahrer" override stays reachable, only the settings CONTENT
               itself is replaced by the overlay. */}
           <DriveLockGate controlId="settings">
-
-          {/* ─── ZUERST: DER GRUND, AUS DEM MAN DIESES MENUE OEFFNET ──────
+            {/* ─── ZUERST: DER GRUND, AUS DEM MAN DIESES MENUE OEFFNET ──────
               Vorher stand der Kartenstil an vierter Stelle, unter Theme,
               Haendigkeit und Region. Was man am haeufigsten braucht, gehoert
               dorthin, wo der Blick zuerst hinfaellt. */}
-          <FaltAbschnitt titel="Kartenstil" offen id="stil">
-            <StilJeThema styles={styles} />
-          </FaltAbschnitt>
+            <FaltAbschnitt titel={t('abschnittStil')} offen id="stil">
+              <StilJeThema styles={styles} />
+            </FaltAbschnitt>
 
-          {/* ─── HIER STAND „ANGEZEIGTE REGION" ────────────────────────────
+            {/* ─── HIER STAND „ANGEZEIGTE REGION" ────────────────────────────
               Entfernt in 0.16.0. Gewünscht:
 
                 „Der Anwender soll immer alles angezeigt bekommen was er
@@ -217,87 +236,87 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
               Kern zeichnet alle installierten (siehe `rewriteToRegions`).
               Dass das so bleibt, hält `alleRegionen.test.ts` fest. */}
 
-          {/* ─── DARSTELLUNG: WAS MAN EINMAL EINSTELLT ─────────────────────
+            {/* ─── DARSTELLUNG: WAS MAN EINMAL EINSTELLT ─────────────────────
               Hell/Dunkel, Sprache, Schriftgroesse, POI-Dichte. Zusammen vier
               Abschnitte, die vorher einzeln untereinander standen und den
               Platz dessen einnahmen, was man taeglich braucht.
 
               Zugeklappt kosten sie eine Zeile statt vierzehn. */}
-          <FaltAbschnitt titel="Darstellung" offen={false} id="darstellung">
-            <div className="space-y-3">
-              <ThemeToggle />
+            <FaltAbschnitt titel={t('abschnittDarstellung')} offen={false} id="darstellung">
+              <div className="space-y-3">
+                <ThemeToggle />
 
-              <div>
-                <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Sprache der Labels
-                </h3>
-            <div className="flex gap-1 flex-wrap">
-              {LANG_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setLang(opt.value)}
-                  aria-pressed={opt.value === options.lang}
-                  data-testid={`lang-option-${opt.value}`}
-                  className={`px-2 py-1 rounded-md border text-xs ${
-                    opt.value === options.lang
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/40 font-semibold'
-                      : 'border-slate-300 dark:border-slate-600'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-                  ))}
+                <div>
+                  <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {t('labelSprache')}
+                  </h3>
+                  <div className="flex gap-1 flex-wrap">
+                    {LANG_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setLang(opt.value)}
+                        aria-pressed={opt.value === options.lang}
+                        data-testid={`lang-option-${opt.value}`}
+                        className={`px-2 py-1 rounded-md border text-xs ${
+                          opt.value === options.lang
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/40 font-semibold'
+                            : 'border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {opt.label ? t(opt.label) : opt.text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Label-Größe
-                </h3>
-                <LabelGroesseRegler wert={options.labelScale} onWert={setLabelScale} />
-              </div>
+                <div>
+                  <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {t('labelGroesse')}
+                  </h3>
+                  <LabelGroesseRegler wert={options.labelScale} onWert={setLabelScale} />
+                </div>
 
-              <div>
-                <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Zurück zur eigenen Position nach
-                </h3>
-                <ZentrierenRegler />
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Wie lange die Karte bleibt, wo du sie hingeschoben hast. „aus": bis du ⌖ drückst.
-                </p>
-              </div>
+                <div>
+                  <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {t('zurueckNach')}
+                  </h3>
+                  <ZentrierenRegler />
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t('zurueckHinweis')}
+                  </p>
+                </div>
 
-              <div>
-                {/* ─── „DICHTE" IST EINE FRAGE AN DAS GERAET ──────────────
+                <div>
+                  {/* ─── „DICHTE" IST EINE FRAGE AN DAS GERAET ──────────────
                     Nicht an den Fahrer. Sie bleibt, weil die
                     Leistungsueberwachung sie bei niedriger Bildrate
                     herunterdreht -- welche Kategorien man sehen WILL, steht
                     jetzt einen Abschnitt tiefer unter „Sonderziele". */}
-                <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  POI-Dichte
-                </h3>
-                <div className="flex gap-1">
-              {POI_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setPoi(opt.value)}
-                  aria-pressed={opt.value === options.poi}
-                  data-testid={`poi-option-${opt.value}`}
-                  className={`px-2 py-1 rounded-md border text-xs ${
-                    opt.value === options.poi
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/40 font-semibold'
-                      : 'border-slate-300 dark:border-slate-600'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-                  ))}
+                  <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {t('poiDichte')}
+                  </h3>
+                  <div className="flex gap-1">
+                    {POI_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setPoi(opt.value)}
+                        aria-pressed={opt.value === options.poi}
+                        data-testid={`poi-option-${opt.value}`}
+                        className={`px-2 py-1 rounded-md border text-xs ${
+                          opt.value === options.poi
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/40 font-semibold'
+                            : 'border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {t(opt.label)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </FaltAbschnitt>
+            </FaltAbschnitt>
 
-          {/* ─── SONDERZIELE: WAS MAN AUF DER KARTE SEHEN WILL ────────────
+            {/* ─── SONDERZIELE: WAS MAN AUF DER KARTE SEHEN WILL ────────────
               Gewünscht:
 
                 „Kann ich die einzelnen sonderziele auch an und abschalten?
@@ -309,11 +328,11 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
               Fahrer. Zugeklappt, weil man sie einmal einstellt -- aber als
               eigene Zeile sichtbar, denn bisher war „POI-Dichte" das
               einzige, was danach aussah, und es war die falsche Antwort. */}
-          <FaltAbschnitt titel="Sonderziele" offen={false} id="sonderziele">
-            <SonderzielSchalter />
-          </FaltAbschnitt>
+            <FaltAbschnitt titel={t('abschnittSonderziele')} offen={false} id="sonderziele">
+              <SonderzielSchalter />
+            </FaltAbschnitt>
 
-          {/* ─── GERAET: WAS MAN EINMAL IM LEBEN EINSTELLT ─────────────────
+            {/* ─── GERAET: WAS MAN EINMAL IM LEBEN EINSTELLT ─────────────────
               Links-/Rechtshaendigkeit und der Setup-Assistent. Beides stellt
               man bei der Einrichtung ein und danach nie wieder — sie standen
               trotzdem dauerhaft im Bild.
@@ -324,19 +343,19 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
               `reopen()` shows the wizard WITHOUT touching the persisted
               `onboarding_state.completed` flag until the user actually
               finishes it again -- see `onboarding/store.ts`. */}
-          <FaltAbschnitt titel="Gerät" offen={false} id="geraet">
-            <div className="space-y-3">
-              <HandednessToggle />
-              <button
-              type="button"
-              onClick={() => reopenOnboardingWizard()}
-              className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-xs"
-              data-testid="onboarding-reopen-button"
-            >
-              🧭 Setup-Assistent erneut öffnen
-              </button>
-            </div>
-          </FaltAbschnitt>
+            <FaltAbschnitt titel={t('abschnittGeraet')} offen={false} id="geraet">
+              <div className="space-y-3">
+                <HandednessToggle />
+                <button
+                  type="button"
+                  onClick={() => reopenOnboardingWizard()}
+                  className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-xs"
+                  data-testid="onboarding-reopen-button"
+                >
+                  {t('setupAssistent')}
+                </button>
+              </div>
+            </FaltAbschnitt>
           </DriveLockGate>
         </div>
       )}
@@ -345,9 +364,9 @@ export default function StylePanel({ eingebettet = false }: { eingebettet?: bool
         <button
           onClick={toggleOpen}
           className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
-          aria-label="Karten-Einstellungen"
+          aria-label={t('kartenEinstellungen')}
           aria-expanded={isOpen}
-          title="Karten-Einstellungen"
+          title={t('kartenEinstellungen')}
           data-testid="style-panel-toggle"
         >
           ⚙️

@@ -32,8 +32,11 @@
 import React from 'react';
 import { useGpsSignalState } from './gpsSignal';
 import { usePositionConnected } from './positionStore';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export default function GpsLossBanner(): React.ReactElement | null {
+  const t = useT(T);
   const signalState = useGpsSignalState();
   const isConnected = usePositionConnected();
 
@@ -54,7 +57,7 @@ export default function GpsLossBanner(): React.ReactElement | null {
           <div className="flex-shrink-0 text-lg" aria-hidden="true">
             📡
           </div>
-          <p className="font-semibold">GPS-Signal verloren</p>
+          <p className="font-semibold">{t('gpsVerloren')}</p>
         </div>
       </div>
     </div>

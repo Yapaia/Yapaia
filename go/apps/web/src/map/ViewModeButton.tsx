@@ -6,6 +6,8 @@
  * Positioned in map overlay (bottom-right area).
  */
 
+import { tx, useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import { useKartenSeite } from '../shell/bedienSeite.js';
 import React, { useCallback } from 'react';
 import { useViewMode, useSetViewMode, type ViewMode } from './viewMode';
@@ -20,11 +22,11 @@ const MODE_ORDER: ViewMode[] = ['2d-north', '2d-course', '3d-course'];
 function getModeLabel(mode: ViewMode): string {
   switch (mode) {
     case '2d-north':
-      return '2D Nord';
+      return tx(T, 'modusNord');
     case '2d-course':
-      return '2D Kurs';
+      return tx(T, 'modusKurs2d');
     case '3d-course':
-      return '3D Kurs';
+      return tx(T, 'modusKurs3d');
   }
 }
 
@@ -40,6 +42,7 @@ function getModeIcon(mode: ViewMode): string {
 }
 
 export default function ViewModeButton(): React.ReactElement {
+  const t = useT(T);
   const anordnung = useAnordnung('ansicht');
   // Gegenüber dem Seitenpanel (shell/bedienSeite.ts).
   const kartenSeite = useKartenSeite();
@@ -58,10 +61,13 @@ export default function ViewModeButton(): React.ReactElement {
     <button
       ref={anordnung.ref}
       onClick={handleClick}
-      style={{ bottom: rightStackBottomPx('viewmode', driveActive, schmal), [kartenSeite]: EDGE_INSET_PX }}
+      style={{
+        bottom: rightStackBottomPx('viewmode', driveActive, schmal),
+        [kartenSeite]: EDGE_INSET_PX,
+      }}
       className="fixed w-12 h-12 rounded-full bg-flaeche dark:bg-slate-800 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg font-semibold"
-      aria-label={`Ansichtsmodus: ${getModeLabel(mode)}`}
-      title={`Ansichtsmodus: ${getModeLabel(mode)}`}
+      aria-label={t('ansichtsmodus', { modus: getModeLabel(mode) })}
+      title={t('ansichtsmodus', { modus: getModeLabel(mode) })}
       data-testid="viewmode-button"
     >
       {getModeIcon(mode)}

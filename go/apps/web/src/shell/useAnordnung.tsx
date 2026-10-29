@@ -16,18 +16,31 @@
 
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useFahrtAnsicht } from '../drive/useFahrtAnsicht.js';
-import { STANDARD, begrenzeMassstab, useAnordnungStore, type Modus, type Platz } from './anordnung.js';
+import {
+  STANDARD,
+  begrenzeMassstab,
+  useAnordnungStore,
+  type Modus,
+  type Platz,
+} from './anordnung.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 /** So viel vom Element muss sichtbar bleiben, in Bildschirmpunkten. */
 const SICHTBAR_MIN_PX = 48;
 
 function sichtRahmen(): DOMRect {
   const sicht = typeof document !== 'undefined' ? document.getElementById('yapaia-sicht') : null;
-  return sicht ? sicht.getBoundingClientRect() : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+  return sicht
+    ? sicht.getBoundingClientRect()
+    : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
 }
 
 /** Ob der Browser die einzelnen Transform-Eigenschaften `translate`/`scale` kennt. */
-const EINZELN = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('translate', '1px 1px');
+const EINZELN =
+  typeof CSS !== 'undefined' &&
+  typeof CSS.supports === 'function' &&
+  CSS.supports('translate', '1px 1px');
 
 /**
  * Verschiebung und Größe setzen.
@@ -40,7 +53,11 @@ const EINZELN = typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
  * `-translate-x-1/2`) gemessen und unsere davor gesetzt -- genau die
  * Reihenfolge, in der der Browser `translate`/`scale` anwenden würde.
  */
-export function setzeVersatz(el: HTMLElement, v: { dx: number; dy: number; s: number } | null, einzeln = EINZELN): void {
+export function setzeVersatz(
+  el: HTMLElement,
+  v: { dx: number; dy: number; s: number } | null,
+  einzeln = EINZELN
+): void {
   if (einzeln) {
     el.style.translate = v ? `${v.dx}px ${v.dy}px` : '';
     el.style.scale = v ? String(v.s) : '';
@@ -130,7 +147,16 @@ export function useAnordnung(id: string, modusFest?: Modus): Anordnung {
   return { ref, griff, platz };
 }
 
-function Griff({ id, platz, onPlatz }: { id: string; platz: Platz; onPlatz: (p: Platz) => void }): React.ReactElement {
+function Griff({
+  id,
+  platz,
+  onPlatz,
+}: {
+  id: string;
+  platz: Platz;
+  onPlatz: (p: Platz) => void;
+}): React.ReactElement {
+  const t = useT(T);
   const start = useRef<{ x: number; y: number; p: Platz; art: 'ziehen' | 'groesse' } | null>(null);
 
   const runter = (art: 'ziehen' | 'groesse') => (e: React.PointerEvent) => {
@@ -183,7 +209,7 @@ function Griff({ id, platz, onPlatz }: { id: string; platz: Platz; onPlatz: (p: 
         onClick={schlucken}
         className="pointer-events-auto absolute -bottom-3 -right-3 h-7 w-7 cursor-nwse-resize touch-none rounded-full border-2 border-white bg-blue-600 shadow"
         data-testid={`anordnung-groesse-${id}`}
-        aria-label="Größe ändern"
+        aria-label={t('groesseAendern')}
       />
     </span>
   );

@@ -1,0 +1,45 @@
+import { texte } from '../i18n/index.js';
+
+export const T = texte(
+  {
+    laedt: 'Infos aus dem Internet werden geladen …',
+    aus: 'Mehr Infos (Öffnungszeiten, Wikipedia, Bilder) gibt es, wenn „online“ in der Add-on-Konfiguration eingeschaltet ist.',
+    keineInfos: 'Keine Infos aus dem Internet: {text}',
+    nichtsGefunden: 'Im Internet ist zu diesem Ort nichts zu finden.',
+    wikipedia: 'Wikipedia: {titel}',
+    inDerNaehe: 'in der Nähe',
+    ort: 'Ort',
+    ortAria: 'Ort: {titel}',
+    luftlinie: '{abstand} Luftlinie',
+    schliessen: 'Ortskarte schließen',
+    quelle: 'Quelle: Autobahn GmbH des Bundes',
+    route: 'Route',
+    gemerkt: '★ Gemerkt',
+    favorit: '☆ Favorit',
+    favoritFehler: 'Favorit konnte nicht gespeichert werden.',
+    // ortClient
+    kernStatus: 'Der Kern antwortete mit {status}.',
+    leereAntwort: 'Leere Antwort vom Kern.',
+    keineVerbindung: 'Keine Verbindung.',
+  },
+  {
+    laedt: 'Loading information from the internet …',
+    aus: 'More information (opening hours, Wikipedia, pictures) is available when “online” is switched on in the add-on configuration.',
+    keineInfos: 'No information from the internet: {text}',
+    nichtsGefunden: 'Nothing found on the internet for this place.',
+    wikipedia: 'Wikipedia: {titel}',
+    inDerNaehe: 'nearby',
+    ort: 'Place',
+    ortAria: 'Place: {titel}',
+    luftlinie: '{abstand} as the crow flies',
+    schliessen: 'Close place card',
+    quelle: 'Source: Autobahn GmbH des Bundes',
+    route: 'Route',
+    gemerkt: '★ Saved',
+    favorit: '☆ Favourite',
+    favoritFehler: 'Favourite could not be saved.',
+    kernStatus: 'The core replied with {status}.',
+    leereAntwort: 'Empty reply from the core.',
+    keineVerbindung: 'No connection.',
+  }
+);

@@ -23,6 +23,8 @@ import type { AddonScope } from '@yapaia/addon-sdk';
 import AddonWidgetLayer from './AddonWidgetLayer.js';
 import AddonRouteProposalBanner from './AddonRouteProposalBanner.js';
 import { addonMapLayers } from './mapLayers.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import { useMapStore } from '../state/mapStore.js';
 
 const REFRESH_INTERVAL_MS = 2000;
@@ -37,6 +39,7 @@ interface AddonFrameProps {
  *  and torn down on unmount -- which is exactly what fires when the add-on is
  *  disabled and drops out of `AddonHost`'s reconciled list. */
 function AddonFrame({ addon, deps }: AddonFrameProps): React.ReactElement {
+  const t = useT(T);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const entry = addon.manifest.ui?.entry ?? 'ui/index.html';
   const src = addonUiSrc(addon.id, entry);
@@ -80,7 +83,7 @@ function AddonFrame({ addon, deps }: AddonFrameProps): React.ReactElement {
     <iframe
       ref={iframeRef}
       data-testid={`addon-frame-${addon.id}`}
-      title={`${addon.name} (Add-on)`}
+      title={t('frameTitel', { name: addon.name })}
       // SECURITY: allow-scripts ONLY. NO allow-same-origin -> opaque origin ->
       // no parent DOM / cookie / storage access. The Core's CSP
       // (`connect-src 'none'`, no external hosts) closes the network side.

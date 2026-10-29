@@ -5,6 +5,8 @@
  */
 
 import type { VehicleProfile } from '@yapaia/shared';
+import { gebiet, tx } from '../i18n/index.js';
+import { T } from './texte.js';
 
 /**
  * Wahr, solange die Abmessungen des AKTIVEN Profils nie von einem Menschen
@@ -30,7 +32,9 @@ export function needsDimensionConfirmation(profile: VehicleProfile | null): bool
  * die ganze Anzeige.
  */
 export function formatDimensions(profile: VehicleProfile): string {
-  const m = (value: number): string => value.toFixed(2).replace('.', ',');
-  const t = (value: number): string => String(value).replace('.', ',');
-  return `${m(profile.height_m)} m hoch · ${m(profile.width_m)} m breit · ${m(profile.length_m)} m lang · ${t(profile.weight_t)} t`;
+  const g = gebiet();
+  const m = (value: number): string =>
+    value.toLocaleString(g, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const t = (value: number): string => value.toLocaleString(g);
+  return `${m(profile.height_m)} m ${tx(T, 'hoch')} · ${m(profile.width_m)} m ${tx(T, 'breit')} · ${m(profile.length_m)} m ${tx(T, 'lang')} · ${t(profile.weight_t)} t`;
 }

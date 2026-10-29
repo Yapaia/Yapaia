@@ -14,13 +14,21 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { BORD_ABFRAGE_MS, hinweisSchluessel, stationsZeile, useBordStore, type BordHinweis as Hinweis } from './bordStore.js';
+import {
+  BORD_ABFRAGE_MS,
+  hinweisSchluessel,
+  stationsZeile,
+  useBordStore,
+  type BordHinweis as Hinweis,
+} from './bordStore.js';
 import { useRoutingStore } from '../routing/store.js';
 import { useProfileStore } from '../profiles/store.js';
 import { useTtsStore } from '../drive/ttsStore.js';
 import { announce } from '../drive/tts.js';
 import { sageAn } from '../drive/ansageZiel.js';
 import { useFahrtAnsicht } from '../drive/useFahrtAnsicht.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 const SYMBOL: Record<Hinweis['art'], string> = {
   grauwasser: '🚿',
@@ -35,10 +43,14 @@ export function stationAlsHalt(h: Hinweis): void {
   const profileId = useProfileStore.getState().activeProfile?.id;
   useRoutingStore
     .getState()
-    .zwischenstoppVorn({ lat: h.station.lat, lon: h.station.lon }, h.station.name, { origin: 'current', profileId });
+    .zwischenstoppVorn({ lat: h.station.lat, lon: h.station.lon }, h.station.name, {
+      origin: 'current',
+      profileId,
+    });
 }
 
 export default function BordHinweis(): React.ReactElement | null {
+  const t = useT(T);
   const laden = useBordStore((s) => s.laden);
   const eingerichtet = useBordStore((s) => s.eingerichtet);
   const hinweise = useBordStore((s) => s.hinweise);
@@ -51,8 +63,11 @@ export default function BordHinweis(): React.ReactElement | null {
   // nur selten -- es kann ja jemand gerade die Add-on-Konfiguration ändern.
   useEffect(() => {
     void laden();
-    const t = setInterval(() => void laden(), eingerichtet ? BORD_ABFRAGE_MS : 5 * BORD_ABFRAGE_MS);
-    return () => clearInterval(t);
+    const takt = setInterval(
+      () => void laden(),
+      eingerichtet ? BORD_ABFRAGE_MS : 5 * BORD_ABFRAGE_MS
+    );
+    return () => clearInterval(takt);
   }, [laden, eingerichtet]);
 
   const sichtbar = hinweise.filter((h) => !weg.has(hinweisSchluessel(h)));
@@ -65,7 +80,11 @@ export default function BordHinweis(): React.ReactElement | null {
       const k = hinweisSchluessel(h);
       if (angesagt.current.has(k)) continue;
       angesagt.current.add(k);
-      void sageAn(h.station ? `${h.text} ${stationsZeile(h.station)}.` : h.text, 'hinweis', (t) => announce(t));
+      void sageAn(
+        h.station ? `${h.text} ${stationsZeile(h.station)}.` : h.text,
+        'hinweis',
+        (satz) => announce(satz)
+      );
     }
   }, [sichtbar, fahrt, ttsAn]);
 
@@ -104,7 +123,7 @@ export default function BordHinweis(): React.ReactElement | null {
                   wegDamit(h);
                 }}
               >
-                Als nächsten Halt
+                {t('alsHalt')}
               </button>
             )}
             <button
@@ -113,7 +132,7 @@ export default function BordHinweis(): React.ReactElement | null {
               data-testid={`bord-spaeter-${h.art}`}
               onClick={() => wegDamit(h)}
             >
-              Später
+              {t('spaeter')}
             </button>
           </div>
         </div>

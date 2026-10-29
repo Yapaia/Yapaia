@@ -30,6 +30,8 @@
  */
 
 import type { CatalogRegion, InstalledRegion } from './client';
+import { gebiet, tx } from '../../i18n/index.js';
+import { T } from './texte.js';
 
 /**
  * In welchem Zustand eine Karte ist.
@@ -101,7 +103,11 @@ function quelleVon(eintrag: CatalogRegion): Kartenquelle {
 /** Was ein Download laedt: bei einem Kartenserver-Paket alle Teile. */
 function downloadBytes(eintrag: CatalogRegion): number {
   if (eintrag.quelle !== 'kartenserver') return eintrag.sizeBytes;
-  return (eintrag.url ? eintrag.sizeBytes : 0) + (eintrag.suche?.sizeBytes ?? 0) + (eintrag.routing?.sizeBytes ?? 0);
+  return (
+    (eintrag.url ? eintrag.sizeBytes : 0) +
+    (eintrag.suche?.sizeBytes ?? 0) +
+    (eintrag.routing?.sizeBytes ?? 0)
+  );
 }
 
 /**
@@ -115,7 +121,7 @@ function downloadBytes(eintrag: CatalogRegion): number {
  */
 export function kartenliste(
   installiert: readonly InstalledRegion[],
-  katalog: readonly CatalogRegion[],
+  katalog: readonly CatalogRegion[]
 ): Karteneintrag[] {
   const katalogNach = new Map(katalog.map((e) => [e.id, e]));
   const eintraege: Karteneintrag[] = [];
@@ -152,7 +158,11 @@ export function kartenliste(
       // Gewünscht: erst alle Karten herunterladen, dann gemeinsam bauen.
       // Dazwischen steht eine Karte in diesem Zustand.
       zustand:
-        quelle === null ? 'ohne_quelle' : quelle === 'bau' && eintrag.extrakt ? 'geladen' : 'verfuegbar',
+        quelle === null
+          ? 'ohne_quelle'
+          : quelle === 'bau' && eintrag.extrakt
+            ? 'geladen'
+            : 'verfuegbar',
       groesseBytes: downloadBytes(eintrag),
       bounds: eintrag.bounds,
       quelle,
@@ -165,14 +175,14 @@ export function kartenliste(
     const aInstalliert = istInstalliert(a);
     const bInstalliert = istInstalliert(b);
     if (aInstalliert !== bInstalliert) return aInstalliert ? -1 : 1;
-    return a.name.localeCompare(b.name, 'de');
+    return a.name.localeCompare(b.name, gebiet());
   });
 }
 
 /** Die Beschriftung des einen Knopfes, der installiert oder aktualisiert. */
 export function installierenText(eintrag: Karteneintrag): string {
-  if (istInstalliert(eintrag)) return 'Update';
+  if (istInstalliert(eintrag)) return tx(T, 'update');
   // Eine Karte zum BAUEN wird erst nur heruntergeladen; gebaut wird
   // gemeinsam (0.59.0). „Installieren" hiesse hier zu viel.
-  return eintrag.quelle === 'bau' ? 'Herunterladen' : 'Installieren';
+  return eintrag.quelle === 'bau' ? tx(T, 'herunterladen') : tx(T, 'installieren');
 }

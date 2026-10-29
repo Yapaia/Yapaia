@@ -14,9 +14,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useProfileStore } from '../profiles/store.js';
+import { gebiet, useSprache, useT } from '../i18n/index.js';
 import { useRoutingStore } from './store.js';
+import { T } from './texte.js';
 
 export default function ProfilWahl(): React.ReactElement | null {
+  const t = useT(T);
+  const loc = gebiet(useSprache((s) => s.sprache));
   const profiles = useProfileStore((s) => s.profiles);
   const activeProfile = useProfileStore((s) => s.activeProfile);
   const fetchProfiles = useProfileStore((s) => s.fetchProfiles);
@@ -34,7 +38,7 @@ export default function ProfilWahl(): React.ReactElement | null {
     try {
       await activateProfile(id);
     } catch {
-      setFehler('Das Fahrzeug konnte nicht gewechselt werden.');
+      setFehler(t('fahrzeugWechselFehler'));
       return;
     }
     const routing = useRoutingStore.getState();
@@ -47,17 +51,27 @@ export default function ProfilWahl(): React.ReactElement | null {
     <div className="flex flex-col gap-1">
       <label className="flex items-center gap-2">
         <span aria-hidden="true">🚐</span>
-        <span className="sr-only">Fahrzeug</span>
+        <span className="sr-only">{t('fahrzeug')}</span>
         <select
           value={activeProfile?.id ?? ''}
           onChange={(e) => void wechsel(e.target.value)}
           className="min-w-0 flex-1 rounded-md border border-slate-300 bg-flaeche px-2 py-1.5 dark:border-slate-600 dark:bg-slate-700"
           data-testid="routing-profil-wahl"
         >
-          {!activeProfile && <option value="">Fahrzeug wählen …</option>}
+          {!activeProfile && <option value="">{t('fahrzeugWaehlen')}</option>}
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} · {p.height_m.toFixed(2).replace('.', ',')} m · {p.weight_t.toFixed(1).replace('.', ',')} t
+              {p.name} ·{' '}
+              {p.height_m.toLocaleString(loc, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{' '}
+              m ·{' '}
+              {p.weight_t.toLocaleString(loc, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}{' '}
+              t
             </option>
           ))}
         </select>

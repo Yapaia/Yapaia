@@ -12,8 +12,11 @@
 
 import React from 'react';
 import { useDriveLockStore } from './driveLockStore.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export default function DriveLockOverlay(): React.ReactElement {
+  const t = useT(T);
   const countdownRemainingMs = useDriveLockStore((state) => state.countdownRemainingMs);
   const startPassengerOverride = useDriveLockStore((state) => state.startPassengerOverride);
   const cancelCountdown = useDriveLockStore((state) => state.cancelPassengerOverrideCountdown);
@@ -26,15 +29,13 @@ export default function DriveLockOverlay(): React.ReactElement {
       className="p-4 space-y-3 text-center"
       data-testid="drive-lock-overlay"
       role="alertdialog"
-      aria-label="Während der Fahrt gesperrt"
+      aria-label={t('gesperrt')}
     >
       <p className="text-2xl" aria-hidden="true">
         🔒
       </p>
-      <p className="font-semibold text-slate-800 dark:text-slate-100">Während der Fahrt gesperrt</p>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Diese Ansicht ist während der Fahrt aus Sicherheitsgründen gesperrt.
-      </p>
+      <p className="font-semibold text-slate-800 dark:text-slate-100">{t('gesperrt')}</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{t('gesperrt_text')}</p>
       {countingDown ? (
         <div className="space-y-2">
           <p
@@ -43,27 +44,27 @@ export default function DriveLockOverlay(): React.ReactElement {
             role="status"
             aria-live="polite"
           >
-            Entsperre in {remainingS}…
+            {t('entsperre_in', { s: remainingS ?? '' })}
           </p>
           <button
             type="button"
             onClick={cancelCountdown}
-            aria-label="Beifahrer-Freigabe abbrechen"
+            aria-label={t('freigabe_abbrechen')}
             className="min-h-[48px] px-4 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300"
             data-testid="drive-lock-cancel-button"
           >
-            Abbrechen
+            {t('abbrechen')}
           </button>
         </div>
       ) : (
         <button
           type="button"
           onClick={startPassengerOverride}
-          aria-label="Ich bin Beifahrer -- Sperre nach 5 Sekunden aufheben"
+          aria-label={t('beifahrer_aria')}
           className="min-h-[48px] w-full px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
           data-testid="drive-lock-passenger-button"
         >
-          Ich bin Beifahrer
+          {t('beifahrer')}
         </button>
       )}
     </div>

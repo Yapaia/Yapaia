@@ -18,6 +18,9 @@
  */
 
 import type { KartenMeldung } from './verkehrGeoJson.js';
+import { gebiet, tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 import type { MeldungAufRoute, RoutenLinie } from './entlangDerRoute.js';
 
 export type Schwere = 'gelb' | 'orange' | 'rot' | 'sperrung';
@@ -77,7 +80,7 @@ const RANG: Record<Schwere, number> = { gelb: 0, orange: 1, rot: 2, sperrung: 3 
 /** Die farbigen Abschnitte als GeoJSON -- das Schwerere liegt oben. */
 export function abschnitteGeoJson(
   linie: RoutenLinie | null,
-  entlang: readonly MeldungAufRoute[],
+  entlang: readonly MeldungAufRoute[]
 ): { type: 'FeatureCollection'; features: AbschnittFeature[] } {
   const features: AbschnittFeature[] = [];
   if (linie) {
@@ -125,13 +128,25 @@ export function etaStufe(verzug_min: number): 'gelb' | 'rot' | null {
 }
 
 /** „Stau 2,4 km · +16 min" -- was die Liste unter einen Stau schreibt. */
-export function stauText(m: Pick<KartenMeldung, 'art' | 'stau' | 'laenge_m' | 'verzug_min'>): string | null {
+export function stauText(
+  m: Pick<KartenMeldung, 'art' | 'stau' | 'laenge_m' | 'verzug_min'>
+): string | null {
   if (m.art !== 'stau') return null;
   const wort =
-    m.stau === 'stillstand' ? 'Stillstand' : m.stau === 'zaehfliessend' ? 'Zähfließend' : m.stau === 'dicht' ? 'Dichter Verkehr' : 'Stau';
+    m.stau === 'stillstand'
+      ? tx(T, 'stillstand')
+      : m.stau === 'zaehfliessend'
+        ? tx(T, 'zaehfliessend')
+        : m.stau === 'dicht'
+          ? tx(T, 'dicht')
+          : tx(T, 'stau');
   const teile = [wort];
   if (m.laenge_m && m.laenge_m >= 100) {
-    teile.push(m.laenge_m < 1000 ? `${Math.round(m.laenge_m / 100) * 100} m` : `${(m.laenge_m / 1000).toFixed(1).replace('.', ',')} km`);
+    teile.push(
+      m.laenge_m < 1000
+        ? `${Math.round(m.laenge_m / 100) * 100} m`
+        : `${(m.laenge_m / 1000).toLocaleString(gebiet(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`
+    );
   }
   if (m.verzug_min) teile.push(`+${m.verzug_min} min`);
   return teile.join(' · ');

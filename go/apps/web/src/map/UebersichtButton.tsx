@@ -6,6 +6,8 @@
  * dem Screen liegen. Nicht in einem Menü." Logik in `uebersicht.ts`.
  */
 
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import { useKartenSeite } from '../shell/bedienSeite.js';
 import React from 'react';
 import { useRoutingStore, selectActiveRoute } from '../routing/store.js';
@@ -17,6 +19,7 @@ import { useUebersichtStore } from './uebersicht.js';
 import { useAnordnung } from '../shell/useAnordnung.js';
 
 export default function UebersichtButton(): React.ReactElement | null {
+  const t = useT(T);
   const anordnung = useAnordnung('uebersicht');
   // Gegenüber dem Seitenpanel (shell/bedienSeite.ts).
   const kartenSeite = useKartenSeite();
@@ -29,7 +32,7 @@ export default function UebersichtButton(): React.ReactElement | null {
 
   if (!hatRoute) return null;
 
-  const titel = aktiv ? 'Zurück zur eigenen Position' : 'Ganze Route zeigen';
+  const titel = aktiv ? t('zurEigenenPosition') : t('ganzeRoute');
   return (
     <button
       ref={anordnung.ref}
@@ -38,9 +41,14 @@ export default function UebersichtButton(): React.ReactElement | null {
       aria-pressed={aktiv}
       aria-label={titel}
       title={titel}
-      style={{ bottom: rightStackBottomPx('uebersicht', driveActive, schmal), [kartenSeite]: EDGE_INSET_PX }}
+      style={{
+        bottom: rightStackBottomPx('uebersicht', driveActive, schmal),
+        [kartenSeite]: EDGE_INSET_PX,
+      }}
       className={`fixed z-10 flex h-12 w-12 items-center justify-center rounded-full text-xl shadow-lg ${
-        aktiv ? 'bg-blue-600 text-white' : 'bg-flaeche text-slate-800 dark:bg-slate-800 dark:text-slate-100'
+        aktiv
+          ? 'bg-blue-600 text-white'
+          : 'bg-flaeche text-slate-800 dark:bg-slate-800 dark:text-slate-100'
       }`}
       data-testid="uebersicht-button"
     >

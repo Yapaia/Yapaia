@@ -1,0 +1,52 @@
+import { texte } from '../i18n/index.js';
+
+export const T = texte(
+  {
+    tippen: 'Antippen zum Ausblenden',
+    ueberschrift: 'Verkehr auf der Route',
+    jetzt: 'jetzt',
+    stillstand: 'Stillstand',
+    zaehfliessend: 'Zähfließend',
+    dicht: 'Dichter Verkehr',
+    stau: 'Stau',
+    keineAutobahn: 'Keine Autobahn auf der Strecke.',
+    onlineAus: 'Online-Dienste ausgeschaltet.',
+    statusFehler: 'Die Verkehrslage antwortete mit Status {status}.',
+    formFehler: 'Die Antwort hatte nicht die erwartete Form.',
+    zuLange: 'Die Verkehrslage hat zu lange gedauert und wurde abgebrochen.',
+    nichtErreichbar: 'Die Verkehrslage war nicht erreichbar: {grund}.',
+    unbekannterFehler: 'unbekannter Fehler',
+    keineDaten:
+      'Für {strassen} liegen gerade keine Verkehrsdaten vor — dort kann etwas sein, das hier nicht steht.',
+    veraltet: 'Verkehrsdaten für {strassen} sind {alter} alt.',
+    ohneOrt: '{n} Meldung(en) ohne Ortsangabe — sie stehen nicht auf der Karte.',
+    etwaMinute: 'etwa eine Minute',
+    etwaMinuten: 'etwa {n} Minuten',
+    etwaStunde: 'etwa eine Stunde',
+    etwaStunden: 'etwa {n} Stunden',
+  },
+  {
+    tippen: 'Tap to dismiss',
+    ueberschrift: 'Traffic on the route',
+    jetzt: 'now',
+    stillstand: 'Standstill',
+    zaehfliessend: 'Slow-moving',
+    dicht: 'Heavy traffic',
+    stau: 'Jam',
+    keineAutobahn: 'No motorway on the route.',
+    onlineAus: 'Online services switched off.',
+    statusFehler: 'The traffic service responded with status {status}.',
+    formFehler: 'The response did not have the expected format.',
+    zuLange: 'The traffic service took too long and was aborted.',
+    nichtErreichbar: 'The traffic service was not reachable: {grund}.',
+    unbekannterFehler: 'unknown error',
+    keineDaten:
+      'There is currently no traffic data for {strassen} — there may be something there that is not shown here.',
+    veraltet: 'Traffic data for {strassen} is {alter} old.',
+    ohneOrt: '{n} report(s) without a location — not shown on the map.',
+    etwaMinute: 'about a minute',
+    etwaMinuten: 'about {n} minutes',
+    etwaStunde: 'about an hour',
+    etwaStunden: 'about {n} hours',
+  }
+);

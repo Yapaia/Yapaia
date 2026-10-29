@@ -845,7 +845,10 @@ describe('Handlungsanweisungen verweisen nur auf real Vorhandenes', () => {
       return; // keine Beschriftung genannt -- nichts zu prüfen
     }
 
-    const haystack = readFileSync(join(webSrc, 'settings/regions/RegionsPanel.tsx'), 'utf-8');
+    // Die Beschriftungen stehen seit der Übersetzung (i18n) in texte.ts neben dem Panel
+    const haystack =
+      readFileSync(join(webSrc, 'settings/regions/RegionsPanel.tsx'), 'utf-8') +
+      readFileSync(join(webSrc, 'settings/regions/texte.ts'), 'utf-8');
     for (const label of labels) {
       expect(
         haystack.includes(label),

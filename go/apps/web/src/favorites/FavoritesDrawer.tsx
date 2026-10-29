@@ -37,6 +37,8 @@ import { useFahrtAnsicht } from '../drive/useFahrtAnsicht.js';
 import { useFavoritesStore } from './store.js';
 import { navigateToFavorite } from './navigate.js';
 import { iconForFavoriteCategory } from './icons.js';
+import { tx, useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 const LONG_PRESS_MS = 550;
 const FAVORITE_FLY_TO_ZOOM = 14;
@@ -44,7 +46,7 @@ const FAVORITE_FLY_TO_ZOOM = 14;
 type DrawerTab = 'favorites' | 'history';
 
 function historyEntryLabel(entry: HistoryEntry): string {
-  return entry.destination?.name ?? entry.query ?? 'Eintrag';
+  return entry.destination?.name ?? entry.query ?? tx(T, 'eintrag');
 }
 
 export default function FavoritesDrawer({
@@ -58,6 +60,7 @@ export default function FavoritesDrawer({
    */
   eingebettet?: boolean;
 } = {}): React.ReactElement | null {
+  const t = useT(T);
   const destination = useRoutingStore((s) => s.destination);
   const fahrt = useFahrtAnsicht();
   const routingSetDestination = useRoutingStore((s) => s.setDestination);
@@ -109,7 +112,7 @@ export default function FavoritesDrawer({
         openEditor(fav);
       }, LONG_PRESS_MS);
     },
-    [cancelLongPress, openEditor],
+    [cancelLongPress, openEditor]
   );
 
   const handleTapFavorite = useCallback(
@@ -129,7 +132,7 @@ export default function FavoritesDrawer({
         });
       }
     },
-    [editingId, map],
+    [editingId, map]
   );
 
   const handleRenameSave = useCallback(
@@ -139,7 +142,7 @@ export default function FavoritesDrawer({
       await updateFavorite(id, { name });
       setEditingId(null);
     },
-    [renameDraft, updateFavorite],
+    [renameDraft, updateFavorite]
   );
 
   const handleMove = useCallback(
@@ -153,7 +156,7 @@ export default function FavoritesDrawer({
       ids.splice(newIndex, 0, moved);
       void reorderFavorites(ids);
     },
-    [favorites, reorderFavorites],
+    [favorites, reorderFavorites]
   );
 
   const handleDeleteConfirmed = useCallback(
@@ -162,7 +165,7 @@ export default function FavoritesDrawer({
       setPendingDeleteId(null);
       setEditingId(null);
     },
-    [deleteFavorite],
+    [deleteFavorite]
   );
 
   const handleTapHistory = useCallback(
@@ -182,7 +185,7 @@ export default function FavoritesDrawer({
         setSearchQuery(entry.query);
       }
     },
-    [routingSetDestination, requestRoute, map, setSearchQuery],
+    [routingSetDestination, requestRoute, map, setSearchQuery]
   );
 
   // RoutingPanel owns this exact footprint while a destination is active
@@ -202,10 +205,9 @@ export default function FavoritesDrawer({
 
   return (
     <div className="text-sm text-slate-800 dark:text-slate-100" data-testid="favorites-drawer">
-
       {isOpen && (
         <div id="favorites-drawer-content" className="px-4 py-3 space-y-3">
-          <div className="flex gap-2" role="tablist" aria-label="Favoriten und Verlauf">
+          <div className="flex gap-2" role="tablist" aria-label={t('favoritenVerlauf')}>
             <button
               type="button"
               role="tab"
@@ -218,7 +220,7 @@ export default function FavoritesDrawer({
                   : 'px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
               }
             >
-              Favoriten
+              {t('favoriten')}
             </button>
             <button
               type="button"
@@ -232,22 +234,29 @@ export default function FavoritesDrawer({
                   : 'px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
               }
             >
-              Verlauf
+              {t('verlauf')}
             </button>
           </div>
 
           {tab === 'favorites' && (
             <div data-testid="favorites-panel">
               {favorites.length === 0 ? (
-                <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="favorites-empty">
-                  Noch keine Favoriten. Speichere ein Ziel über „Als Favorit speichern“ im Ziel-Menü.
+                <p
+                  className="text-xs text-slate-500 dark:text-slate-400"
+                  data-testid="favorites-empty"
+                >
+                  {t('keineFavoriten')}
                 </p>
               ) : (
                 <ul className="flex flex-wrap gap-2" data-testid="favorites-chip-list">
                   {favorites.map((fav) => {
                     const isEditing = editingId === fav.id;
                     return (
-                      <li key={fav.id} className="flex flex-col gap-1" data-testid={`favorite-chip-${fav.id}`}>
+                      <li
+                        key={fav.id}
+                        className="flex flex-col gap-1"
+                        data-testid={`favorite-chip-${fav.id}`}
+                      >
                         <div className="flex items-stretch gap-1">
                           <button
                             type="button"
@@ -265,7 +274,7 @@ export default function FavoritesDrawer({
                           <button
                             type="button"
                             onClick={() => (isEditing ? setEditingId(null) : openEditor(fav))}
-                            aria-label={`${fav.name} bearbeiten`}
+                            aria-label={t('bearbeiten', { name: fav.name })}
                             aria-expanded={isEditing}
                             className="px-2 min-h-[48px] min-w-[36px] rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-300"
                             data-testid={`favorite-menu-${fav.id}`}
@@ -293,14 +302,14 @@ export default function FavoritesDrawer({
                                 className="px-2 py-1 rounded bg-blue-600 text-white text-xs"
                                 data-testid={`favorite-rename-save-${fav.id}`}
                               >
-                                Speichern
+                                {t('speichern')}
                               </button>
                             </div>
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => handleMove(fav.id, -1)}
-                                aria-label="Nach oben verschieben"
+                                aria-label={t('nachOben')}
                                 className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs"
                                 data-testid={`favorite-move-up-${fav.id}`}
                               >
@@ -309,7 +318,7 @@ export default function FavoritesDrawer({
                               <button
                                 type="button"
                                 onClick={() => handleMove(fav.id, 1)}
-                                aria-label="Nach unten verschieben"
+                                aria-label={t('nachUnten')}
                                 className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs"
                                 data-testid={`favorite-move-down-${fav.id}`}
                               >
@@ -318,14 +327,16 @@ export default function FavoritesDrawer({
                               <span className="flex-1" />
                               {pendingDeleteId === fav.id ? (
                                 <>
-                                  <span className="text-xs text-red-700 dark:text-red-300">Wirklich löschen?</span>
+                                  <span className="text-xs text-red-700 dark:text-red-300">
+                                    {t('wirklichLoeschen')}
+                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => void handleDeleteConfirmed(fav.id)}
                                     className="px-2 py-1 rounded bg-red-600 text-white text-xs"
                                     data-testid={`favorite-delete-confirm-${fav.id}`}
                                   >
-                                    Ja
+                                    {t('ja')}
                                   </button>
                                 </>
                               ) : (
@@ -335,7 +346,7 @@ export default function FavoritesDrawer({
                                   className="px-2 py-1 rounded border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 text-xs"
                                   data-testid={`favorite-delete-${fav.id}`}
                                 >
-                                  Löschen
+                                  {t('loeschen')}
                                 </button>
                               )}
                             </div>
@@ -352,8 +363,11 @@ export default function FavoritesDrawer({
           {tab === 'history' && (
             <div data-testid="history-panel">
               {history.length === 0 ? (
-                <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="history-empty">
-                  Noch keine Einträge im Verlauf.
+                <p
+                  className="text-xs text-slate-500 dark:text-slate-400"
+                  data-testid="history-empty"
+                >
+                  {t('keinVerlauf')}
                 </p>
               ) : (
                 <>
@@ -364,7 +378,7 @@ export default function FavoritesDrawer({
                       className="text-xs text-red-700 dark:text-red-300 hover:underline"
                       data-testid="history-clear-all"
                     >
-                      Verlauf löschen
+                      {t('verlaufLoeschen')}
                     </button>
                   </div>
                   <ul className="space-y-1" data-testid="history-list">
@@ -388,7 +402,7 @@ export default function FavoritesDrawer({
                           className="text-xs text-red-700 dark:text-red-300 hover:underline flex-shrink-0"
                           data-testid={`history-delete-${entry.id}`}
                         >
-                          Löschen
+                          {t('loeschen')}
                         </button>
                       </li>
                     ))}

@@ -38,6 +38,8 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tx, useT } from '../../i18n/index.js';
+import { T } from './texte.js';
 import { useUiStore } from '../../ui/store.js';
 import DriveLockGate from '../../drive/DriveLockGate.js';
 import BuildStatusSection from './BuildStatusSection.js';
@@ -91,35 +93,42 @@ function formatBounds(bounds: [number, number, number, number]): string {
 function formatApiError(err: RegionApiError): string {
   if (err.code === 'INSUFFICIENT_SPACE') {
     const required =
-      typeof err.details?.requiredBytes === 'number' ? formatBytes(err.details.requiredBytes) : 'unbekannt';
-    const free = typeof err.details?.freeBytes === 'number' ? formatBytes(err.details.freeBytes) : 'unbekannt';
-    return `Nicht genug freier Speicherplatz: benötigt ${required}, verfügbar ${free}.`;
+      typeof err.details?.requiredBytes === 'number'
+        ? formatBytes(err.details.requiredBytes)
+        : tx(T, 'unbekannt');
+    const free =
+      typeof err.details?.freeBytes === 'number'
+        ? formatBytes(err.details.freeBytes)
+        : tx(T, 'unbekannt');
+    return tx(T, 'zuWenigPlatz', { benoetigt: required, frei: free });
   }
   if (err.code === 'LAST_REGION') {
     // Sagen, was stattdessen geht: wer die einzige Karte loswerden will, will
     // sie fast immer ERSETZEN -- und genau das macht „Update".
-    return 'Die letzte installierte Region kann nicht gelöscht werden. Zum Ersetzen „Update“ nutzen oder erst eine andere Karte installieren.';
+    return tx(T, 'letzteRegion');
   }
   if (err.code === 'ALREADY_INSTALLED') {
-    return 'Diese Region ist bereits installiert.';
+    return tx(T, 'schonInstalliert');
   }
   if (err.code === 'NOT_FOUND') {
-    return 'Region nicht gefunden.';
+    return tx(T, 'nichtGefunden');
   }
   // B-04: der Bau ist der speicherhungrigste Schritt der ganzen Kette. Die
   // Ablehnung nennt deshalb den Ausweg, nicht nur die Zahl -- auf einer
   // 8-GB-VM ist Photon abzuschalten ohnehin die empfohlene Einstellung.
   if (err.code === 'INSUFFICIENT_MEMORY') {
     const required =
-      typeof err.details?.requiredBytes === 'number' ? formatBytes(err.details.requiredBytes) : 'unbekannt';
-    const free = typeof err.details?.freeBytes === 'number' ? formatBytes(err.details.freeBytes) : 'unbekannt';
-    return (
-      `Zu wenig freier Arbeitsspeicher: benötigt ${required}, frei ${free}. ` +
-      'Schalte Photon in der Add-on-Konfiguration ab („photon_enabled: false") und versuche es erneut.'
-    );
+      typeof err.details?.requiredBytes === 'number'
+        ? formatBytes(err.details.requiredBytes)
+        : tx(T, 'unbekannt');
+    const free =
+      typeof err.details?.freeBytes === 'number'
+        ? formatBytes(err.details.freeBytes)
+        : tx(T, 'unbekannt');
+    return tx(T, 'zuWenigRam', { benoetigt: required, frei: free });
   }
   if (err.code === 'NO_BUILD_SOURCE') {
-    return 'Für diese Region ist kein OpenStreetMap-Extrakt hinterlegt — es gibt nichts zu bauen.';
+    return tx(T, 'keineQuelle');
   }
   if (err.code === 'BUILD_IN_PROGRESS') {
     // Der Grund gehoert in die Meldung. „Geht gerade nicht" liest sich wie
@@ -130,13 +139,9 @@ function formatApiError(err: RegionApiError): string {
     // einander ueber die gemeinsamen Basisdaten, und ein Kachel- neben einem
     // Routingbau sprengt den Speicher der 8-GB-VM, auf der auch Home
     // Assistant laeuft.
-    return (
-      'Es läuft bereits ein Bau. Zwei gleichzeitig gehen nicht: sie teilen sich ' +
-      'dieselben Basisdaten und denselben Arbeitsspeicher. Warte das Ende ab oder ' +
-      'brich den laufenden Bau ab.'
-    );
+    return tx(T, 'bauLaeuftSchon');
   }
-  return err.message || 'Unbekannter Fehler.';
+  return err.message || tx(T, 'unbekannterFehler');
 }
 
 interface DownloadState {
@@ -153,7 +158,14 @@ interface DownloadState {
  * einer bereits INSTALLIERTEN Region. Ein mehrminuetiger Lauf ohne jede
  * Anzeige ist von einem Haenger nicht zu unterscheiden.
  */
-function JobProgress({ regionId, job }: { regionId: string; job: JobSnapshot }): React.ReactElement {
+function JobProgress({
+  regionId,
+  job,
+}: {
+  regionId: string;
+  job: JobSnapshot;
+}): React.ReactElement {
+  const t = useT(T);
   // ─── DER ABSCHLUSS GEHOERT DAZU ───────────────────────────────────────────
   // Frueher wurde diese Anzeige bei `status === 'done'` gar nicht mehr
   // gerendert: der Balken verschwand, und uebrig blieb eine Oberflaeche, die
@@ -170,7 +182,7 @@ function JobProgress({ regionId, job }: { regionId: string; job: JobSnapshot }):
         className="mt-1 text-xs text-emerald-700 dark:text-emerald-400"
         data-testid={`job-done-${regionId}`}
       >
-        ✓ {job.note ?? 'Fertig.'}
+        ✓ {job.note ?? t('fertig')}
       </p>
     );
   }
@@ -198,9 +210,9 @@ function JobProgress({ regionId, job }: { regionId: string; job: JobSnapshot }):
         data-testid={`job-status-${regionId}`}
       >
         {job.status === 'error'
-          ? `Fehler: ${job.error?.message ?? 'Vorgang fehlgeschlagen'}`
+          ? t('fehlerMit', { meldung: job.error?.message ?? t('vorgangFehlgeschlagen') })
           : job.totalBytes === null
-            ? (job.note ?? 'Läuft…')
+            ? (job.note ?? t('laeuft'))
             : `${Math.round(job.progress * 100)}%`}
       </div>
     </div>
@@ -218,6 +230,7 @@ const GESAMT_SCHLUESSEL = '__gesamt__';
 
 /** Wo ein Gesamtbau steht — Schritt, Balken, Restzeit. */
 function GesamtFortschritt({ job }: { job: JobSnapshot }): React.ReactElement {
+  const t = useT(T);
   const gesamt = job.gesamt;
   if (job.status === 'done') {
     // Fehlt nach dem Bau eine Karte im Routing, steht das in der Notiz --
@@ -228,14 +241,14 @@ function GesamtFortschritt({ job }: { job: JobSnapshot }): React.ReactElement {
         className={`mt-2 text-xs ${warnung ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-400'}`}
         data-testid="gesamtbau-fertig"
       >
-        {warnung ? '⚠' : '✓'} {job.note ?? 'Fertig.'}
+        {warnung ? '⚠' : '✓'} {job.note ?? t('fertig')}
       </p>
     );
   }
   if (job.status === 'error') {
     return (
       <p className="mt-2 text-xs text-red-600 dark:text-red-400" data-testid="gesamtbau-fehler">
-        {job.error?.message ?? 'Der Bau ist fehlgeschlagen.'}
+        {job.error?.message ?? t('bauFehlgeschlagen')}
       </p>
     );
   }
@@ -255,8 +268,15 @@ function GesamtFortschritt({ job }: { job: JobSnapshot }): React.ReactElement {
         />
       </div>
       {gesamt && (
-        <div className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid="gesamtbau-schritt">
-          Schritt {gesamt.schritt} von {gesamt.schritte}: {gesamt.schrittText}
+        <div
+          className="mt-1 text-xs text-slate-600 dark:text-slate-300"
+          data-testid="gesamtbau-schritt"
+        >
+          {t('schritt', {
+            schritt: gesamt.schritt,
+            schritte: gesamt.schritte,
+            text: gesamt.schrittText,
+          })}
         </div>
       )}
       {/* ─── DIE RESTZEIT ───────────────────────────────────────────────────
@@ -268,12 +288,17 @@ function GesamtFortschritt({ job }: { job: JobSnapshot }): React.ReactElement {
           Gibt es keinen Satz, steht das auch so da. Beim ersten Bau einer
           Karte ist das der Normalfall, und „unbekannt" ist dann die richtige
           Auskunft — nicht eine Zahl, die aus nichts entstanden ist. */}
-      <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-restzeit">
-        {gesamt?.restText ??
-          'Restzeit noch unbekannt — sie ergibt sich aus der Dauer des letzten Baus.'}
+      <div
+        className="mt-0.5 text-xs text-slate-500 dark:text-slate-400"
+        data-testid="gesamtbau-restzeit"
+      >
+        {gesamt?.restText ?? t('restzeitUnbekannt')}
       </div>
       {job.note && (
-        <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 break-words" data-testid="gesamtbau-notiz">
+        <div
+          className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 break-words"
+          data-testid="gesamtbau-notiz"
+        >
           {job.note}
         </div>
       )}
@@ -281,7 +306,10 @@ function GesamtFortschritt({ job }: { job: JobSnapshot }): React.ReactElement {
   );
 }
 
-export default function RegionsPanel({ eingebettet = false }: { eingebettet?: boolean } = {}): React.ReactElement {
+export default function RegionsPanel({
+  eingebettet = false,
+}: { eingebettet?: boolean } = {}): React.ReactElement {
+  const t = useT(T);
   // Eingebettet (im ⚙-Menü, shell/EinstellungsMenue.tsx) ist der Inhalt immer offen.
   const [isOpen, setIsOpen] = useState(eingebettet);
   const [installed, setInstalled] = useState<InstalledRegion[]>([]);
@@ -307,11 +335,8 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
   }, [jobs]);
 
   const refresh = useCallback(async () => {
-    const [installedRegions, { regionen: catalogRegions, kartenserver: stand }, laufend] = await Promise.all([
-      fetchInstalledRegions(),
-      fetchCatalogMitStand(),
-      fetchLaufenderBau(),
-    ]);
+    const [installedRegions, { regionen: catalogRegions, kartenserver: stand }, laufend] =
+      await Promise.all([fetchInstalledRegions(), fetchCatalogMitStand(), fetchLaufenderBau()]);
     setInstalled(installedRegions);
     setCatalog(catalogRegions);
     setKartenserver(stand);
@@ -335,7 +360,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
         setJobs((prev) =>
           // Ein gerade erst hier gestarteter Job hat Vorrang — er ist
           // aktueller als das, was der Kern eine Netzrunde zuvor gemeldet hat.
-          prev[schluessel] ? prev : { ...prev, [schluessel]: { jobId: laufend.id, job: laufend } },
+          prev[schluessel] ? prev : { ...prev, [schluessel]: { jobId: laufend.id, job: laufend } }
         );
       }
     }
@@ -356,7 +381,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
     }
     const interval = setInterval(() => {
       const active = Object.entries(jobsRef.current).filter(
-        ([, state]) => !state.job || (state.job.status !== 'done' && state.job.status !== 'error'),
+        ([, state]) => !state.job || (state.job.status !== 'done' && state.job.status !== 'error')
       );
       if (active.length === 0) {
         return;
@@ -365,12 +390,12 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
         active.map(async ([schluessel, state]) => {
           const job = await fetchJob(state.jobId);
           setJobs((prev) =>
-            prev[schluessel] ? { ...prev, [schluessel]: { jobId: state.jobId, job } } : prev,
+            prev[schluessel] ? { ...prev, [schluessel]: { jobId: state.jobId, job } } : prev
           );
           if (job && (job.status === 'done' || job.status === 'error')) {
             void refresh();
           }
-        }),
+        })
       );
     }, JOB_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -406,9 +431,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
       setJobs((prev) => ({ ...prev, [eintrag.id]: { jobId, job: null, nurLaden } }));
     } catch (err) {
       const message =
-        err instanceof RegionApiError
-          ? formatApiError(err)
-          : 'Der Vorgang konnte nicht gestartet werden.';
+        err instanceof RegionApiError ? formatApiError(err) : tx(T, 'vorgangStartFehler');
       setErrorByRegion((prev) => ({ ...prev, [eintrag.id]: message }));
     }
   }, []);
@@ -426,8 +449,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
       const jobId = await startGesamtbau(alles);
       setJobs((prev) => ({ ...prev, [GESAMT_SCHLUESSEL]: { jobId, job: null } }));
     } catch (err) {
-      const message =
-        err instanceof RegionApiError ? formatApiError(err) : 'Der Bau konnte nicht gestartet werden.';
+      const message = err instanceof RegionApiError ? formatApiError(err) : tx(T, 'bauStartFehler');
       setErrorByRegion((prev) => ({ ...prev, [GESAMT_SCHLUESSEL]: message }));
     }
   }, []);
@@ -440,11 +462,11 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
         await refresh();
       } catch (err) {
         const message =
-          err instanceof RegionApiError ? formatApiError(err) : 'Region konnte nicht gelöscht werden.';
+          err instanceof RegionApiError ? formatApiError(err) : tx(T, 'loeschenFehler');
         setErrorByRegion((prev) => ({ ...prev, [regionId]: message }));
       }
     },
-    [refresh],
+    [refresh]
   );
 
   const handleVerwerfen = useCallback(
@@ -460,11 +482,11 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
         await refresh();
       } catch (err) {
         const message =
-          err instanceof RegionApiError ? formatApiError(err) : 'Der Download konnte nicht verworfen werden.';
+          err instanceof RegionApiError ? formatApiError(err) : tx(T, 'verwerfenFehler');
         setErrorByRegion((prev) => ({ ...prev, [regionId]: message }));
       }
     },
-    [refresh],
+    [refresh]
   );
 
   const toggleOpen = useCallback(() => setIsOpen((open) => !open), []);
@@ -501,15 +523,14 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
     <section className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-2">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <div className="font-semibold">Karten, Routing und Suche bauen</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Baut in einem Lauf, was fehlt: zuerst alle heruntergeladenen Karten, dann das
-            Routing als ein Netz über alle Karten (sonst endet es an der Grenze), dann die
-            Suche. Am besten erst alle gewünschten Karten herunterladen, dann einmal bauen.
-          </div>
+          <div className="font-semibold">{t('bauTitel')}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">{t('bauText')}</div>
           {geladen.length > 0 && (
-            <div className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300" data-testid="gesamtbau-geladen">
-              Bereit zum Bauen: {geladen.map((eintrag) => eintrag.name).join(', ')}
+            <div
+              className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300"
+              data-testid="gesamtbau-geladen"
+            >
+              {t('bereitZumBauen', { liste: geladen.map((eintrag) => eintrag.name).join(', ') })}
             </div>
           )}
         </div>
@@ -521,8 +542,8 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
             data-testid="gesamtbau-button"
           >
             {gesamtJob && gesamtJob.status !== 'done' && gesamtJob.status !== 'error'
-              ? 'Baut…'
-              : 'Fehlendes bauen'}
+              ? t('baut')
+              : t('fehlendesBauen')}
           </button>
           <button
             onClick={() => void handleGesamtbau(true)}
@@ -530,7 +551,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
             className="text-[11px] underline text-slate-500 dark:text-slate-400 disabled:opacity-50"
             data-testid="gesamtbau-alles-button"
           >
-            Alles neu bauen
+            {t('allesNeuBauen')}
           </button>
         </div>
       </div>
@@ -539,18 +560,27 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
           frisch installierte Karte wird zwar sofort GEZEICHNET, aber
           Routing und Suche entstehen daraus nicht von allein. */}
       {installed.length === 0 && geladen.length === 0 && loaded && (
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-ohne-karte">
-          Erst eine Karte herunterladen — ohne Karte gibt es nichts zu bauen.
+        <p
+          className="mt-1 text-xs text-slate-500 dark:text-slate-400"
+          data-testid="gesamtbau-ohne-karte"
+        >
+          {t('erstKarte')}
         </p>
       )}
       {ladenLaeuft && (
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" data-testid="gesamtbau-wartet-auf-download">
-          Es wird noch heruntergeladen. Gebaut werden kann, sobald alle Downloads fertig sind.
+        <p
+          className="mt-1 text-xs text-slate-500 dark:text-slate-400"
+          data-testid="gesamtbau-wartet-auf-download"
+        >
+          {t('nochDownload')}
         </p>
       )}
       {gesamtJob && <GesamtFortschritt job={gesamtJob} />}
       {errorByRegion[GESAMT_SCHLUESSEL] && (
-        <p className="mt-1 text-xs text-red-600 dark:text-red-400" data-testid="gesamtbau-startfehler">
+        <p
+          className="mt-1 text-xs text-red-600 dark:text-red-400"
+          data-testid="gesamtbau-startfehler"
+        >
           {errorByRegion[GESAMT_SCHLUESSEL]}
         </p>
       )}
@@ -558,10 +588,19 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
   );
 
   return (
-    <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('regions'), right: TOP_RIGHT_INSET_PX }}>
+    <div
+      className={eingebettet ? '' : 'fixed z-10'}
+      style={
+        eingebettet ? undefined : { top: topRightSlotPx('regions'), right: TOP_RIGHT_INSET_PX }
+      }
+    >
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-80 max-h-[calc(var(--sicht-h,100vh)*0.7)] overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4"}
+          className={
+            eingebettet
+              ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100'
+              : 'absolute top-14 right-0 mb-2 w-80 max-h-[calc(var(--sicht-h,100vh)*0.7)] overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4'
+          }
           data-testid="regions-panel"
         >
           {/* Speed-Lock (E07-T4): "Store" (region/map management) is one of
@@ -583,10 +622,13 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
             {bauOben && bauAbschnitt}
 
             <section>
-              <h2 className="font-semibold mb-2 mt-4">Karten</h2>
+              <h2 className="font-semibold mb-2 mt-4">{t('kartenTitel')}</h2>
               {loaded && karten.length === 0 && (
-                <p className="text-slate-500 dark:text-slate-400 text-xs" data-testid="regions-installed-empty">
-                  Keine Karte installiert und keine im Katalog.
+                <p
+                  className="text-slate-500 dark:text-slate-400 text-xs"
+                  data-testid="regions-installed-empty"
+                >
+                  {t('keineKarte')}
                 </p>
               )}
               <ul className="space-y-2">
@@ -606,7 +648,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                         <div className="min-w-0">
                           <div className="font-medium truncate">{eintrag.name}</div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {istInstalliert(eintrag) ? 'Installiert · ' : ''}
+                            {istInstalliert(eintrag) ? t('installiertPunkt') : ''}
                             {formatBytes(eintrag.groesseBytes)}
                             {eintrag.bounds ? ` · ${formatBounds(eintrag.bounds)}` : ''}
                           </div>
@@ -615,11 +657,13 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                           {kannInstallieren(eintrag) && (
                             <button
                               onClick={() => void handleInstallieren(eintrag)}
-                              disabled={laeuftHier || bauLaeuft || (ladenLaeuft && eintrag.quelle !== 'bau')}
+                              disabled={
+                                laeuftHier || bauLaeuft || (ladenLaeuft && eintrag.quelle !== 'bau')
+                              }
                               className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
                               data-testid={`installieren-button-${eintrag.id}`}
                             >
-                              {laeuftHier ? 'Läuft…' : installierenText(eintrag)}
+                              {laeuftHier ? t('laeuft') : installierenText(eintrag)}
                             </button>
                           )}
                           {/* ─── LÖSCHEN BLEIBT IMMER ERREICHBAR ──────────
@@ -643,7 +687,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                               className="px-2 py-1 rounded-md border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300 text-xs hover:bg-slate-50 dark:hover:bg-slate-700/40 disabled:opacity-50"
                               data-testid={`verwerfen-button-${eintrag.id}`}
                             >
-                              Verwerfen
+                              {t('verwerfen')}
                             </button>
                           )}
                           {istInstalliert(eintrag) && (
@@ -652,7 +696,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                               className="px-2 py-1 rounded-md border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-xs hover:bg-red-50 dark:hover:bg-red-900/30"
                               data-testid={`delete-button-${eintrag.id}`}
                             >
-                              Löschen
+                              {t('loeschen')}
                             </button>
                           )}
                         </div>
@@ -664,10 +708,11 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                           sie. Das gehört gesagt: wer es nicht weiss, sucht
                           den Fehler an einer ganz anderen Stelle. */}
                       {eintrag.zustand === 'fremd' && (
-                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400" data-testid={`karte-fremd-${eintrag.id}`}>
-                          Selbst abgelegte Karte. Sie wird gezeichnet, aber Routing und Suche
-                          lassen sich für sie nicht bauen — dafür fehlt die
-                          OpenStreetMap-Quelle.
+                        <p
+                          className="mt-1 text-xs text-amber-700 dark:text-amber-400"
+                          data-testid={`karte-fremd-${eintrag.id}`}
+                        >
+                          {t('fremd')}
                         </p>
                       )}
 
@@ -677,34 +722,48 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
                           schickt den Betreiber auf die Fehlersuche in seiner
                           eigenen Installation. */}
                       {eintrag.quelle === 'kartenserver' && (
-                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid={`karte-kartenserver-${eintrag.id}`}>
-                          {eintrag.hinweis ?? 'Vom Kartenserver: Karte, Suche und Routing in einem Paket.'}
+                        <p
+                          className="mt-1 text-xs text-slate-600 dark:text-slate-300"
+                          data-testid={`karte-kartenserver-${eintrag.id}`}
+                        >
+                          {eintrag.hinweis ?? t('vomKartenserver')}
                         </p>
                       )}
 
                       {eintrag.zustand === 'geladen' && (
-                        <p className="mt-1 text-xs text-blue-700 dark:text-blue-300" data-testid={`karte-geladen-${eintrag.id}`}>
-                          Heruntergeladen. Gebaut wird sie mit „Fehlendes bauen", zusammen mit den
-                          anderen Karten.
+                        <p
+                          className="mt-1 text-xs text-blue-700 dark:text-blue-300"
+                          data-testid={`karte-geladen-${eintrag.id}`}
+                        >
+                          {t('geladenText')}
                         </p>
                       )}
 
                       {eintrag.zustand === 'ohne_quelle' && (
-                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid={`karte-ohne-quelle-${eintrag.id}`}>
-                          {eintrag.hinweis ?? 'Für diese Karte ist keine Quelle hinterlegt.'}
+                        <p
+                          className="mt-1 text-xs text-slate-600 dark:text-slate-300"
+                          data-testid={`karte-ohne-quelle-${eintrag.id}`}
+                        >
+                          {eintrag.hinweis ?? t('ohneQuelleText')}
                         </p>
                       )}
 
-                      {(eintrag.zustand === 'verfuegbar' || eintrag.zustand === 'geladen') && eintrag.grosserBau && (
-                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid={`karte-grosser-bau-${eintrag.id}`}>
-                          {eintrag.hinweis ??
-                            'Große Region: der Kachelbau dauert auf diesem Gerät mehrere Stunden.'}
-                        </p>
-                      )}
+                      {(eintrag.zustand === 'verfuegbar' || eintrag.zustand === 'geladen') &&
+                        eintrag.grosserBau && (
+                          <p
+                            className="mt-1 text-xs text-slate-600 dark:text-slate-300"
+                            data-testid={`karte-grosser-bau-${eintrag.id}`}
+                          >
+                            {eintrag.hinweis ?? t('grosserBau')}
+                          </p>
+                        )}
 
                       {job && <JobProgress regionId={eintrag.id} job={job} />}
                       {errorByRegion[eintrag.id] && (
-                        <p className="mt-1 text-xs text-red-600 dark:text-red-400" data-testid={`region-error-${eintrag.id}`}>
+                        <p
+                          className="mt-1 text-xs text-red-600 dark:text-red-400"
+                          data-testid={`region-error-${eintrag.id}`}
+                        >
                           {errorByRegion[eintrag.id]}
                         </p>
                       )}
@@ -717,7 +776,7 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
             {!bauOben && (
               <details className="mt-4" data-testid="gesamtbau-zugeklappt">
                 <summary className="cursor-pointer text-xs text-slate-500 dark:text-slate-400">
-                  Selbst bauen (statt vom Kartenserver laden)
+                  {t('selbstBauen')}
                 </summary>
                 {bauAbschnitt}
               </details>
@@ -732,9 +791,9 @@ export default function RegionsPanel({ eingebettet = false }: { eingebettet?: bo
         <button
           onClick={toggleOpen}
           className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
-          aria-label="Karten verwalten"
+          aria-label={t('kartenVerwalten')}
           aria-expanded={isOpen}
-          title="Karten verwalten"
+          title={t('kartenVerwalten')}
           data-testid="regions-panel-toggle"
         >
           🗺️

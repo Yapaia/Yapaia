@@ -31,8 +31,16 @@ import { friendlyRoutingErrorMessage } from './errors.js';
 import { NAV_ENABLED } from './featureFlags.js';
 import { useFavoritesStore } from '../favorites/store.js';
 import { FavoriteApiError } from '../favorites/client.js';
-import { iconForFavoriteCategory, FAVORITE_CATEGORIES, FAVORITE_CATEGORY_LABELS } from '../favorites/icons.js';
-import { startNavigation, NavigationApiError, type StartNavigationReroute } from '../drive/client.js';
+import {
+  iconForFavoriteCategory,
+  FAVORITE_CATEGORIES,
+  favoriteCategoryLabel,
+} from '../favorites/icons.js';
+import {
+  startNavigation,
+  NavigationApiError,
+  type StartNavigationReroute,
+} from '../drive/client.js';
 import { useNavStore } from '../drive/navStore.js';
 import { isDriveActive } from '../drive/ManeuverPanel.js';
 import { useOnboardingStore, selectNavigationAllowed } from '../onboarding/store.js';
@@ -43,16 +51,19 @@ import { useBedienSeite, PANEL_BREITE_PX } from '../shell/bedienSeite.js';
 import { TOP_BAR_HEIGHT_PX } from '../shell/mapControlLayout.js';
 import { toRequestWaypoints } from './waypoints.js';
 import { useAnordnung } from '../shell/useAnordnung.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 const AVOID_FLAGS = ['motorway', 'toll', 'ferry', 'unpaved'] as const;
-const AVOID_LABELS: Record<(typeof AVOID_FLAGS)[number], string> = {
-  motorway: 'Autobahn meiden',
-  toll: 'Maut meiden',
-  ferry: 'Fähre meiden',
-  unpaved: 'Unbefestigt meiden',
-};
+const AVOID_LABELS = {
+  motorway: 'meidenAutobahn',
+  toll: 'meidenMaut',
+  ferry: 'meidenFaehre',
+  unpaved: 'meidenUnbefestigt',
+} as const;
 
 export default function RoutingPanel(): React.ReactElement | null {
+  const t = useT(T);
   const anordnung = useAnordnung('routenfenster');
   const destination = useRoutingStore((state) => state.destination);
   const routeMode = useRoutingStore((state) => state.routeMode);
@@ -100,14 +111,14 @@ export default function RoutingPanel(): React.ReactElement | null {
         profileId: activeProfile.id,
       });
     },
-    [toggleAvoidOverride, activeProfile],
+    [toggleAvoidOverride, activeProfile]
   );
 
   const handleRemoveAvoidance = useCallback(
     (id: string) => {
       removeAvoidance(id, { origin: 'current', profileId: activeProfile?.id });
     },
-    [removeAvoidance, activeProfile],
+    [removeAvoidance, activeProfile]
   );
 
   // E04-T5: "Navigation starten" -- builds the E04-T4 reroute context DIRECTLY
@@ -143,7 +154,8 @@ export default function RoutingPanel(): React.ReactElement | null {
       // Station stillschweigend weg.
       if (waypoints.length > 0) reroute.waypoints = toRequestWaypoints(waypoints);
       if (Object.keys(avoidOverrides).length > 0) reroute.avoid_overrides = avoidOverrides;
-      if (tempAvoidances.length > 0) reroute.exclude_polygons = tempAvoidances.map((a) => a.polygon);
+      if (tempAvoidances.length > 0)
+        reroute.exclude_polygons = tempAvoidances.map((a) => a.polygon);
 
       const state = await startNavigation({
         route: activeRoute,
@@ -155,9 +167,7 @@ export default function RoutingPanel(): React.ReactElement | null {
       // harmlessly) before the Drive UI reacts.
       setNavState(state);
     } catch (err) {
-      setNavStartError(
-        err instanceof NavigationApiError ? err.message : 'Navigation konnte nicht gestartet werden.',
-      );
+      setNavStartError(err instanceof NavigationApiError ? err.message : t('navStartFehler'));
     } finally {
       setNavStarting(false);
     }
@@ -172,6 +182,7 @@ export default function RoutingPanel(): React.ReactElement | null {
     destinationName,
     setNavState,
     navigationAllowed,
+    t,
   ]);
 
   // E05-T3: "Als Favorit speichern".
@@ -204,7 +215,7 @@ export default function RoutingPanel(): React.ReactElement | null {
   const handleSaveFavorite = useCallback(
     async (opts: { replace?: boolean } = {}) => {
       if (!destination) return;
-      const name = saveName.trim() || 'Favorit';
+      const name = saveName.trim() || t('favorit');
       try {
         await createFavorite(
           {
@@ -213,7 +224,7 @@ export default function RoutingPanel(): React.ReactElement | null {
             icon: iconForFavoriteCategory(saveCategory),
             category: saveCategory,
           },
-          opts,
+          opts
         );
         setShowSaveForm(false);
         setHomeConflict(false);
@@ -224,12 +235,10 @@ export default function RoutingPanel(): React.ReactElement | null {
           setHomeConflict(true);
           return;
         }
-        setSaveError(
-          err instanceof FavoriteApiError ? err.message : 'Favorit konnte nicht gespeichert werden.',
-        );
+        setSaveError(err instanceof FavoriteApiError ? err.message : t('favoritFehler'));
       }
     },
-    [destination, saveName, saveCategory, createFavorite],
+    [destination, saveName, saveCategory, createFavorite, t]
   );
 
   const openRegionsPanel = useUiStore((state) => state.openRegionsPanel);
@@ -292,9 +301,12 @@ export default function RoutingPanel(): React.ReactElement | null {
               both cases (existing E03-T3 e2e assertions rely on its exact
               format), the name is purely additive. */}
           <h2 className="font-semibold" data-testid="destination-title">
-            {destinationName ?? 'Ziel'}
+            {destinationName ?? t('ziel')}
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="destination-coords">
+          <p
+            className="text-xs text-slate-500 dark:text-slate-400"
+            data-testid="destination-coords"
+          >
             {destination.lat.toFixed(5)}, {destination.lon.toFixed(5)}
           </p>
         </div>
@@ -303,7 +315,7 @@ export default function RoutingPanel(): React.ReactElement | null {
           className="text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
           data-testid="destination-cancel-button"
         >
-          Abbrechen
+          {t('abbrechen')}
         </button>
       </div>
 
@@ -325,7 +337,9 @@ export default function RoutingPanel(): React.ReactElement | null {
       >
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-xs font-medium text-slate-600 dark:text-slate-300">Start</div>
+            <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
+              {t('start')}
+            </div>
             {/* Der Name kommt aus den geladenen Vektorkacheln
                 (map/placeName.ts). Er ERSETZT die Koordinaten nicht, er
                 stellt sich davor: „Bergstrasse" sagt, wohin es geht, die
@@ -339,10 +353,13 @@ export default function RoutingPanel(): React.ReactElement | null {
                 {startPointName}
               </p>
             )}
-            <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="route-start-value">
+            <p
+              className="text-xs text-slate-500 dark:text-slate-400"
+              data-testid="route-start-value"
+            >
               {startPoint
                 ? `${startPoint.lat.toFixed(5)}, ${startPoint.lon.toFixed(5)}`
-                : 'Aktuelle Position (GPS)'}
+                : t('aktuellePosition')}
             </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -357,7 +374,7 @@ export default function RoutingPanel(): React.ReactElement | null {
               }
               data-testid="pick-start-button"
             >
-              {pickTarget === 'origin' ? 'Auf Karte tippen…' : 'Start wählen'}
+              {pickTarget === 'origin' ? t('aufKarteTippen') : t('startWaehlen')}
             </button>
             {startPoint && (
               <button
@@ -366,15 +383,14 @@ export default function RoutingPanel(): React.ReactElement | null {
                 className="text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                 data-testid="reset-start-button"
               >
-                GPS
+                {t('gps')}
               </button>
             )}
           </div>
         </div>
         {pickTarget === 'origin' && (
           <p className="text-xs text-blue-700 dark:text-blue-400" data-testid="pick-start-hint">
-            Tippe auf die Karte, um den Startpunkt zu setzen. Der nächste Tipp danach
-            wählt wieder ein Ziel.
+            {t('startHinweis')}
           </p>
         )}
       </div>
@@ -388,13 +404,13 @@ export default function RoutingPanel(): React.ReactElement | null {
         className="rounded-md border border-slate-200 dark:border-slate-700 p-2 space-y-1"
         data-testid="route-mode-section"
       >
-        <div className="text-xs font-medium text-slate-600 dark:text-slate-300">Route</div>
-        <div className="flex gap-1" role="group" aria-label="Routenart">
+        <div className="text-xs font-medium text-slate-600 dark:text-slate-300">{t('route')}</div>
+        <div className="flex gap-1" role="group" aria-label={t('routenart')}>
           {(
             [
-              ['fastest', 'Schnellste', 'Kürzeste Fahrzeit'],
-              ['shortest', 'Kürzeste', 'Kürzeste Strecke'],
-              ['balanced', 'Ausgewogen', 'Mittelweg — nimmt die Autobahn nur, wenn sie sich lohnt'],
+              ['fastest', t('schnellste'), t('schnellsteTitel')],
+              ['shortest', t('kuerzeste'), t('kuerzesteTitel')],
+              ['balanced', t('ausgewogen'), t('ausgewogenTitel')],
             ] as const
           ).map(([wert, beschriftung, titel]) => (
             <button
@@ -405,7 +421,7 @@ export default function RoutingPanel(): React.ReactElement | null {
               onClick={() =>
                 setRouteMode(
                   wert,
-                  activeProfile ? { origin: 'current', profileId: activeProfile.id } : null,
+                  activeProfile ? { origin: 'current', profileId: activeProfile.id } : null
                 )
               }
               className={
@@ -435,13 +451,16 @@ export default function RoutingPanel(): React.ReactElement | null {
             className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700"
             data-testid="save-as-favorite-button"
           >
-            ⭐ Als Favorit speichern
+            {t('alsFavorit')}
           </button>
         )}
 
         {saveSuccess && (
-          <p className="text-xs text-green-700 dark:text-green-400" data-testid="save-favorite-success">
-            Favorit gespeichert.
+          <p
+            className="text-xs text-green-700 dark:text-green-400"
+            data-testid="save-favorite-success"
+          >
+            {t('favoritGespeichert')}
           </p>
         )}
 
@@ -454,7 +473,7 @@ export default function RoutingPanel(): React.ReactElement | null {
               type="text"
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
-              placeholder="Name"
+              placeholder={t('name')}
               className="w-full rounded border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-xs"
               data-testid="save-favorite-name-input"
             />
@@ -466,13 +485,16 @@ export default function RoutingPanel(): React.ReactElement | null {
             >
               {FAVORITE_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
-                  {FAVORITE_CATEGORY_LABELS[cat]}
+                  {favoriteCategoryLabel(cat)}
                 </option>
               ))}
             </select>
 
             {saveError && (
-              <p className="text-xs text-red-700 dark:text-red-300" data-testid="save-favorite-error">
+              <p
+                className="text-xs text-red-700 dark:text-red-300"
+                data-testid="save-favorite-error"
+              >
                 {saveError}
               </p>
             )}
@@ -482,9 +504,7 @@ export default function RoutingPanel(): React.ReactElement | null {
                 className="rounded bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 p-2 space-y-1"
                 data-testid="save-favorite-home-conflict"
               >
-                <p className="text-xs text-amber-800 dark:text-amber-300">
-                  Es existiert bereits ein „Zuhause“-Favorit. Ersetzen?
-                </p>
+                <p className="text-xs text-amber-800 dark:text-amber-300">{t('zuhauseKonflikt')}</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -492,7 +512,7 @@ export default function RoutingPanel(): React.ReactElement | null {
                     className="px-2 py-1 rounded bg-amber-600 text-white text-xs"
                     data-testid="save-favorite-home-replace-button"
                   >
-                    Ersetzen
+                    {t('ersetzen')}
                   </button>
                   <button
                     type="button"
@@ -500,7 +520,7 @@ export default function RoutingPanel(): React.ReactElement | null {
                     className="px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
                     data-testid="save-favorite-home-cancel-button"
                   >
-                    Abbrechen
+                    {t('abbrechen')}
                   </button>
                 </div>
               </div>
@@ -513,7 +533,7 @@ export default function RoutingPanel(): React.ReactElement | null {
                 className="flex-1 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium"
                 data-testid="save-favorite-confirm-button"
               >
-                Speichern
+                {t('speichern')}
               </button>
               <button
                 type="button"
@@ -521,7 +541,7 @@ export default function RoutingPanel(): React.ReactElement | null {
                 className="px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-xs"
                 data-testid="save-favorite-cancel-button"
               >
-                Abbrechen
+                {t('abbrechen')}
               </button>
             </div>
           </div>
@@ -545,7 +565,7 @@ export default function RoutingPanel(): React.ReactElement | null {
                     : 'px-3 py-1 rounded-full text-xs font-medium bg-flaeche dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600'
                 }
               >
-                {AVOID_LABELS[flag]}
+                {t(AVOID_LABELS[flag])}
               </button>
             );
           })}
@@ -555,7 +575,7 @@ export default function RoutingPanel(): React.ReactElement | null {
       {tempAvoidances.length > 0 && (
         <div className="space-y-1" data-testid="avoid-list">
           <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Temporäre Vermeidungen
+            {t('tempVermeidungen')}
           </h3>
           <ul className="space-y-1">
             {tempAvoidances.map((avoidance, i) => (
@@ -564,14 +584,14 @@ export default function RoutingPanel(): React.ReactElement | null {
                 className="flex items-center justify-between text-xs bg-slate-100 dark:bg-slate-700 rounded-md px-2 py-1"
                 data-testid={`avoid-list-item-${avoidance.id}`}
               >
-                <span>Abschnitt {i + 1} gemieden</span>
+                <span>{t('abschnittGemieden', { n: i + 1 })}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveAvoidance(avoidance.id)}
                   className="text-red-600 dark:text-red-400 hover:underline"
                   data-testid={`avoid-list-remove-${avoidance.id}`}
                 >
-                  Entfernen
+                  {t('entfernen')}
                 </button>
               </li>
             ))}
@@ -582,25 +602,28 @@ export default function RoutingPanel(): React.ReactElement | null {
       {status === 'idle' && (
         <>
           {!activeProfile && (
-            <p className="text-xs text-amber-700 dark:text-amber-400" data-testid="no-active-profile-hint">
-              Kein Fahrzeugprofil aktiv. Bitte zuerst ein Profil auswählen.
+            <p
+              className="text-xs text-amber-700 dark:text-amber-400"
+              data-testid="no-active-profile-hint"
+            >
+              {t('keinProfilHinweis')}
             </p>
           )}
           <button
             onClick={handleRequestRoute}
             disabled={!activeProfile}
-            title={!activeProfile ? 'Kein Fahrzeugprofil aktiv' : undefined}
+            title={!activeProfile ? t('keinProfilAktiv') : undefined}
             className="w-full px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
             data-testid="route-here-button"
           >
-            Route hierhin
+            {t('routeHierhin')}
           </button>
         </>
       )}
 
       {status === 'loading' && (
         <p className="text-slate-500 dark:text-slate-400" data-testid="route-loading">
-          Route wird berechnet…
+          {t('routeWirdBerechnet')}
         </p>
       )}
 
@@ -618,7 +641,7 @@ export default function RoutingPanel(): React.ReactElement | null {
               className="w-full px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
               data-testid="route-open-regions-button"
             >
-              Regionen verwalten
+              {t('regionenVerwalten')}
             </button>
           ) : activeProfile ? (
             <button
@@ -626,7 +649,7 @@ export default function RoutingPanel(): React.ReactElement | null {
               className="w-full px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
               data-testid="route-retry-button"
             >
-              Erneut versuchen
+              {t('erneut')}
             </button>
           ) : null}
         </div>
@@ -636,19 +659,19 @@ export default function RoutingPanel(): React.ReactElement | null {
         <div className="space-y-3" data-testid="route-summary-panel">
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">Distanz</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('distanz')}</div>
               <div className="font-semibold" data-testid="route-distance">
                 {formatDistance(activeRoute.distance_m)}
               </div>
             </div>
             <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">Dauer</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('dauer')}</div>
               <div className="font-semibold" data-testid="route-duration">
                 {formatDuration(activeRoute.duration_s)}
               </div>
             </div>
             <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">Ankunft</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('ankunft')}</div>
               <div className="font-semibold" data-testid="route-eta">
                 {formatEta(Date.now(), activeRoute.duration_s)}
               </div>
@@ -656,17 +679,26 @@ export default function RoutingPanel(): React.ReactElement | null {
           </div>
 
           {activeProfile && (
-            <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="route-profile-hint">
-              Profil: {activeProfile.name} · {activeProfile.height_m.toFixed(2)} m H ·{' '}
-              {activeProfile.width_m.toFixed(2)} m B · {activeProfile.length_m.toFixed(2)} m L ·{' '}
-              {activeProfile.weight_t.toFixed(1)} t G
+            <p
+              className="text-xs text-slate-500 dark:text-slate-400"
+              data-testid="route-profile-hint"
+            >
+              {t('profil', {
+                name: activeProfile.name,
+                h: activeProfile.height_m.toFixed(2),
+                b: activeProfile.width_m.toFixed(2),
+                l: activeProfile.length_m.toFixed(2),
+                g: activeProfile.weight_t.toFixed(1),
+              })}
             </p>
           )}
 
           {alternativeCount > 0 && (
-            <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="route-alternatives-hint">
-              {alternativeCount} {alternativeCount === 1 ? 'Alternative' : 'Alternativen'} verfügbar – auf der Karte
-              antippen, um zu wechseln.
+            <p
+              className="text-xs text-slate-500 dark:text-slate-400"
+              data-testid="route-alternatives-hint"
+            >
+              {t(alternativeCount === 1 ? 'alternative1' : 'alternativen', { n: alternativeCount })}
             </p>
           )}
 
@@ -688,9 +720,9 @@ export default function RoutingPanel(): React.ReactElement | null {
             disabled={!NAV_ENABLED || navStarting || !navigationAllowed}
             title={
               !NAV_ENABLED
-                ? 'Navigation nicht verfügbar'
+                ? t('navNichtVerfuegbar')
                 : !navigationAllowed
-                  ? 'Bitte zuerst den Haftungsausschluss im Setup-Assistenten akzeptieren'
+                  ? t('haftungZuerst')
                   : undefined
             }
             className={
@@ -701,14 +733,14 @@ export default function RoutingPanel(): React.ReactElement | null {
             data-testid="start-navigation-button"
             data-disclaimer-gated={!navigationAllowed}
           >
-            {navStarting ? 'Navigation wird gestartet…' : 'Navigation starten'}
+            {navStarting ? t('navWirdGestartet') : t('navStarten')}
           </button>
           {!navigationAllowed && (
             <p
               className="text-xs text-amber-700 dark:text-amber-400"
               data-testid="start-navigation-disclaimer-gate"
             >
-              Bitte zuerst den Haftungsausschluss im Setup-Assistenten akzeptieren.
+              {t('haftungZuerstPunkt')}
             </p>
           )}
           {navStartError && (

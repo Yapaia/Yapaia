@@ -10,10 +10,14 @@
 import type { NavState } from '@yapaia/shared';
 import type { Widget } from '@yapaia/ui';
 import ManeuverPanel from '../../drive/ManeuverPanel.js';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const nextInstructionWidget: Widget = {
   id: 'next-instruction',
-  name: 'Nächste Anweisung',
+  get name() {
+    return tx(T, 'w_naechsteAnweisung');
+  },
   sizes: ['L'],
   topics: ['nav/state'],
   render: ({ data }) => {

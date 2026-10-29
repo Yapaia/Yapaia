@@ -13,6 +13,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useT } from '../../i18n/index.js';
+import { T } from './texte.js';
 import {
   fetchKartenserver,
   RegionApiError,
@@ -29,6 +31,7 @@ export default function KartenserverSection({
   /** Nach dem Speichern: Katalog neu holen, damit die Pakete erscheinen. */
   gespeichert: () => void;
 }): React.ReactElement {
+  const t = useT(T);
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
   const [tokenGesetzt, setTokenGesetzt] = useState(false);
@@ -54,14 +57,14 @@ export default function KartenserverSection({
       setMeldung({
         ok: true,
         text: entfernen
-          ? 'Kartenserver entfernt.'
-          : `Verbunden: ${e.pakete ?? 0} ${e.pakete === 1 ? 'Paket' : 'Pakete'} verfügbar.`,
+          ? t('ksEntfernt')
+          : t(e.pakete === 1 ? 'ksVerbundenEins' : 'ksVerbunden', { n: e.pakete ?? 0 }),
       });
       gespeichert();
     } catch (err) {
       setMeldung({
         ok: false,
-        text: err instanceof RegionApiError ? err.message : 'Speichern fehlgeschlagen.',
+        text: err instanceof RegionApiError ? err.message : t('ksSpeichernFehler'),
       });
     } finally {
       setLaeuft(false);
@@ -69,13 +72,14 @@ export default function KartenserverSection({
   };
 
   return (
-    <section className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-2" data-testid="kartenserver">
-      <div className="font-semibold">Kartenserver</div>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Fertige Pakete (Karte, Suche, Routing) von deinem eigenen Yapaia-Kartenserver laden statt hier zu bauen.
-      </p>
+    <section
+      className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 p-2"
+      data-testid="kartenserver"
+    >
+      <div className="font-semibold">{t('ksTitel')}</div>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{t('ksText')}</p>
       <label className="block mt-2 text-xs">
-        Adresse
+        {t('ksAdresse')}
         <input
           type="url"
           inputMode="url"
@@ -92,7 +96,7 @@ export default function KartenserverSection({
         <input
           type="password"
           autoComplete="off"
-          placeholder={tokenGesetzt ? 'hinterlegt – leer lassen zum Behalten' : 'Download-Token vom Kartenserver'}
+          placeholder={tokenGesetzt ? t('ksTokenGesetzt') : t('ksTokenLeer')}
           value={token}
           onChange={(e) => setToken(e.target.value)}
           className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-sm"
@@ -106,7 +110,7 @@ export default function KartenserverSection({
           className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
           data-testid="kartenserver-speichern"
         >
-          {laeuft ? 'Prüfe…' : 'Verbinden'}
+          {laeuft ? t('pruefe') : t('verbinden')}
         </button>
         {stand?.eingerichtet && (
           <button
@@ -115,7 +119,7 @@ export default function KartenserverSection({
             className="text-[11px] underline text-slate-500 dark:text-slate-400 disabled:opacity-50"
             data-testid="kartenserver-entfernen"
           >
-            Entfernen
+            {t('entfernen')}
           </button>
         )}
       </div>
@@ -128,7 +132,10 @@ export default function KartenserverSection({
         </p>
       )}
       {!meldung && stand?.fehler && (
-        <p className="mt-1 text-xs text-red-600 dark:text-red-400" data-testid="kartenserver-fehler">
+        <p
+          className="mt-1 text-xs text-red-600 dark:text-red-400"
+          data-testid="kartenserver-fehler"
+        >
           {stand.fehler}
         </p>
       )}

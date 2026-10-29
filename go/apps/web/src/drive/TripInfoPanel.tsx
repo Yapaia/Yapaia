@@ -34,6 +34,8 @@ import { useSchmal } from '../shell/useSchmal.js';
 import { useAnordnung } from '../shell/useAnordnung.js';
 import { useStauVerzug } from '../online/useStauVerzug.js';
 import { etaStufe } from '../online/stauAufRoute.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 /** Was angezeigt wird, wenn ein Wert fehlt. */
 export const MISSING = '–';
@@ -47,7 +49,7 @@ export const MISSING = '–';
  */
 export function tripInfoLabels(
   navState: NavState | null | undefined,
-  verzugMin = 0,
+  verzugMin = 0
 ): {
   distance: string;
   duration: string;
@@ -65,7 +67,10 @@ export function tripInfoLabels(
   const durationS = navState?.duration_remaining_s;
   const etaRoh = navState?.eta;
   const etaMs = etaRoh ? Date.parse(etaRoh) : NaN;
-  const eta = etaRoh && plusS > 0 && Number.isFinite(etaMs) ? new Date(etaMs + plusS * 1000).toISOString() : etaRoh;
+  const eta =
+    etaRoh && plusS > 0 && Number.isFinite(etaMs)
+      ? new Date(etaMs + plusS * 1000).toISOString()
+      : etaRoh;
 
   let etaLabel = MISSING;
   if (eta) {
@@ -100,7 +105,10 @@ function Field({ label, value, testId, stufe }: FieldProps): React.ReactElement 
       <span
         data-testid={testId}
         data-stufe={stufe ?? undefined}
-        className={'whitespace-nowrap text-lg font-bold tabular-nums sm:text-xl' + (stufe ? STUFE_KLASSE[stufe] : '')}
+        className={
+          'whitespace-nowrap text-lg font-bold tabular-nums sm:text-xl' +
+          (stufe ? STUFE_KLASSE[stufe] : '')
+        }
       >
         {value}
       </span>
@@ -129,7 +137,12 @@ export interface TripInfoPanelProps {
  * Deshalb ist die Leiste ein KNOPF. Sie war vorher `pointer-events-none` --
  * eine reine Anzeige, durch die ein Tipp auf die Karte fiel.
  */
-export default function TripInfoPanel({ navState, offen = false, onToggle }: TripInfoPanelProps): React.ReactElement {
+export default function TripInfoPanel({
+  navState,
+  offen = false,
+  onToggle,
+}: TripInfoPanelProps): React.ReactElement {
+  const t = useT(T);
   const anordnung = useAnordnung('fahrtleiste');
   const labels = tripInfoLabels(navState, useStauVerzug());
   const stufe = labels.verzug?.stufe ?? null;
@@ -144,7 +157,13 @@ export default function TripInfoPanel({ navState, offen = false, onToggle }: Tri
       data-testid="trip-info-panel"
       aria-expanded={offen}
       aria-controls="fahrt-menue"
-      aria-label={`Fahrtmenü ${offen ? 'schließen' : 'öffnen'} — Ankunft ${labels.eta}${labels.verzug ? `, davon ${labels.verzug.min} Minuten Stau` : ''}, Restzeit ${labels.duration}, Entfernung ${labels.distance}`}
+      aria-label={t('fahrtleiste_aria', {
+        aktion: t(offen ? 'menue_schliessen' : 'menue_oeffnen'),
+        eta: labels.eta,
+        stau: labels.verzug ? t('davon_stau', { min: labels.verzug.min }) : '',
+        dauer: labels.duration,
+        strecke: labels.distance,
+      })}
       onClick={onToggle}
       // ─── GEGENUEBER DEM BLAUEN PUNKT (0.27) ──────────────────────────
       // Gemeldet: das Fahrtmenue auf der Fahrerseite „verdeckt dann die
@@ -153,7 +172,10 @@ export default function TripInfoPanel({ navState, offen = false, onToggle }: Tri
       // verschieben?" Der Punkt sitzt im unteren Viertel der FAHRERseite
       // (`map/drivePadding.ts`); Leiste und Menue gehen auf die Kartenseite,
       // neben die Knopfspalte.
-      style={{ bottom: tripInfoBottomPx(), ...(schmal ? {} : { [kartenSeite]: FAHRT_SEITENABSTAND_PX }) }}
+      style={{
+        bottom: tripInfoBottomPx(),
+        ...(schmal ? {} : { [kartenSeite]: FAHRT_SEITENABSTAND_PX }),
+      }}
       className={
         (schmal
           ? 'absolute inset-x-2 z-20 flex min-h-[64px] items-center justify-around gap-2 rounded-2xl bg-slate-900/90 px-2 py-2 text-white shadow-lg'
@@ -161,9 +183,19 @@ export default function TripInfoPanel({ navState, offen = false, onToggle }: Tri
         (offen ? ' ring-2 ring-blue-400' : '')
       }
     >
-      <Field label={`Ankunft${plus}`} value={labels.eta} testId="trip-info-eta" stufe={stufe} />
-      <Field label="Restzeit" value={labels.duration} testId="trip-info-duration" stufe={stufe} />
-      <Field label="Entfernung" value={labels.distance} testId="trip-info-distance" />
+      <Field
+        label={`${t('ankunft')}${plus}`}
+        value={labels.eta}
+        testId="trip-info-eta"
+        stufe={stufe}
+      />
+      <Field
+        label={t('restzeit')}
+        value={labels.duration}
+        testId="trip-info-duration"
+        stufe={stufe}
+      />
+      <Field label={t('entfernung')} value={labels.distance} testId="trip-info-distance" />
       {/* Der Hinweis, dass hier mehr ist -- ohne ihn waere die Leiste von
           der reinen Anzeige vorher nicht zu unterscheiden. */}
       <span aria-hidden="true" className="text-sm text-slate-300">

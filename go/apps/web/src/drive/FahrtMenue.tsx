@@ -51,7 +51,14 @@ import WaypointList from '../routing/WaypointList.js';
 import { useAnordnungStore } from '../shell/anordnung.js';
 import { useKartenSeite } from '../shell/bedienSeite.js';
 import { useSchmal } from '../shell/useSchmal.js';
-import { FAHRT_SEITENABSTAND_PX, STACK_GAP_PX, TRIP_BAR_HEIGHT_PX, tripInfoBottomPx } from '../shell/mapControlLayout.js';
+import {
+  FAHRT_SEITENABSTAND_PX,
+  STACK_GAP_PX,
+  TRIP_BAR_HEIGHT_PX,
+  tripInfoBottomPx,
+} from '../shell/mapControlLayout.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 /** Wie viele zuletzt angefahrene Ziele im Menü stehen. */
 export const VERLAUF_IM_MENUE = 5;
@@ -72,8 +79,16 @@ export interface Stoppwahl {
  * zweimal untereinander.
  */
 export function stoppAuswahl(
-  favoriten: ReadonlyArray<{ id: string; name: string; latlng: LatLng; category: Parameters<typeof iconForFavoriteCategory>[0] }>,
-  verlauf: ReadonlyArray<{ id: string; destination: { latlng: LatLng; name: string | null } | null }>,
+  favoriten: ReadonlyArray<{
+    id: string;
+    name: string;
+    latlng: LatLng;
+    category: Parameters<typeof iconForFavoriteCategory>[0];
+  }>,
+  verlauf: ReadonlyArray<{
+    id: string;
+    destination: { latlng: LatLng; name: string | null } | null;
+  }>
 ): Stoppwahl[] {
   const raus: Stoppwahl[] = favoriten.map((f) => ({
     schluessel: `fav-${f.id}`,
@@ -100,7 +115,12 @@ export function stoppAuswahl(
   return raus;
 }
 
-export default function FahrtMenue({ navState }: { navState: NavState | null }): React.ReactElement {
+export default function FahrtMenue({
+  navState,
+}: {
+  navState: NavState | null;
+}): React.ReactElement {
+  const t = useT(T);
   const status = navState?.status ?? null;
   const setNavState = useNavStore((state) => state.setNavState);
   const ttsAn = useTtsStore((state) => state.enabled);
@@ -150,12 +170,12 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
         setNavState(state);
         setOffen(false);
       } catch (err) {
-        setError(err instanceof NavigationApiError ? err.message : 'Aktion fehlgeschlagen.');
+        setError(err instanceof NavigationApiError ? err.message : t('aktion_fehlgeschlagen'));
       } finally {
         setBusy(false);
       }
     },
-    [setNavState],
+    [setNavState, t]
   );
 
   const ansagenUmschalten = useCallback(() => {
@@ -170,9 +190,9 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
       // weiss, ob die Ansagen aus sind oder nur nichts anzusagen war.
       // Über Yapaia Beat, wenn das Radio läuft -- spräche der Browser selbst,
       // hielte das iPad das Radio im selben Browser an.
-      void sageAn('Ansagen sind an.', 'hinweis', (t) => announce(t));
+      void sageAn(t('ansagen_an_sagen'), 'hinweis', (text) => announce(text));
     }
-  }, [ttsAn, ttsUmschalten]);
+  }, [ttsAn, ttsUmschalten, t]);
 
   const einschieben = useCallback(
     (wahl: Stoppwahl) => {
@@ -184,7 +204,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
       setEingeschoben(wahl.name);
       setOffen(false);
     },
-    [zwischenstoppVorn],
+    [zwischenstoppVorn]
   );
 
   const auswahl = stoppAuswahl(favoriten, verlauf);
@@ -197,13 +217,13 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
           type="button"
           onClick={() => void run(resumeNavigation)}
           disabled={busy}
-          aria-label="Navigation fortsetzen"
+          aria-label={t('navigation_fortsetzen')}
           style={{ bottom: tripInfoBottomPx() + TRIP_BAR_HEIGHT_PX + STACK_GAP_PX }}
           className="absolute left-1/2 z-20 min-h-[64px] min-w-[64px] -translate-x-1/2 rounded-full bg-blue-600 px-6 py-2 text-base font-semibold text-white shadow-lg disabled:opacity-50"
           data-testid="drive-resume-button"
           hidden={offen}
         >
-          ▶ Fortsetzen
+          {t('fortsetzen_knopf')}
         </button>
       )}
 
@@ -214,7 +234,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
           className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 rounded-lg bg-slate-900/90 px-3 py-2 text-sm text-white shadow-lg"
           data-testid="fahrt-menue-eingeschoben"
         >
-          Nächster Halt: {eingeschoben}
+          {t('naechster_halt', { name: eingeschoben })}
         </p>
       )}
 
@@ -243,7 +263,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
         <div
           id="fahrt-menue"
           role="dialog"
-          aria-label="Fahrtmenü"
+          aria-label={t('fahrtmenue')}
           // ─── SEITLICH, GEGENUEBER DEM BLAUEN PUNKT (0.27) ──────────────
           // Gewuenscht: „Das Navi-Menue darf jetzt auch gerne eher links
           // oder rechts angeordnet sein." In 0.26 auf der Fahrerseite --
@@ -278,32 +298,32 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
                 type="button"
                 onClick={() => void run(pauseNavigation)}
                 disabled={busy}
-                aria-label="Navigation pausieren"
+                aria-label={t('navigation_pausieren')}
                 className="min-h-[64px] flex-1 rounded-xl bg-slate-900 px-3 py-2 font-medium text-white disabled:opacity-50"
                 data-testid="drive-pause-button"
               >
-                ⏸ Pause
+                {t('pause')}
               </button>
             )}
             <button
               type="button"
               onClick={() => void run(stopNavigation)}
               disabled={busy}
-              aria-label="Navigation stoppen"
+              aria-label={t('navigation_stoppen')}
               className="min-h-[64px] flex-1 rounded-xl bg-red-600 px-3 py-2 font-medium text-white disabled:opacity-50"
               data-testid="drive-stop-button"
             >
-              ⏹ Stopp
+              {t('stopp')}
             </button>
             <button
               type="button"
               onClick={ansagenUmschalten}
               aria-pressed={ttsAn}
-              aria-label={ttsAn ? 'Sprachansagen ausschalten' : 'Sprachansagen einschalten'}
+              aria-label={t(ttsAn ? 'ansagen_aus_aria' : 'ansagen_ein_aria')}
               className="min-h-[64px] flex-1 rounded-xl bg-slate-200 px-3 py-2 font-medium text-slate-900 dark:bg-slate-700 dark:text-white"
               data-testid="tts-toggle"
             >
-              {ttsAn ? '🔊 Ansagen an' : '🔇 Ansagen aus'}
+              {t(ttsAn ? 'ansagen_an' : 'ansagen_aus')}
             </button>
           </div>
 
@@ -312,7 +332,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
             // der Karte mit „Später" weggetippt hat.
             <section aria-labelledby="fahrt-menue-bord" data-testid="fahrt-menue-bord">
               <h2 id="fahrt-menue-bord" className="mb-2 font-semibold">
-                Bord
+                {t('bord')}
               </h2>
               <ul className="space-y-2">
                 {bordHinweise.map((h) => (
@@ -346,7 +366,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
             // Dieselbe Liste wie beim Planen; waehrend der Fahrt geht jede
             // Aenderung an den Core (`routing/store.ts#applyWaypointChange`),
             // der die laufende Route neu rechnet.
-            <section aria-label="Zwischenziele" data-testid="fahrt-menue-zwischenziele">
+            <section aria-label={t('zwischenziele')} data-testid="fahrt-menue-zwischenziele">
               <WaypointList rerouteParams={null} />
             </section>
           )}
@@ -366,7 +386,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
               className="min-h-[48px] w-full rounded-xl bg-slate-100 px-3 py-2 text-left hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600"
               data-testid="anordnung-starten-fahrt"
             >
-              🧱 Bildschirm anpassen
+              {t('bildschirm_anpassen')}
             </button>
           )}
 
@@ -381,11 +401,14 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
 
           <section aria-labelledby="fahrt-menue-stopp">
             <h2 id="fahrt-menue-stopp" className="mb-2 font-semibold">
-              Zwischenstopp einschieben
+              {t('zwischenstopp')}
             </h2>
             {auswahl.length === 0 ? (
-              <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="fahrt-menue-leer">
-                Keine Favoriten und kein Verlauf. Favoriten legst du beim Planen einer Route an.
+              <p
+                className="text-xs text-slate-500 dark:text-slate-400"
+                data-testid="fahrt-menue-leer"
+              >
+                {t('keine_favoriten')}
               </p>
             ) : (
               <ul className="flex flex-wrap gap-2" data-testid="fahrt-menue-stopps">
@@ -409,7 +432,7 @@ export default function FahrtMenue({ navState }: { navState: NavState | null }):
           {profile.length > 1 && (
             <section aria-labelledby="fahrt-menue-fahrzeug">
               <h2 id="fahrt-menue-fahrzeug" className="mb-2 font-semibold">
-                Fahrzeug
+                {t('fahrzeug')}
               </h2>
               <ul className="flex flex-wrap gap-2">
                 {profile.map((p) => {

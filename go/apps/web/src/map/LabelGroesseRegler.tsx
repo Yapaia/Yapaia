@@ -12,6 +12,8 @@
  * die Karte erst, wenn er kurz stillhält.
  */
 
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import React, { useEffect, useState } from 'react';
 import { LABEL_GROESSE_MAX, LABEL_GROESSE_MIN, LABEL_GROESSE_SCHRITT } from '@yapaia/shared';
 
@@ -25,6 +27,7 @@ export default function LabelGroesseRegler({
   wert: string;
   onWert: (wert: string) => void;
 }): React.ReactElement {
+  const t = useT(T);
   const [entwurf, setEntwurf] = useState(wert);
 
   // Ändert sich der Wert von außen (anderes Gerät, Zurücksetzen), folgt der
@@ -48,8 +51,8 @@ export default function LabelGroesseRegler({
         step={LABEL_GROESSE_SCHRITT}
         value={entwurf}
         onChange={(e) => setEntwurf(Number(e.target.value).toFixed(1))}
-        aria-label="Label-Größe"
-        aria-valuetext={`${prozent} Prozent`}
+        aria-label={t('labelGroesse')}
+        aria-valuetext={t('prozent', { n: prozent })}
         className="h-8 flex-1 accent-blue-600"
         data-testid="labelscale-slider"
       />

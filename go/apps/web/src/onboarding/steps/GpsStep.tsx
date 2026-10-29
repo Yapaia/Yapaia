@@ -15,25 +15,30 @@ import {
   type PositionSourceName,
   type SourceStatus,
 } from '../positionClient.js';
+import { useT } from '../../i18n/index.js';
+import { T } from '../texte.js';
 
-const SOURCE_LABELS: Record<PositionSourceName, string> = {
-  browser: 'Browser-Standort',
-  gpsd: 'USB-GPS (gpsd)',
-  modbus: 'Router-GPS (RUT50)',
+type Key = keyof typeof T.de;
+
+const SOURCE_LABELS: Record<PositionSourceName, Key> = {
+  browser: 'srcBrowser',
+  gpsd: 'srcGpsd',
+  modbus: 'srcModbus',
   // Diese Zeile fehlte, und der Kern liefert die Quelle trotzdem mit -- die
   // Liste zeigte dafuer einen leeren Eintrag. Wer nachsehen wollte, ob die
   // Companion App liefert, fand nichts.
-  ha_tracker: 'Companion App',
-  simulator: 'Simulator (Testfahrt)',
+  ha_tracker: 'srcHa',
+  simulator: 'srcSim',
 };
 
-const SIGNAL_LABELS: Record<string, string> = {
-  acquiring: 'Suche Signal…',
-  live: 'Signal aktiv',
-  lost: 'Kein Signal',
+const SIGNAL_LABELS: Record<string, Key> = {
+  acquiring: 'sigAcquiring',
+  live: 'sigLive',
+  lost: 'sigLost',
 };
 
 export default function GpsStep(): React.ReactElement {
+  const t = useT(T);
   const [sources, setSources] = useState<SourceStatus[]>([]);
   const [forced, setForced] = useState<PositionSourceName | null>(null);
   const signalState = useGpsSignalState();
@@ -58,7 +63,7 @@ export default function GpsStep(): React.ReactElement {
       }
       await refresh();
     },
-    [refresh],
+    [refresh]
   );
 
   return (
@@ -68,7 +73,7 @@ export default function GpsStep(): React.ReactElement {
         data-testid="onboarding-gps-signal-status"
         data-signal-state={signalState}
       >
-        <span>Live-Status:</span>
+        <span>{t('liveStatus')}</span>
         <span
           className={
             signalState === 'live'
@@ -76,7 +81,7 @@ export default function GpsStep(): React.ReactElement {
               : 'text-slate-500 dark:text-slate-400 font-medium'
           }
         >
-          {SIGNAL_LABELS[signalState]}
+          {t(SIGNAL_LABELS[signalState])}
         </span>
       </div>
 
@@ -88,9 +93,9 @@ export default function GpsStep(): React.ReactElement {
             data-testid={`onboarding-gps-source-${source.name}`}
           >
             <div>
-              <div className="font-medium">{SOURCE_LABELS[source.name]}</div>
+              <div className="font-medium">{t(SOURCE_LABELS[source.name])}</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                {source.active ? 'aktiv' : 'inaktiv'}
+                {source.active ? t('aktiv') : t('inaktiv')}
               </div>
             </div>
             <button
@@ -104,7 +109,7 @@ export default function GpsStep(): React.ReactElement {
               }
               data-testid={`onboarding-gps-select-${source.name}`}
             >
-              {forced === source.name ? 'Ausgewählt & Testen' : 'Wählen & Testen'}
+              {forced === source.name ? t('gewaehlt') : t('waehlen')}
             </button>
           </li>
         ))}

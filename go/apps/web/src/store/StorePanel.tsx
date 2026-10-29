@@ -60,6 +60,8 @@ import {
 
 import { TOP_RIGHT_INSET_PX, topRightSlotPx } from '../shell/mapControlLayout.js';
 import MarktplatzSection from './MarktplatzSection.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 type InstallFlowState =
   | { kind: 'idle' }
   | { kind: 'beginning'; label: string }
@@ -68,17 +70,20 @@ type InstallFlowState =
   | { kind: 'done'; label: string }
   | { kind: 'error'; label: string; message: string };
 
-function formatCacheAge(ageMs: number | null): string {
-  if (ageMs === null) return 'noch nie synchronisiert';
-  if (ageMs < 60_000) return 'gerade eben aktualisiert';
+function formatCacheAge(
+  ageMs: number | null,
+  t: (k: keyof typeof T.de, w?: Record<string, number>) => string
+): string {
+  if (ageMs === null) return t('nieSync');
+  if (ageMs < 60_000) return t('geradeEben');
   const minutes = Math.floor(ageMs / 60_000);
-  if (minutes < 60) return `Stand: vor ${minutes} Minute${minutes === 1 ? '' : 'n'}`;
+  if (minutes < 60) return t(minutes === 1 ? 'standMin1' : 'standMinN', { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Stand: vor ${hours} Stunde${hours === 1 ? '' : 'n'}`;
+  if (hours < 24) return t(hours === 1 ? 'standStd1' : 'standStdN', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `Stand: vor ${days} Tag${days === 1 ? '' : 'en'}`;
+  if (days < 7) return t(days === 1 ? 'standTag1' : 'standTagN', { n: days });
   const weeks = Math.floor(days / 7);
-  return `Stand: vor ${weeks} Woche${weeks === 1 ? '' : 'n'}`;
+  return t(weeks === 1 ? 'standWoche1' : 'standWocheN', { n: weeks });
 }
 
 /** True when `registryVersion` is a genuinely newer semver than
@@ -95,8 +100,9 @@ function isNewerVersion(registryVersion: string, installedVersion: string): bool
 }
 
 function ScopePreview({ scopes }: { scopes: string[] }): React.ReactElement {
+  const t = useT(T);
   if (scopes.length === 0) {
-    return <p className="text-xs text-slate-500 dark:text-slate-400">Keine Berechtigungen angefragt.</p>;
+    return <p className="text-xs text-slate-500 dark:text-slate-400">{t('keineBerechtigungen')}</p>;
   }
   return (
     <ul className="flex flex-wrap gap-1" data-testid="scope-preview">
@@ -116,32 +122,35 @@ function ScopePreview({ scopes }: { scopes: string[] }): React.ReactElement {
 /** Blocking notice shown INSTEAD OF an install/update button for a
  *  core_api-incompatible entry (acceptance criterion 2, W-11). */
 function IncompatibleNotice({ entry }: { entry: RegistryEntryView }): React.ReactElement {
+  const t = useT(T);
   return (
     <p
       className="text-xs rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1"
       data-testid={`incompatible-notice-${entry.id}`}
     >
-      Nicht kompatibel mit dieser Core-Version (benötigt core_api {entry.core_api}).
+      {t('inkompatibel', { api: entry.core_api })}
     </p>
   );
 }
 
 /** Signature + price badges of a catalog entry (docs/marktplatz.md). */
 function TrustBadges({ entry }: { entry: RegistryEntryView }): React.ReactElement {
+  const t = useT(T);
   return (
     <span className="inline-flex flex-wrap gap-1" data-testid={`trust-badges-${entry.id}`}>
       {entry.verified ? (
         <span className="rounded bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 text-[11px] text-emerald-800 dark:text-emerald-300">
-          ✓ Geprüft{entry.publisher ? ` · ${entry.publisher}` : ''}
+          {t('geprueft')}
+          {entry.publisher ? ` · ${entry.publisher}` : ''}
         </span>
       ) : (
         <span className="rounded bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[11px] text-amber-800 dark:text-amber-300">
-          Unsigniert
+          {t('unsigniert')}
         </span>
       )}
       {entry.licensing === 'paid' && (
         <span className="rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[11px]">
-          {entry.price_label ?? 'Kostenpflichtig'}
+          {entry.price_label ?? t('kostenpflichtig')}
         </span>
       )}
     </span>
@@ -150,13 +159,14 @@ function TrustBadges({ entry }: { entry: RegistryEntryView }): React.ReactElemen
 
 /** Notice INSTEAD of an install button: incompatible (W-11) or revoked. */
 function EntryBlocker({ entry }: { entry: RegistryEntryView }): React.ReactElement | null {
+  const t = useT(T);
   if (entry.revoked) {
     return (
       <p
         className="text-xs rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1"
         data-testid={`revoked-notice-${entry.id}`}
       >
-        Vom Marktplatz gesperrt.
+        {t('gesperrt')}
       </p>
     );
   }
@@ -164,8 +174,11 @@ function EntryBlocker({ entry }: { entry: RegistryEntryView }): React.ReactEleme
   return null;
 }
 
-export default function StorePanel({ eingebettet = false }: { eingebettet?: boolean } = {}): React.ReactElement {
+export default function StorePanel({
+  eingebettet = false,
+}: { eingebettet?: boolean } = {}): React.ReactElement {
   // Eingebettet (im ⚙-Menü, shell/EinstellungsMenue.tsx) ist der Inhalt immer offen.
+  const t = useT(T);
   const [isOpen, setIsOpen] = useState(eingebettet);
   const [tab, setTab] = useState<'catalog' | 'updates'>('catalog');
   const [catalog, setCatalog] = useState<RegistryCatalog>({
@@ -193,7 +206,10 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
   }, [addonStorePanelOpen]);
 
   const refresh = useCallback(async () => {
-    const [freshCatalog, freshInstalled] = await Promise.all([fetchRegistryCatalog(), fetchAddons()]);
+    const [freshCatalog, freshInstalled] = await Promise.all([
+      fetchRegistryCatalog(),
+      fetchAddons(),
+    ]);
     setCatalog(freshCatalog);
     setInstalled(freshInstalled);
     setLoaded(true);
@@ -213,19 +229,19 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
     } catch (err) {
       setSyncError(
         err instanceof StoreApiError
-          ? `Registry nicht erreichbar (${err.message}).`
-          : 'Registry nicht erreichbar.',
+          ? t('registryFehlerMit', { grund: err.message })
+          : t('registryFehler')
       );
     } finally {
       setSyncing(false);
     }
-  }, []);
+  }, [t]);
 
   const installedIds = useMemo(() => new Set(installed.map((a) => a.id)), [installed]);
   const installedById = useMemo(() => new Map(installed.map((a) => [a.id, a])), [installed]);
   const catalogEntries = useMemo(
     () => catalog.entries.filter((e) => !installedIds.has(e.id)),
-    [catalog.entries, installedIds],
+    [catalog.entries, installedIds]
   );
   const updateEntries = useMemo(
     () =>
@@ -233,13 +249,14 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         .map((entry) => ({ entry, installedAddon: installedById.get(entry.id) }))
         .filter(
           (row): row is { entry: RegistryEntryView; installedAddon: InstalledAddon } =>
-            row.installedAddon !== undefined && isNewerVersion(row.entry.version, row.installedAddon.version),
+            row.installedAddon !== undefined &&
+            isNewerVersion(row.entry.version, row.installedAddon.version)
         ),
-    [catalog.entries, installedById],
+    [catalog.entries, installedById]
   );
   const selectedEntry = useMemo(
     () => catalog.entries.find((e) => e.id === selectedEntryId) ?? null,
-    [catalog.entries, selectedEntryId],
+    [catalog.entries, selectedEntryId]
   );
 
   const runInstallFlow = useCallback(
@@ -252,18 +269,18 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         setInstallFlow({
           kind: 'error',
           label,
-          message: err instanceof StoreApiError ? err.message : 'Installation konnte nicht gestartet werden.',
+          message: err instanceof StoreApiError ? err.message : t('startFehler'),
         });
       }
     },
-    [],
+    [t]
   );
 
   const handleInstallFromRegistry = useCallback(
     (entry: RegistryEntryView) => {
       void runInstallFlow(entry.name, () => beginInstallFromCatalog(entry.id));
     },
-    [runInstallFlow],
+    [runInstallFlow]
   );
 
   const handleUploadSelected = useCallback(
@@ -276,7 +293,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         return beginInstallFromUpload(arrayBufferToBase64(buffer));
       });
     },
-    [runInstallFlow],
+    [runInstallFlow]
   );
 
   const handleConfirmInstall = useCallback(async () => {
@@ -291,10 +308,10 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
       setInstallFlow({
         kind: 'error',
         label,
-        message: err instanceof StoreApiError ? err.message : 'Installation fehlgeschlagen.',
+        message: err instanceof StoreApiError ? err.message : t('installFehler'),
       });
     }
-  }, [installFlow, refresh]);
+  }, [installFlow, refresh, t]);
 
   const cancelInstallFlow = useCallback(() => setInstallFlow({ kind: 'idle' }), []);
 
@@ -306,10 +323,10 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         else await enableAddon(addon.id);
         await refresh();
       } catch (err) {
-        setLifecycleError(err instanceof StoreApiError ? err.message : 'Aktion fehlgeschlagen.');
+        setLifecycleError(err instanceof StoreApiError ? err.message : t('aktionFehler'));
       }
     },
-    [refresh],
+    [refresh, t]
   );
 
   // E09-T8: "In Home Assistant verfügbar" -- MQTT-republish toggle, only
@@ -323,10 +340,10 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         await setAddonMqttEnabled(addon.id, !addon.mqtt_enabled);
         await refresh();
       } catch (err) {
-        setLifecycleError(err instanceof StoreApiError ? err.message : 'Aktion fehlgeschlagen.');
+        setLifecycleError(err instanceof StoreApiError ? err.message : t('aktionFehler'));
       }
     },
-    [refresh],
+    [refresh, t]
   );
 
   const handleActivateLicense = useCallback(
@@ -336,10 +353,10 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         await activateLicense(id);
         await refresh();
       } catch (err) {
-        setLifecycleError(err instanceof StoreApiError ? err.message : 'Lizenz konnte nicht aktiviert werden.');
+        setLifecycleError(err instanceof StoreApiError ? err.message : t('lizenzFehler'));
       }
     },
-    [refresh],
+    [refresh, t]
   );
 
   const handleUninstall = useCallback(
@@ -349,10 +366,10 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         await uninstallAddonById(id);
         await refresh();
       } catch (err) {
-        setLifecycleError(err instanceof StoreApiError ? err.message : 'Deinstallation fehlgeschlagen.');
+        setLifecycleError(err instanceof StoreApiError ? err.message : t('deinstFehler'));
       }
     },
-    [refresh],
+    [refresh, t]
   );
 
   const toggleOpen = useCallback(() => setIsOpen((open) => !open), []);
@@ -369,18 +386,28 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
   // confirmed against gestures.spec.ts's zoom-in-button click (a `top-4`
   // placement here intercepted MapLibre's zoom control).
   return (
-    <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('store'), right: TOP_RIGHT_INSET_PX }}>
+    <div
+      className={eingebettet ? '' : 'fixed z-10'}
+      style={eingebettet ? undefined : { top: topRightSlotPx('store'), right: TOP_RIGHT_INSET_PX }}
+    >
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-96 max-h-[calc(var(--sicht-h,100vh)*0.75)] overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4"}
+          className={
+            eingebettet
+              ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100'
+              : 'absolute top-14 right-0 mb-2 w-96 max-h-[calc(var(--sicht-h,100vh)*0.75)] overflow-y-auto rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-4'
+          }
           data-testid="store-panel"
         >
           <DriveLockGate controlId="addon-store">
             {/* Cache status + sync (W-13) -- shown REGARDLESS of tab. */}
             <section className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <span data-testid="store-cache-status" className="text-xs text-slate-500 dark:text-slate-400">
-                  {formatCacheAge(catalog.ageMs)}
+                <span
+                  data-testid="store-cache-status"
+                  className="text-xs text-slate-500 dark:text-slate-400"
+                >
+                  {formatCacheAge(catalog.ageMs, t)}
                 </span>
                 <button
                   onClick={() => void handleSync()}
@@ -388,11 +415,14 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                   className="shrink-0 px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
                   data-testid="store-sync-button"
                 >
-                  {syncing ? 'Synchronisiere…' : 'Registry aktualisieren'}
+                  {syncing ? t('synchronisiere') : t('registryAktualisieren')}
                 </button>
               </div>
               {syncError && (
-                <p className="text-xs text-red-600 dark:text-red-400" data-testid="store-sync-error">
+                <p
+                  className="text-xs text-red-600 dark:text-red-400"
+                  data-testid="store-sync-error"
+                >
                   {syncError}
                 </p>
               )}
@@ -410,12 +440,9 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
               data-testid="store-upload-section"
             >
               <h3 className="font-semibold text-xs">
-                {registryUnreachable ? 'Registry nicht erreichbar — per Datei installieren' : 'Add-on-Datei installieren'}
+                {registryUnreachable ? t('uploadOffline') : t('uploadTitel')}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Add-on-Paket (.tar.gz) von USB-Stick oder Download installieren — auch ohne Internet. Pakete vom
-                Marktplatz sind signiert; unsignierte gehen nur im Entwicklermodus.
-              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t('uploadText')}</p>
               <input
                 type="file"
                 accept=".tar.gz,.tgz,application/gzip,application/x-gzip"
@@ -432,7 +459,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                   className="text-xs text-blue-600 dark:text-blue-400"
                   data-testid="store-detail-back"
                 >
-                  ← Zurück zum Katalog
+                  {t('zurueck')}
                 </button>
                 <div className="flex items-center gap-2">
                   {selectedEntry.icon && (
@@ -443,7 +470,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                       {selectedEntry.name}
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                      Version {selectedEntry.version} · core_api {selectedEntry.core_api}
+                      {t('version', { v: selectedEntry.version, api: selectedEntry.core_api })}
                     </div>
                   </div>
                 </div>
@@ -452,13 +479,21 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                   {selectedEntry.description}
                 </p>
                 <div>
-                  <h4 className="text-xs font-semibold mb-1">Angefragte Berechtigungen</h4>
+                  <h4 className="text-xs font-semibold mb-1">{t('angefragteBerechtigungen')}</h4>
                   <ScopePreview scopes={selectedEntry.scopes} />
                 </div>
                 {selectedEntry.screenshots.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto" data-testid="store-detail-screenshots">
+                  <div
+                    className="flex gap-2 overflow-x-auto"
+                    data-testid="store-detail-screenshots"
+                  >
                     {selectedEntry.screenshots.map((src) => (
-                      <img key={src} src={src} alt="" className="h-20 rounded border border-slate-200 dark:border-slate-700" />
+                      <img
+                        key={src}
+                        src={src}
+                        alt=""
+                        className="h-20 rounded border border-slate-200 dark:border-slate-700"
+                      />
                     ))}
                   </div>
                 )}
@@ -468,13 +503,16 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                     className="w-full px-2 py-1.5 rounded-md bg-blue-600 text-white text-xs hover:bg-blue-700"
                     data-testid={`install-button-${selectedEntry.id}`}
                   >
-                    Installieren
+                    {t('installieren')}
                   </button>
                 )}
               </section>
             ) : (
               <>
-                <nav className="flex gap-1 border-b border-slate-200 dark:border-slate-700" role="tablist">
+                <nav
+                  className="flex gap-1 border-b border-slate-200 dark:border-slate-700"
+                  role="tablist"
+                >
                   <button
                     role="tab"
                     aria-selected={tab === 'catalog'}
@@ -482,7 +520,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                     className={`px-2 py-1 text-xs font-semibold ${tab === 'catalog' ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'}`}
                     data-testid="store-tab-catalog"
                   >
-                    Katalog
+                    {t('katalog')}
                   </button>
                   <button
                     role="tab"
@@ -491,15 +529,19 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                     className={`px-2 py-1 text-xs font-semibold ${tab === 'updates' ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'}`}
                     data-testid="store-tab-updates"
                   >
-                    Updates{updateEntries.length > 0 ? ` (${updateEntries.length})` : ''}
+                    {t('updates')}
+                    {updateEntries.length > 0 ? ` (${updateEntries.length})` : ''}
                   </button>
                 </nav>
 
                 {tab === 'catalog' && (
                   <section className="space-y-2" data-testid="store-catalog">
                     {loaded && catalogEntries.length === 0 && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="store-catalog-empty">
-                        Keine Add-ons im Katalog verfügbar.
+                      <p
+                        className="text-xs text-slate-500 dark:text-slate-400"
+                        data-testid="store-catalog-empty"
+                      >
+                        {t('keineAddons')}
                       </p>
                     )}
                     <ul className="space-y-2">
@@ -514,7 +556,9 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                             onClick={() => setSelectedEntryId(entry.id)}
                             data-testid={`catalog-entry-open-${entry.id}`}
                           >
-                            {entry.icon && <img src={entry.icon} alt="" className="w-8 h-8 rounded shrink-0" />}
+                            {entry.icon && (
+                              <img src={entry.icon} alt="" className="w-8 h-8 rounded shrink-0" />
+                            )}
                             <span>
                               <span className="font-medium block">{entry.name}</span>
                               <span className="text-xs text-slate-500 dark:text-slate-400 block">
@@ -530,7 +574,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                               className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
                               data-testid={`install-button-${entry.id}`}
                             >
-                              Installieren
+                              {t('installieren')}
                             </button>
                           )}
                         </li>
@@ -542,13 +586,19 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                 {tab === 'updates' && (
                   <section className="space-y-2" data-testid="store-updates">
                     {lifecycleError && (
-                      <p className="text-xs text-red-600 dark:text-red-400" data-testid="store-lifecycle-error">
+                      <p
+                        className="text-xs text-red-600 dark:text-red-400"
+                        data-testid="store-lifecycle-error"
+                      >
                         {lifecycleError}
                       </p>
                     )}
                     {loaded && updateEntries.length === 0 && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="updates-empty">
-                        Alle installierten Add-ons sind aktuell.
+                      <p
+                        className="text-xs text-slate-500 dark:text-slate-400"
+                        data-testid="updates-empty"
+                      >
+                        {t('alleAktuell')}
                       </p>
                     )}
                     <ul className="space-y-2">
@@ -560,7 +610,10 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                         >
                           <div className="font-medium">{entry.name}</div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
-                            installiert {installedAddon.version} → verfügbar {entry.version}
+                            {t('installiertVerfuegbar', {
+                              alt: installedAddon.version,
+                              neu: entry.version,
+                            })}
                           </div>
                           {EntryBlocker({ entry }) ?? (
                             <button
@@ -568,7 +621,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                               className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
                               data-testid={`update-button-${entry.id}`}
                             >
-                              Update installieren
+                              {t('updateInstallieren')}
                             </button>
                           )}
                         </li>
@@ -577,7 +630,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
 
                     {installed.length > 0 && (
                       <div>
-                        <h3 className="font-semibold text-xs mb-1">Installierte Add-ons</h3>
+                        <h3 className="font-semibold text-xs mb-1">{t('installierteAddons')}</h3>
                         <ul className="space-y-2">
                           {installed.map((addon) => (
                             <li
@@ -588,9 +641,9 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                               <span>
                                 <span className="font-medium block">{addon.name}</span>
                                 <span className="text-xs text-slate-500 dark:text-slate-400">
-                                  v{addon.version} · {addon.enabled ? 'aktiv' : 'deaktiviert'}
-                                  {addon.licensing === 'paid' && ' · lizenzpflichtig'}
-                                  {addon.licensing === 'unsigned' && ' · unsigniert'}
+                                  v{addon.version} · {addon.enabled ? t('aktiv') : t('deaktiviert')}
+                                  {addon.licensing === 'paid' && ` · ${t('lizenzpflichtig')}`}
+                                  {addon.licensing === 'unsigned' && ` · ${t('unsigniertKlein')}`}
                                 </span>
                               </span>
                               <span className="flex gap-1 shrink-0 flex-wrap justify-end">
@@ -608,7 +661,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                                     }`}
                                     data-testid={`toggle-mqtt-${addon.id}`}
                                   >
-                                    {addon.mqtt_enabled ? 'In Home Assistant verfügbar ✓' : 'In Home Assistant verfügbar'}
+                                    {addon.mqtt_enabled ? t('inHaAn') : t('inHa')}
                                   </button>
                                 )}
                                 {addon.licensing === 'paid' && !addon.enabled && (
@@ -617,7 +670,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                                     className="px-2 py-1 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs"
                                     data-testid={`activate-license-${addon.id}`}
                                   >
-                                    Lizenz aktivieren
+                                    {t('lizenzAktivieren')}
                                   </button>
                                 )}
                                 <button
@@ -625,14 +678,14 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                                   className="px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-xs"
                                   data-testid={`toggle-enabled-${addon.id}`}
                                 >
-                                  {addon.enabled ? 'Deaktivieren' : 'Aktivieren'}
+                                  {addon.enabled ? t('deaktivieren') : t('aktivieren')}
                                 </button>
                                 <button
                                   onClick={() => void handleUninstall(addon.id)}
                                   className="px-2 py-1 rounded-md border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-xs"
                                   data-testid={`uninstall-button-${addon.id}`}
                                 >
-                                  Deinstallieren
+                                  {t('deinstallieren')}
                                 </button>
                               </span>
                             </li>
@@ -653,31 +706,42 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
               >
                 {installFlow.kind === 'beginning' && (
                   <p className="text-xs" data-testid="install-progress">
-                    Prüfe „{installFlow.label}"…
+                    {t('pruefe', { name: installFlow.label })}
                   </p>
                 )}
                 {installFlow.kind === 'confirming' && (
                   <div className="space-y-2" data-testid="scope-confirm-dialog">
                     <p className="text-xs font-semibold">
-                      {installFlow.pending.isUpdate ? 'Update bestätigen' : 'Installation bestätigen'}: {installFlow.pending.manifest.name} v{installFlow.pending.manifest.version}
+                      {installFlow.pending.isUpdate
+                        ? t('updateBestaetigen')
+                        : t('installationBestaetigen')}
+                      : {installFlow.pending.manifest.name} v{installFlow.pending.manifest.version}
                     </p>
                     {installFlow.pending.release ? (
-                      <p className="text-xs text-emerald-700 dark:text-emerald-400" data-testid="scope-confirm-signed">
-                        ✓ Vom Marktplatz signiert ({installFlow.pending.release.publisher})
-                        {installFlow.pending.release.licensing === 'paid' && ' · lizenzpflichtig'}
+                      <p
+                        className="text-xs text-emerald-700 dark:text-emerald-400"
+                        data-testid="scope-confirm-signed"
+                      >
+                        {t('signiert', { publisher: installFlow.pending.release.publisher })}
+                        {installFlow.pending.release.licensing === 'paid' &&
+                          ` · ${t('lizenzpflichtig')}`}
                       </p>
                     ) : (
                       <p
                         className="text-xs rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 px-2 py-1"
                         data-testid="scope-confirm-unsigned"
                       >
-                        Unsigniertes Paket (Entwicklermodus) – niemand hat geprüft, woher es stammt.
+                        {t('unsigniertPaket')}
                       </p>
                     )}
                     {installFlow.pending.license && !installFlow.pending.license.valid && (
-                      <p className="text-xs text-red-600 dark:text-red-400" data-testid="scope-confirm-license">
-                        Lizenz nicht aktiviert: {installFlow.pending.license.reason ?? 'unbekannt'}. Das Add-on lässt sich
-                        installieren, aber erst mit Lizenz aktivieren.
+                      <p
+                        className="text-xs text-red-600 dark:text-red-400"
+                        data-testid="scope-confirm-license"
+                      >
+                        {t('lizenzNichtAktiv', {
+                          grund: installFlow.pending.license.reason ?? t('unbekannt'),
+                        })}
                       </p>
                     )}
                     <ScopePreview scopes={installFlow.pending.permissions} />
@@ -696,40 +760,46 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                         className="px-2 py-1 rounded-md bg-blue-600 text-white text-xs hover:bg-blue-700"
                         data-testid="scope-confirm-confirm-button"
                       >
-                        Bestätigen &amp; installieren
+                        {t('bestaetigen')}
                       </button>
                       <button
                         onClick={cancelInstallFlow}
                         className="px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-xs"
                         data-testid="scope-confirm-cancel-button"
                       >
-                        Abbrechen
+                        {t('abbrechen')}
                       </button>
                     </div>
                   </div>
                 )}
                 {installFlow.kind === 'installing' && (
                   <p className="text-xs" data-testid="install-progress">
-                    Installiere „{installFlow.label}"…
+                    {t('installiere', { name: installFlow.label })}
                   </p>
                 )}
                 {installFlow.kind === 'done' && (
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-green-700 dark:text-green-400" data-testid="install-success">
-                      „{installFlow.label}" installiert.
+                    <p
+                      className="text-xs text-green-700 dark:text-green-400"
+                      data-testid="install-success"
+                    >
+                      {t('installiert', { name: installFlow.label })}
                     </p>
                     <button
                       onClick={cancelInstallFlow}
                       className="text-xs text-slate-500 dark:text-slate-400"
                       data-testid="install-flow-dismiss"
                     >
-                      Schließen
+                      {t('schliessen')}
                     </button>
                   </div>
                 )}
                 {installFlow.kind === 'error' && (
                   <div className="space-y-1">
-                    <p className="text-xs text-red-600 dark:text-red-400" data-testid="install-error">
+                    <p
+                      className="text-xs text-red-600 dark:text-red-400"
+                      data-testid="install-error"
+                    >
                       {installFlow.message}
                     </p>
                     <button
@@ -737,7 +807,7 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
                       className="text-xs text-slate-500 dark:text-slate-400"
                       data-testid="install-flow-dismiss"
                     >
-                      Schließen
+                      {t('schliessen')}
                     </button>
                   </div>
                 )}
@@ -751,9 +821,9 @@ export default function StorePanel({ eingebettet = false }: { eingebettet?: bool
         <button
           onClick={toggleOpen}
           className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
-          aria-label="Add-on-Store"
+          aria-label={t('addonStore')}
           aria-expanded={isOpen}
-          title="Add-on-Store"
+          title={t('addonStore')}
           data-testid="store-panel-toggle"
         >
           🧩

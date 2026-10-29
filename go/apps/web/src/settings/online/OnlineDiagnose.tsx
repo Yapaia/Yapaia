@@ -24,6 +24,8 @@
  */
 
 import React, { useCallback, useState } from 'react';
+import { useT } from '../../i18n/index.js';
+import { T } from './texte.js';
 import {
   fetchOnlineStatus,
   starteDiagnose,
@@ -32,18 +34,20 @@ import {
 } from './client.js';
 
 function StatusMarke({ zeile }: { zeile: DiagnoseZeile }): React.ReactElement {
+  const t = useT(T);
   const gut = zeile.status !== null && zeile.status >= 200 && zeile.status < 300;
   const farbe = gut
     ? 'text-emerald-600 dark:text-emerald-400'
     : 'text-amber-600 dark:text-amber-400';
   return (
     <span className={`font-mono text-xs ${farbe}`}>
-      {zeile.status === null ? 'keine Antwort' : zeile.status}
+      {zeile.status === null ? t('keineAntwort') : zeile.status}
     </span>
   );
 }
 
 export default function OnlineDiagnose(): React.ReactElement {
+  const t = useT(T);
   const [status, setStatus] = useState<OnlineStatus | null>(null);
   const [zeilen, setZeilen] = useState<DiagnoseZeile[] | null>(null);
   const [urteil, setUrteil] = useState<string | null>(null);
@@ -72,8 +76,11 @@ export default function OnlineDiagnose(): React.ReactElement {
   }, []);
 
   return (
-    <section className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700" data-testid="online-diagnose">
-      <h3 className="font-semibold text-sm mb-1">🌐 Online-Dienste</h3>
+    <section
+      className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700"
+      data-testid="online-diagnose"
+    >
+      <h3 className="font-semibold text-sm mb-1">{t('titel')}</h3>
 
       {status !== null && (
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2" data-testid="online-hinweis">
@@ -87,7 +94,7 @@ export default function OnlineDiagnose(): React.ReactElement {
         data-testid="online-diagnose-start"
         className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 text-white disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500"
       >
-        {laeuft ? 'Prüfe…' : 'Online-Dienste prüfen'}
+        {laeuft ? t('pruefe') : t('pruefen')}
       </button>
 
       {fehler !== null && (
@@ -127,10 +134,10 @@ export default function OnlineDiagnose(): React.ReactElement {
               </a>
               {z.beispiel && (
                 <p className="text-slate-500 dark:text-slate-400 mt-0.5">
-                  Beispiel: „{z.beispiel.titel}"
+                  {t('beispiel', { titel: z.beispiel.titel })}
                   {z.beispiel.lat !== null && z.beispiel.lon !== null
                     ? ` (${z.beispiel.lat.toFixed(4)}, ${z.beispiel.lon.toFixed(4)})`
-                    : ' — ohne Koordinaten'}
+                    : t('ohneKoordinaten')}
                 </p>
               )}
               {/* Die Feldnamen des Dienstes — nur da, wenn etwas nicht aufging.
@@ -142,7 +149,7 @@ export default function OnlineDiagnose(): React.ReactElement {
                   className="mt-0.5 break-all font-mono text-[10px] text-slate-500 dark:text-slate-400"
                   data-testid={`online-diagnose-felder-${z.dienst}`}
                 >
-                  Felder: {z.felder}
+                  {t('felder', { felder: z.felder })}
                 </p>
               )}
             </li>

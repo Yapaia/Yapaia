@@ -42,11 +42,16 @@ import {
   speedStepIndex,
   speedStepLabel,
 } from './controls.js';
+import { tx, useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 /** Wie oft der Fortschritt nachgefragt wird, waehrend etwas laeuft. */
 const POLL_MS = 1000;
 
-export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: boolean } = {}): React.ReactElement | null {
+export default function SimulatorPanel({
+  eingebettet = false,
+}: { eingebettet?: boolean } = {}): React.ReactElement | null {
+  const t = useT(T);
   const [available, setAvailable] = useState<boolean | null>(null);
   // Eingebettet (im ⚙-Menü, shell/EinstellungsMenue.tsx) ist der Inhalt immer offen.
   const [isOpen, setIsOpen] = useState(eingebettet);
@@ -106,7 +111,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
       setStatus(next);
       setSpeedFactor(next.speedFactor);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Der Simulator hat nicht geantwortet.');
+      setError(err instanceof Error ? err.message : tx(T, 'keine_antwort'));
     } finally {
       setBusy(false);
     }
@@ -118,7 +123,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
       setSpeedFactor(factor); // sofort sichtbar, auch bevor der Server antwortet
       void act(() => setSimulatorSpeed(factor));
     },
-    [act],
+    [act]
   );
 
   if (available !== true) return null;
@@ -128,26 +133,31 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
   const stepIndex = speedStepIndex(speedFactor);
 
   return (
-    <div className={eingebettet ? '' : 'fixed z-10'} style={eingebettet ? undefined : { top: topRightSlotPx('simulator'), right: TOP_RIGHT_INSET_PX }}>
+    <div
+      className={eingebettet ? '' : 'fixed z-10'}
+      style={
+        eingebettet ? undefined : { top: topRightSlotPx('simulator'), right: TOP_RIGHT_INSET_PX }
+      }
+    >
       {isOpen && (
         <div
-          className={eingebettet ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100' : "absolute top-14 right-0 mb-2 w-80 rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3"}
+          className={
+            eingebettet
+              ? 'space-y-4 text-sm text-slate-800 dark:text-slate-100'
+              : 'absolute top-14 right-0 mb-2 w-80 rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3'
+          }
           data-testid="simulator-panel"
         >
-          <h2 className="font-semibold">Testfahrt</h2>
+          <h2 className="font-semibold">{t('testfahrt')}</h2>
 
-          <p className="text-xs text-slate-600 dark:text-slate-300">
-            Faehrt die geplante Route mit den jeweiligen Tempolimits ab. Die echte
-            GPS-Position wird dabei ersetzt.
-          </p>
+          <p className="text-xs text-slate-600 dark:text-slate-300">{t('erklaerung')}</p>
 
           {!can.canPlay && (
             <p
               className="text-xs text-amber-700 dark:text-amber-400"
               data-testid="simulator-no-route"
             >
-              Noch keine Route geplant — erst ein Ziel waehlen, dann laesst sich die
-              Fahrt starten.
+              {t('keine_route')}
             </p>
           )}
 
@@ -159,7 +169,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
               className="px-3 py-2 rounded-md border border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
               data-testid="simulator-play"
             >
-              ▶ Route abfahren
+              {t('abfahren')}
             </button>
             {can.canResume ? (
               <button
@@ -169,7 +179,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
                 className="px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-xs disabled:opacity-50"
                 data-testid="simulator-resume"
               >
-                ▶ Weiter
+                {t('weiter')}
               </button>
             ) : (
               <button
@@ -179,7 +189,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
                 className="px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-xs disabled:opacity-50"
                 data-testid="simulator-pause"
               >
-                ⏸ Pause
+                {t('pause')}
               </button>
             )}
             <button
@@ -189,7 +199,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
               className="px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-xs disabled:opacity-50"
               data-testid="simulator-stop"
             >
-              ⏹ Stopp
+              {t('stopp')}
             </button>
           </div>
 
@@ -198,7 +208,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
               htmlFor="simulator-speed"
               className="flex items-baseline justify-between text-xs"
             >
-              <span>Zeitraffer</span>
+              <span>{t('zeitraffer')}</span>
               <span className="font-semibold tabular-nums" data-testid="simulator-speed-value">
                 {speedStepLabel(SPEED_STEPS[stepIndex])}
               </span>
@@ -214,7 +224,7 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
               onChange={(e) => onSpeedChange(Number(e.target.value))}
               className="mt-1 w-full disabled:opacity-50"
               data-testid="simulator-speed"
-              aria-label="Zeitraffer"
+              aria-label={t('zeitraffer')}
               aria-valuetext={speedStepLabel(SPEED_STEPS[stepIndex])}
             />
             <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
@@ -233,8 +243,11 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
                 />
               </div>
               <p className="mt-1 text-xs tabular-nums text-slate-600 dark:text-slate-300">
-                {formatSimSeconds(status?.tickS)} von {formatSimSeconds(status?.totalDurationS)}{' '}
-                <span className="opacity-70">(simulierte Fahrzeit)</span>
+                {t('von', {
+                  ist: formatSimSeconds(status?.tickS),
+                  gesamt: formatSimSeconds(status?.totalDurationS),
+                })}{' '}
+                <span className="opacity-70">{t('simulierte_fahrzeit')}</span>
               </p>
             </div>
           )}
@@ -264,9 +277,9 @@ export default function SimulatorPanel({ eingebettet = false }: { eingebettet?: 
           type="button"
           onClick={() => setIsOpen((open) => !open)}
           className="w-12 h-12 rounded-full bg-flaeche/90 dark:bg-slate-800/90 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 text-lg"
-          aria-label="Testfahrt"
+          aria-label={t('testfahrt')}
           aria-expanded={isOpen}
-          title="Testfahrt (GPS-Simulator)"
+          title={t('testfahrt_titel')}
           data-testid="simulator-panel-toggle"
         >
           🧪

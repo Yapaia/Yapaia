@@ -14,6 +14,8 @@ import { erkennungVerfuegbar, hoereZu } from './erkennung.js';
 import { cancelSpeech, unlockAudio } from '../drive/tts.js';
 import { useBedienSeite } from '../shell/bedienSeite.js';
 import { useSchmal } from '../shell/useSchmal.js';
+import { gebiet, useSprache, useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 const BEISPIELE = [
   'Fahre mich nach Magdeburg',
@@ -23,16 +25,19 @@ const BEISPIELE = [
   'Stoppe die Navigation',
 ];
 
-function km(m: number | null | undefined): string {
+function km(m: number | null | undefined, sprache: string): string {
   if (typeof m !== 'number') return '';
-  return m < 1000 ? `${Math.round(m / 50) * 50} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
+  return m < 1000
+    ? `${Math.round(m / 50) * 50} m`
+    : `${(m / 1000).toLocaleString(sprache, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
 }
 
 /** Wartet, bis die Sprachausgabe fertig ist (höchstens 20 s). */
 function nachDemSprechen(fn: () => void): () => void {
   const start = Date.now();
   const id = window.setInterval(() => {
-    const spricht = typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis.speaking;
+    const spricht =
+      typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis.speaking;
     if (!spricht || Date.now() - start > 20_000) {
       window.clearInterval(id);
       fn();
@@ -42,6 +47,8 @@ function nachDemSprechen(fn: () => void): () => void {
 }
 
 export default function SprachFenster(): React.ReactElement | null {
+  const t = useT(T);
+  const sp = gebiet(useSprache((x) => x.sprache));
   const s = useSprachStore();
   const seite = useBedienSeite();
   const schmal = useSchmal();
@@ -62,7 +69,7 @@ export default function SprachFenster(): React.ReactElement | null {
         st.setHoert(false);
         if (text) void st.sende(text);
         else if (fehler) st.setZwischen(fehler);
-      },
+      }
     );
   }, [verfuegbar]);
 
@@ -95,7 +102,7 @@ export default function SprachFenster(): React.ReactElement | null {
   return createPortal(
     <div
       role="dialog"
-      aria-label="Sprachbefehl"
+      aria-label={t('sprachbefehl')}
       className="pointer-events-auto fixed z-50 flex max-h-[calc(var(--sicht-h,100vh)*0.7)] flex-col rounded-2xl bg-flaeche text-sm text-slate-800 shadow-2xl dark:bg-slate-800 dark:text-slate-100"
       style={
         schmal
@@ -116,7 +123,7 @@ export default function SprachFenster(): React.ReactElement | null {
             cancelSpeech();
             s.schliesse();
           }}
-          aria-label="Sprachfenster schließen"
+          aria-label={t('fenster_schliessen')}
           className="h-9 w-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
           data-testid="sprach-schliessen"
         >
@@ -127,7 +134,7 @@ export default function SprachFenster(): React.ReactElement | null {
       <div className="flex-1 space-y-2 overflow-y-auto px-4 py-3" data-testid="sprach-verlauf">
         {s.verlauf.length === 0 && (
           <div className="space-y-2 text-slate-500 dark:text-slate-400">
-            <p>Sag oder tippe zum Beispiel:</p>
+            <p>{t('beispiel_einleitung')}</p>
             <ul className="flex flex-wrap gap-1">
               {BEISPIELE.map((b) => (
                 <li key={b}>
@@ -158,16 +165,16 @@ export default function SprachFenster(): React.ReactElement | null {
         ))}
         {s.auswahl.length > 0 && (
           <ol className="space-y-1" data-testid="sprach-auswahl">
-            {s.auswahl.map((t, i) => (
-              <li key={`${t.lat},${t.lon}`}>
+            {s.auswahl.map((tr, i) => (
+              <li key={`${tr.lat},${tr.lon}`}>
                 <button
                   type="button"
                   onClick={() => senden(`nummer ${i + 1}`)}
                   className="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
                 >
                   <span className="font-semibold">{i + 1}.</span>
-                  <span className="min-w-0 flex-1 truncate">{t.beschreibung}</span>
-                  <span className="text-xs text-slate-500">{km(t.entfernung_m)}</span>
+                  <span className="min-w-0 flex-1 truncate">{tr.beschreibung}</span>
+                  <span className="text-xs text-slate-500">{km(tr.entfernung_m, sp)}</span>
                 </button>
               </li>
             ))}
@@ -181,7 +188,7 @@ export default function SprachFenster(): React.ReactElement | null {
               className="flex-1 rounded-full bg-blue-600 px-4 py-2 font-semibold text-white"
               data-testid="sprach-ja"
             >
-              Ja
+              {t('ja')}
             </button>
             <button
               type="button"
@@ -189,13 +196,13 @@ export default function SprachFenster(): React.ReactElement | null {
               className="flex-1 rounded-full border border-slate-300 px-4 py-2 dark:border-slate-600"
               data-testid="sprach-nein"
             >
-              Nein
+              {t('nein')}
             </button>
           </div>
         )}
         {(s.hoert || s.zwischen) && (
           <p className="italic text-slate-500 dark:text-slate-400" data-testid="sprach-zwischen">
-            {s.hoert ? `Ich höre zu … ${s.zwischen}` : s.zwischen}
+            {s.hoert ? t('hoere_zu', { text: s.zwischen }) : s.zwischen}
           </p>
         )}
         {s.denkt && <p className="text-slate-500">…</p>}
@@ -212,7 +219,7 @@ export default function SprachFenster(): React.ReactElement | null {
         <input
           value={eingabe}
           onChange={(e) => setEingabe(e.target.value)}
-          placeholder={verfuegbar === 'ja' ? 'Oder tippen …' : 'Befehl tippen …'}
+          placeholder={t(verfuegbar === 'ja' ? 'oder_tippen' : 'befehl_tippen')}
           enterKeyHint="send"
           className="min-w-0 flex-1 rounded-full border border-slate-300 bg-flaeche px-3 py-2 dark:border-slate-600 dark:bg-slate-700"
           data-testid="sprach-eingabe"
@@ -222,7 +229,7 @@ export default function SprachFenster(): React.ReactElement | null {
             type="button"
             onClick={() => (s.hoert ? abbrechen.current?.() : zuhoeren())}
             aria-pressed={s.hoert}
-            aria-label={s.hoert ? 'Zuhören beenden' : 'Sprechen'}
+            aria-label={t(s.hoert ? 'zuhoeren_beenden' : 'sprechen')}
             className={`flex h-10 w-10 items-center justify-center rounded-full text-lg ${
               s.hoert ? 'animate-pulse bg-red-600 text-white' : 'bg-blue-600 text-white'
             }`}
@@ -236,18 +243,19 @@ export default function SprachFenster(): React.ReactElement | null {
             className="rounded-full bg-blue-600 px-4 py-2 font-semibold text-white"
             data-testid="sprach-senden"
           >
-            Senden
+            {t('senden')}
           </button>
         )}
       </form>
       {verfuegbar !== 'ja' && (
-        <p className="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400" data-testid="sprach-kein-mikrofon">
-          {verfuegbar === 'kein-https'
-            ? 'Sprechen geht hier nicht: Browser geben das Mikrofon nur über HTTPS frei. Sprich stattdessen über Home Assistant Assist (Satellit oder Assist-Knopf in der Home-Assistant-App).'
-            : 'Dieser Browser kann keine Sprache erkennen. Tippe den Befehl oder nutze Home Assistant Assist.'}
+        <p
+          className="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400"
+          data-testid="sprach-kein-mikrofon"
+        >
+          {verfuegbar === 'kein-https' ? t('kein_https') : t('keine_erkennung')}
         </p>
       )}
     </div>,
-    document.getElementById('yapaia-sicht') ?? document.body,
+    document.getElementById('yapaia-sicht') ?? document.body
   );
 }

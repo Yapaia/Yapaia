@@ -14,7 +14,10 @@
 
 import React from 'react';
 import { POI_AUSWAHL } from '@yapaia/shared';
+import { poiName } from '../i18n/texte.js';
 import { useStyleStore } from '../state/styleStore.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 /** Ein Zeichen je Kategorie -- die Kartensymbole sind Bilder im Sprite, kein Text. */
 export const CHIP_ZEICHEN: Readonly<Record<string, string>> = {
@@ -34,6 +37,7 @@ export const CHIP_ZEICHEN: Readonly<Record<string, string>> = {
 };
 
 export default function PoiChips(): React.ReactElement | null {
+  const t = useT(T);
   const poiChips = useStyleStore((s) => s.poiChips);
   const chipFilter = useStyleStore((s) => s.chipFilter);
   const toggleChip = useStyleStore((s) => s.toggleChip);
@@ -44,7 +48,7 @@ export default function PoiChips(): React.ReactElement | null {
   return (
     <ul
       className="pointer-events-auto flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:none]"
-      aria-label="Sonderziele filtern"
+      aria-label={t('sonderzieleFiltern')}
       data-testid="poi-chips"
     >
       {eintraege.map((e) => {
@@ -63,7 +67,7 @@ export default function PoiChips(): React.ReactElement | null {
               }`}
             >
               <span aria-hidden="true">{CHIP_ZEICHEN[e.schluessel] ?? '📍'}</span>
-              {e.name}
+              {poiName(e)}
             </button>
           </li>
         );

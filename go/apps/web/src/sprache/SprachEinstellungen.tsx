@@ -8,6 +8,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { browserPlayer } from '../drive/ansageZiel.js';
+import { gebiet, tx, useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 interface Stand {
   verfuegbar: boolean;
@@ -31,42 +33,44 @@ interface Stand {
   /** Music Assistant als Integration eingerichtet? null = unbekannt. */
   musicAssistant?: boolean | null;
   /** Welchen Weg eine Ansage gerade nähme. */
-  ansageWeg?: { art: 'lautsprecher' | 'beat-ma' | 'beat-ma-browser' | 'beat' | 'selbst'; ziel?: string; radioLaeuft?: boolean };
+  ansageWeg?: {
+    art: 'lautsprecher' | 'beat-ma' | 'beat-ma-browser' | 'beat' | 'selbst';
+    ziel?: string;
+    radioLaeuft?: boolean;
+  };
 }
 
 /** In Klartext: wie eine Ansage gerade ankommt. */
 export function wegText(w: NonNullable<Stand['ansageWeg']>): string {
   switch (w.art) {
     case 'lautsprecher':
-      return `An den Lautsprecher „${w.ziel ?? '?'}“ – ohne Verzögerung.`;
+      return tx(T, 'weg_lautsprecher', { ziel: w.ziel ?? '?' });
     case 'beat-ma-browser':
-      return `Yapaia Beat spielt über Music Assistant auf „${w.ziel ?? '?'}“. Ist das dieser Browser, mischt er die Ansage sofort selbst ein; sonst mischt Beat sie ins Radio.`;
+      return tx(T, 'weg_beat_ma_browser', { ziel: w.ziel ?? '?' });
     case 'beat-ma':
-      return `Yapaia Beat spielt über Music Assistant auf „${w.ziel ?? '?'}“ und mischt die Ansage ins Radio – die Musik läuft dabei leiser weiter.`;
+      return tx(T, 'weg_beat_ma', { ziel: w.ziel ?? '?' });
     case 'beat':
-      return w.radioLaeuft
-        ? 'Yapaia Beat mischt die Ansage ins Radio (einige Sekunden verzögert).'
-        : 'Yapaia spricht selbst – läuft das Radio von Yapaia Beat, mischt Beat die Ansage ein.';
+      return tx(T, w.radioLaeuft ? 'weg_beat_radio' : 'weg_beat');
     default:
-      return 'Yapaia spricht selbst.';
+      return tx(T, 'weg_selbst');
   }
 }
 
 /** Wie ein Lautsprecher in der Auswahl heißt -- mit dem, was eine Ansage dort bewirkt. */
 export function lautsprecherName(l: NonNullable<Stand['lautsprecher']>[number]): string {
-  if ((l.art ?? 'ma') === 'ma') return `${l.name} (Music Assistant)`;
-  return l.ansage === false ? `${l.name} (unterbricht die Wiedergabe)` : l.name;
+  if ((l.art ?? 'ma') === 'ma') return tx(T, 'lautsprecher_ma', { name: l.name });
+  return l.ansage === false ? tx(T, 'lautsprecher_unterbricht', { name: l.name }) : l.name;
 }
 
 /** Warum es (k)einen Player von Music Assistant gibt. */
 export function maText(s: Stand): string {
   // Ohne `art` (Kern vor 0.47.0) waren es immer Player von Music Assistant.
   const n = (s.lautsprecher ?? []).filter((l) => (l.art ?? 'ma') === 'ma').length;
-  if (n > 0) return `Music Assistant: ${n === 1 ? 'ein Player' : `${n} Player`} gefunden.`;
+  if (n > 0) return n === 1 ? tx(T, 'ma_ein_player') : tx(T, 'ma_n_player', { n });
   if (s.musicAssistant) {
-    return 'Music Assistant ist eingerichtet, gibt aber keinen Player an Home Assistant weiter. In Music Assistant: Einstellungen → Wiedergabegeräte → Player wählen → „Dieses Wiedergabegerät für Home Assistant freigeben“ einschalten und speichern.';
+    return tx(T, 'ma_ohne_player');
   }
-  return 'Music Assistant ist in Home Assistant nicht als Integration eingerichtet (Einstellungen → Geräte & Dienste). Das Add-on allein reicht nicht.';
+  return tx(T, 'ma_keine_integration');
 }
 
 interface Ergebnis {
@@ -78,6 +82,7 @@ interface Ergebnis {
 const url = (pfad: string): string => `${import.meta.env.BASE_URL}${pfad}`;
 
 export default function SprachEinstellungen(): React.ReactElement {
+  const t = useT(T);
   const [stand, setStand] = useState<Stand | null>(null);
   const [laedt, setLaedt] = useState(true);
   const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
@@ -118,9 +123,15 @@ export default function SprachEinstellungen(): React.ReactElement {
     try {
       const r = await fetch(url('api/v1/sprache/ha/einrichten'), { method: 'POST' });
       const body = (await r.json()) as { data?: Ergebnis; error?: { message: string } };
-      setErgebnis(body.data ?? { integration: false, automation: false, hinweis: body.error?.message ?? `HTTP ${r.status}` });
+      setErgebnis(
+        body.data ?? {
+          integration: false,
+          automation: false,
+          hinweis: body.error?.message ?? tx(T, 'http_fehler', { status: r.status }),
+        }
+      );
     } catch {
-      setErgebnis({ integration: false, automation: false, hinweis: 'Yapaia ist nicht erreichbar.' });
+      setErgebnis({ integration: false, automation: false, hinweis: tx(T, 'nicht_erreichbar') });
     } finally {
       setRichtetEin(false);
       void laden();
@@ -152,22 +163,31 @@ export default function SprachEinstellungen(): React.ReactElement {
         const r = await fetch(url('api/v1/ansage'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: 'Das ist eine Testansage von Yapaia.', prioritaet: 'hinweis', browser_player: player.name }),
+          body: JSON.stringify({
+            text: tx(T, 'test_text'),
+            prioritaet: 'hinweis',
+            browser_player: player.name,
+          }),
         });
-        const d = ((await r.json()) as { data?: { im_browser?: { pfad?: string }; ueber_radio?: boolean } }).data;
+        const d = (
+          (await r.json()) as { data?: { im_browser?: { pfad?: string }; ueber_radio?: boolean } }
+        ).data;
         if (d?.im_browser?.pfad) {
           const ok = await player.sprich(`${window.location.origin}${d.im_browser.pfad}`);
-          const s = ((performance.now() - beginn) / 1000).toFixed(1).replace('.', ',');
+          const s = ((performance.now() - beginn) / 1000).toLocaleString(gebiet(), {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          });
           setTest(
             ok
-              ? { ok: true, grund: `Im Browser eingemischt („${player.name}“) – nach ${s} s gesprochen, die Musik lief leiser weiter.` }
-              : { ok: false, grund: 'Der Browser konnte die Ansage nicht abspielen (einmal irgendwo tippen und erneut testen).' },
+              ? { ok: true, grund: tx(T, 'test_browser_ok', { player: player.name, s }) }
+              : { ok: false, grund: tx(T, 'test_browser_fehler') }
           );
           void stillNeu();
           return;
         }
         if (d?.ueber_radio) {
-          setTest({ ok: true, grund: 'Yapaia Beat hat die Ansage ins Radio gemischt.' });
+          setTest({ ok: true, grund: tx(T, 'test_beat_ok') });
           void stillNeu();
           return;
         }
@@ -178,9 +198,9 @@ export default function SprachEinstellungen(): React.ReactElement {
     try {
       const r = await fetch(url('api/v1/ansage/test'), { method: 'POST' });
       const body = (await r.json()) as { data?: { ok: boolean; grund: string } };
-      setTest(body.data ?? { ok: false, grund: `HTTP ${r.status}` });
+      setTest(body.data ?? { ok: false, grund: tx(T, 'http_fehler', { status: r.status }) });
     } catch {
-      setTest({ ok: false, grund: 'Yapaia ist nicht erreichbar.' });
+      setTest({ ok: false, grund: tx(T, 'nicht_erreichbar') });
     }
     void stillNeu();
   };
@@ -241,24 +261,30 @@ export default function SprachEinstellungen(): React.ReactElement {
   };
 
   return (
-    <div className="space-y-5 text-sm text-slate-800 dark:text-slate-100" data-testid="sprach-einstellungen">
+    <div
+      className="space-y-5 text-sm text-slate-800 dark:text-slate-100"
+      data-testid="sprach-einstellungen"
+    >
       <section className="space-y-2">
-        <h3 className="font-semibold">Sprechen über Home Assistant Assist</h3>
-        <p className="text-slate-600 dark:text-slate-300">
-          Sprachsatelliten und der Assist-Knopf der Home-Assistant-App hören auch ohne HTTPS zu. Yapaia legt dafür in
-          Home Assistant die Automation „Yapaia Sprachbefehle" an; sie gibt die Sätze über die Integration „Yapaia" an
-          Yapaia Go weiter.
-        </p>
-        {laedt && <p className="text-slate-500">Lade …</p>}
+        <h3 className="font-semibold">{t('h_assist')}</h3>
+        <p className="text-slate-600 dark:text-slate-300">{t('assist_text')}</p>
+        {laedt && <p className="text-slate-500">{t('laedt')}</p>}
         {!laedt && stand && !stand.verfuegbar && (
-          <p className="rounded-md bg-amber-50 p-2 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200" data-testid="sprach-ha-nicht-verfuegbar">
-            Nur im Home-Assistant-Add-on verfügbar.
+          <p
+            className="rounded-md bg-amber-50 p-2 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+            data-testid="sprach-ha-nicht-verfuegbar"
+          >
+            {t('nur_addon')}
           </p>
         )}
         {!laedt && stand?.verfuegbar && (
           <ul className="space-y-1" data-testid="sprach-ha-stand">
-            <li>{stand.integration ? '✅' : '⬜'} Integration „Yapaia" verbunden</li>
-            <li>{stand.automation ? '✅' : '⬜'} Automation „Yapaia Sprachbefehle"</li>
+            <li>
+              {stand.integration ? '✅' : '⬜'} {t('integration_verbunden')}
+            </li>
+            <li>
+              {stand.automation ? '✅' : '⬜'} {t('automation_da')}
+            </li>
           </ul>
         )}
         <button
@@ -268,35 +294,40 @@ export default function SprachEinstellungen(): React.ReactElement {
           className="w-full rounded-full bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           data-testid="sprach-ha-einrichten"
         >
-          {richtetEin ? 'Richte ein …' : stand?.automation ? 'Neu einrichten' : 'In Home Assistant einrichten'}
+          {richtetEin
+            ? t('richte_ein')
+            : stand?.automation
+              ? t('neu_einrichten')
+              : t('in_ha_einrichten')}
         </button>
         {ergebnis && (
           <p
-            className={ergebnis.automation ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}
+            className={
+              ergebnis.automation
+                ? 'text-green-700 dark:text-green-400'
+                : 'text-red-700 dark:text-red-400'
+            }
             data-testid="sprach-ha-ergebnis"
           >
             {ergebnis.automation && ergebnis.integration
-              ? 'Eingerichtet. Sag zum Beispiel „Yapaia, fahre mich nach Magdeburg".'
-              : (ergebnis.hinweis ?? 'Das hat nicht geklappt.')}
+              ? t('eingerichtet')
+              : (ergebnis.hinweis ?? t('nicht_geklappt_kurz'))}
           </p>
         )}
       </section>
 
       <section className="space-y-2">
-        <h3 className="font-semibold">So sprichst du mit Yapaia</h3>
+        <h3 className="font-semibold">{t('h_so_sprichst')}</h3>
         <ul className="list-disc space-y-1 pl-5 text-slate-600 dark:text-slate-300">
-          <li>Satellit: Aktivierungswort, dann z. B. „Yapaia, wo ist die nächste Tankstelle?"</li>
-          <li>Home-Assistant-App: Assist öffnen (Mikrofon), dann den Befehl sprechen.</li>
-          <li>Häufige Befehle gehen auch ohne „Yapaia": „Fahre mich nach …", „Stoppe die Navigation", „Wann sind wir da?"</li>
-          <li>
-            Nutzt dein Assist eine KI als Gesprächsagent, schalte dort „Befehle bevorzugt lokal verarbeiten" ein — sonst
-            erreichen die Sätze Yapaia nicht.
-          </li>
+          <li>{t('so_satellit')}</li>
+          <li>{t('so_app')}</li>
+          <li>{t('so_kurz')}</li>
+          <li>{t('so_ki')}</li>
         </ul>
       </section>
 
       <section className="space-y-2">
-        <h3 className="font-semibold">Ansagen und Radio</h3>
+        <h3 className="font-semibold">{t('h_ansagen')}</h3>
         <label className="flex items-start gap-2">
           <input
             type="checkbox"
@@ -307,15 +338,14 @@ export default function SprachEinstellungen(): React.ReactElement {
             data-testid="sprach-ansagen-beat"
           />
           <span>
-            Läuft Yapaia Beat, Ansagen ins Radio einmischen: die Musik wird leiser, die Ansage kommt darüber, danach
-            wird die Musik wieder lauter. Braucht Yapaia Beat 1.6.
+            {t('beat_einmischen')}
             {stand?.verfuegbar && !stand.radio && (
-              <span className="block text-xs text-slate-500">Yapaia Beat ist in Home Assistant nicht eingerichtet.</span>
+              <span className="block text-xs text-slate-500">{t('beat_nicht_eingerichtet')}</span>
             )}
           </span>
         </label>
         <label className="block space-y-1">
-          <span>Ansagen über</span>
+          <span>{t('ansagen_ueber')}</span>
           <select
             value={stand?.lautsprecherWahl ?? ''}
             onChange={(e) => void lautsprecherSetzen(e.target.value)}
@@ -323,7 +353,7 @@ export default function SprachEinstellungen(): React.ReactElement {
             className="w-full rounded-md border border-slate-300 bg-flaeche px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
             data-testid="sprach-lautsprecher"
           >
-            <option value="">Automatisch</option>
+            <option value="">{t('automatisch')}</option>
             {(stand?.lautsprecher ?? []).map((l) => (
               <option key={l.id} value={l.id}>
                 {lautsprecherName(l)}
@@ -331,15 +361,11 @@ export default function SprachEinstellungen(): React.ReactElement {
             ))}
           </select>
           <span className="block text-xs text-slate-500 dark:text-slate-400">
-            Zur Wahl stehen alle Lautsprecher aus Home Assistant, zum Beispiel ein Sprachsatellit. Läuft das Radio von
-            Yapaia Beat über Music Assistant, mischt Beat die Ansage ein; die Musik läuft dabei leiser weiter. Sonst
-            geht sie an den gewählten Lautsprecher (Automatisch: an Music Assistant, wenn es genau einen Player gibt).
-            Music Assistant hält dafür kurz an, was dort läuft; ein Lautsprecher mit dem Zusatz „unterbricht“ beendet
-            es. Ohne Wahl spricht Yapaia selbst.
+            {t('lautsprecher_hilfe')}
           </span>
         </label>
         <label className="block space-y-1">
-          <span>Läuft das Radio über Music Assistant</span>
+          <span>{t('radio_ueber_ma')}</span>
           <select
             value={stand?.ansageMaWeg ?? 'browser'}
             onChange={(e) => void maWegSetzen(e.target.value as 'browser' | 'mischen' | 'sofort')}
@@ -347,13 +373,12 @@ export default function SprachEinstellungen(): React.ReactElement {
             className="w-full rounded-md border border-slate-300 bg-flaeche px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
             data-testid="sprach-ma-weg"
           >
-            <option value="browser">Im Browser einmischen – sofort, Musik läuft leiser weiter</option>
-            <option value="mischen">Beat mischt – Musik läuft weiter, Ansage einige Sekunden später</option>
-            <option value="sofort">Music Assistant spricht sofort – Musik pausiert, kommt später wieder</option>
+            <option value="browser">{t('ma_browser')}</option>
+            <option value="mischen">{t('ma_mischen')}</option>
+            <option value="sofort">{t('ma_sofort')}</option>
           </select>
           <span className="block text-xs text-slate-500 dark:text-slate-400">
-            „Im Browser einmischen“ geht, wenn dieser Browser in Yapaia Beat als „Music Assistant in diesem Browser“
-            angemeldet ist und das Radio darauf spielt (Yapaia Beat 1.9). Sonst mischt Beat.
+            {t('ma_browser_hilfe')}
           </span>
         </label>
         <label className="flex items-start gap-2">
@@ -365,14 +390,15 @@ export default function SprachEinstellungen(): React.ReactElement {
             className="mt-1 h-4 w-4"
             data-testid="sprach-ansage-gong"
           />
-          <span>
-            Gong vor Ansagen über Music Assistant. Mischt Yapaia Beat die Ansage ins Radio, gibt es keinen Gong.
-          </span>
+          <span>{t('gong')}</span>
         </label>
         {stand?.verfuegbar && (
-          <div className="space-y-1 rounded-md bg-slate-100 p-2 text-sm dark:bg-slate-700/60" data-testid="sprach-ansage-weg">
+          <div
+            className="space-y-1 rounded-md bg-slate-100 p-2 text-sm dark:bg-slate-700/60"
+            data-testid="sprach-ansage-weg"
+          >
             <p>
-              <span className="font-medium">So kommen Ansagen gerade an: </span>
+              <span className="font-medium">{t('ansagen_aktuell')}</span>
               {wegText(stand.ansageWeg ?? { art: 'selbst' })}
             </p>
             <p className="text-xs text-slate-600 dark:text-slate-300" data-testid="sprach-ma-stand">
@@ -387,11 +413,13 @@ export default function SprachEinstellungen(): React.ReactElement {
           className="w-full rounded-full border border-slate-300 px-4 py-2 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-700"
           data-testid="sprach-ansage-test"
         >
-          {test === 'laeuft' ? 'Teste …' : 'Ansage ins Radio testen'}
+          {test === 'laeuft' ? t('teste') : t('ansage_testen')}
         </button>
         {test && test !== 'laeuft' && (
           <p
-            className={test.ok ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}
+            className={
+              test.ok ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+            }
             data-testid="sprach-ansage-test-ergebnis"
           >
             {test.ok ? '✅ ' : '⚠️ '}
@@ -401,12 +429,8 @@ export default function SprachEinstellungen(): React.ReactElement {
       </section>
 
       <section className="space-y-2">
-        <h3 className="font-semibold">KI für freie Sätze</h3>
-        <p className="text-slate-600 dark:text-slate-300">
-          Versteht Yapaia einen Satz nicht, kann es eine KI aus Home Assistant fragen. Die übersetzt nur — ausgeführt wird
-          weiterhin von Yapaia, und eine Route startet erst nach „Ja". Ohne KI funktionieren alle eingebauten Befehle,
-          auch offline.
-        </p>
+        <h3 className="font-semibold">{t('h_ki')}</h3>
+        <p className="text-slate-600 dark:text-slate-300">{t('ki_text')}</p>
         <select
           value={stand?.agent ?? ''}
           onChange={(e) => void agentWaehlen(e.target.value)}
@@ -414,7 +438,7 @@ export default function SprachEinstellungen(): React.ReactElement {
           className="w-full rounded-md border border-slate-300 bg-flaeche px-2 py-2 dark:border-slate-600 dark:bg-slate-700"
           data-testid="sprach-agent"
         >
-          <option value="">Keine KI (nur eingebaute Befehle)</option>
+          <option value="">{t('keine_ki')}</option>
           {(stand?.agenten ?? []).map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -422,7 +446,7 @@ export default function SprachEinstellungen(): React.ReactElement {
           ))}
         </select>
         {stand?.verfuegbar && stand.agenten.length === 0 && (
-          <p className="text-xs text-slate-500">In Home Assistant ist kein Gesprächsagent eingerichtet.</p>
+          <p className="text-xs text-slate-500">{t('kein_agent')}</p>
         )}
       </section>
     </div>

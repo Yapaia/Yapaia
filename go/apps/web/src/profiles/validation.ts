@@ -4,6 +4,8 @@
  */
 
 import type { VehicleProfile } from '@yapaia/shared';
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 
 /**
  * Was sich einstellen laesst -- und in welcher Feinheit.
@@ -73,7 +75,7 @@ export function validateProfile(profile: Partial<VehicleProfile>): ValidationRes
 
   // Name is required and non-empty
   if (!profile.name || profile.name.trim() === '') {
-    fieldErrors.push({ field: 'name', message: 'Name darf nicht leer sein' });
+    fieldErrors.push({ field: 'name', message: tx(T, 'nameLeer') });
   }
 
   // Numeric ranges
@@ -87,13 +89,13 @@ export function validateProfile(profile: Partial<VehicleProfile>): ValidationRes
 
   for (const { field, value } of rangeChecks) {
     if (value === null || value === undefined) {
-      fieldErrors.push({ field, message: `${field} ist erforderlich` });
+      fieldErrors.push({ field, message: tx(T, 'feldErforderlich', { feld: field }) });
       continue;
     }
 
     const numValue = Number(value);
     if (Number.isNaN(numValue)) {
-      fieldErrors.push({ field, message: `${field} muss eine Zahl sein` });
+      fieldErrors.push({ field, message: tx(T, 'feldZahl', { feld: field }) });
       continue;
     }
 
@@ -101,7 +103,7 @@ export function validateProfile(profile: Partial<VehicleProfile>): ValidationRes
     if (numValue < range.min || numValue > range.max) {
       fieldErrors.push({
         field,
-        message: `${field} muss zwischen ${range.min} und ${range.max} liegen`,
+        message: tx(T, 'feldBereich', { feld: field, min: range.min, max: range.max }),
       });
     }
   }
@@ -125,15 +127,8 @@ export function assessSuspiciousProfile(profile: Partial<VehicleProfile>): Suspi
   const height = profile.height_m;
   const weight = profile.weight_t;
 
-  if (
-    typeof height === 'number' &&
-    typeof weight === 'number' &&
-    height < 1.8 &&
-    weight > 3.0
-  ) {
-    warnings.push(
-      'Ungewöhnliche Kombination: Fahrzeug unter 1,8 m Höhe aber über 3,0 t Gewicht. Sicher?',
-    );
+  if (typeof height === 'number' && typeof weight === 'number' && height < 1.8 && weight > 3.0) {
+    warnings.push(tx(T, 'ungewoehnlich'));
   }
 
   return { warnings };

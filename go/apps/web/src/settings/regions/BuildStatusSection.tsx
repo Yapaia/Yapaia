@@ -14,7 +14,15 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { fetchBuildStatus, formatBuiltAt, routingOhneKarte, type BuildStatus, type ArtifactStatus } from './buildStatus.js';
+import { gebiet, useSprache, useT } from '../../i18n/index.js';
+import { T } from './texte.js';
+import {
+  fetchBuildStatus,
+  formatBuiltAt,
+  routingOhneKarte,
+  type BuildStatus,
+  type ArtifactStatus,
+} from './buildStatus.js';
 
 function formatBytes(bytes: number | undefined): string | null {
   if (bytes === undefined) return null;
@@ -44,6 +52,8 @@ function ArtifactRow({
   /** Regionen darin, deren Karte gelöscht ist (nur beim Routing). */
   ohneKarte?: string[];
 }): React.ReactElement {
+  const t = useT(T);
+  const sprache = useSprache((s) => s.sprache);
   const when = formatBuiltAt(status.built_at);
   return (
     <li className="flex items-start gap-2" data-testid={testId}>
@@ -51,18 +61,18 @@ function ArtifactRow({
       <span className="min-w-0">
         <span className="font-medium">{title}</span>
         {!status.present ? (
-          <span className="block text-slate-500 dark:text-slate-400">noch nicht gebaut</span>
+          <span className="block text-slate-500 dark:text-slate-400">{t('nochNichtGebaut')}</span>
         ) : (
           <>
             <span className="block text-slate-600 dark:text-slate-300">
-              {(regions && regions.length > 0 ? regions[0] : status.region) ?? 'Region unbekannt'}
+              {(regions && regions.length > 0 ? regions[0] : status.region) ?? t('regionUnbekannt')}
               {when ? ` · ${when}` : ''}
             </span>
             {(status.record_count !== undefined || status.size_bytes !== undefined) && (
               <span className="block text-slate-500 dark:text-slate-400">
                 {[
                   status.record_count !== undefined
-                    ? `${status.record_count.toLocaleString('de-DE')} Einträge`
+                    ? t('eintraege', { n: status.record_count.toLocaleString(gebiet(sprache)) })
                     : null,
                   formatBytes(status.size_bytes),
                 ]
@@ -72,17 +82,23 @@ function ArtifactRow({
             )}
             {regions && regions.length > 1 && (
               <span className="block text-slate-500 dark:text-slate-400">
-                enthält: {regions.join(', ')}
+                {t('enthaelt', { liste: regions.join(', ') })}
               </span>
             )}
             {fehlt && fehlt.length > 0 && (
-              <span className="block text-amber-700 dark:text-amber-300 text-xs" data-testid={`${testId}-fehlt`}>
-                Fehlt: {fehlt.join(', ')} — dorthin lässt sich nicht routen. „Fehlendes bauen“ ausführen.
+              <span
+                className="block text-amber-700 dark:text-amber-300 text-xs"
+                data-testid={`${testId}-fehlt`}
+              >
+                {t('fehlt', { liste: fehlt.join(', ') })}
               </span>
             )}
             {ohneKarte && ohneKarte.length > 0 && (
-              <span className="block text-slate-500 dark:text-slate-400 text-xs" data-testid={`${testId}-ohne-karte`}>
-                Enthält noch {ohneKarte.join(', ')} — die Karte dazu ist gelöscht. Das stört nicht; es verschwindet, sobald das Routing neu gebaut oder vom Kartenserver ersetzt wird.
+              <span
+                className="block text-slate-500 dark:text-slate-400 text-xs"
+                data-testid={`${testId}-ohne-karte`}
+              >
+                {t('ohneKarte', { liste: ohneKarte.join(', ') })}
               </span>
             )}
           </>
@@ -93,6 +109,8 @@ function ArtifactRow({
 }
 
 export default function BuildStatusSection(): React.ReactElement | null {
+  const t = useT(T);
+  const sprache = useSprache((s) => s.sprache);
   const [status, setStatus] = useState<BuildStatus | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -124,28 +142,28 @@ export default function BuildStatusSection(): React.ReactElement | null {
   return (
     <section data-testid="build-status">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="font-semibold">Was ist gebaut?</h2>
+        <h2 className="font-semibold">{t('wasGebaut')}</h2>
         <button
           type="button"
           onClick={() => load()}
           className="text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
           data-testid="build-status-refresh"
         >
-          Aktualisieren
+          {t('aktualisieren')}
         </button>
       </div>
 
       {nothingBuilt ? (
         <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="build-status-empty">
-          Noch nichts gebaut.
+          {t('nochNichtsGebaut')}
         </p>
       ) : (
         <ul className="space-y-2 text-xs">
           <li data-testid="build-status-tiles">
-            <span className="font-medium">🗺️ Karten</span>
+            <span className="font-medium">{t('karten')}</span>
             {status.tiles.length === 0 ? (
               <span className="block text-slate-500 dark:text-slate-400 ml-6">
-                noch nicht gebaut
+                {t('nochNichtGebaut')}
               </span>
             ) : (
               <ul className="ml-6 space-y-0.5">
@@ -172,7 +190,7 @@ export default function BuildStatusSection(): React.ReactElement | null {
               Grenze im selben Graphen hat, kann ueber sie hinweg routen. */}
           <ArtifactRow
             icon="🧭"
-            title="Routing"
+            title={t('routing')}
             status={status.routing}
             testId="build-status-routing"
             regions={status.routing.regions}
@@ -181,17 +199,19 @@ export default function BuildStatusSection(): React.ReactElement | null {
               // hier stand „enthält: germany, liechtenstein" -- ohne dass
               // jemand die fehlende Schweiz bemerken konnte.
               status.routing.regions
-                ? status.tiles.map((t) => t.region).filter((r) => !status.routing.regions?.includes(r))
+                ? status.tiles
+                    .map((t) => t.region)
+                    .filter((r) => !status.routing.regions?.includes(r))
                 : undefined
             }
             ohneKarte={routingOhneKarte(status)}
           />
 
           <li data-testid="build-status-search">
-            <span className="font-medium">🔎 Suche</span>
+            <span className="font-medium">{t('suche')}</span>
             {status.search.length === 0 ? (
               <span className="block text-slate-500 dark:text-slate-400 ml-6">
-                noch nicht gebaut
+                {t('nochNichtGebaut')}
               </span>
             ) : (
               <ul className="ml-6 space-y-0.5">
@@ -203,17 +223,17 @@ export default function BuildStatusSection(): React.ReactElement | null {
                       className="text-slate-600 dark:text-slate-300"
                       data-testid={`build-status-search-${index.region ?? 'unbekannt'}`}
                     >
-                      {index.region ?? 'Region unbekannt'}
+                      {index.region ?? t('regionUnbekannt')}
                       {when ? ` · ${when}` : ''}
                       {index.record_count !== undefined
-                        ? ` · ${index.record_count.toLocaleString('de-DE')} Einträge`
+                        ? ` · ${t('eintraege', { n: index.record_count.toLocaleString(gebiet(sprache)) })}`
                         : ''}
                       {index.veraltet ? (
                         <span
                           className="block text-amber-700 dark:text-amber-300 text-xs"
                           data-testid={`build-status-search-veraltet-${index.region ?? 'unbekannt'}`}
                         >
-                          Älterer Index ohne Firmen und Hausnummern – „Routing und Suche bauen“ erneut ausführen.
+                          {t('veraltet')}
                         </span>
                       ) : null}
                     </li>

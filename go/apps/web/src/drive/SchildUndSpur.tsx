@@ -9,6 +9,8 @@
 import React from 'react';
 import type { SchildAnzeige } from './schildText.js';
 import type { SpurAnzeige } from './spuren.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 /**
  * „26 · A 61 · Ludwigshafen" — in den Farben eines deutschen Autobahnschilds.
@@ -51,14 +53,15 @@ export function SchildTafel({ schild }: { schild: SchildAnzeige }): React.ReactE
  * darüber, und der Fahrer müsste zwei Bildsprachen lesen.
  */
 export function SpurLeiste({ spuren }: { spuren: SpurAnzeige[] }): React.ReactElement {
+  const t = useT(T);
   return (
     <div
       data-testid="maneuver-lanes"
       className="mt-2 flex items-stretch justify-center gap-0.5 border-t border-white/20 pt-2"
       role="img"
-      aria-label={`Spuren: ${spuren
-        .map((s, i) => `${i + 1}${s.aktiv ? ' (empfohlen)' : ''}`)
-        .join(', ')}`}
+      aria-label={t('spuren_aria', {
+        liste: spuren.map((s, i) => `${i + 1}${s.aktiv ? t('empfohlen') : ''}`).join(', '),
+      })}
     >
       {spuren.map((spur, i) => (
         <div

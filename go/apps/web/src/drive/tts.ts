@@ -16,19 +16,25 @@
  * without `speechSynthesis` at all).
  */
 
+import { gebiet } from '../i18n/index.js';
+
 /** Whether the Web Speech Synthesis API is available in this browser. */
 export function isSpeechAvailable(): boolean {
-  return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
+  return (
+    typeof window !== 'undefined' &&
+    'speechSynthesis' in window &&
+    typeof window.SpeechSynthesisUtterance === 'function'
+  );
 }
 
 /**
- * Speak `text` in `lang` (default de-DE). Cancels any still-pending/speaking
+ * Speak `text` in `lang` (default: language of the UI). Cancels any still-pending/speaking
  * utterance first (W-23: never two overlapping, a new one always displaces
  * an old one). No-op (does not throw) when the API is unavailable -- callers
  * that care should check {@link isSpeechAvailable} first and fall back to
  * {@link playGong}.
  */
-export function speak(text: string, lang = 'de-DE'): void {
+export function speak(text: string, lang = gebiet()): void {
   if (!isSpeechAvailable()) return;
   try {
     window.speechSynthesis.cancel();
@@ -172,7 +178,10 @@ let entsperrterKontext: AudioContext | null = null;
 
 function getAudioContextCtor(): AudioContextCtor | null {
   if (typeof window === 'undefined') return null;
-  const w = window as unknown as { AudioContext?: AudioContextCtor; webkitAudioContext?: AudioContextCtor };
+  const w = window as unknown as {
+    AudioContext?: AudioContextCtor;
+    webkitAudioContext?: AudioContextCtor;
+  };
   return w.AudioContext ?? w.webkitAudioContext ?? null;
 }
 
@@ -231,7 +240,7 @@ export function playGong(): void {
  * fallback. Single entry point so callers never have to duplicate the
  * availability branching.
  */
-export function announce(text: string, lang = 'de-DE'): void {
+export function announce(text: string, lang = gebiet()): void {
   if (isSpeechAvailable()) {
     speak(text, lang);
   } else {

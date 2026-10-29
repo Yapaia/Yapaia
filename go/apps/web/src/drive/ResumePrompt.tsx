@@ -12,11 +12,14 @@ import { startNavigation, NavigationApiError } from './client.js';
 import { useNavStore } from './navStore.js';
 import { useProfileStore } from '../profiles/store.js';
 import { checkResumeOnLoad } from './resume.js';
+import { tx, useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export default function ResumePrompt(): React.ReactElement | null {
   const pendingResume = useNavStore((state) => state.pendingResume);
   const setNavState = useNavStore((state) => state.setNavState);
   const acknowledgeResume = useNavStore((state) => state.acknowledgeResume);
+  const t = useT(T);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +48,7 @@ export default function ResumePrompt(): React.ReactElement | null {
       }
       acknowledgeResume();
     } catch (err) {
-      setError(
-        err instanceof NavigationApiError ? err.message : 'Navigation konnte nicht fortgesetzt werden.',
-      );
+      setError(err instanceof NavigationApiError ? err.message : tx(T, 'fortsetzen_fehler'));
     } finally {
       setBusy(false);
     }
@@ -60,18 +61,18 @@ export default function ResumePrompt(): React.ReactElement | null {
   if (!pendingResume) return null;
 
   const destinationName =
-    pendingResume.kind === 'recovered' ? pendingResume.destination?.name : pendingResume.state.destination?.name;
+    pendingResume.kind === 'recovered'
+      ? pendingResume.destination?.name
+      : pendingResume.state.destination?.name;
 
   return (
     <div
       className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-[min(calc(var(--sicht-b,100vw)*0.9),24rem)] rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-2xl p-4 text-sm text-slate-800 dark:text-slate-100 space-y-3"
       data-testid="resume-prompt"
     >
-      <h2 className="font-semibold">Navigation fortsetzen?</h2>
+      <h2 className="font-semibold">{t('fortsetzen_frage')}</h2>
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        {destinationName
-          ? `Es läuft noch eine Navigation nach ${destinationName}.`
-          : 'Es läuft noch eine Navigation.'}
+        {destinationName ? t('laeuft_nach', { ziel: destinationName }) : t('laeuft_noch')}
       </p>
       {error && (
         <p className="text-xs text-red-700 dark:text-red-300" data-testid="resume-prompt-error">
@@ -86,7 +87,7 @@ export default function ResumePrompt(): React.ReactElement | null {
           className="flex-1 px-3 py-2 rounded-md bg-blue-600 text-white text-sm font-medium disabled:opacity-50"
           data-testid="resume-navigation-button"
         >
-          {busy ? 'Wird fortgesetzt…' : 'Fortsetzen'}
+          {busy ? t('wird_fortgesetzt') : t('fortsetzen')}
         </button>
         <button
           type="button"
@@ -95,7 +96,7 @@ export default function ResumePrompt(): React.ReactElement | null {
           className="px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-xs disabled:opacity-50"
           data-testid="resume-dismiss-button"
         >
-          Verwerfen
+          {t('verwerfen')}
         </button>
       </div>
     </div>

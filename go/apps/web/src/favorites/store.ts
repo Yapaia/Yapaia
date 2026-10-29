@@ -6,6 +6,8 @@
  */
 
 import { create } from 'zustand';
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 import type { Favorite, HistoryEntry } from '@yapaia/shared';
 import * as client from './client.js';
 import type { FavoriteCreateInput, FavoriteUpdateInput, HistoryRecordInput } from './client.js';
@@ -22,7 +24,7 @@ export interface FavoritesState {
   updateFavorite: (
     id: string,
     data: FavoriteUpdateInput,
-    opts?: { replace?: boolean },
+    opts?: { replace?: boolean }
   ) => Promise<Favorite>;
   deleteFavorite: (id: string) => Promise<void>;
   /** Persists a full new order (array of favorite ids). Optimistically
@@ -66,7 +68,9 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
         // previous one server-side -- drop any other local 'home' entry so
         // local state can't show two "home" chips until the next refetch.
         favorites: [
-          ...state.favorites.filter((f) => !(favorite.category === 'home' && f.category === 'home')),
+          ...state.favorites.filter(
+            (f) => !(favorite.category === 'home' && f.category === 'home')
+          ),
           favorite,
         ],
       }));
@@ -85,7 +89,9 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
       const favorite = await client.updateFavorite(id, data, opts);
       set((state) => ({
         favorites: state.favorites
-          .filter((f) => !(favorite.category === 'home' && f.category === 'home' && f.id !== favorite.id))
+          .filter(
+            (f) => !(favorite.category === 'home' && f.category === 'home' && f.id !== favorite.id)
+          )
           .map((f) => (f.id === id ? favorite : f)),
       }));
       return favorite;
@@ -124,7 +130,10 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
       set({ favorites });
     } catch (err) {
       // Roll back to the pre-reorder order on failure.
-      set({ favorites: previous, error: err instanceof Error ? err.message : 'Sortierung fehlgeschlagen.' });
+      set({
+        favorites: previous,
+        error: err instanceof Error ? err.message : tx(T, 'sortierFehler'),
+      });
       throw err;
     }
   },

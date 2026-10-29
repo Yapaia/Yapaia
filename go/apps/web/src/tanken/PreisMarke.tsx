@@ -8,7 +8,18 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useProfileStore } from '../profiles/store.js';
-import { FRISCHE_KLASSE, FRISCHE_TEXT, frische, preiseFuer, preiseZuPunkten, preisText, type Punkt, type Zuordnung } from './preise.js';
+import {
+  FRISCHE_KLASSE,
+  frischeText,
+  frische,
+  preiseFuer,
+  preiseZuPunkten,
+  preisText,
+  type Punkt,
+  type Zuordnung,
+} from './preise.js';
+import { T } from './texte.js';
+import { useT } from '../i18n/index.js';
 
 export function useSpritpreise(punkte: readonly Punkt[]): Array<Zuordnung | null> {
   const [preise, setPreise] = useState<Array<Zuordnung | null>>([]);
@@ -48,6 +59,7 @@ export default function PreisMarke({
   zuordnung: Zuordnung | null | undefined;
   testId: string;
 }): React.ReactElement | null {
+  const t = useT(T);
   const sorte = useProfileStore((s) => s.activeProfile?.fuel_type ?? null);
   const jetzt = useMinutenTakt();
   if (!zuordnung) return null;
@@ -58,8 +70,8 @@ export default function PreisMarke({
   return (
     <span
       className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${FRISCHE_KLASSE[f]}`}
-      title={`${FRISCHE_TEXT[f]} (Tankerkönig)`}
-      aria-label={`${text.replace(/·/g, ',')} Euro, ${FRISCHE_TEXT[f]}`}
+      title={`${frischeText(f)} (Tankerkönig)`}
+      aria-label={t('euro', { preise: text.replace(/·/g, ','), frische: frischeText(f) })}
       data-testid={testId}
       data-frische={f}
     >

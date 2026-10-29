@@ -10,10 +10,14 @@
 import type { NavState } from '@yapaia/shared';
 import { formatEta } from '@yapaia/shared';
 import type { Widget } from '@yapaia/ui';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const etaWidget: Widget = {
   id: 'eta',
-  name: 'Ankunftszeit',
+  get name() {
+    return tx(T, 'w_ankunftszeit');
+  },
   sizes: ['S', 'M'],
   topics: ['nav/state'],
   render: ({ data }) => {
@@ -32,7 +36,7 @@ export const etaWidget: Widget = {
         <span data-testid="widget-eta-value" className="text-2xl font-bold tabular-nums">
           {label}
         </span>
-        <span className="text-xs uppercase tracking-wide text-slate-400">ETA</span>
+        <span className="text-xs uppercase tracking-wide text-slate-400">{tx(T, 'eta')}</span>
       </div>
     );
   },

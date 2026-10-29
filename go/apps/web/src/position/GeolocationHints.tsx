@@ -9,13 +9,18 @@
  */
 
 import React, { useState } from 'react';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import type { BrowserSourceState, BrowserSourceError } from './browserSource';
 
 interface GeolocationHintsProps {
   sourceState: BrowserSourceState;
 }
 
-export default function GeolocationHints({ sourceState }: GeolocationHintsProps): React.ReactElement | null {
+export default function GeolocationHints({
+  sourceState,
+}: GeolocationHintsProps): React.ReactElement | null {
+  const t = useT(T);
   const [visible, setVisible] = useState(true);
 
   if (sourceState.status !== 'error' || !sourceState.error || !visible) {
@@ -27,23 +32,18 @@ export default function GeolocationHints({ sourceState }: GeolocationHintsProps)
       case 'insecure-context':
         return (
           <div className="space-y-2">
-            <p className="font-semibold">Standortzugriff nicht verfügbar (unsicherer Kontext)</p>
-            <p className="text-sm">
-              Der Browser gibt den GPS-Sensor nur über HTTPS frei. Diese Seite läuft über
-              HTTP — daran kann Yapaia nichts ändern, das entscheidet der Browser.
-            </p>
+            <p className="font-semibold">{t('unsichererKontext')}</p>
+            <p className="text-sm">{t('unsichererText')}</p>
             {/* „Nutze Home Assistant Ingress (immer HTTPS)" stand hier bis
                 2026-09-02 und war schlicht falsch: Ingress erbt das Protokoll
                 von Home Assistant selbst. Wer HA über http://…:8123 aufruft,
                 bekommt auch Ingress über HTTP -- der Hinweis schickte genau
                 die Betroffenen im Kreis. */}
-            <p className="text-sm">Wege, die wirklich helfen:</p>
+            <p className="text-sm">{t('wegeHelfen')}</p>
             <ul className="text-sm list-disc list-inside space-y-1">
-              <li>Home Assistant selbst über HTTPS erreichbar machen (eigenes
-                Zertifikat oder Nabu Casa) — dann ist auch Ingress HTTPS</li>
-              <li>USB-GPS am Gerät verwenden (Quelle „gpsd")</li>
-              <li>Nur zum Ausprobieren: Aufruf direkt auf dem Gerät über
-                localhost (dort gilt eine Ausnahme)</li>
+              <li>{t('weg1')}</li>
+              <li>{t('weg2')}</li>
+              <li>{t('weg3')}</li>
             </ul>
           </div>
         );
@@ -51,15 +51,13 @@ export default function GeolocationHints({ sourceState }: GeolocationHintsProps)
       case 'permission-denied':
         return (
           <div className="space-y-2">
-            <p className="font-semibold">Standortzugriff verweigert</p>
-            <p className="text-sm">Die Berechtigung für Standortzugriff wurde verweigert.</p>
-            <p className="text-sm">
-              Empfohlene Lösungen:
-            </p>
+            <p className="font-semibold">{t('verweigert')}</p>
+            <p className="text-sm">{t('verweigertText')}</p>
+            <p className="text-sm">{t('empfohlen')}</p>
             <ul className="text-sm list-disc list-inside space-y-1">
-              <li>Überprüfe die Browser-Einstellungen und erteile Berechtigung erneut</li>
-              <li>Nutze stattdessen gpsd als GPS-Quelle (verbundenes USB-GPS-Gerät)</li>
-              <li>Starte die App neu, nachdem du die Berechtigung erteilt hast</li>
+              <li>{t('lsg1')}</li>
+              <li>{t('lsg2')}</li>
+              <li>{t('lsg3')}</li>
             </ul>
           </div>
         );
@@ -67,11 +65,9 @@ export default function GeolocationHints({ sourceState }: GeolocationHintsProps)
       case 'not-supported':
         return (
           <div className="space-y-2">
-            <p className="font-semibold">Browser-Geolocation wird nicht unterstützt</p>
-            <p className="text-sm">Dieser Browser oder diese Umgebung unterstützt die Geolocation-API nicht.</p>
-            <p className="text-sm">
-              Verwende stattdessen gpsd als GPS-Quelle.
-            </p>
+            <p className="font-semibold">{t('nichtUnterstuetzt')}</p>
+            <p className="text-sm">{t('nichtUnterstuetztText')}</p>
+            <p className="text-sm">{t('stattdessenGpsd')}</p>
           </div>
         );
 
@@ -79,26 +75,22 @@ export default function GeolocationHints({ sourceState }: GeolocationHintsProps)
       case 'timeout':
         return (
           <div className="space-y-2">
-            <p className="font-semibold">GPS-Signal nicht verfügbar</p>
-            <p className="text-sm">
-              Das Gerät konnte eine Position nicht ermitteln. Dies kann passieren, wenn:
-            </p>
+            <p className="font-semibold">{t('keinSignal')}</p>
+            <p className="text-sm">{t('keinSignalText')}</p>
             <ul className="text-sm list-disc list-inside space-y-1">
-              <li>Du dich in einem Gebäude oder Tunnel befindest</li>
-              <li>Das GPS-Signal schwach ist</li>
-              <li>Die App keine Geolocation-Berechtigung hat</li>
+              <li>{t('grund1')}</li>
+              <li>{t('grund2')}</li>
+              <li>{t('grund3')}</li>
             </ul>
-            <p className="text-sm">
-              Tipp: Verwende gpsd als GPS-Quelle für zuverlässigeres Tracking mit einem USB-GPS.
-            </p>
+            <p className="text-sm">{t('tipp')}</p>
           </div>
         );
 
       default:
         return (
           <div className="space-y-2">
-            <p className="font-semibold">Fehler beim Abrufen der Position</p>
-            <p className="text-sm">Ein unbekannter Fehler ist aufgetreten. Versuche die App neu zu laden.</p>
+            <p className="font-semibold">{t('fehlerAbruf')}</p>
+            <p className="text-sm">{t('fehlerAbrufText')}</p>
           </div>
         );
     }
@@ -118,13 +110,11 @@ export default function GeolocationHints({ sourceState }: GeolocationHintsProps)
         >
           <div className="flex gap-3">
             <div className="flex-shrink-0 text-lg">⚠️</div>
-            <div className="flex-1">
-              {renderError(sourceState.error)}
-            </div>
+            <div className="flex-1">{renderError(sourceState.error)}</div>
             <button
               onClick={() => setVisible(false)}
               className="flex-shrink-0 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              aria-label="Schließen"
+              aria-label={t('schliessen')}
             >
               ✕
             </button>

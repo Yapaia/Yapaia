@@ -10,6 +10,8 @@
 
 import type { AddonManifest } from '@yapaia/shared';
 import type { InstalledAddon } from '../addons/client.js';
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export interface RegistryEntryView {
   id: string;
@@ -104,7 +106,7 @@ async function toApiError(response: Response): Promise<StoreApiError> {
   } catch {
     // Body wasn't the expected error shape; fall through to a generic error.
   }
-  return new StoreApiError('UNKNOWN', `Request failed with status ${response.status}`);
+  return new StoreApiError('UNKNOWN', tx(T, 'anfrageFehler', { status: response.status }));
 }
 
 interface RawRegistryCatalog {
@@ -235,7 +237,9 @@ export async function setEntwicklermodus(enabled: boolean): Promise<MarktplatzSt
 }
 
 export async function activateLicense(id: string): Promise<void> {
-  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/license/activate`), { method: 'POST' });
+  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/license/activate`), {
+    method: 'POST',
+  });
   if (!res.ok) throw await toApiError(res);
 }
 
@@ -259,7 +263,10 @@ export async function beginInstallFromUrl(url: string, sha256: string): Promise<
 /** Step 1, upload source (W-13: "Upload-Install prominent" when the
  *  registry is unreachable). `sha256` is optional for an upload but, if
  *  supplied, is still verified (see `installService.ts`). */
-export async function beginInstallFromUpload(base64Data: string, sha256?: string): Promise<PendingInstall> {
+export async function beginInstallFromUpload(
+  base64Data: string,
+  sha256?: string
+): Promise<PendingInstall> {
   const res = await fetch(apiUrl('api/v1/addons/install'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -273,7 +280,19 @@ export async function beginInstallFromUpload(base64Data: string, sha256?: string
 /** Step 2: actually unpack + write the DB row (fresh install, or an update
  *  with rollback if the id is already installed). */
 export async function confirmPendingInstall(pendingId: string): Promise<InstalledAddon> {
-  const res = await fetch(apiUrl(`api/v1/addons/install/${encodeURIComponent(pendingId)}/confirm`), {
+  const res = await fetch(
+    apiUrl(`api/v1/addons/install/${encodeURIComponent(pendingId)}/confirm`),
+    {
+      method: 'POST',
+    }
+  );
+  if (!res.ok) throw await toApiError(res);
+  const body = (await res.json()) as { data: InstalledAddon };
+  return body.data;
+}
+
+export async function enableAddon(id: string): Promise<InstalledAddon> {
+  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/enable`), {
     method: 'POST',
   });
   if (!res.ok) throw await toApiError(res);
@@ -281,15 +300,10 @@ export async function confirmPendingInstall(pendingId: string): Promise<Installe
   return body.data;
 }
 
-export async function enableAddon(id: string): Promise<InstalledAddon> {
-  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/enable`), { method: 'POST' });
-  if (!res.ok) throw await toApiError(res);
-  const body = (await res.json()) as { data: InstalledAddon };
-  return body.data;
-}
-
 export async function disableAddon(id: string): Promise<InstalledAddon> {
-  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/disable`), { method: 'POST' });
+  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/disable`), {
+    method: 'POST',
+  });
   if (!res.ok) throw await toApiError(res);
   const body = (await res.json()) as { data: InstalledAddon };
   return body.data;
@@ -301,9 +315,12 @@ export async function disableAddon(id: string): Promise<InstalledAddon> {
  *  add-on event); the caller still needs to `refresh()` to see the new
  *  value reflected in the UI. */
 export async function setAddonMqttEnabled(id: string, enabled: boolean): Promise<InstalledAddon> {
-  const res = await fetch(apiUrl(`api/v1/addons/${encodeURIComponent(id)}/mqtt/${enabled ? 'enable' : 'disable'}`), {
-    method: 'POST',
-  });
+  const res = await fetch(
+    apiUrl(`api/v1/addons/${encodeURIComponent(id)}/mqtt/${enabled ? 'enable' : 'disable'}`),
+    {
+      method: 'POST',
+    }
+  );
   if (!res.ok) throw await toApiError(res);
   const body = (await res.json()) as { data: InstalledAddon };
   return body.data;

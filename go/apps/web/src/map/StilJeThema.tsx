@@ -12,16 +12,19 @@
  * Reiter; die Karte bleibt dabei, wie sie ist, bis das Thema wechselt.
  */
 
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import React, { useEffect, useState } from 'react';
 import { useStyleStore, type StilThema } from '../state/styleStore.js';
 import type { StyleSummary } from './styleClient.js';
 
-const REITER: Array<{ thema: StilThema; titel: string; symbol: string }> = [
-  { thema: 'light', titel: 'Hell', symbol: '☀️' },
-  { thema: 'dark', titel: 'Dunkel', symbol: '🌙' },
+const REITER: Array<{ thema: StilThema; titel: 'hell' | 'dunkel'; symbol: string }> = [
+  { thema: 'light', titel: 'hell', symbol: '☀️' },
+  { thema: 'dark', titel: 'dunkel', symbol: '🌙' },
 ];
 
 export default function StilJeThema({ styles }: { styles: StyleSummary[] }): React.ReactElement {
+  const t = useT(T);
   const aktivesThema = useStyleStore((s) => s.thema);
   const stilHell = useStyleStore((s) => s.stilHell);
   const stilDunkel = useStyleStore((s) => s.stilDunkel);
@@ -36,7 +39,7 @@ export default function StilJeThema({ styles }: { styles: StyleSummary[] }): Rea
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-1" role="tablist" aria-label="Kartenstil für">
+      <div className="flex gap-1" role="tablist" aria-label={t('stilFuer')}>
         {REITER.map((r) => (
           <button
             key={r.thema}
@@ -51,8 +54,10 @@ export default function StilJeThema({ styles }: { styles: StyleSummary[] }): Rea
                 : 'border-slate-300 dark:border-slate-600'
             }`}
           >
-            <span aria-hidden="true">{r.symbol}</span> {r.titel}
-            {aktivesThema === r.thema && <span className="ml-1 text-[10px] font-normal opacity-70">(jetzt)</span>}
+            <span aria-hidden="true">{r.symbol}</span> {t(r.titel)}
+            {aktivesThema === r.thema && (
+              <span className="ml-1 text-[10px] font-normal opacity-70">{t('jetzt')}</span>
+            )}
           </button>
         ))}
       </div>
@@ -76,10 +81,13 @@ export default function StilJeThema({ styles }: { styles: StyleSummary[] }): Rea
         ))}
       </div>
 
-      <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400" data-testid="stil-hinweis">
+      <p
+        className="text-[11px] leading-snug text-slate-500 dark:text-slate-400"
+        data-testid="stil-hinweis"
+      >
         {reiter === aktivesThema
-          ? 'Gilt jetzt und immer, wenn das Design auf ' + (reiter === 'dark' ? 'Dunkel' : 'Hell') + ' steht.'
-          : 'Wird gezeigt, sobald das Design auf ' + (reiter === 'dark' ? 'Dunkel' : 'Hell') + ' wechselt.'}
+          ? t('hinweisJetzt', { thema: t(reiter === 'dark' ? 'dunkel' : 'hell') })
+          : t('hinweisSpaeter', { thema: t(reiter === 'dark' ? 'dunkel' : 'hell') })}
       </p>
     </div>
   );

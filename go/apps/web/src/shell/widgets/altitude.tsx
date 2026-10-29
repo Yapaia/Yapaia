@@ -9,10 +9,14 @@
 
 import type { Widget } from '@yapaia/ui';
 import { latestPosition } from './positionUtils.js';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const altitudeWidget: Widget = {
   id: 'altitude',
-  name: 'Höhe',
+  get name() {
+    return tx(T, 'w_hoehe');
+  },
   sizes: ['S'],
   topics: ['pos/update', 'pos/extrapolated'],
   render: ({ data }) => {
@@ -23,7 +27,9 @@ export const altitudeWidget: Widget = {
         <span data-testid="widget-altitude-value" className="text-2xl font-bold tabular-nums">
           {alt != null ? `${Math.round(alt)} m` : '–'}
         </span>
-        <span className="text-xs uppercase tracking-wide text-slate-400">⛰ Höhe</span>
+        <span className="text-xs uppercase tracking-wide text-slate-400">
+          {tx(T, 'hoeheMitSymbol')}
+        </span>
       </div>
     );
   },

@@ -7,10 +7,14 @@
 import type { NavState } from '@yapaia/shared';
 import type { Widget } from '@yapaia/ui';
 import { formatDuration } from '../../routing/format.js';
+import { T } from '../texte.js';
+import { tx } from '../../i18n/index.js';
 
 export const timeWidget: Widget = {
   id: 'time',
-  name: 'Restzeit',
+  get name() {
+    return tx(T, 'w_restzeit');
+  },
   sizes: ['S', 'M'],
   topics: ['nav/state'],
   render: ({ data }) => {
@@ -21,7 +25,9 @@ export const timeWidget: Widget = {
         <span data-testid="widget-time-value" className="text-2xl font-bold tabular-nums">
           {seconds != null ? formatDuration(seconds) : '–'}
         </span>
-        <span className="text-xs uppercase tracking-wide text-slate-400">Restzeit</span>
+        <span className="text-xs uppercase tracking-wide text-slate-400">
+          {tx(T, 'w_restzeit')}
+        </span>
       </div>
     );
   },

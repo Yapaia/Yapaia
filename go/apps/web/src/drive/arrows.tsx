@@ -13,6 +13,8 @@
 
 import React from 'react';
 import type { ManeuverType } from '@yapaia/shared';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 export type ArrowKey =
   | 'turn_left'
@@ -59,27 +61,76 @@ export function ManeuverArrowSprite(): React.ReactElement {
     <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" focusable="false">
       <defs>
         <symbol id="arrow-straight" viewBox="0 0 24 24">
-          <path d="M12 2 L12 20 M6 8 L12 2 L18 8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M12 2 L12 20 M6 8 L12 2 L18 8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </symbol>
         <symbol id="arrow-turn_left" viewBox="0 0 24 24">
-          <path d="M20 20 V12 C20 8 17 5 13 5 H6 M6 5 L11 1 M6 5 L11 9" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M20 20 V12 C20 8 17 5 13 5 H6 M6 5 L11 1 M6 5 L11 9"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </symbol>
         <symbol id="arrow-turn_right" viewBox="0 0 24 24">
-          <path d="M4 20 V12 C4 8 7 5 11 5 H18 M18 5 L13 1 M18 5 L13 9" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M4 20 V12 C4 8 7 5 11 5 H18 M18 5 L13 1 M18 5 L13 9"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </symbol>
         <symbol id="arrow-uturn_left" viewBox="0 0 24 24">
-          <path d="M18 20 V10 C18 6 15 4 11 4 C7 4 5 6 5 9 M5 9 L1 6 M5 9 L9 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M18 20 V10 C18 6 15 4 11 4 C7 4 5 6 5 9 M5 9 L1 6 M5 9 L9 7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </symbol>
         <symbol id="arrow-uturn_right" viewBox="0 0 24 24">
-          <path d="M6 20 V10 C6 6 9 4 13 4 C17 4 19 6 19 9 M19 9 L23 6 M19 9 L15 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M6 20 V10 C6 6 9 4 13 4 C17 4 19 6 19 9 M19 9 L23 6 M19 9 L15 7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </symbol>
         <symbol id="arrow-roundabout_enter" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-          <path d="M12 2 V9 M8 5 L12 2 L16 5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M12 2 V9 M8 5 L12 2 L16 5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </symbol>
         <symbol id="arrow-roundabout_exit" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-          <path d="M12 22 V15 M8 19 L12 22 L16 19" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M12 22 V15 M8 19 L12 22 L16 19"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </symbol>
       </defs>
     </svg>
@@ -93,7 +144,12 @@ export interface ManeuverArrowProps {
 }
 
 /** Renders the arrow matching `type` (falling back gracefully for unknown types). */
-export function ManeuverArrow({ type, className, size = 40 }: ManeuverArrowProps): React.ReactElement {
+export function ManeuverArrow({
+  type,
+  className,
+  size = 40,
+}: ManeuverArrowProps): React.ReactElement {
+  const t = useT(T);
   const key = resolveArrowKey(type);
   return (
     <svg
@@ -104,7 +160,7 @@ export function ManeuverArrow({ type, className, size = 40 }: ManeuverArrowProps
       data-testid="maneuver-arrow"
       data-arrow-key={key}
       role="img"
-      aria-label={`Manöver: ${type}`}
+      aria-label={t('manoever_aria', { typ: type })}
     >
       <use href={`#arrow-${key}`} />
     </svg>

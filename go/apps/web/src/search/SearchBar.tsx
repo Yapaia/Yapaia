@@ -53,6 +53,8 @@ import { usePositionStore } from '../position/positionStore.js';
 import { useDriveLockStore, useIsControlLocked } from '../drive/driveLockStore.js';
 import { sortResultsByDistance } from './sortByDistance.js';
 import PreisMarke, { useSpritpreise } from '../tanken/PreisMarke.js';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 
 const SEARCH_FLY_TO_ZOOM = 14;
 const PANEL_ID = 'search-panel';
@@ -64,6 +66,7 @@ const PANEL_ID = 'search-panel';
  *  (those are exactly the "complex dialog" surface Speed-Lock exists to
  *  gate), just one-tap-to-navigate chips. */
 function FavoritesQuickSelect({ thresholdKmh }: { thresholdKmh: number }): React.ReactElement {
+  const t = useT(T);
   const schmal = useSchmal();
   const favorites = useFavoritesStore((state) => state.favorites);
   const fetchFavorites = useFavoritesStore((state) => state.fetchFavorites);
@@ -84,7 +87,7 @@ function FavoritesQuickSelect({ thresholdKmh }: { thresholdKmh: number }): React
         });
       }
     },
-    [map],
+    [map]
   );
 
   return (
@@ -102,7 +105,7 @@ function FavoritesQuickSelect({ thresholdKmh }: { thresholdKmh: number }): React
               className="text-xs text-slate-500 dark:text-slate-400 truncate"
               data-testid="search-favorites-quickselect-empty"
             >
-              Keine Favoriten gespeichert.
+              {t('keineFavoriten')}
             </span>
           ) : (
             favorites.map((favorite) => (
@@ -110,7 +113,7 @@ function FavoritesQuickSelect({ thresholdKmh }: { thresholdKmh: number }): React
                 key={favorite.id}
                 type="button"
                 onClick={() => void handleSelect(favorite)}
-                aria-label={`Navigation zu ${favorite.name} starten`}
+                aria-label={t('navZu', { name: favorite.name })}
                 data-testid={`search-favorite-quickselect-${favorite.id}`}
                 className="flex-shrink-0 min-h-[48px] flex items-center gap-1.5 px-3 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-sm text-slate-800 dark:text-slate-100"
               >
@@ -129,13 +132,9 @@ function FavoritesQuickSelect({ thresholdKmh }: { thresholdKmh: number }): React
         <p
           className="mt-1 px-1 text-[11px] leading-tight text-amber-700 dark:text-amber-400"
           data-testid="search-speed-lock-hint"
-          title={`Suche während der Fahrt gesperrt (> ${thresholdKmh} km/h) — nur Favoriten verfügbar.`}
+          title={t('gesperrt', { kmh: thresholdKmh })}
         >
-          {schmal ? (
-            <>🔒 nur Favoriten</>
-          ) : (
-            <>Suche während der Fahrt gesperrt (&gt; {thresholdKmh} km/h) — nur Favoriten verfügbar.</>
-          )}
+          {schmal ? <>{t('nurFavoriten')}</> : <>{t('gesperrt', { kmh: thresholdKmh })}</>}
         </p>
       </div>
     </div>
@@ -143,6 +142,7 @@ function FavoritesQuickSelect({ thresholdKmh }: { thresholdKmh: number }): React
 }
 
 export default function SearchBar(): React.ReactElement {
+  const t = useT(T);
   const query = useSearchStore((state) => state.query);
   const rawResults = useSearchStore((state) => state.results);
   const status = useSearchStore((state) => state.status);
@@ -162,14 +162,14 @@ export default function SearchBar(): React.ReactElement {
   // naechste selbst heraussuchen.
   const results = React.useMemo(
     () => sortResultsByDistance(rawResults, position),
-    [rawResults, position],
+    [rawResults, position]
   );
   // 0.42.0: Spritpreise an Tankstellen-Treffern (Tankerkönig). Gefragt
   // wird nur, wenn Tankstellen in der Liste stehen; ohne Verbindung,
   // Schlüssel oder Schalter bleibt die Zeile, wie sie war.
   const tankstellen = React.useMemo(
     () => results.filter((r) => r.type === 'fuel').map((r) => r.latlng),
-    [results],
+    [results]
   );
   const tankPreise = useSpritpreise(tankstellen);
   const preisAn = React.useMemo(() => {
@@ -206,7 +206,8 @@ export default function SearchBar(): React.ReactElement {
   useEffect(() => {
     if (!favoritenOffen) return undefined;
     const draussen = (e: PointerEvent): void => {
-      if (bereichRef.current && !bereichRef.current.contains(e.target as Node)) setFavoritenOffen(false);
+      if (bereichRef.current && !bereichRef.current.contains(e.target as Node))
+        setFavoritenOffen(false);
     };
     document.addEventListener('pointerdown', draussen);
     return () => document.removeEventListener('pointerdown', draussen);
@@ -246,14 +247,14 @@ export default function SearchBar(): React.ReactElement {
       setIsFocused(false);
       inputRef.current?.blur();
     },
-    [map, setDestination, recordHistory, resetSearch],
+    [map, setDestination, recordHistory, resetSearch]
   );
 
   const handleChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setQuery(event.target.value, position ? { lat: position.lat, lon: position.lon } : null);
     },
-    [setQuery, position],
+    [setQuery, position]
   );
 
   const handleKeyDown = useCallback(
@@ -292,7 +293,7 @@ export default function SearchBar(): React.ReactElement {
           break;
       }
     },
-    [results, highlightedIndex, moveHighlight, handleSelect, resetSearch],
+    [results, highlightedIndex, moveHighlight, handleSelect, resetSearch]
   );
 
   const trimmedLength = query.trim().length;
@@ -302,16 +303,20 @@ export default function SearchBar(): React.ReactElement {
   let liveMessage = '';
   if (showDropdown) {
     if (status === 'loading') {
-      liveMessage = 'Suche läuft…';
+      liveMessage = t('laeuft');
     } else if (status === 'error' && error) {
       liveMessage = friendlySearchErrorMessage(error.code, error.message);
     } else if (status === 'success') {
       liveMessage =
         results.length === 0
-          ? `Nichts gefunden für ${query.trim()}.`
+          ? t('nichtsGefunden', { q: query.trim() })
           : results[0]?.korrigiert
-            ? `Nichts gefunden für ${query.trim()}. ${results.length} ${results.length === 1 ? 'Ergebnis' : 'Ergebnisse'} für ${results[0].korrigiert}.`
-            : `${results.length} ${results.length === 1 ? 'Ergebnis' : 'Ergebnisse'} gefunden.`;
+            ? t(results.length === 1 ? 'ergebnisseFuer1' : 'ergebnisseFuerN', {
+                q: query.trim(),
+                n: results.length,
+                k: results[0].korrigiert,
+              })
+            : t(results.length === 1 ? 'gefunden1' : 'gefundenN', { n: results.length });
     }
   }
 
@@ -338,15 +343,17 @@ export default function SearchBar(): React.ReactElement {
               setFavoritenOffen(true);
             }}
             onBlur={() => setIsFocused(false)}
-            placeholder="Ziel suchen…"
+            placeholder={t('zielSuchenPunkte')}
             role="combobox"
             aria-expanded={showDropdown}
             aria-controls={PANEL_ID}
             aria-autocomplete="list"
             aria-activedescendant={
-              showDropdown && highlightedIndex >= 0 ? `search-option-${highlightedIndex}` : undefined
+              showDropdown && highlightedIndex >= 0
+                ? `search-option-${highlightedIndex}`
+                : undefined
             }
-            aria-label="Ziel suchen"
+            aria-label={t('zielSuchen')}
             className="w-full rounded-full bg-flaeche/95 dark:bg-slate-800/95 shadow-md px-4 py-2 pr-9 text-sm text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
             data-testid="search-input"
           />
@@ -366,8 +373,8 @@ export default function SearchBar(): React.ReactElement {
                 resetSearch();
                 inputRef.current?.focus();
               }}
-              aria-label="Suche leeren"
-              title="Suche leeren"
+              aria-label={t('leeren')}
+              title={t('leeren')}
               // 44 Punkte: die Mindestgroesse fuer eine Bedienflaeche in
               // diesem Projekt (docs/06 §4). Ein 16-Punkte-Kreuz traefe im
               // fahrenden Fahrzeug niemand.
@@ -412,8 +419,11 @@ export default function SearchBar(): React.ReactElement {
             className="absolute mt-2 w-full rounded-xl bg-flaeche/95 dark:bg-slate-800/95 shadow-xl overflow-hidden text-sm text-slate-800 dark:text-slate-100"
           >
             {status === 'loading' && (
-              <p className="px-4 py-3 text-slate-500 dark:text-slate-400" data-testid="search-loading">
-                Suche läuft…
+              <p
+                className="px-4 py-3 text-slate-500 dark:text-slate-400"
+                data-testid="search-loading"
+              >
+                {t('laeuft')}
               </p>
             )}
 
@@ -428,11 +438,8 @@ export default function SearchBar(): React.ReactElement {
 
             {status === 'success' && results.length === 0 && (
               <div className="px-4 py-3 space-y-1" data-testid="search-empty">
-                <p>Nichts gefunden für „{query.trim()}“.</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Prüfe die Schreibweise oder gib Koordinaten ein (z. B. 47.14, 9.52). Die
-                  Online-Suche ist derzeit deaktiviert.
-                </p>
+                <p>{t('nichtsGefundenZitat', { q: query.trim() })}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('pruefen')}</p>
               </div>
             )}
 
@@ -451,7 +458,7 @@ export default function SearchBar(): React.ReactElement {
                 className="px-4 py-1.5 text-xs text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700"
                 data-testid="search-korrigiert"
               >
-                Ergebnisse für „{results[0].korrigiert}“
+                {t('ergebnisseFuerZitat', { k: results[0].korrigiert })}
               </p>
             )}
 
@@ -460,7 +467,7 @@ export default function SearchBar(): React.ReactElement {
                 className="px-4 py-1.5 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-100 dark:border-slate-700"
                 data-testid="search-lite-hint"
               >
-                Vereinfachte Suche aktiv
+                {t('vereinfacht')}
               </p>
             )}
 
@@ -506,7 +513,7 @@ export default function SearchBar(): React.ReactElement {
                             className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"
                             data-testid={`search-result-oob-${index}`}
                           >
-                            Außerhalb der Kartenabdeckung
+                            {t('ausserhalb')}
                           </span>
                         )}
                       </span>

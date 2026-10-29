@@ -11,6 +11,9 @@
  * unbegrenzt „Prüfe…" anzeigen.
  */
 
+import { tx } from '../../i18n/index.js';
+import { T } from './texte.js';
+
 export type PreflightStatus = 'ok' | 'warn' | 'fail';
 export type PreflightSeverity = 'required' | 'recommended' | 'optional';
 
@@ -43,11 +46,11 @@ export async function fetchPreflight(): Promise<PreflightReport> {
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error(`Die Prüfung antwortete mit Status ${response.status}.`);
+      throw new Error(tx(T, 'statusFehler', { status: response.status }));
     }
     const body = (await response.json()) as { data?: PreflightReport };
     if (!body?.data || !Array.isArray(body.data.checks)) {
-      throw new Error('Die Antwort der Prüfung hatte nicht die erwartete Form.');
+      throw new Error(tx(T, 'formFehler'));
     }
     return body.data;
   } finally {
@@ -79,10 +82,10 @@ export interface TrackerAuswahl {
  */
 export async function fetchTrackers(): Promise<TrackerAuswahl> {
   const response = await fetch(`${import.meta.env.BASE_URL}api/v1/system/ha/trackers`);
-  if (!response.ok) throw new Error(`Die Liste antwortete mit Status ${response.status}.`);
+  if (!response.ok) throw new Error(tx(T, 'listeStatus', { status: response.status }));
   const body = (await response.json()) as { data?: TrackerAuswahl };
   if (!body?.data || !Array.isArray(body.data.trackers)) {
-    throw new Error('Die Antwort hatte nicht die erwartete Form.');
+    throw new Error(tx(T, 'listeForm'));
   }
   return body.data;
 }
@@ -94,7 +97,7 @@ export async function waehleTracker(entityId: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ entity_id: entityId }),
   });
-  if (!response.ok) throw new Error(`Die Auswahl antwortete mit Status ${response.status}.`);
+  if (!response.ok) throw new Error(tx(T, 'auswahlStatus', { status: response.status }));
   const body = (await response.json()) as { data?: { selected?: string } };
   return body?.data?.selected ?? '';
 }

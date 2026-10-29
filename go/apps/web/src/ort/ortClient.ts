@@ -9,6 +9,9 @@
  * keine Fehler. Die Ortskarte zeigt dann, was offline bekannt ist.
  */
 
+import { tx } from '../i18n/index.js';
+import { T } from './texte.js';
+
 export interface OsmAngaben {
   website?: string;
   telefon?: string;
@@ -59,12 +62,13 @@ export async function holeOrtInfo(anfrage: {
       signal: abbruch.signal,
     });
     if (antwort.status === 409) return { art: 'aus' };
-    if (!antwort.ok) return { art: 'fehler', text: `Der Kern antwortete mit ${antwort.status}.` };
+    if (!antwort.ok)
+      return { art: 'fehler', text: tx(T, 'kernStatus', { status: antwort.status }) };
     const body = (await antwort.json()) as { data?: OrtInfo };
-    if (!body?.data) return { art: 'fehler', text: 'Leere Antwort vom Kern.' };
+    if (!body?.data) return { art: 'fehler', text: tx(T, 'leereAntwort') };
     return { art: 'ok', info: body.data };
   } catch {
-    return { art: 'fehler', text: 'Keine Verbindung.' };
+    return { art: 'fehler', text: tx(T, 'keineVerbindung') };
   } finally {
     clearTimeout(wecker);
   }

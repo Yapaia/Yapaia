@@ -10,6 +10,8 @@
  */
 
 import React, { useState } from 'react';
+import { useT } from '../i18n/index.js';
+import { T } from './texte.js';
 import { useRouteProposalStore, type RouteProposal } from './routeProposalStore.js';
 
 function apiUrl(path: string): string {
@@ -34,13 +36,17 @@ async function applyProposal(proposal: RouteProposal): Promise<void> {
 }
 
 export default function AddonRouteProposalBanner(): React.ReactElement | null {
+  const t = useT(T);
   const proposals = useRouteProposalStore((state) => state.proposals);
   const dismiss = useRouteProposalStore((state) => state.dismiss);
   const [applying, setApplying] = useState<string | null>(null);
   if (proposals.length === 0) return null;
 
   return (
-    <div className="absolute top-2 left-1/2 z-50 flex w-[min(calc(var(--sicht-b,100vw)*0.92),32rem)] -translate-x-1/2 flex-col gap-2" data-testid="addon-route-proposals">
+    <div
+      className="absolute top-2 left-1/2 z-50 flex w-[min(calc(var(--sicht-b,100vw)*0.92),32rem)] -translate-x-1/2 flex-col gap-2"
+      data-testid="addon-route-proposals"
+    >
       {proposals.map((proposal) => (
         <div
           key={proposal.id}
@@ -48,10 +54,10 @@ export default function AddonRouteProposalBanner(): React.ReactElement | null {
           data-addon-id={proposal.addonId}
           className="pointer-events-auto rounded-lg border border-amber-400 bg-slate-900/95 p-3 text-sm text-amber-50 shadow-lg"
           role="alertdialog"
-          aria-label="Routenvorschlag eines Add-ons"
+          aria-label={t('vorschlagAria')}
         >
           <p className="mb-2">
-            <span className="font-semibold">Routenvorschlag:</span>{' '}
+            <span className="font-semibold">{t('vorschlag')}</span>{' '}
             <span data-testid="addon-route-proposal-reason">{proposal.reason}</span>
           </p>
           <div className="flex gap-2">
@@ -67,7 +73,7 @@ export default function AddonRouteProposalBanner(): React.ReactElement | null {
               }}
               className="rounded bg-emerald-600 px-3 py-1.5 font-semibold text-white disabled:opacity-50"
             >
-              Übernehmen
+              {t('uebernehmen')}
             </button>
             <button
               type="button"
@@ -75,7 +81,7 @@ export default function AddonRouteProposalBanner(): React.ReactElement | null {
               onClick={() => dismiss(proposal.id)}
               className="rounded bg-slate-700 px-3 py-1.5 font-semibold text-white"
             >
-              Verwerfen
+              {t('verwerfen')}
             </button>
           </div>
         </div>
