@@ -60,9 +60,17 @@ class YapaiaClient:
 
     async def design(self, daten: dict[str, Any]) -> bool:
         """Das geltende Design-Schema schicken. `False`, wenn das Modul es (noch) nicht kennt."""
+        return await self._optional(f"{API}/design", daten)
+
+    async def sprache(self, daten: dict[str, Any]) -> bool:
+        """Die HA-Sprache schicken (Protokoll §8b). `False`, wenn das Modul sie (noch) nicht kennt."""
+        return await self._optional(f"{API}/sprache", daten)
+
+    async def _optional(self, pfad: str, daten: dict[str, Any]) -> bool:
+        """POST an einen optionalen Weg: 404 heißt „kennt das Modul nicht“."""
         try:
             async with self._session.post(
-                f"{self.url}{API}/design", json=daten, headers=self._kopf,
+                f"{self.url}{pfad}", json=daten, headers=self._kopf,
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as r:
                 if r.status == 404:

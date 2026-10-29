@@ -13,7 +13,7 @@
  *   show_output: true                                # optional, output picker (Mini-PC / this device / HA speakers)
  */
 
-const CARD_VERSION = "0.7.2";
+const CARD_VERSION = "0.8.0";
 const STREAM_PATH = "/api/yapaia/beat/stream";
 // Yapaia Design (docs/design-schemata.md); ohne die Integration ab 0.7.0 gilt `style`
 const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);

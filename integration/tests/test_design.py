@@ -46,9 +46,9 @@ async def test_geraet_design_und_auswahl_je_modul(hass: HomeAssistant, patch_rou
     gesamt = hass.states.get("select.yapaia_design_schema")
     assert gesamt is not None and gesamt.state == "Retro"
     assert "Beat Retro" in gesamt.attributes["options"]
-    assert hass.states.get("select.yapaia_design_ha_design").state == "Nicht ändern"
+    assert hass.states.get("select.yapaia_design_ha_design").state == "nicht_aendern"
     modul = hass.states.get("select.yapaia_router_design")
-    assert modul.state == "Wie gesamt" and modul.attributes["gilt"] == "retro"
+    assert modul.state == "wie_gesamt" and modul.attributes["gilt"] == "retro"
 
     ereignisse = async_capture_events(hass, design.EREIGNIS)
     await hass.services.async_call("select", "select_option",
@@ -65,7 +65,7 @@ async def test_geraet_design_und_auswahl_je_modul(hass: HomeAssistant, patch_rou
 
     # zurück auf „Wie gesamt“
     await hass.services.async_call("select", "select_option",
-                                   {"entity_id": "select.yapaia_router_design", "option": "Wie gesamt"}, blocking=True)
+                                   {"entity_id": "select.yapaia_router_design", "option": "wie_gesamt"}, blocking=True)
     assert d.fuer("router_9483c4aabbcc") == "magazin"
 
 
@@ -88,7 +88,7 @@ async def test_ha_design_nur_auf_wunsch(hass: HomeAssistant, patch_router: FakeR
     # Standard: nichts angefasst, kein Theme geschrieben
     assert not (tmp_path / "themes" / "yapaia.yaml").exists()
     await hass.services.async_call("select", "select_option",
-                                   {"entity_id": "select.yapaia_design_ha_design", "option": "Wie gesamt"}, blocking=True)
+                                   {"entity_id": "select.yapaia_design_ha_design", "option": "wie_gesamt"}, blocking=True)
     await hass.async_block_till_done()
     theme = (tmp_path / "themes" / "yapaia.yaml").read_text()
     assert '"Yapaia Retro":' in theme

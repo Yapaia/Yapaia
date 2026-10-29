@@ -38,6 +38,7 @@ configuration:
     description: Two letter country code used for the logo search (e.g. DE, AT, CH).
   fm_step_khz:
     name: FM channel step (kHz)
+    description: 100 kHz in Europe, 50 kHz for a finer grid.
   fm_scan_threshold_db:
     name: FM scan sensitivity (dB)
     description: Minimum distance of a station above the noise. Lower = more (also weak) stations.

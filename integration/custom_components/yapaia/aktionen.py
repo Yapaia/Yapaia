@@ -99,11 +99,11 @@ def _ziele(hass: HomeAssistant, call: ServiceCall, modul: str) -> list[YapaiaMod
     elif len(alle) == 1:
         ziele = alle
     elif not alle:
-        raise ServiceValidationError(f"Kein Yapaia-Modul „{modul}“ eingerichtet")
+        raise ServiceValidationError(translation_domain=DOMAIN, translation_key="kein_modul", translation_placeholders={"modul": modul})
     else:
-        raise ServiceValidationError(f"Mehrere „{modul}“-Geräte – bitte eines als Ziel wählen")
+        raise ServiceValidationError(translation_domain=DOMAIN, translation_key="mehrere_module", translation_placeholders={"modul": modul})
     if not ziele:
-        raise ServiceValidationError("Das gewählte Gerät gehört nicht zu diesem Modul")
+        raise ServiceValidationError(translation_domain=DOMAIN, translation_key="falsches_geraet")
     return ziele
 
 

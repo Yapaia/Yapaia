@@ -21,7 +21,7 @@ Terminal); der Nutzer bedient die Session per Remote vom iPad (Claude-App).
 | `integration/custom_components/yapaia/` | zentrale HA-Integration „Yapaia“ (Tests: `integration/tests`) |
 | `dashboards/` | Karten und Dashboards, Einspielen mit `python3 dashboards/deploy.py` |
 | `devices/esphome/` | weitere ESPHome-Geräte (z. B. Navi-Anzeige) |
-| `docs/` | `integration-protokoll.md` (Schnittstelle Module ↔ Integration), `faehigkeiten.md` |
+| `docs/` | `integration-protokoll.md` (Schnittstelle Module ↔ Integration), `faehigkeiten.md`, `design-schemata.md`, `sprachen.md` |
 
 `go/ORCHESTRATION-LOG.md` ist der Arbeitsstand der großen Go-Epics – bei Arbeit an
 Go zuerst lesen.
@@ -48,6 +48,8 @@ Go zuerst lesen.
 - Neue Module, Add-ons, Karten, Dashboards und Displays bauen die **Design-Schemata**
   von Anfang an ein (Tokens aus `design/schemata`, Auswahl `select.<gerät>_design`,
   Protokoll §8a, siehe `docs/design-schemata.md`) – keine fest verdrahteten Farben/Schriften.
+- Texte nie fest verdrahten: alles Sichtbare auf Deutsch und Englisch, Sprache folgt
+  Home Assistant (siehe `docs/sprachen.md`, Protokoll §8b).
 - Grundsatz: Module sind eigenständig und reden nur über dokumentierte
   Schnittstellen miteinander.
 

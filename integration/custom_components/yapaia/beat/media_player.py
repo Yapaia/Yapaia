@@ -15,7 +15,7 @@ from homeassistant.components.media_player import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import LOGO_URL, STREAM_URL
+from .const import DOMAIN, LOGO_URL, STREAM_URL
 from .coordinator import YapaiaCoordinator
 from .entity import YapaiaEntity
 
@@ -228,7 +228,7 @@ class YapaiaMediaPlayer(YapaiaEntity, MediaPlayerEntity):
                 children=[self._station_item(s) for s in stations],
             )
         if media_content_id not in (None, "", "root"):
-            raise HomeAssistantError(f"Unbekannter Ordner {media_content_id}")
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="unbekannter_ordner", translation_placeholders={"ordner": media_content_id})
         return BrowseMedia(
             media_class=MediaClass.DIRECTORY,
             media_content_id="root",

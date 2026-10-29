@@ -71,6 +71,8 @@ Device Builder aufgespielt – Anleitung in [`satellite/`](satellite/).
    Mix, Beat Modern, Beat Retro) gelten für alle Oberflächen – eines für
    alles oder je Modul ein eigenes; Home Assistant selbst nur auf Wunsch
    ([Design-Schemata](docs/design-schemata.md)).
+5. **Deutsch und Englisch:** Yapaia folgt der Sprache von Home Assistant
+   (im Aufbau, [Sprachen](docs/sprachen.md)).
 
 ## Entwicklung
 

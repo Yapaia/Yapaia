@@ -29,12 +29,11 @@ class GesamtSchema(_Basis):
 
     _attr_icon = "mdi:palette"
     _attr_unique_id = "yapaia_design_schema"
+    _attr_translation_key = "schema"
     _attr_device_info = GERAET
-    _attr_translation_key = None
 
     def __init__(self, design: Design) -> None:
         super().__init__(design)
-        self._attr_name = "Schema"
         self.entity_id = "select.yapaia_design_schema"
 
     @property
@@ -54,12 +53,12 @@ class HaDesign(_Basis):
 
     _attr_icon = "mdi:home-assistant"
     _attr_unique_id = "yapaia_design_ha_design"
+    _attr_translation_key = "ha_design"
     _attr_device_info = GERAET
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, design: Design) -> None:
         super().__init__(design)
-        self._attr_name = "HA-Design"
         self.entity_id = "select.yapaia_design_ha_design"
 
     @property
@@ -80,12 +79,12 @@ class ModulDesign(_Basis):
     """Am Gerät eines Moduls: eigenes Schema oder „Wie gesamt“."""
 
     _attr_icon = "mdi:palette-outline"
+    _attr_translation_key = "design"
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, design: Design, kennung: str, geraet_name: str) -> None:
         super().__init__(design)
         self.kennung = kennung
-        self._attr_name = "Design"
         self._attr_unique_id = f"yapaia_{kennung}_design"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, kennung)})
         self.entity_id = f"select.{slugify(geraet_name)}_design"
