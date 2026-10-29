@@ -37,6 +37,14 @@ class YapaiaConfigFlow(ConfigFlow, domain=DOMAIN):
         self._daten: dict[str, Any] = {}
         self._name = ""
 
+    async def async_step_import(self, import_data: dict[str, Any]) -> ConfigFlowResult:
+        """Das Gerät „Yapaia Design“ legt die Integration selbst an (design/)."""
+        if import_data.get(CONF_MODUL) != "design":
+            return self.async_abort(reason="not_supported")
+        await self.async_set_unique_id("design")
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(title="Yapaia Design", data={CONF_MODUL: "design"})
+
     async def async_step_hassio(self, discovery_info: HassioServiceInfo) -> ConfigFlowResult:
         c = discovery_info.config
         try:

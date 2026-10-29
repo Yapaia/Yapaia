@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Yapaia Design-Schema",
+  "description": "Doku: docs/design-schemata.md",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "beschreibung",
+    "hell",
+    "farben",
+    "schrift",
+    "form"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "beschreibung": {
+      "type": "string"
+    },
+    "hell": {
+      "type": "boolean"
+    },
+    "farben": {
+      "type": "object",
+      "required": [
+        "grund",
+        "flaeche",
+        "flaeche2",
+        "rand",
+        "text",
+        "text_gedaempft",
+        "akzent",
+        "akzent_text",
+        "akzent2",
+        "ok",
+        "warnung",
+        "fehler",
+        "info"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "grund": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "flaeche": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "flaeche2": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "rand": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "text": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "text_gedaempft": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "akzent": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "akzent_text": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "akzent2": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "ok": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "warnung": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "fehler": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "info": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        }
+      }
+    },
+    "schrift": {
+      "type": "object",
+      "required": [
+        "anzeige",
+        "text",
+        "zahlen",
+        "ersatz"
+      ],
+      "properties": {
+        "anzeige": {
+          "type": "object",
+          "required": [
+            "familie",
+            "gewicht"
+          ],
+          "properties": {
+            "familie": {
+              "type": "string"
+            },
+            "gewicht": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 900
+            }
+          }
+        },
+        "text": {
+          "type": "object",
+          "required": [
+            "familie",
+            "gewicht"
+          ],
+          "properties": {
+            "familie": {
+              "type": "string"
+            },
+            "gewicht": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 900
+            }
+          }
+        },
+        "zahlen": {
+          "type": "object",
+          "required": [
+            "familie",
+            "gewicht"
+          ],
+          "properties": {
+            "familie": {
+              "type": "string"
+            },
+            "gewicht": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 900
+            }
+          }
+        },
+        "ersatz": {
+          "type": "string"
+        }
+      }
+    },
+    "form": {
+      "type": "object",
+      "required": [
+        "radius",
+        "radius_klein",
+        "rand_breite",
+        "schatten"
+      ],
+      "properties": {
+        "radius": {
+          "type": "integer"
+        },
+        "radius_klein": {
+          "type": "integer"
+        },
+        "rand_breite": {
+          "type": "integer"
+        },
+        "schatten": {
+          "type": "string"
+        }
+      }
+    },
+    "deko": {
+      "type": "object",
+      "properties": {
+        "streifen": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+          }
+        },
+        "seite": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "hoehenlinien": {
+          "type": "boolean"
+        },
+        "holz": {
+          "type": "boolean"
+        },
+        "lcd": {
+          "type": "object",
+          "properties": {
+            "grund": {
+              "type": "string",
+              "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+            },
+            "leuchten": {
+              "type": "string",
+              "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

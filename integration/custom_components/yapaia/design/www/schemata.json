@@ -1,0 +1,455 @@
+{
+ "version": 1,
+ "schemata": [
+  {
+   "id": "beat-modern",
+   "name": "Beat Modern",
+   "beschreibung": "Yapaia Beat: Nachtblau, Orange und Gelb, Systemschrift.",
+   "hell": false,
+   "farben": {
+    "grund": "#0f1226",
+    "flaeche": "#1d2244",
+    "flaeche2": "#171b36",
+    "rand": "#2c3263",
+    "text": "#eef0ff",
+    "text_gedaempft": "#9aa0c8",
+    "akzent": "#ff6b35",
+    "akzent_text": "#0f1226",
+    "akzent2": "#f7c548",
+    "ok": "#2ec4b6",
+    "warnung": "#f7c548",
+    "fehler": "#ff4d3d",
+    "info": "#7b8cff"
+   },
+   "schrift": {
+    "anzeige": {
+     "familie": "system-ui",
+     "gewicht": 700
+    },
+    "text": {
+     "familie": "system-ui",
+     "gewicht": 400
+    },
+    "zahlen": {
+     "familie": "system-ui",
+     "gewicht": 600
+    },
+    "ersatz": "-apple-system, \"Segoe UI\", Roboto, sans-serif"
+   },
+   "form": {
+    "radius": 18,
+    "radius_klein": 10,
+    "rand_breite": 1,
+    "schatten": "none"
+   },
+   "deko": {
+    "lcd": {
+     "grund": "#0c1030",
+     "text": "#eef0ff"
+    }
+   },
+   "css": {
+    "--y-grund": "#0f1226",
+    "--y-flaeche": "#1d2244",
+    "--y-flaeche2": "#171b36",
+    "--y-rand": "#2c3263",
+    "--y-text": "#eef0ff",
+    "--y-text-gedaempft": "#9aa0c8",
+    "--y-akzent": "#ff6b35",
+    "--y-akzent-text": "#0f1226",
+    "--y-akzent2": "#f7c548",
+    "--y-ok": "#2ec4b6",
+    "--y-warnung": "#f7c548",
+    "--y-fehler": "#ff4d3d",
+    "--y-info": "#7b8cff",
+    "--y-schrift-anzeige": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--y-gewicht-anzeige": "700",
+    "--y-schrift-text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--y-gewicht-text": "400",
+    "--y-schrift-zahlen": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--y-gewicht-zahlen": "600",
+    "--y-radius": "18px",
+    "--y-radius-klein": "10px",
+    "--y-rand-breite": "1px",
+    "--y-schatten": "none",
+    "--y-lcd-grund": "#0c1030",
+    "--y-lcd-text": "#eef0ff"
+   }
+  },
+  {
+   "id": "beat-retro",
+   "name": "Beat Retro",
+   "beschreibung": "Yapaia Beat Retro: Holzgehäuse, grünes LCD, Orange.",
+   "hell": false,
+   "farben": {
+    "grund": "#2a1608",
+    "flaeche": "#4a2814",
+    "flaeche2": "#3a1f10",
+    "rand": "#6b3d20",
+    "text": "#f3d9b5",
+    "text_gedaempft": "#c9a77f",
+    "akzent": "#ff8a3d",
+    "akzent_text": "#2a1608",
+    "akzent2": "#c6ff8a",
+    "ok": "#9dff5a",
+    "warnung": "#ffb347",
+    "fehler": "#ff4d3d",
+    "info": "#c6ff8a"
+   },
+   "schrift": {
+    "anzeige": {
+     "familie": "system-ui",
+     "gewicht": 700
+    },
+    "text": {
+     "familie": "system-ui",
+     "gewicht": 400
+    },
+    "zahlen": {
+     "familie": "ui-monospace",
+     "gewicht": 600
+    },
+    "ersatz": "-apple-system, \"Segoe UI\", Roboto, sans-serif"
+   },
+   "form": {
+    "radius": 18,
+    "radius_klein": 10,
+    "rand_breite": 0,
+    "schatten": "inset 0 2px 0 #ffffff22, 0 4px 14px #0005"
+   },
+   "deko": {
+    "holz": true,
+    "lcd": {
+     "grund": "#1b2a12",
+     "text": "#c6ff8a",
+     "leuchten": "#9dff5a66"
+    }
+   },
+   "css": {
+    "--y-grund": "#2a1608",
+    "--y-flaeche": "#4a2814",
+    "--y-flaeche2": "#3a1f10",
+    "--y-rand": "#6b3d20",
+    "--y-text": "#f3d9b5",
+    "--y-text-gedaempft": "#c9a77f",
+    "--y-akzent": "#ff8a3d",
+    "--y-akzent-text": "#2a1608",
+    "--y-akzent2": "#c6ff8a",
+    "--y-ok": "#9dff5a",
+    "--y-warnung": "#ffb347",
+    "--y-fehler": "#ff4d3d",
+    "--y-info": "#c6ff8a",
+    "--y-schrift-anzeige": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--y-gewicht-anzeige": "700",
+    "--y-schrift-text": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--y-gewicht-text": "400",
+    "--y-schrift-zahlen": "ui-monospace, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "--y-gewicht-zahlen": "600",
+    "--y-radius": "18px",
+    "--y-radius-klein": "10px",
+    "--y-rand-breite": "0px",
+    "--y-schatten": "inset 0 2px 0 #ffffff22, 0 4px 14px #0005",
+    "--y-lcd-grund": "#1b2a12",
+    "--y-lcd-text": "#c6ff8a",
+    "--y-lcd-leuchten": "#9dff5a66"
+   }
+  },
+  {
+   "id": "magazin",
+   "name": "Magazin",
+   "beschreibung": "Outdoor-Magazin: Waldgrün, Höhenlinien, große Serifenschrift, ruhige Linien.",
+   "hell": true,
+   "farben": {
+    "grund": "#F7F5EF",
+    "flaeche": "#F7F5EF",
+    "flaeche2": "#EAE5D8",
+    "rand": "#CFC8B8",
+    "text": "#1C2620",
+    "text_gedaempft": "#56645A",
+    "akzent": "#1F3A2E",
+    "akzent_text": "#EEF2EA",
+    "akzent2": "#D9893A",
+    "ok": "#2F7A4F",
+    "warnung": "#B8692A",
+    "fehler": "#B4532A",
+    "info": "#3F6E8C"
+   },
+   "schrift": {
+    "anzeige": {
+     "familie": "Instrument Serif",
+     "gewicht": 400
+    },
+    "text": {
+     "familie": "Inter",
+     "gewicht": 400
+    },
+    "zahlen": {
+     "familie": "Instrument Serif",
+     "gewicht": 400
+    },
+    "ersatz": "Georgia, serif"
+   },
+   "form": {
+    "radius": 18,
+    "radius_klein": 24,
+    "rand_breite": 1,
+    "schatten": "none"
+   },
+   "deko": {
+    "hoehenlinien": true,
+    "seite": "#1F3A2E"
+   },
+   "css": {
+    "--y-grund": "#F7F5EF",
+    "--y-flaeche": "#F7F5EF",
+    "--y-flaeche2": "#EAE5D8",
+    "--y-rand": "#CFC8B8",
+    "--y-text": "#1C2620",
+    "--y-text-gedaempft": "#56645A",
+    "--y-akzent": "#1F3A2E",
+    "--y-akzent-text": "#EEF2EA",
+    "--y-akzent2": "#D9893A",
+    "--y-ok": "#2F7A4F",
+    "--y-warnung": "#B8692A",
+    "--y-fehler": "#B4532A",
+    "--y-info": "#3F6E8C",
+    "--y-schrift-anzeige": "\"Instrument Serif\", Georgia, serif",
+    "--y-gewicht-anzeige": "400",
+    "--y-schrift-text": "\"Inter\", Georgia, serif",
+    "--y-gewicht-text": "400",
+    "--y-schrift-zahlen": "\"Instrument Serif\", Georgia, serif",
+    "--y-gewicht-zahlen": "400",
+    "--y-radius": "18px",
+    "--y-radius-klein": "24px",
+    "--y-rand-breite": "1px",
+    "--y-schatten": "none",
+    "--y-seite": "#1F3A2E"
+   }
+  },
+  {
+   "id": "mix",
+   "name": "Mix",
+   "beschreibung": "Retro-Farben im ruhigen Magazin-Aufbau: Braun, Rost, Senf, Fraunces.",
+   "hell": true,
+   "farben": {
+    "grund": "#F4ECDC",
+    "flaeche": "#FBF6EC",
+    "flaeche2": "#E9DCC4",
+    "rand": "#3B2A20",
+    "text": "#3B2A20",
+    "text_gedaempft": "#8A5A3B",
+    "akzent": "#C8551F",
+    "akzent_text": "#FBF6EC",
+    "akzent2": "#E3A72F",
+    "ok": "#2F7A4F",
+    "warnung": "#E3A72F",
+    "fehler": "#B23A2B",
+    "info": "#5E8C8A"
+   },
+   "schrift": {
+    "anzeige": {
+     "familie": "Fraunces",
+     "gewicht": 900
+    },
+    "text": {
+     "familie": "Inter",
+     "gewicht": 400
+    },
+    "zahlen": {
+     "familie": "Fraunces",
+     "gewicht": 900
+    },
+    "ersatz": "Georgia, serif"
+   },
+   "form": {
+    "radius": 28,
+    "radius_klein": 16,
+    "rand_breite": 2,
+    "schatten": "none"
+   },
+   "deko": {
+    "hoehenlinien": true,
+    "seite": "#3B2A20",
+    "streifen": [
+     "#C8551F",
+     "#E3A72F",
+     "#F4ECDC"
+    ]
+   },
+   "css": {
+    "--y-grund": "#F4ECDC",
+    "--y-flaeche": "#FBF6EC",
+    "--y-flaeche2": "#E9DCC4",
+    "--y-rand": "#3B2A20",
+    "--y-text": "#3B2A20",
+    "--y-text-gedaempft": "#8A5A3B",
+    "--y-akzent": "#C8551F",
+    "--y-akzent-text": "#FBF6EC",
+    "--y-akzent2": "#E3A72F",
+    "--y-ok": "#2F7A4F",
+    "--y-warnung": "#E3A72F",
+    "--y-fehler": "#B23A2B",
+    "--y-info": "#5E8C8A",
+    "--y-schrift-anzeige": "\"Fraunces\", Georgia, serif",
+    "--y-gewicht-anzeige": "900",
+    "--y-schrift-text": "\"Inter\", Georgia, serif",
+    "--y-gewicht-text": "400",
+    "--y-schrift-zahlen": "\"Fraunces\", Georgia, serif",
+    "--y-gewicht-zahlen": "900",
+    "--y-radius": "28px",
+    "--y-radius-klein": "16px",
+    "--y-rand-breite": "2px",
+    "--y-schatten": "none",
+    "--y-streifen-1": "#C8551F",
+    "--y-streifen-2": "#E3A72F",
+    "--y-streifen-3": "#F4ECDC",
+    "--y-seite": "#3B2A20"
+   }
+  },
+  {
+   "id": "retro",
+   "name": "Retro",
+   "beschreibung": "Retro-Camper: Sahne, Rost, Senf, schräge Streifen, weiche Serifenschrift.",
+   "hell": true,
+   "farben": {
+    "grund": "#F4ECDC",
+    "flaeche": "#FBF6EC",
+    "flaeche2": "#EFE3CC",
+    "rand": "#3B2A20",
+    "text": "#3B2A20",
+    "text_gedaempft": "#8A5A3B",
+    "akzent": "#C8551F",
+    "akzent_text": "#FBF6EC",
+    "akzent2": "#E3A72F",
+    "ok": "#2F7A4F",
+    "warnung": "#E3A72F",
+    "fehler": "#B23A2B",
+    "info": "#5E8C8A"
+   },
+   "schrift": {
+    "anzeige": {
+     "familie": "Fraunces",
+     "gewicht": 900
+    },
+    "text": {
+     "familie": "DM Sans",
+     "gewicht": 400
+    },
+    "zahlen": {
+     "familie": "Fraunces",
+     "gewicht": 900
+    },
+    "ersatz": "Georgia, serif"
+   },
+   "form": {
+    "radius": 32,
+    "radius_klein": 16,
+    "rand_breite": 2,
+    "schatten": "none"
+   },
+   "deko": {
+    "streifen": [
+     "#3B2A20",
+     "#C8551F",
+     "#E3A72F"
+    ]
+   },
+   "css": {
+    "--y-grund": "#F4ECDC",
+    "--y-flaeche": "#FBF6EC",
+    "--y-flaeche2": "#EFE3CC",
+    "--y-rand": "#3B2A20",
+    "--y-text": "#3B2A20",
+    "--y-text-gedaempft": "#8A5A3B",
+    "--y-akzent": "#C8551F",
+    "--y-akzent-text": "#FBF6EC",
+    "--y-akzent2": "#E3A72F",
+    "--y-ok": "#2F7A4F",
+    "--y-warnung": "#E3A72F",
+    "--y-fehler": "#B23A2B",
+    "--y-info": "#5E8C8A",
+    "--y-schrift-anzeige": "\"Fraunces\", Georgia, serif",
+    "--y-gewicht-anzeige": "900",
+    "--y-schrift-text": "\"DM Sans\", Georgia, serif",
+    "--y-gewicht-text": "400",
+    "--y-schrift-zahlen": "\"Fraunces\", Georgia, serif",
+    "--y-gewicht-zahlen": "900",
+    "--y-radius": "32px",
+    "--y-radius-klein": "16px",
+    "--y-rand-breite": "2px",
+    "--y-schatten": "none",
+    "--y-streifen-1": "#3B2A20",
+    "--y-streifen-2": "#C8551F",
+    "--y-streifen-3": "#E3A72F"
+   }
+  },
+  {
+   "id": "sport",
+   "name": "Sport",
+   "beschreibung": "Cockpit Sport: dunkles Infotainment, Kupfer als Akzent, Systemschrift.",
+   "hell": false,
+   "farben": {
+    "grund": "#0a0d14",
+    "flaeche": "#14161b",
+    "flaeche2": "#1b202b",
+    "rand": "#343b4b",
+    "text": "#f2f3f5",
+    "text_gedaempft": "#a9adb8",
+    "akzent": "#c9895b",
+    "akzent_text": "#0a0d14",
+    "akzent2": "#ffd166",
+    "ok": "#3ecf8e",
+    "warnung": "#ffd166",
+    "fehler": "#ff6b5e",
+    "info": "#7c3aed"
+   },
+   "schrift": {
+    "anzeige": {
+     "familie": "Segoe UI",
+     "gewicht": 600
+    },
+    "text": {
+     "familie": "Segoe UI",
+     "gewicht": 400
+    },
+    "zahlen": {
+     "familie": "Segoe UI",
+     "gewicht": 300
+    },
+    "ersatz": "Roboto, \"Helvetica Neue\", Arial, sans-serif"
+   },
+   "form": {
+    "radius": 10,
+    "radius_klein": 6,
+    "rand_breite": 0,
+    "schatten": "0 4px 14px rgba(0,0,0,.45)"
+   },
+   "deko": {},
+   "css": {
+    "--y-grund": "#0a0d14",
+    "--y-flaeche": "#14161b",
+    "--y-flaeche2": "#1b202b",
+    "--y-rand": "#343b4b",
+    "--y-text": "#f2f3f5",
+    "--y-text-gedaempft": "#a9adb8",
+    "--y-akzent": "#c9895b",
+    "--y-akzent-text": "#0a0d14",
+    "--y-akzent2": "#ffd166",
+    "--y-ok": "#3ecf8e",
+    "--y-warnung": "#ffd166",
+    "--y-fehler": "#ff6b5e",
+    "--y-info": "#7c3aed",
+    "--y-schrift-anzeige": "\"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
+    "--y-gewicht-anzeige": "600",
+    "--y-schrift-text": "\"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
+    "--y-gewicht-text": "400",
+    "--y-schrift-zahlen": "\"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
+    "--y-gewicht-zahlen": "300",
+    "--y-radius": "10px",
+    "--y-radius-klein": "6px",
+    "--y-rand-breite": "0px",
+    "--y-schatten": "0 4px 14px rgba(0,0,0,.45)"
+   }
+  }
+ ]
+}

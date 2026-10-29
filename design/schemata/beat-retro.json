@@ -1,0 +1,51 @@
+{
+  "$schema": "../schema.json",
+  "id": "beat-retro",
+  "name": "Beat Retro",
+  "beschreibung": "Yapaia Beat Retro: Holzgehäuse, grünes LCD, Orange.",
+  "hell": false,
+  "farben": {
+    "grund": "#2a1608",
+    "flaeche": "#4a2814",
+    "flaeche2": "#3a1f10",
+    "rand": "#6b3d20",
+    "text": "#f3d9b5",
+    "text_gedaempft": "#c9a77f",
+    "akzent": "#ff8a3d",
+    "akzent_text": "#2a1608",
+    "akzent2": "#c6ff8a",
+    "ok": "#9dff5a",
+    "warnung": "#ffb347",
+    "fehler": "#ff4d3d",
+    "info": "#c6ff8a"
+  },
+  "schrift": {
+    "anzeige": {
+      "familie": "system-ui",
+      "gewicht": 700
+    },
+    "text": {
+      "familie": "system-ui",
+      "gewicht": 400
+    },
+    "zahlen": {
+      "familie": "ui-monospace",
+      "gewicht": 600
+    },
+    "ersatz": "-apple-system, \"Segoe UI\", Roboto, sans-serif"
+  },
+  "form": {
+    "radius": 18,
+    "radius_klein": 10,
+    "rand_breite": 0,
+    "schatten": "inset 0 2px 0 #ffffff22, 0 4px 14px #0005"
+  },
+  "deko": {
+    "holz": true,
+    "lcd": {
+      "grund": "#1b2a12",
+      "text": "#c6ff8a",
+      "leuchten": "#9dff5a66"
+    }
+  }
+}

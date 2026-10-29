@@ -1,0 +1,44 @@
+{
+  "$schema": "../schema.json",
+  "id": "sport",
+  "name": "Sport",
+  "beschreibung": "Cockpit Sport: dunkles Infotainment, Kupfer als Akzent, Systemschrift.",
+  "hell": false,
+  "farben": {
+    "grund": "#0a0d14",
+    "flaeche": "#14161b",
+    "flaeche2": "#1b202b",
+    "rand": "#343b4b",
+    "text": "#f2f3f5",
+    "text_gedaempft": "#a9adb8",
+    "akzent": "#c9895b",
+    "akzent_text": "#0a0d14",
+    "akzent2": "#ffd166",
+    "ok": "#3ecf8e",
+    "warnung": "#ffd166",
+    "fehler": "#ff6b5e",
+    "info": "#7c3aed"
+  },
+  "schrift": {
+    "anzeige": {
+      "familie": "Segoe UI",
+      "gewicht": 600
+    },
+    "text": {
+      "familie": "Segoe UI",
+      "gewicht": 400
+    },
+    "zahlen": {
+      "familie": "Segoe UI",
+      "gewicht": 300
+    },
+    "ersatz": "Roboto, \"Helvetica Neue\", Arial, sans-serif"
+  },
+  "form": {
+    "radius": 10,
+    "radius_klein": 6,
+    "rand_breite": 0,
+    "schatten": "0 4px 14px rgba(0,0,0,.45)"
+  },
+  "deko": {}
+}

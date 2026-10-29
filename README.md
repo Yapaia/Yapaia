@@ -67,6 +67,10 @@ Device Builder aufgespielt – Anleitung in [`satellite/`](satellite/).
    Schalter, Aktionen und Auslöser bereit – alles an einer Stelle
    ([Protokoll](docs/integration-protokoll.md),
    [Fähigkeiten](docs/faehigkeiten.md)).
+4. **Ein gemeinsames Aussehen:** Design-Schemata (Sport, Retro, Magazin,
+   Mix, Beat Modern, Beat Retro) gelten für alle Oberflächen – eines für
+   alles oder je Modul ein eigenes; Home Assistant selbst nur auf Wunsch
+   ([Design-Schemata](docs/design-schemata.md)).
 
 ## Entwicklung
 

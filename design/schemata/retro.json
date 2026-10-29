@@ -1,0 +1,50 @@
+{
+  "$schema": "../schema.json",
+  "id": "retro",
+  "name": "Retro",
+  "beschreibung": "Retro-Camper: Sahne, Rost, Senf, schräge Streifen, weiche Serifenschrift.",
+  "hell": true,
+  "farben": {
+    "grund": "#F4ECDC",
+    "flaeche": "#FBF6EC",
+    "flaeche2": "#EFE3CC",
+    "rand": "#3B2A20",
+    "text": "#3B2A20",
+    "text_gedaempft": "#8A5A3B",
+    "akzent": "#C8551F",
+    "akzent_text": "#FBF6EC",
+    "akzent2": "#E3A72F",
+    "ok": "#2F7A4F",
+    "warnung": "#E3A72F",
+    "fehler": "#B23A2B",
+    "info": "#5E8C8A"
+  },
+  "schrift": {
+    "anzeige": {
+      "familie": "Fraunces",
+      "gewicht": 900
+    },
+    "text": {
+      "familie": "DM Sans",
+      "gewicht": 400
+    },
+    "zahlen": {
+      "familie": "Fraunces",
+      "gewicht": 900
+    },
+    "ersatz": "Georgia, serif"
+  },
+  "form": {
+    "radius": 32,
+    "radius_klein": 16,
+    "rand_breite": 2,
+    "schatten": "none"
+  },
+  "deko": {
+    "streifen": [
+      "#3B2A20",
+      "#C8551F",
+      "#E3A72F"
+    ]
+  }
+}

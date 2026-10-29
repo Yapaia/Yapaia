@@ -79,6 +79,7 @@ jobs:
             integration:
               - *shared
               - 'integration/**'
+              - 'design/**'
               - '.github/workflows/integration.yml'
 
   go:
