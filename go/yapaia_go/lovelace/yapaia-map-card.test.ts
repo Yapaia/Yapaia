@@ -38,6 +38,7 @@ function hassBauen(antworten: Record<string, unknown>, panels: unknown = {}) {
     rufe,
     hass: {
       panels,
+      locale: { language: 'de' },
       callWS: vi.fn(async (nachricht: { endpoint: string; method: string; data?: unknown }) => {
         rufe.push({
           endpoint: nachricht.endpoint,
@@ -232,11 +233,12 @@ describe('Fehlertexte', () => {
   });
 
   it('erklären die 401 statt sie nur zu nennen', () => {
-    expect(beschreibeFehler({ status_code: 401 })).toContain('abgelehnt');
+    expect(beschreibeFehler({ status_code: 401 }, { locale: { language: 'de' } })).toContain('abgelehnt');
   });
 
   it('kommen auch mit nichts klar', () => {
-    expect(beschreibeFehler(null)).toBe('Unbekannter Fehler.');
+    expect(beschreibeFehler(null, { locale: { language: 'de' } })).toBe('Unbekannter Fehler.');
+    expect(beschreibeFehler(null)).toBe('Unknown error.');
   });
 });
 

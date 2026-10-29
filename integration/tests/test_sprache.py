@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,12 @@ def test_addon_uebersetzungen_vollstaendig(addon: str) -> None:
     de = _schluessel(yaml.safe_load((ordner / "de.yaml").read_text()))
     en = _schluessel(yaml.safe_load((ordner / "en.yaml").read_text()))
     assert set(de) == set(en), set(de) ^ set(en)
+
+
+def test_karten_uebersetzungen_vollstaendig() -> None:
+    """Jede Karte: TEXTE.de und TEXTE.en mit denselben Schlüsseln und Platzhaltern."""
+    r = subprocess.run(["node", str(REPO / "dashboards/sprachen-pruefen.mjs")], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
 
 
 async def test_sprache_aus_ha(hass: HomeAssistant) -> None:

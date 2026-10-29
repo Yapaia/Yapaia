@@ -49,6 +49,257 @@ const E = {
 };
 const LEER = new Set(['unknown', 'unavailable', 'none', '', undefined, null]);
 
+// Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    cockpit: 'Cockpit',
+    uebersicht: 'Übersicht',
+    einstellungen: 'Einstellungen',
+    dashboard_anpassen: 'Dashboard anpassen',
+    kopfzeile_ausblenden: 'Kopfzeile von Home Assistant ausblenden',
+    kopfzeile_zeigen: 'Kopfzeile von Home Assistant zeigen',
+    tuer_umschalten: 'Aufbautür auf- / abschließen',
+    mikro_umschalten: 'Mikrofon des Satelliten stumm / an',
+    netz_details: 'Internet: Details',
+    ruhe: 'Ruhe',
+    navigation: 'Navigation',
+    zuruecksetzen: 'Zurücksetzen',
+    fertig: 'Fertig',
+    zurueck: 'Zurück',
+    wiedergabe: 'Wiedergabe',
+    weiter: 'Weiter',
+    stumm: 'Stumm',
+    ton_an: 'Ton an',
+    favoriten: 'Favoriten',
+    kompass_titel: 'Karte: Norden oben / in Fahrtrichtung',
+    ziel_suchen: 'Ziel suchen',
+    such_platzhalter: 'Ziel: Ort, Straße, Stellplatz …',
+    schliessen: 'Schließen',
+    licht: 'Licht',
+    sonderziele_titel: 'Sonderziele in der Nähe',
+    route: 'Route',
+    voriger: 'Voriger',
+    naechster: 'Nächster',
+    zur_liste: 'Zurück zur Liste',
+    navigation_beenden: 'Navigation beenden',
+    spracheingabe: 'Spracheingabe',
+    licht_hinweis: 'Licht Dinette – lange drücken: alle Lichter',
+    sonderziele_hinweis: 'Sonderziele in der Nähe: Tankstelle, Stellplatz, Parkplatz …',
+    leiser: 'Leiser',
+    lauter: 'Lauter',
+    automatisch: 'Automatisch',
+    name: 'Name',
+    ed_design: 'Design-Schema (auto = Design von Yapaia Go)',
+    ed_tuer: 'Tür (Symbol oben)',
+    ed_licht: 'Licht (Lampe unten, Tippen)',
+    ed_lichter: 'Lichter im Menü (Lampe lange drücken), in dieser Reihenfolge',
+    ed_hoehe: 'Höhe (leer: ganze Seite)',
+    ed_demo: 'Beispielwerte einer Navigation zeigen',
+    fadenkreuz_position: 'Fadenkreuz = Position',
+    position_ab: 'Position: ab Go 0.49.0',
+    anpassen_hilfe: 'Rahmen ziehen verschiebt, der Punkt unten rechts ändert die Größe.',
+    fadenkreuz_hilfe: 'Das Fadenkreuz in der Karte setzt die eigene Position.',
+    position_ab_hilfe: 'Die Position in der Karte lässt sich ab Yapaia Go 0.49.0 verschieben.',
+    obj_oben: 'Leiste oben',
+    obj_radio: 'Radio',
+    obj_anweisung: 'Anweisung',
+    obj_kompass: 'Kompass',
+    obj_schild: 'Tempolimit',
+    obj_lupe: 'Suche',
+    obj_ankunft: 'Ankunft',
+    obj_leiste: 'Leiste unten',
+    kompass_norden: 'Norden oben',
+    kompass_kurs: 'In Fahrtrichtung',
+    kompass_3d: 'In Fahrtrichtung, 3D',
+    kompass_zentrieren: 'Auf meine Position zentrieren',
+    such_hinweis: 'Tippen und einen Vorschlag wählen – oder Enter für das erste passende Ziel.',
+    zuletzt: 'Zuletzt',
+    karte_nicht_geladen: 'Die Karte von Yapaia Go ist noch nicht geladen.',
+    nichts_gefunden: 'Zu „{q}“ hat Yapaia Go nichts gefunden.',
+    suche_antwortet_nicht: 'Die Suche von Yapaia Go antwortet nicht.',
+    route_berechnen: 'Route nach {name} wird berechnet …',
+    route_fehler: 'Yapaia Go konnte die Route nicht berechnen.',
+    navi_gestartet: 'Navigation nach {name} gestartet.',
+    wlan: 'WLAN',
+    mobilfunk: 'Mobilfunk',
+    kabel: 'Kabel',
+    tethering: 'Tethering',
+    kein_internet: 'Kein Internet',
+    details_von: '{titel} – Details',
+    netz: 'Netz',
+    signal: 'Signal',
+    kanal: 'Kanal',
+    verbunden_seit: 'Verbunden seit',
+    anbieter: 'Anbieter',
+    aktive_sim: 'Aktive SIM',
+    land: 'Land',
+    roaming: 'Roaming',
+    umschaltung: 'Umschaltung: {stand}',
+    zwischenziel_plus: '+ Zwischenziel',
+    hinfahren: 'Hinfahren',
+    yapaia_antwortet_nicht: 'Yapaia Go antwortet nicht.',
+    kategorie_waehlen: 'Kategorie wählen.',
+    suche_kategorie: 'Suche {name} …',
+    keine_auf_route: 'Keine {name} voraus auf der Route gefunden.',
+    keine_in_naehe: 'Keine {name} in der Nähe gefunden.',
+    voraus_antippen: 'Voraus auf der Route · antippen zeigt den Ort auf der Karte.',
+    umkreis_antippen: 'Im Umkreis · antippen zeigt den Ort auf der Karte.',
+    suche_fehlgeschlagen: 'Die Suche hat nicht geklappt.',
+    in_km: 'in {km}',
+    in_km_abseits: 'in {km} · {abseits} abseits',
+    nochmal_zwischenziel: 'Nochmal antippen: als Zwischenziel einfügen.',
+    nochmal_hinfahren: 'Nochmal antippen: hinfahren.',
+    wird_eingefuegt: '{name} wird eingefügt …',
+    ziel_name: 'Ziel: {name}',
+    zwischenziel_name: 'Zwischenziel: {name}',
+    einfuegen_fehler: 'Einfügen hat nicht geklappt (Yapaia Go ab 0.50.0 nötig).',
+    frische_frisch: 'Preis aktuell',
+    frische_aelter: 'Preis älter als 15 Minuten',
+    frische_alt: 'Preis älter als eine Stunde',
+    frische_zu: 'Tankstelle geschlossen',
+    preis_titel: '{frische} (Tankerkönig)',
+    radio_aus: 'Radio aus',
+    keine_navigation: 'Keine Navigation',
+    hoehe_einheit: 'm ü. NN',
+    seite: 'Seite {nr}',
+    tuer_zu: 'Aufbautür ist zu – tippen zum Aufschließen',
+    tuer_offen: 'Aufbautür ist offen – tippen zum Abschließen',
+    ziel: 'Ziel',
+    zwischenziel_nr: 'Zwischenziel {nr}',
+    keine_navigation_aktiv: 'Keine Navigation aktiv.',
+    halte_ab: 'Zwischenziele zeigt Yapaia Go ab Version 0.52.0.',
+    pausiert: 'pausiert',
+    beschreibung: 'Karte von Yapaia Go bildschirmfüllend mit Radio, Favoriten, Anweisung und Ankunft im Stil eines Auto-Infotainments.',
+  },
+  en: {
+    cockpit: 'Cockpit',
+    uebersicht: 'Overview',
+    einstellungen: 'Settings',
+    dashboard_anpassen: 'Customise dashboard',
+    kopfzeile_ausblenden: 'Hide Home Assistant header',
+    kopfzeile_zeigen: 'Show Home Assistant header',
+    tuer_umschalten: 'Lock / unlock habitation door',
+    mikro_umschalten: 'Mute / unmute satellite microphone',
+    netz_details: 'Internet: details',
+    ruhe: 'Idle',
+    navigation: 'Navigation',
+    zuruecksetzen: 'Reset',
+    fertig: 'Done',
+    zurueck: 'Previous',
+    wiedergabe: 'Play',
+    weiter: 'Next',
+    stumm: 'Mute',
+    ton_an: 'Unmute',
+    favoriten: 'Favourites',
+    kompass_titel: 'Map: north up / heading up',
+    ziel_suchen: 'Search destination',
+    such_platzhalter: 'Destination: place, street, pitch …',
+    schliessen: 'Close',
+    licht: 'Lights',
+    sonderziele_titel: 'Points of interest nearby',
+    route: 'Route',
+    voriger: 'Previous',
+    naechster: 'Next',
+    zur_liste: 'Back to list',
+    navigation_beenden: 'End navigation',
+    spracheingabe: 'Voice input',
+    licht_hinweis: 'Dinette light – long press: all lights',
+    sonderziele_hinweis: 'Points of interest nearby: fuel, pitch, parking …',
+    leiser: 'Volume down',
+    lauter: 'Volume up',
+    automatisch: 'Automatic',
+    name: 'Name',
+    ed_design: 'Design scheme (auto = Yapaia Go design)',
+    ed_tuer: 'Door (icon at top)',
+    ed_licht: 'Light (lamp at bottom, tap)',
+    ed_lichter: 'Lights in the menu (long-press the lamp), in this order',
+    ed_hoehe: 'Height (empty: full page)',
+    ed_demo: 'Show sample values of a navigation',
+    fadenkreuz_position: 'Crosshair = position',
+    position_ab: 'Position: from Go 0.49.0',
+    anpassen_hilfe: 'Dragging the frame moves it, the dot at the bottom right resizes it.',
+    fadenkreuz_hilfe: 'The crosshair in the map sets your own position.',
+    position_ab_hilfe: 'The position in the map can be moved from Yapaia Go 0.49.0.',
+    obj_oben: 'Top bar',
+    obj_radio: 'Radio',
+    obj_anweisung: 'Instruction',
+    obj_kompass: 'Compass',
+    obj_schild: 'Speed limit',
+    obj_lupe: 'Search',
+    obj_ankunft: 'Arrival',
+    obj_leiste: 'Bottom bar',
+    kompass_norden: 'North up',
+    kompass_kurs: 'Heading up',
+    kompass_3d: 'Heading up, 3D',
+    kompass_zentrieren: 'Centre on my position',
+    such_hinweis: 'Type and pick a suggestion – or press Enter for the first match.',
+    zuletzt: 'Recent',
+    karte_nicht_geladen: 'The Yapaia Go map has not loaded yet.',
+    nichts_gefunden: 'Yapaia Go found nothing for “{q}”.',
+    suche_antwortet_nicht: 'The Yapaia Go search is not responding.',
+    route_berechnen: 'Calculating route to {name} …',
+    route_fehler: 'Yapaia Go could not calculate the route.',
+    navi_gestartet: 'Navigation to {name} started.',
+    wlan: 'Wi-Fi',
+    mobilfunk: 'Mobile',
+    kabel: 'Cable',
+    tethering: 'Tethering',
+    kein_internet: 'No internet',
+    details_von: '{titel} – details',
+    netz: 'Network',
+    signal: 'Signal',
+    kanal: 'Channel',
+    verbunden_seit: 'Connected since',
+    anbieter: 'Provider',
+    aktive_sim: 'Active SIM',
+    land: 'Country',
+    roaming: 'Roaming',
+    umschaltung: 'Switching: {stand}',
+    zwischenziel_plus: '+ Waypoint',
+    hinfahren: 'Go there',
+    yapaia_antwortet_nicht: 'Yapaia Go is not responding.',
+    kategorie_waehlen: 'Choose a category.',
+    suche_kategorie: 'Searching {name} …',
+    keine_auf_route: 'No {name} found ahead on the route.',
+    keine_in_naehe: 'No {name} found nearby.',
+    voraus_antippen: 'Ahead on the route · tap to show the place on the map.',
+    umkreis_antippen: 'Nearby · tap to show the place on the map.',
+    suche_fehlgeschlagen: 'The search failed.',
+    in_km: 'in {km}',
+    in_km_abseits: 'in {km} · {abseits} off route',
+    nochmal_zwischenziel: 'Tap again: insert as waypoint.',
+    nochmal_hinfahren: 'Tap again: go there.',
+    wird_eingefuegt: 'Inserting {name} …',
+    ziel_name: 'Destination: {name}',
+    zwischenziel_name: 'Waypoint: {name}',
+    einfuegen_fehler: 'Inserting failed (requires Yapaia Go 0.50.0 or later).',
+    frische_frisch: 'Price up to date',
+    frische_aelter: 'Price older than 15 minutes',
+    frische_alt: 'Price older than one hour',
+    frische_zu: 'Station closed',
+    preis_titel: '{frische} (Tankerkönig)',
+    radio_aus: 'Radio off',
+    keine_navigation: 'No navigation',
+    hoehe_einheit: 'm a.s.l.',
+    seite: 'Page {nr}',
+    tuer_zu: 'Habitation door is locked – tap to unlock',
+    tuer_offen: 'Habitation door is unlocked – tap to lock',
+    ziel: 'Destination',
+    zwischenziel_nr: 'Waypoint {nr}',
+    keine_navigation_aktiv: 'No navigation active.',
+    halte_ab: 'Yapaia Go shows waypoints from version 0.52.0.',
+    pausiert: 'paused',
+    beschreibung: 'Yapaia Go map filling the screen with radio, favourites, instruction and arrival in the style of a car infotainment system.',
+  },
+};
+const spracheVon = (hass) =>
+  String(hass?.locale?.language ?? hass?.language ?? document.querySelector('home-assistant')?.hass?.locale?.language ?? 'en')
+    .toLowerCase().startsWith('de') ? 'de' : 'en';
+const t = (hass, schluessel, werte = {}) =>
+  String(TEXTE[spracheVon(hass)]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? '');
+// Zahlen, Datum, Uhrzeit im Format der HA-Sprache
+const gebiet = (hass) => hass?.locale?.language ?? hass?.language ?? 'de-DE';
+
 // ─── ANORDNUNG ───────────────────────────────────────────────────────────────
 // Jedes Objekt lässt sich verschieben und vergrößern, getrennt für Ruhe und
 // Navigation -- unabhängig von Yapaia Go selbst. Gespeichert je Gerät (wie in
@@ -58,15 +309,15 @@ const LEER = new Set(['unknown', 'unavailable', 'none', '', undefined, null]);
 // oder zuklappt.
 const ANORDNUNG = 'yapaia.cockpitSport.anordnung';
 const OBJEKTE = [
-  ['oben', '.oben', 'Leiste oben'],
-  ['radio', '.medien', 'Radio'],
-  ['favoriten', '.gruen', 'Favoriten'],
-  ['anweisung', '.nav', 'Anweisung'],
-  ['kompass', '.kompass', 'Kompass'],
-  ['schild', '.schild', 'Tempolimit'],
-  ['lupe', '.lupe', 'Suche'],
-  ['ankunft', '.eta', 'Ankunft'],
-  ['leiste', '.leiste', 'Leiste unten'],
+  ['oben', '.oben', 'obj_oben'],
+  ['radio', '.medien', 'obj_radio'],
+  ['favoriten', '.gruen', 'favoriten'],
+  ['anweisung', '.nav', 'obj_anweisung'],
+  ['kompass', '.kompass', 'obj_kompass'],
+  ['schild', '.schild', 'obj_schild'],
+  ['lupe', '.lupe', 'obj_lupe'],
+  ['ankunft', '.eta', 'obj_ankunft'],
+  ['leiste', '.leiste', 'obj_leiste'],
 ];
 // ─── KOPFZEILE ───────────────────────────────────────────────────────────────
 // Die Kopfzeile von Home Assistant („Cockpit Sport“) lässt sich über den Knopf
@@ -199,8 +450,7 @@ function preisFrische(abgerufen, offen) {
   return alter > 900000 ? 'aelter' : 'frisch';
 }
 
-const FRISCHE_TEXT = { frisch: 'Preis aktuell', aelter: 'Preis älter als 15 Minuten', alt: 'Preis älter als eine Stunde',
-  zu: 'Tankstelle geschlossen' };
+const FRISCHE_TEXT = { frisch: 'frische_frisch', aelter: 'frische_aelter', alt: 'frische_alt', zu: 'frische_zu' };
 
 // Yapaia Design (docs/design-schemata.md): folgt dem Design des Moduls Go,
 // sonst dem Gesamt-Schema; ohne die Integration gelten die Sport-Farben.
@@ -480,27 +730,27 @@ const HTML = `
     <i class="mass"></i>
     <div class="karte"></div>
     <div class="oben">
-      <button class="knopf rund" data-nav="/yapaia-cockpit/cockpit" title="Cockpit"><ha-icon icon="mdi:view-dashboard"></ha-icon></button>
-      <button class="knopf rund" data-nav="/lovelace" title="Übersicht"><ha-icon icon="mdi:apps"></ha-icon></button>
+      <button class="knopf rund" data-nav="/yapaia-cockpit/cockpit" data-t-title="cockpit"><ha-icon icon="mdi:view-dashboard"></ha-icon></button>
+      <button class="knopf rund" data-nav="/lovelace" data-t-title="uebersicht"><ha-icon icon="mdi:apps"></ha-icon></button>
       <button class="knopf kupfer" data-app="yapaia_go" title="Yapaia Go"><ha-icon icon="mdi:rv-truck"></ha-icon></button>
       <button class="knopf tuerkis" data-app="yapaia_beat" title="Yapaia Beat"><ha-icon icon="mdi:radio"></ha-icon></button>
-      <button class="knopf rahmen" data-nav="/config/dashboard" title="Einstellungen"><ha-icon icon="mdi:plus"></ha-icon></button>
-      <button class="knopf rund" id="anpassen" title="Dashboard anpassen"><ha-icon icon="mdi:arrow-expand-all"></ha-icon></button>
-      <button class="knopf rund" id="kopfzeile" title="Kopfzeile von Home Assistant ausblenden"><ha-icon icon="mdi:fullscreen"></ha-icon></button>
+      <button class="knopf rahmen" data-nav="/config/dashboard" data-t-title="einstellungen"><ha-icon icon="mdi:plus"></ha-icon></button>
+      <button class="knopf rund" id="anpassen" data-t-title="dashboard_anpassen"><ha-icon icon="mdi:arrow-expand-all"></ha-icon></button>
+      <button class="knopf rund" id="kopfzeile"><ha-icon icon="mdi:fullscreen"></ha-icon></button>
       <div class="mitte"><div class="griff"></div></div>
       <div class="status">
-        <ha-icon id="s-tuer" icon="mdi:lock" title="Aufbautür auf- / abschließen" hidden></ha-icon>
-        <ha-icon id="s-mikro" icon="mdi:microphone" title="Mikrofon des Satelliten stumm / an"></ha-icon>
+        <ha-icon id="s-tuer" icon="mdi:lock" data-t-title="tuer_umschalten" hidden></ha-icon>
+        <ha-icon id="s-mikro" icon="mdi:microphone" data-t-title="mikro_umschalten"></ha-icon>
         <ha-icon id="s-nav" icon="mdi:navigation-variant-outline"></ha-icon>
-        <button class="netz" id="netz" hidden title="Internet: Details"></button>
+        <button class="netz" id="netz" hidden data-t-title="netz_details"></button>
         <span class="uhr" id="uhr"></span>
       </div>
     </div>
 
     <div class="anpassen-leiste" id="a-leiste" hidden>
-      <button id="a-ruhe">Ruhe</button><button id="a-fahrt">Navigation</button>
+      <button id="a-ruhe" data-t="ruhe"></button><button id="a-fahrt" data-t="navigation"></button>
       <span class="info" id="a-info"></span>
-      <button id="a-zurueck">Zurücksetzen</button><button id="a-fertig">Fertig</button>
+      <button id="a-zurueck" data-t="zuruecksetzen"></button><button id="a-fertig" data-t="fertig"></button>
     </div>
 
     <div class="kachel medien"><div class="flaeche">
@@ -510,16 +760,16 @@ const HTML = `
         <div class="zeilen"><div class="gross" id="m-sender"></div><div class="klein" id="m-titel"></div><div class="klein" id="m-art"></div></div>
       </div>
       <div class="tasten">
-        <button data-radio="media_previous_track" title="Zurück"><ha-icon icon="mdi:skip-previous-outline"></ha-icon></button>
-        <button id="m-spiel" title="Wiedergabe"><ha-icon icon="mdi:play-outline"></ha-icon></button>
-        <button data-radio="media_next_track" title="Weiter"><ha-icon icon="mdi:skip-next-outline"></ha-icon></button>
-        <button id="m-stumm" title="Stumm"><ha-icon icon="mdi:volume-high"></ha-icon></button>
+        <button data-radio="media_previous_track" data-t-title="zurueck"><ha-icon icon="mdi:skip-previous-outline"></ha-icon></button>
+        <button id="m-spiel" data-t-title="wiedergabe"><ha-icon icon="mdi:play-outline"></ha-icon></button>
+        <button data-radio="media_next_track" data-t-title="weiter"><ha-icon icon="mdi:skip-next-outline"></ha-icon></button>
+        <button id="m-stumm"><ha-icon icon="mdi:volume-high"></ha-icon></button>
       </div>
     </div></div>
 
     <div class="kachel gruen"><div class="flaeche">
       <div class="ring"><ha-icon icon="mdi:star-outline"></ha-icon></div>
-      <div class="label">Favoriten <span class="punkte" id="fav-punkte"></span></div>
+      <div class="label"><span data-t="favoriten"></span> <span class="punkte" id="fav-punkte"></span></div>
       <div class="favoriten" id="favoriten"></div>
     </div></div>
 
@@ -527,62 +777,62 @@ const HTML = `
       <div class="zeile"><div class="links"><ha-icon id="n-icon" icon="mdi:navigation-outline"></ha-icon><span class="weit" id="n-weit"></span></div><span class="text" id="n-text"></span></div>
       <div class="spuren" id="n-spuren" hidden></div>
     </div>
-    <div class="kompass"><button class="knopf rund" id="kompass" title="Karte: Norden oben / in Fahrtrichtung"><ha-icon icon="mdi:navigation"></ha-icon></button></div>
+    <div class="kompass"><button class="knopf rund" id="kompass"><ha-icon icon="mdi:navigation"></ha-icon></button></div>
     <div class="schild" id="schild" hidden></div>
 
-    <div class="lupe"><button class="knopf" id="lupe" title="Ziel suchen"><ha-icon icon="mdi:magnify"></ha-icon></button></div>
+    <div class="lupe"><button class="knopf" id="lupe" data-t-title="ziel_suchen"><ha-icon icon="mdi:magnify"></ha-icon></button></div>
     <div class="suche" id="suche" hidden>
       <div class="feld">
         <ha-icon icon="mdi:magnify"></ha-icon>
-        <input id="such-feld" type="search" placeholder="Ziel: Ort, Straße, Stellplatz …" autocomplete="off" autocapitalize="words" enterkeyhint="go">
-        <button class="zu" id="such-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button>
+        <input id="such-feld" type="search" data-t-ph="such_platzhalter" autocomplete="off" autocapitalize="words" enterkeyhint="go">
+        <button class="zu" id="such-zu" data-t-title="schliessen"><ha-icon icon="mdi:close"></ha-icon></button>
       </div>
       <div class="treffer" id="treffer"></div>
       <div class="hinweis" id="such-hinweis"></div>
     </div>
     <div class="klapp netz-info" id="netz-info" hidden></div>
     <div class="klapp licht-menu" id="licht-menu" hidden>
-      <div class="kopf"><span>Licht</span><button class="zu" id="licht-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <div class="kopf"><span data-t="licht"></span><button class="zu" id="licht-zu" data-t-title="schliessen"><ha-icon icon="mdi:close"></ha-icon></button></div>
       <div class="lichter" id="lichter"></div>
     </div>
     <div class="klapp orte" id="orte" hidden>
-      <div class="kopf"><span id="orte-titel">Sonderziele in der Nähe</span>
-        <button class="zu" id="orte-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <div class="kopf"><span id="orte-titel" data-t="sonderziele_titel"></span>
+        <button class="zu" id="orte-zu" data-t-title="schliessen"><ha-icon icon="mdi:close"></ha-icon></button></div>
       <div class="kategorien" id="orte-kat"></div>
       <div class="treffer" id="orte-liste"></div>
       <div class="orte-vorschau">
-        <button id="ov-zurueck" title="Voriger"><ha-icon icon="mdi:chevron-left"></ha-icon></button>
+        <button id="ov-zurueck" data-t-title="voriger"><ha-icon icon="mdi:chevron-left"></ha-icon></button>
         <div class="text"><span id="ov-name"></span>
           <div class="zeile2"><span id="ov-weit"></span><span class="preis" id="ov-preis" hidden></span></div></div>
-        <button id="ov-weiter" title="Nächster"><ha-icon icon="mdi:chevron-right"></ha-icon></button>
-        <button id="ov-liste" title="Zurück zur Liste"><ha-icon icon="mdi:format-list-bulleted"></ha-icon></button>
+        <button id="ov-weiter" data-t-title="naechster"><ha-icon icon="mdi:chevron-right"></ha-icon></button>
+        <button id="ov-liste" data-t-title="zur_liste"><ha-icon icon="mdi:format-list-bulleted"></ha-icon></button>
         <button class="los" id="ov-los"></button>
-        <button id="ov-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button>
+        <button id="ov-zu" data-t-title="schliessen"><ha-icon icon="mdi:close"></ha-icon></button>
       </div>
       <div class="hinweis" id="orte-hinweis"></div>
     </div>
     <div class="klapp halte" id="halte" hidden>
-      <div class="kopf"><span>Route</span><button class="zu" id="halte-zu" title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <div class="kopf"><span data-t="route"></span><button class="zu" id="halte-zu" data-t-title="schliessen"><ha-icon icon="mdi:close"></ha-icon></button></div>
       <ol id="halte-liste"></ol>
       <div class="hinweis" id="halte-hinweis" hidden></div>
     </div>
     <div class="eta" id="eta" hidden>
       <ha-icon icon="mdi:flag-checkered"></ha-icon>
       <div class="raster"><b id="e-dauer"></b><b id="e-km"></b><span id="e-uhr"></span><span id="e-zustand"></span></div>
-      <button id="e-ende" title="Navigation beenden"><ha-icon icon="mdi:close"></ha-icon></button>
+      <button id="e-ende" data-t-title="navigation_beenden"><ha-icon icon="mdi:close"></ha-icon></button>
     </div>
 
     <div class="leiste">
       <span class="auto" id="l-profil"></span>
       <span class="wert" id="l-tempo"></span>
       <div class="symbole">
-        <button id="l-mikro" title="Spracheingabe"><ha-icon icon="mdi:microphone-outline"></ha-icon></button>
-        <button id="l-licht" title="Licht Dinette – lange drücken: alle Lichter"><ha-icon icon="mdi:lightbulb-outline"></ha-icon></button>
-        <button id="l-orte" title="Sonderziele in der Nähe: Tankstelle, Stellplatz, Parkplatz …"><ha-icon icon="mdi:map-marker-radius-outline"></ha-icon></button>
+        <button id="l-mikro" data-t-title="spracheingabe"><ha-icon icon="mdi:microphone-outline"></ha-icon></button>
+        <button id="l-licht" data-t-title="licht_hinweis"><ha-icon icon="mdi:lightbulb-outline"></ha-icon></button>
+        <button id="l-orte" data-t-title="sonderziele_hinweis"><ha-icon icon="mdi:map-marker-radius-outline"></ha-icon></button>
         <span class="marke">YAPAIA</span>
-        <button id="l-leiser" title="Leiser"><ha-icon icon="mdi:volume-minus"></ha-icon></button>
+        <button id="l-leiser" data-t-title="leiser"><ha-icon icon="mdi:volume-minus"></ha-icon></button>
         <span class="laut" id="l-laut"></span>
-        <button id="l-lauter" title="Lauter"><ha-icon icon="mdi:volume-plus"></ha-icon></button>
+        <button id="l-lauter" data-t-title="lauter"><ha-icon icon="mdi:volume-plus"></ha-icon></button>
       </div>
       <span class="wert" id="l-hoehe"></span>
       <ha-icon class="wagen" id="l-wagen" icon="mdi:car-side"></ha-icon>
@@ -607,7 +857,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
   static getConfigForm() {
     return {
       schema: [
-        { name: 'design', selector: { select: { mode: 'dropdown', options: window.YapaiaDesign?.optionen() ?? [{ value: 'auto', label: 'Automatisch' }] } } },
+        { name: 'design', selector: { select: { mode: 'dropdown', options: window.YapaiaDesign?.optionen() ?? [{ value: 'auto', label: t(null, 'automatisch') }] } } },
         { name: 'door_entity', selector: { entity: { domain: 'lock' } } },
         { name: 'light_entity', selector: { entity: { domain: 'light' } } },
         {
@@ -617,8 +867,8 @@ class YapaiaCockpitSportCard extends HTMLElement {
               multiple: true,
               label_field: 'name',
               fields: {
-                name: { label: 'Name', selector: { text: {} } },
-                entity: { label: 'Licht', required: true, selector: { entity: { domain: ['light', 'switch'] } } },
+                name: { label: t(null, 'name'), selector: { text: {} } },
+                entity: { label: t(null, 'licht'), required: true, selector: { entity: { domain: ['light', 'switch'] } } },
               },
             },
           },
@@ -628,12 +878,12 @@ class YapaiaCockpitSportCard extends HTMLElement {
       ],
       computeLabel: (s) =>
         ({
-          design: 'Design-Schema (auto = Design von Yapaia Go)',
-          door_entity: 'Tür (Symbol oben)',
-          light_entity: 'Licht (Lampe unten, Tippen)',
-          lights: 'Lichter im Menü (Lampe lange drücken), in dieser Reihenfolge',
-          height: 'Höhe (leer: ganze Seite)',
-          demo: 'Beispielwerte einer Navigation zeigen',
+          design: t(null, 'ed_design'),
+          door_entity: t(null, 'ed_tuer'),
+          light_entity: t(null, 'ed_licht'),
+          lights: t(null, 'ed_lichter'),
+          height: t(null, 'ed_hoehe'),
+          demo: t(null, 'ed_demo'),
         })[s.name],
     };
   }
@@ -650,6 +900,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this.attachShadow({ mode: 'open' });
       this.shadowRoot.innerHTML = `<style>${STIL}</style>${HTML}`;
       this._verdrahten();
+      this._texte(this._rohHass ?? null);
     }
     if (this._config.height) this.style.setProperty('--cockpit-hoehe', `${Number(this._config.height)}px`);
   }
@@ -709,7 +960,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const knopf = this.shadowRoot && this.$('kopfzeile');
     if (knopf) {
       knopf.firstElementChild.setAttribute('icon', aus ? 'mdi:fullscreen-exit' : 'mdi:fullscreen');
-      knopf.title = aus ? 'Kopfzeile von Home Assistant zeigen' : 'Kopfzeile von Home Assistant ausblenden';
+      knopf.title = t(this._hass, aus ? 'kopfzeile_zeigen' : 'kopfzeile_ausblenden');
     }
     // beim Abmelden hängt die Karte schon nicht mehr im Dashboard: gemerkte Hülle
     const wurzel = this._huiRoot() || this._wurzel;
@@ -736,8 +987,24 @@ class YapaiaCockpitSportCard extends HTMLElement {
     window.YapaiaDesign?.anwenden(tv, schema);
   }
 
+  /** Feste Texte (data-t, data-t-title, data-t-ph) in der Sprache von Home Assistant. */
+  _texte(hass) {
+    if (!this.shadowRoot) return;
+    this._sprache = spracheVon(hass);
+    this.shadowRoot.querySelectorAll('[data-t]').forEach((el) => (el.textContent = t(hass, el.dataset.t)));
+    this.shadowRoot.querySelectorAll('[data-t-title]').forEach((el) => (el.title = t(hass, el.dataset.tTitle)));
+    this.shadowRoot.querySelectorAll('[data-t-ph]').forEach((el) => (el.placeholder = t(hass, el.dataset.tPh)));
+  }
+
   set hass(hass) {
     this._rohHass = hass;
+    if (this.shadowRoot && spracheVon(hass) !== this._sprache) {
+      this._texte(hass);
+      this._hass = hass; // damit die Titel unten die neue Sprache nehmen
+      this._kopfzeile();
+      this._kompassZeigen();
+      this._lichtSchluessel = null;
+    }
     this._designAnwenden();
     // `demo: true` in der Kartenkonfiguration zeigt Beispielwerte einer laufenden
     // Navigation -- zum Ansehen und Einrichten, ohne loszufahren. Dasselbe beim
@@ -919,7 +1186,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this.$('a-fahrt').classList.toggle('an', modus === 'fahrt');
     this.$('anpassen').classList.toggle('an', !!modus);
     this.shadowRoot.querySelectorAll('.griff-rahmen').forEach((g) => g.remove());
-    if (modus) for (const [id, sel, name] of OBJEKTE) this._griff(id, sel, name);
+    if (modus) for (const [id, sel, name] of OBJEKTE) this._griff(id, sel, t(this._hass, name));
     // Die Karte von Go hat ihre eigene Anordnung (Anker der Position,
     // Verkehrsliste) -- ab Go 0.49.0 vom Dashboard aus einzurichten.
     const w = this._kartenFenster();
@@ -928,10 +1195,8 @@ class YapaiaCockpitSportCard extends HTMLElement {
     if (kann) api.bearbeiten(modus);
     if (modus) {
       const info = this.$('a-info');
-      info.textContent = kann ? 'Fadenkreuz = Position' : 'Position: ab Go 0.49.0';
-      info.title =
-        'Rahmen ziehen verschiebt, der Punkt unten rechts ändert die Größe. ' +
-        (kann ? 'Das Fadenkreuz in der Karte setzt die eigene Position.' : 'Die Position in der Karte lässt sich ab Yapaia Go 0.49.0 verschieben.');
+      info.textContent = t(this._hass, kann ? 'fadenkreuz_position' : 'position_ab');
+      info.title = `${t(this._hass, 'anpassen_hilfe')} ${t(this._hass, kann ? 'fadenkreuz_hilfe' : 'position_ab_hilfe')}`;
     }
     if (this._rohHass) this.hass = this._rohHass;
   }
@@ -1250,8 +1515,8 @@ class YapaiaCockpitSportCard extends HTMLElement {
     knopf.classList.toggle('kurs', modus !== '2d-north');
     knopf.firstElementChild.setAttribute('icon', modus === '3d-course' ? 'mdi:navigation-variant' : 'mdi:navigation');
     knopf.title = zentriert
-      ? { '2d-north': 'Norden oben', '2d-course': 'In Fahrtrichtung', '3d-course': 'In Fahrtrichtung, 3D' }[modus] || ''
-      : 'Auf meine Position zentrieren';
+      ? t(this._hass, { '2d-north': 'kompass_norden', '2d-course': 'kompass_kurs', '3d-course': 'kompass_3d' }[modus] || 'kompass_titel')
+      : t(this._hass, 'kompass_zentrieren');
     if (!zentriert) knopf.firstElementChild.setAttribute('icon', 'mdi:crosshairs-gps');
   }
 
@@ -1262,7 +1527,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     if (an) {
       this.$('such-feld').value = '';
       this.$('treffer').textContent = '';
-      this._hinweis('Tippen und einen Vorschlag wählen – oder Enter für das erste passende Ziel.');
+      this._hinweis(t(this._hass, 'such_hinweis'));
       this._vorschlaege();
       setTimeout(() => this.$('such-feld').focus(), 50);
     }
@@ -1364,7 +1629,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       zuletzt.push({ name, latlng: d.latlng });
       if (zuletzt.length === 3) break;
     }
-    const weg = (latlng) => (hier ? YapaiaCockpitSportCard._km(YapaiaCockpitSportCard._abstand(hier, latlng)) : '');
+    const weg = (latlng) => (hier ? YapaiaCockpitSportCard._km(YapaiaCockpitSportCard._abstand(hier, latlng), this._hass) : '');
     liste.textContent = '';
     const titel = (text) => {
       const t = document.createElement('div');
@@ -1376,14 +1641,14 @@ class YapaiaCockpitSportCard extends HTMLElement {
       .filter((f) => f && f.latlng)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (favs.length) {
-      titel('Favoriten');
+      titel(t(this._hass, 'favoriten'));
       for (const f of favs) {
         const symbol = { home: 'mdi:home', work: 'mdi:briefcase' }[f.category] || 'mdi:star';
         liste.appendChild(this._trefferKnopf(symbol, f.name, '', weg(f.latlng), () => this._waehle({ name: f.name, latlng: f.latlng })));
       }
     }
     if (zuletzt.length) {
-      titel('Zuletzt');
+      titel(t(this._hass, 'zuletzt'));
       for (const z of zuletzt) {
         liste.appendChild(this._trefferKnopf('mdi:history', z.name, '', weg(z.latlng), () => this._waehle(z)));
       }
@@ -1417,8 +1682,8 @@ class YapaiaCockpitSportCard extends HTMLElement {
   }
 
   // Wie `formatDistance` in Go (`routing/format.ts`).
-  static _km(m) {
-    return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
+  static _km(m, hass) {
+    return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toLocaleString(gebiet(hass), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
   }
 
   /**
@@ -1437,7 +1702,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     }
     const basis = this._goBasis();
     if (!basis) {
-      this._hinweis('Die Karte von Yapaia Go ist noch nicht geladen.', true);
+      this._hinweis(t(this._hass, 'karte_nicht_geladen'), true);
       return;
     }
     const nr = (this._suchNr = (this._suchNr || 0) + 1);
@@ -1464,30 +1729,30 @@ class YapaiaCockpitSportCard extends HTMLElement {
       for (const t of treffer) {
         const teile = [t.address, t.locality].filter((x) => typeof x === 'string' && x.trim());
         const zweite = teile.length ? teile.join(', ') : t.label && t.label.trim() !== (t.name || '').trim() ? t.label : '';
-        const art = t._m !== undefined ? YapaiaCockpitSportCard._km(t._m) : '';
+        const art = t._m !== undefined ? YapaiaCockpitSportCard._km(t._m, this._hass) : '';
         liste.appendChild(this._trefferKnopf('mdi:map-marker-outline', t.name || t.label, zweite, art, () => this._waehle(t)));
       }
-      this._hinweis(treffer.length ? '' : `Zu „${q}“ hat Yapaia Go nichts gefunden.`, !treffer.length);
+      this._hinweis(treffer.length ? '' : t(this._hass, 'nichts_gefunden', { q }), !treffer.length);
     } catch (err) {
-      if (nr === this._suchNr) this._hinweis('Die Suche von Yapaia Go antwortet nicht.', true);
+      if (nr === this._suchNr) this._hinweis(t(this._hass, 'suche_antwortet_nicht'), true);
     }
   }
 
   async _zielSetzen(daten, name) {
-    this._hinweis(`Route nach ${name} wird berechnet …`);
+    this._hinweis(t(this._hass, 'route_berechnen', { name }));
     try {
       // Mit Rückgabe: Go sagt, was daraus geworden ist (oder warum nicht).
       const r = await this._hass.callService('yapaia', 'go_ziel_setzen', daten, undefined, false, true);
       const antwort = r && r.response ? Object.values(r.response)[0] : null;
       const text = antwort && (antwort.antwort || antwort.meldung || antwort.fehler);
       if (antwort && antwort.ok === false) {
-        this._hinweis(text || 'Yapaia Go konnte die Route nicht berechnen.', true);
+        this._hinweis(text || t(this._hass, 'route_fehler'), true);
         return;
       }
-      this._hinweis(text || `Navigation nach ${name} gestartet.`);
+      this._hinweis(text || t(this._hass, 'navi_gestartet', { name }));
       setTimeout(() => this._sucheZeigen(false), 1800);
     } catch (err) {
-      this._hinweis((err && err.message) || 'Yapaia Go konnte die Route nicht berechnen.', true);
+      this._hinweis((err && err.message) || t(this._hass, 'route_fehler'), true);
     }
   }
 
@@ -1555,7 +1820,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
 
   _zeit() {
     const uhr = this.shadowRoot && this.$('uhr');
-    if (uhr) uhr.textContent = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (uhr) uhr.textContent = new Date().toLocaleTimeString(gebiet(this._hass), { hour: '2-digit', minute: '2-digit' });
     if (this._hass) this._eta();
   }
 
@@ -1627,7 +1892,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     if (anzahl > 1) {
       for (let i = 0; i < anzahl; i++) {
         const p = document.createElement('button');
-        p.title = `Seite ${i + 1}`;
+        p.title = t(this._hass, 'seite', { nr: i + 1 });
         p.addEventListener('click', () => feld.scrollTo({ left: i * feld.clientWidth, behavior: 'smooth' }));
         punkte.appendChild(p);
       }
@@ -1686,7 +1951,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const symbol = { locked: 'mdi:lock', unlocked: 'mdi:lock-open-variant', locking: 'mdi:lock-clock', unlocking: 'mdi:lock-clock', jammed: 'mdi:lock-alert', open: 'mdi:lock-open-variant' }[st.state] || 'mdi:lock-question';
     knopf.setAttribute('icon', symbol);
     knopf.classList.toggle('offen', st.state !== 'locked');
-    knopf.title = st.state === 'locked' ? 'Aufbautür ist zu – tippen zum Aufschließen' : 'Aufbautür ist offen – tippen zum Abschließen';
+    knopf.title = t(this._hass, st.state === 'locked' ? 'tuer_zu' : 'tuer_offen');
   }
 
   _lichtZeigen() {
@@ -1743,7 +2008,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const a = (radio && radio.attributes) || {};
     const spielt = radio && radio.state === 'playing';
     this._text('m-sender', a.station_name || a.media_title || 'Yapaia Beat');
-    const titel = this._z(E.titel) || this._z(E.radiotext) || (spielt ? '' : 'Radio aus');
+    const titel = this._z(E.titel) || this._z(E.radiotext) || (spielt ? '' : t(h, 'radio_aus'));
     this._text('m-titel', titel);
     this._text('m-art', [a.band === 'dab' ? 'DAB+' : a.band === 'fm' ? 'UKW' : '', a.program_type || ''].filter(Boolean).join(' · '));
     const logo = this.$('m-logo');
@@ -1753,7 +2018,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const laut = h.states[this._lautZiel()];
     const tonAus = !!(laut && laut.attributes && laut.attributes.is_volume_muted);
     this.$('m-stumm').firstElementChild.setAttribute('icon', tonAus ? 'mdi:volume-off' : 'mdi:volume-high');
-    this.$('m-stumm').title = tonAus ? 'Ton an' : 'Stumm';
+    this.$('m-stumm').title = t(h, tonAus ? 'ton_an' : 'stumm');
 
     // Favoriten (wie die Kontakte im Vorbild): runde Senderlogos
     const favoriten = Array.isArray(a.favorites) ? a.favorites : [];
@@ -1804,11 +2069,11 @@ class YapaiaCockpitSportCard extends HTMLElement {
       'n-weit',
       anw && Number.isFinite(meter) && this._z(E.entfernung) !== null
         ? meter >= 1000
-          ? `${(meter / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} km`
+          ? `${(meter / 1000).toLocaleString(gebiet(h), { maximumFractionDigits: 1 })} km`
           : `${Math.round(meter / 10) * 10} m`
         : '',
     );
-    this._text('n-text', anw || 'Keine Navigation');
+    this._text('n-text', anw || t(h, 'keine_navigation'));
     this._spuren(
       anw && s.attributes ? s.attributes.anweisung_spuren : null,
       this._z(E.entfernung) === null ? NaN : meter,
@@ -1837,9 +2102,10 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const hoehe = this._z(E.hoehe);
     const hoeheEl = this.$('l-hoehe');
     const hoeheText = hoehe === null ? '–' : String(Math.round(Number(hoehe)));
-    if (hoeheEl.dataset.w !== hoeheText) {
-      hoeheEl.dataset.w = hoeheText;
-      hoeheEl.innerHTML = `${hoeheText}<small>m ü. NN</small>`;
+    const hoeheKey = `${hoeheText}|${spracheVon(h)}`;
+    if (hoeheEl.dataset.w !== hoeheKey) {
+      hoeheEl.dataset.w = hoeheKey;
+      hoeheEl.innerHTML = `${hoeheText}<small>${t(h, 'hoehe_einheit')}</small>`;
     }
     const stumm = this._z(E.stumm) === 'on';
     this.$('s-mikro').setAttribute('icon', stumm ? 'mdi:microphone-off' : 'mdi:microphone');
@@ -1880,14 +2146,14 @@ class YapaiaCockpitSportCard extends HTMLElement {
   }
 
   _netzSymbol(n) {
-    if (n.quelle === 'wlan') return { html: wlanSvg(n.wlan.balken), roaming: false, titel: `WLAN ${n.wlan.ssid || ''}` };
+    if (n.quelle === 'wlan') return { html: wlanSvg(n.wlan.balken), roaming: false, titel: `${t(this._hass, 'wlan')} ${n.wlan.ssid || ''}` };
     if (n.quelle === 'mobil') {
       const text = [n.typ, n.sim ? `SIM${n.sim}` : ''].filter(Boolean).join(' ');
-      return { html: `${balkenSvg(n.balken)}<span>${text}</span>`, roaming: n.roaming, titel: `Mobilfunk ${text}` };
+      return { html: `${balkenSvg(n.balken)}<span>${text}</span>`, roaming: n.roaming, titel: `${t(this._hass, 'mobilfunk')} ${text}` };
     }
-    if (n.quelle === 'kabel') return { html: '<ha-icon icon="mdi:ethernet"></ha-icon>', roaming: false, titel: 'Kabel' };
-    if (n.quelle === 'tethering') return { html: '<ha-icon icon="mdi:cellphone-link"></ha-icon>', roaming: false, titel: 'Tethering' };
-    return { html: '<ha-icon icon="mdi:web-off"></ha-icon>', roaming: false, titel: 'Kein Internet', weg: true };
+    if (n.quelle === 'kabel') return { html: '<ha-icon icon="mdi:ethernet"></ha-icon>', roaming: false, titel: t(this._hass, 'kabel') };
+    if (n.quelle === 'tethering') return { html: '<ha-icon icon="mdi:cellphone-link"></ha-icon>', roaming: false, titel: t(this._hass, 'tethering') };
+    return { html: '<ha-icon icon="mdi:web-off"></ha-icon>', roaming: false, titel: t(this._hass, 'kein_internet'), weg: true };
   }
 
   _netz() {
@@ -1905,7 +2171,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     }
     knopf.classList.toggle('roaming', sym.roaming);
     knopf.classList.toggle('weg', !!sym.weg);
-    knopf.title = `${sym.titel} – Details`;
+    knopf.title = t(this._hass, 'details_von', { titel: sym.titel });
     if (!this.$('netz-info').hidden) this._netzInfo();
   }
 
@@ -1917,19 +2183,20 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const esc = (v) => String(v ?? '–').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
     const zeile = (k, v, cls = '') => (v === null || v === undefined || v === '' ? '' : `<dt>${k}</dt><dd class="${cls}">${esc(v)}</dd>`);
     const sym = this._netzSymbol(n);
+    const tt = (k, w) => t(this._hass, k, w);
     let html = `<div class="kopf"><span class="netz ${sym.roaming ? 'roaming' : ''}">${sym.html}</span>
-      <span style="flex:1">${n.quelle === 'wlan' ? 'WLAN' : n.quelle === 'mobil' ? 'Mobilfunk' : esc(sym.titel)}</span>
-      <button class="zu" data-zu title="Schließen"><ha-icon icon="mdi:close"></ha-icon></button></div><dl>`;
+      <span style="flex:1">${n.quelle === 'wlan' ? tt('wlan') : n.quelle === 'mobil' ? tt('mobilfunk') : esc(sym.titel)}</span>
+      <button class="zu" data-zu title="${tt('schliessen')}"><ha-icon icon="mdi:close"></ha-icon></button></div><dl>`;
     if (n.quelle === 'wlan') {
       const w = n.wlan;
-      html += zeile('Netz', w.ssid) + zeile('Signal', w.signal !== null ? `${Math.round(Number(w.signal))} dBm` : null)
-        + zeile('Kanal', w.kanal) + zeile('Verbunden seit', w.verbunden) + zeile('IP', w.ip) + zeile('Gateway', w.gateway)
+      html += zeile(tt('netz'), w.ssid) + zeile(tt('signal'), w.signal !== null ? `${Math.round(Number(w.signal))} dBm` : null)
+        + zeile(tt('kanal'), w.kanal) + zeile(tt('verbunden_seit'), w.verbunden) + zeile('IP', w.ip) + zeile('Gateway', w.gateway)
         + zeile('BSSID', w.bssid);
     } else {
       const land = this._z(E.land);
-      html += zeile('Anbieter', this._z(E.anbieter)) + zeile('Netz', [this._z(E.netztyp), this._z(E.baender)].filter(Boolean).join(' · '))
-        + zeile('Aktive SIM', n.sim ? `SIM ${n.sim}` : null)
-        + zeile('Land', land ? `${land}${n.roaming ? ' · Roaming' : ''}` : null, n.roaming ? 'rot' : '')
+      html += zeile(tt('anbieter'), this._z(E.anbieter)) + zeile(tt('netz'), [this._z(E.netztyp), this._z(E.baender)].filter(Boolean).join(' · '))
+        + zeile(tt('aktive_sim'), n.sim ? `SIM ${n.sim}` : null)
+        + zeile(tt('land'), land ? `${land}${n.roaming ? ` · ${tt('roaming')}` : ''}` : null, n.roaming ? 'rot' : '')
         + zeile('RSRP', this._z(E.rsrp) !== null ? `${this._z(E.rsrp)} dBm` : null)
         + zeile('RSRQ', this._z(E.rsrq) !== null ? `${this._z(E.rsrq)} dB` : null)
         + zeile('SINR', this._z(E.sinr) !== null ? `${this._z(E.sinr)} dB` : null);
@@ -1941,7 +2208,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       const laeuft = /^umschalten|läuft|wechsel/i.test(stand);
       html += `<div class="sims">${['SIM 1', 'SIM 2'].map((o) => `<button data-sim="${o}" class="${gewaehlt === o ? 'an' : ''}"
         ${gewaehlt === o || laeuft ? 'disabled' : ''}>${o}</button>`).join('')}</div>`;
-      if (stand) html += `<div class="stand">Umschaltung: ${esc(stand)}</div>`;
+      if (stand) html += `<div class="stand">${esc(tt('umschaltung', { stand }))}</div>`;
     }
     if (box.dataset.w === html) return;
     box.dataset.w = html;
@@ -1982,13 +2249,13 @@ class YapaiaCockpitSportCard extends HTMLElement {
     this._orte = null;
     this.$('orte-liste').textContent = '';
     const basis = this._goBasis();
-    if (!basis) return this._orteHinweis('Die Karte von Yapaia Go ist noch nicht geladen.', true);
+    if (!basis) return this._orteHinweis(t(this._hass, 'karte_nicht_geladen'), true);
     if (!this._kategorien) {
       try {
         const r = await fetch(`${basis}api/v1/unterwegs/kategorien`, { credentials: 'same-origin' });
         this._kategorien = ((await r.json()).data || []).filter((k) => k && k.id);
       } catch (err) {
-        return this._orteHinweis('Yapaia Go antwortet nicht.', true);
+        return this._orteHinweis(t(this._hass, 'yapaia_antwortet_nicht'), true);
       }
     }
     const kat = this.$('orte-kat');
@@ -2000,7 +2267,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       b.addEventListener('click', () => this._orteKategorie(k));
       kat.appendChild(b);
     }
-    this._orteHinweis('Kategorie wählen.');
+    this._orteHinweis(t(this._hass, 'kategorie_waehlen'));
   }
 
   /** Schmale Leiste mit dem gewählten Ort, damit die Karte frei bleibt (wie die Vorschau in Go). */
@@ -2008,13 +2275,13 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const o = this._orte;
     this.$('orte').classList.toggle('vorschau', !!an && !!o && o.aktiv !== null);
     if (!an || !o || o.aktiv === null) return;
-    const t = o.treffer[o.aktiv];
-    const km = YapaiaCockpitSportCard._km;
-    this.$('ov-name').textContent = `${o.aktiv + 1}/${o.treffer.length} · ${t.name}`;
+    const ort = o.treffer[o.aktiv];
+    const km = (m) => YapaiaCockpitSportCard._km(m, this._hass);
+    this.$('ov-name').textContent = `${o.aktiv + 1}/${o.treffer.length} · ${ort.name}`;
     // kurz: in der Leiste ist neben dem Preis wenig Platz (Abstand zur Route steht in der Liste)
-    this.$('ov-weit').textContent = t.voraus_m !== null && t.voraus_m !== undefined ? `in ${km(t.voraus_m)}` : km(t.abseits_m);
-    this.$('ov-los').textContent = FAHRT.has(this._z(E.zustand) || '') ? '+ Zwischenziel' : 'Hinfahren';
-    this._preisMarke(this.$('ov-preis'), t.preis);
+    this.$('ov-weit').textContent = ort.voraus_m !== null && ort.voraus_m !== undefined ? t(this._hass, 'in_km', { km: km(ort.voraus_m) }) : km(ort.abseits_m);
+    this.$('ov-los').textContent = t(this._hass, FAHRT.has(this._z(E.zustand) || '') ? 'zwischenziel_plus' : 'hinfahren');
+    this._preisMarke(this.$('ov-preis'), ort.preis);
   }
 
   /** Preis-Pille füllen (oder verstecken). */
@@ -2023,7 +2290,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
     if (!preis) return;
     el.className = `preis ${preis.frische}`;
     el.textContent = `${preis.text} €`;
-    el.title = `${FRISCHE_TEXT[preis.frische]} (Tankerkönig)`;
+    el.title = t(this._hass, 'preis_titel', { frische: t(this._hass, FRISCHE_TEXT[preis.frische]) });
   }
 
   /** Spritpreise zu den Tankstellen der Liste; ohne Tankerkönig einfach keine. */
@@ -2081,7 +2348,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
   async _orteKategorie(k) {
     this.$('orte-kat').querySelectorAll('button').forEach((b) => b.classList.toggle('an', b.dataset.id === k.id));
     this.$('orte-liste').textContent = '';
-    this._orteHinweis(`Suche ${k.name} …`);
+    this._orteHinweis(t(this._hass, 'suche_kategorie', { name: k.name }));
     const basis = this._goBasis();
     const nr = (this._orteNr = (this._orteNr || 0) + 1);
     try {
@@ -2093,15 +2360,15 @@ class YapaiaCockpitSportCard extends HTMLElement {
       this._orteVorschau(false);
       this._orteListe();
       if (!treffer.length) {
-        this._orteHinweis(`Keine ${k.name} ${daten.bezug === 'route' ? 'voraus auf der Route' : 'in der Nähe'} gefunden.`);
+        this._orteHinweis(t(this._hass, daten.bezug === 'route' ? 'keine_auf_route' : 'keine_in_naehe', { name: k.name }));
         this._orteKarte([], null);
         return;
       }
       this._orteKarte(treffer, null);
-      this._orteHinweis(`${daten.bezug === 'route' ? 'Voraus auf der Route' : 'Im Umkreis'} · antippen zeigt den Ort auf der Karte.`);
+      this._orteHinweis(t(this._hass, daten.bezug === 'route' ? 'voraus_antippen' : 'umkreis_antippen'));
       if (k.id === 'fuel') this._spritpreise(basis, this._orte);
     } catch (err) {
-      this._orteHinweis('Die Suche hat nicht geklappt.', true);
+      this._orteHinweis(t(this._hass, 'suche_fehlgeschlagen'), true);
     }
   }
 
@@ -2110,30 +2377,30 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const liste = this.$('orte-liste');
     liste.textContent = '';
     if (!o) return;
-    const km = YapaiaCockpitSportCard._km;
+    const km = (m) => YapaiaCockpitSportCard._km(m, this._hass);
     const faehrt = FAHRT.has(this._z(E.zustand) || '');
-    o.treffer.forEach((t, i) => {
+    o.treffer.forEach((ort, i) => {
       const b = document.createElement('button');
       b.className = o.aktiv === i ? 'an' : '';
       const text = document.createElement('span');
       text.className = 'text';
       const name = document.createElement('span');
-      name.textContent = t.name;
+      name.textContent = ort.name;
       const zeile2 = document.createElement('span');
       zeile2.className = 'zeile2';
-      zeile2.textContent = t.voraus_m !== null && t.voraus_m !== undefined
-        ? `in ${km(t.voraus_m)} · ${km(t.abseits_m)} abseits` : km(t.abseits_m);
+      zeile2.textContent = ort.voraus_m !== null && ort.voraus_m !== undefined
+        ? t(this._hass, 'in_km_abseits', { km: km(ort.voraus_m), abseits: km(ort.abseits_m) }) : km(ort.abseits_m);
       text.append(name, zeile2);
       b.appendChild(text);
-      if (t.preis) {
+      if (ort.preis) {
         const pr = document.createElement('span');
-        this._preisMarke(pr, t.preis);
+        this._preisMarke(pr, ort.preis);
         b.appendChild(pr);
       }
       if (o.aktiv === i) {
         const los = document.createElement('span');
         los.className = 'los';
-        los.textContent = faehrt ? '+ Zwischenziel' : 'Hinfahren';
+        los.textContent = t(this._hass, faehrt ? 'zwischenziel_plus' : 'hinfahren');
         b.appendChild(los);
       }
       b.addEventListener('click', () => this._orteWahl(i));
@@ -2154,19 +2421,19 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const faehrt = FAHRT.has(this._z(E.zustand) || '');
     // Mit Karte: die schmale Leiste, damit der markierte Ort sichtbar ist
     this._orteVorschau(gezeigt);
-    this._orteHinweis(gezeigt ? '' : `Nochmal antippen: ${faehrt ? 'als Zwischenziel einfügen' : 'hinfahren'}.`);
+    this._orteHinweis(gezeigt ? '' : t(this._hass, faehrt ? 'nochmal_zwischenziel' : 'nochmal_hinfahren'));
   }
 
-  async _orteEinfuegen(t) {
-    this._orteHinweis(`${t.name} wird eingefügt …`);
+  async _orteEinfuegen(ort) {
+    this._orteHinweis(t(this._hass, 'wird_eingefuegt', { name: ort.name }));
     try {
       const r = await this._hass.callService('yapaia', 'go_zwischenziel_einfuegen',
-        { ort: { latitude: t.lat, longitude: t.lon }, name: t.name }, undefined, false, true);
+        { ort: { latitude: ort.lat, longitude: ort.lon }, name: ort.name }, undefined, false, true);
       const antwort = r && r.response ? Object.values(r.response)[0] : null;
       this._orteSchliessen();
-      this._hinweisKurz(antwort && antwort.als === 'ziel' ? `Ziel: ${t.name}` : `Zwischenziel: ${t.name}`);
+      this._hinweisKurz(t(this._hass, antwort && antwort.als === 'ziel' ? 'ziel_name' : 'zwischenziel_name', { name: ort.name }));
     } catch (err) {
-      this._orteHinweis((err && err.message) || 'Einfügen hat nicht geklappt (Yapaia Go ab 0.50.0 nötig).', true);
+      this._orteHinweis((err && err.message) || t(this._hass, 'einfuegen_fehler'), true);
     }
   }
 
@@ -2185,13 +2452,13 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const eta = this.$('eta');
     eta.hidden = an === null && rest === null;
     if (eta.hidden) return;
-    const t = an ? new Date(an) : null;
-    const gueltig = t && !Number.isNaN(t.getTime());
-    const min = gueltig ? Math.max(0, Math.round((t.getTime() - Date.now()) / 60000)) : null;
+    const zeit = an ? new Date(an) : null;
+    const gueltig = zeit && !Number.isNaN(zeit.getTime());
+    const min = gueltig ? Math.max(0, Math.round((zeit.getTime() - Date.now()) / 60000)) : null;
     this._text('e-dauer', min === null ? '–' : min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min` : `${min} min`);
-    this._text('e-km', rest === null ? '–' : `${Number(rest).toLocaleString('de-DE', { maximumFractionDigits: Number(rest) < 10 ? 1 : 0 })} km`);
-    this._text('e-uhr', gueltig ? t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '');
-    this._text('e-zustand', this._z(E.zustand) === 'paused' ? 'pausiert' : '');
+    this._text('e-km', rest === null ? '–' : `${Number(rest).toLocaleString(gebiet(this._hass), { maximumFractionDigits: Number(rest) < 10 ? 1 : 0 })} km`);
+    this._text('e-uhr', gueltig ? zeit.toLocaleTimeString(gebiet(this._hass), { hour: '2-digit', minute: '2-digit' }) : '');
+    this._text('e-zustand', this._z(E.zustand) === 'paused' ? t(this._hass, 'pausiert') : '');
     this._halte();
   }
 
@@ -2212,12 +2479,12 @@ class YapaiaCockpitSportCard extends HTMLElement {
         ? [{ name: ziel, art: 'ziel', km: this._z(E.restweg), ankunft: this._z(E.ankunft) }]
         : [];
     const uhr = (iso) => {
-      const t = iso ? new Date(iso) : null;
-      return t && !Number.isNaN(t.getTime()) ? t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–';
+      const zeit = iso ? new Date(iso) : null;
+      return zeit && !Number.isNaN(zeit.getTime()) ? zeit.toLocaleTimeString(gebiet(this._hass), { hour: '2-digit', minute: '2-digit' }) : '–';
     };
     const km = (k) => (k === null || k === undefined || k === '' || !Number.isFinite(Number(k))
       ? '–'
-      : `${Number(k).toLocaleString('de-DE', { maximumFractionDigits: Number(k) < 10 ? 1 : 0 })} km`);
+      : `${Number(k).toLocaleString(gebiet(this._hass), { maximumFractionDigits: Number(k) < 10 ? 1 : 0 })} km`);
     const liste = this.$('halte-liste');
     liste.replaceChildren(...halte.map((h, i) => {
       const li = document.createElement('li');
@@ -2226,7 +2493,7 @@ class YapaiaCockpitSportCard extends HTMLElement {
       icon.setAttribute('icon', h.art === 'ziel' ? 'mdi:flag-checkered' : 'mdi:map-marker-outline');
       const name = document.createElement('span');
       name.className = 'name';
-      name.textContent = h.name || (h.art === 'ziel' ? 'Ziel' : `Zwischenziel ${i + 1}`);
+      name.textContent = h.name || (h.art === 'ziel' ? t(this._hass, 'ziel') : t(this._hass, 'zwischenziel_nr', { nr: i + 1 }));
       const k = document.createElement('span');
       k.className = 'km';
       k.textContent = km(h.km);
@@ -2239,8 +2506,8 @@ class YapaiaCockpitSportCard extends HTMLElement {
     const hinweis = this.$('halte-hinweis');
     hinweis.hidden = halte.length > 0 && roh !== null;
     hinweis.textContent = halte.length === 0
-      ? 'Keine Navigation aktiv.'
-      : 'Zwischenziele zeigt Yapaia Go ab Version 0.52.0.';
+      ? t(this._hass, 'keine_navigation_aktiv')
+      : t(this._hass, 'halte_ab');
   }
 }
 
@@ -2250,6 +2517,6 @@ if (!customElements.get('yapaia-cockpit-sport-card')) {
   window.customCards.push({
     type: 'yapaia-cockpit-sport-card',
     name: 'Yapaia Cockpit Sport',
-    description: 'Karte von Yapaia Go bildschirmfüllend mit Radio, Favoriten, Anweisung und Ankunft im Stil eines Auto-Infotainments.',
+    description: t(null, 'beschreibung'),
   });
 }

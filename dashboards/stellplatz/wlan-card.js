@@ -29,20 +29,134 @@ const STANDARD = {
 // Wie lange nach „Verbinden“ auf die Bestätigung des Routers gewartet wird
 const WARTEN_S = 60;
 
+// Router-Fehlercode -> Textschlüssel
 const FEHLER = {
-  wrong_key: "Passwort falsch?",
-  "wrong key": "Passwort falsch?",
-  auth_failed: "Anmeldung abgelehnt – Passwort falsch?",
-  not_found: "WLAN nicht mehr gefunden",
-  dhcp_failed: "Keine IP-Adresse bekommen",
-  timeout: "Keine Antwort vom WLAN",
+  wrong_key: "fehler_wrong_key",
+  "wrong key": "fehler_wrong_key",
+  auth_failed: "fehler_auth_failed",
+  not_found: "fehler_not_found",
+  dhcp_failed: "fehler_dhcp_failed",
+  timeout: "fehler_timeout",
 };
+
+// Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    auto: "Automatisch",
+    design: "Design-Schema",
+    titel: "Titel",
+    internet_sensor: "Sensor „Internet über“ des Routers",
+    anmeldung_sensor: "Sensor „WLAN-Anmeldung nötig“",
+    portal_adresse: "Adresse zum Öffnen der Anmeldeseite",
+    portal_hilfe: "Eine Seite ohne HTTPS, damit das Captive Portal sie abfangen kann.",
+    fehler_wrong_key: "Passwort falsch?",
+    fehler_auth_failed: "Anmeldung abgelehnt – Passwort falsch?",
+    fehler_not_found: "WLAN nicht mehr gefunden",
+    fehler_dhcp_failed: "Keine IP-Adresse bekommen",
+    fehler_timeout: "Keine Antwort vom WLAN",
+    von_4: "{n} von 4",
+    suche_fehlgeschlagen: "Suche fehlgeschlagen: {fehler}",
+    passwort_eingeben: "Bitte das Passwort eingeben.",
+    verbinde_mit: "Verbinde mit „{ssid}“ …",
+    verbinden_fehlgeschlagen: "Verbinden fehlgeschlagen: {fehler}",
+    getrennt: "WLAN getrennt – Internet läuft jetzt über Mobilfunk (falls vorhanden).",
+    trennen_fehlgeschlagen: "Trennen fehlgeschlagen: {fehler}",
+    verbunden_anmelden: "Mit „{ssid}“ verbunden – jetzt noch im Browser anmelden (siehe oben).",
+    verbunden_mit: "Mit „{ssid}“ verbunden.",
+    router_meldet: "Router meldet: {fehler}",
+    keine_verbindung: "Der Router hat keine Verbindung gemeldet.",
+    netz_grund: "„{ssid}“: {grund}",
+    suchen: "Suchen",
+    router_nicht_gefunden: "Router nicht gefunden ({entitaet}). Ist die Integration „Yapaia“ mit dem GL.iNet-Router eingerichtet?",
+    verbunden: "verbunden",
+    verbunden_seit: "verbunden seit {seit}",
+    internet_ueber: "Internet über {quelle}",
+    trennen: "Trennen",
+    nicht_verbunden: "Mit keinem WLAN verbunden",
+    portal_titel: "Anmeldung im Browser nötig",
+    portal_text1: "Dieses WLAN verlangt eine Anmeldung auf einer Webseite (Captive Portal), etwa mit Zugangscode oder „Bedingungen akzeptieren“. Erst danach gibt es Internet.",
+    portal_text2: "Die Seite mit einem Gerät öffnen, das im WLAN des Wohnmobils ist – die Anmeldung gilt dann für alle Geräte.",
+    portal_oeffnen: "Anmeldeseite öffnen",
+    sucht: "Sucht …",
+    neu_suchen: "Neu suchen",
+    suchen_hinweis: "„Suchen“ zeigt die WLANs in der Umgebung. Die Suche dauert einige Sekunden.",
+    keine_wlans: "Keine WLANs gefunden.",
+    gespeichert: "gespeichert",
+    zugangspunkte: "{n} Zugangspunkte",
+    offen: "offen",
+    passwort_gespeichert: "Passwort (leer = gespeichertes)",
+    passwort: "Passwort",
+    offenes_wlan: "Offenes WLAN – auf Campingplätzen meist mit Anmeldeseite. Nach dem Verbinden zeigt die Karte, ob eine Anmeldung nötig ist.",
+    im_router_merken: "Im Router merken",
+    verbinden: "Verbinden",
+    abbrechen: "Abbrechen",
+    kartenbeschreibung: "WLANs in der Umgebung suchen und den GL.iNet-Router damit verbinden – mit Hinweis auf Captive Portals.",
+  },
+  en: {
+    auto: "Automatic",
+    design: "Design scheme",
+    titel: "Title",
+    internet_sensor: "Router sensor “Internet via”",
+    anmeldung_sensor: "Sensor “Wi-Fi login required”",
+    portal_adresse: "Address to open the login page",
+    portal_hilfe: "A page without HTTPS, so the captive portal can intercept it.",
+    fehler_wrong_key: "Wrong password?",
+    fehler_auth_failed: "Login rejected – wrong password?",
+    fehler_not_found: "Wi-Fi no longer found",
+    fehler_dhcp_failed: "Could not get an IP address",
+    fehler_timeout: "No response from the Wi-Fi",
+    von_4: "{n} of 4",
+    suche_fehlgeschlagen: "Scan failed: {fehler}",
+    passwort_eingeben: "Please enter the password.",
+    verbinde_mit: "Connecting to “{ssid}” …",
+    verbinden_fehlgeschlagen: "Connecting failed: {fehler}",
+    getrennt: "Wi-Fi disconnected – internet now runs over mobile data (if available).",
+    trennen_fehlgeschlagen: "Disconnecting failed: {fehler}",
+    verbunden_anmelden: "Connected to “{ssid}” – now log in in the browser (see above).",
+    verbunden_mit: "Connected to “{ssid}”.",
+    router_meldet: "Router reports: {fehler}",
+    keine_verbindung: "The router did not report a connection.",
+    netz_grund: "“{ssid}”: {grund}",
+    suchen: "Scan",
+    router_nicht_gefunden: "Router not found ({entitaet}). Is the “Yapaia” integration set up with the GL.iNet router?",
+    verbunden: "connected",
+    verbunden_seit: "connected since {seit}",
+    internet_ueber: "Internet via {quelle}",
+    trennen: "Disconnect",
+    nicht_verbunden: "Not connected to any Wi-Fi",
+    portal_titel: "Browser login required",
+    portal_text1: "This Wi-Fi requires a login on a web page (captive portal), e.g. with an access code or “accept terms”. Internet is only available afterwards.",
+    portal_text2: "Open the page on a device that is on the motorhome's Wi-Fi – the login then applies to all devices.",
+    portal_oeffnen: "Open login page",
+    sucht: "Scanning …",
+    neu_suchen: "Scan again",
+    suchen_hinweis: "“Scan” shows the Wi-Fi networks nearby. The scan takes a few seconds.",
+    keine_wlans: "No Wi-Fi networks found.",
+    gespeichert: "saved",
+    zugangspunkte: "{n} access points",
+    offen: "open",
+    passwort_gespeichert: "Password (empty = saved one)",
+    passwort: "Password",
+    offenes_wlan: "Open Wi-Fi – at campsites usually with a login page. After connecting, the card shows whether a login is needed.",
+    im_router_merken: "Remember in router",
+    verbinden: "Connect",
+    abbrechen: "Cancel",
+    kartenbeschreibung: "Scan nearby Wi-Fi networks and connect the GL.iNet router to one – with captive portal notice.",
+  },
+};
+const spracheVon = (hass) =>
+  String(hass?.locale?.language ?? hass?.language ?? document.querySelector("home-assistant")?.hass?.locale?.language ?? "en")
+    .toLowerCase().startsWith("de") ? "de" : "en";
+const t = (hass, schluessel, werte = {}) =>
+  String(TEXTE[spracheVon(hass)]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? "");
+// Zahlen, Datum, Uhrzeit im Format der HA-Sprache
+const gebiet = (hass) => hass?.locale?.language ?? hass?.language ?? "de-DE";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const balken = (n) => {
+const balken = (n, hass) => {
   const b = Number.isFinite(n) ? n : 0;
-  return `<span class="balken" title="${b} von 4">${[1, 2, 3, 4].map((i) => `<i class="${i <= b ? "an" : ""}" style="height:${i * 25}%"></i>`).join("")}</span>`;
+  return `<span class="balken" title="${t(hass, "von_4", { n: b })}">${[1, 2, 3, 4].map((i) => `<i class="${i <= b ? "an" : ""}" style="height:${i * 25}%"></i>`).join("")}</span>`;
 };
 
 class YapaiaWlanCard extends HTMLElement {
@@ -53,7 +167,7 @@ class YapaiaWlanCard extends HTMLElement {
   static getConfigForm() {
     return {
       schema: [
-        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: t(null, "auto") }] } } },
         { name: "name", selector: { text: {} } },
         { name: "internet", required: true, selector: { entity: { domain: "sensor" } } },
         { name: "anmeldung", selector: { entity: { domain: "binary_sensor" } } },
@@ -61,15 +175,15 @@ class YapaiaWlanCard extends HTMLElement {
       ],
       computeLabel: (s) =>
         ({
-          design: "Design-Schema",
-          name: "Titel",
-          internet: "Sensor „Internet über“ des Routers",
-          anmeldung: "Sensor „WLAN-Anmeldung nötig“",
-          portal_url: "Adresse zum Öffnen der Anmeldeseite",
+          design: t(null, "design"),
+          name: t(null, "titel"),
+          internet: t(null, "internet_sensor"),
+          anmeldung: t(null, "anmeldung_sensor"),
+          portal_url: t(null, "portal_adresse"),
         })[s.name],
       computeHelper: (s) =>
         ({
-          portal_url: "Eine Seite ohne HTTPS, damit das Captive Portal sie abfangen kann.",
+          portal_url: t(null, "portal_hilfe"),
         })[s.name],
     };
   }
@@ -105,6 +219,11 @@ class YapaiaWlanCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    const sprache = spracheVon(hass);
+    if (sprache !== this._sprache) {
+      this._sprache = sprache;
+      this._geruest();
+    }
     const yschema = window.YapaiaDesign?.waehle(hass, { wahl: this._config.design, quelle: DESIGN_QUELLE }) ?? null;
     if (yschema?.id !== this._yschema) {
       this._yschema = yschema?.id;
@@ -145,7 +264,7 @@ class YapaiaWlanCard extends HTMLElement {
       const r = await this._dienst("wlan_suchen");
       this._netze = r.netze ?? [];
     } catch (err) {
-      this._meldung = { art: "fehler", text: `Suche fehlgeschlagen: ${err.message ?? err}` };
+      this._meldung = { art: "fehler", text: t(this._hass, "suche_fehlgeschlagen", { fehler: err.message ?? err }) };
     }
     this._sucht = false;
     this._listeZeichnen();
@@ -155,14 +274,14 @@ class YapaiaWlanCard extends HTMLElement {
     const netz = (this._netze ?? []).find((n) => n.ssid === ssid);
     if (!netz) return;
     if (netz.verschluesselt && !netz.gespeichert && !this._pw) {
-      this._meldung = { art: "warn", text: "Bitte das Passwort eingeben." };
+      this._meldung = { art: "warn", text: t(this._hass, "passwort_eingeben") };
       this._listeZeichnen();
       return;
     }
     const daten = { ssid, merken: this._merken };
     if (this._pw) daten.passwort = this._pw;
     if (netz.bssid) daten.bssid = netz.bssid;
-    this._meldung = { art: "info", text: `Verbinde mit „${ssid}“ …` };
+    this._meldung = { art: "info", text: t(this._hass, "verbinde_mit", { ssid }) };
     this._verbinde = { ssid, bis: Date.now() + WARTEN_S * 1000, gesehen: false };
     this._offen = null;
     this._pw = "";
@@ -171,7 +290,7 @@ class YapaiaWlanCard extends HTMLElement {
       await this._dienst("wlan_verbinden", daten);
     } catch (err) {
       this._verbinde = null;
-      this._meldung = { art: "fehler", text: `Verbinden fehlgeschlagen: ${err.message ?? err}` };
+      this._meldung = { art: "fehler", text: t(this._hass, "verbinden_fehlgeschlagen", { fehler: err.message ?? err }) };
       this._listeZeichnen();
       return;
     }
@@ -183,9 +302,9 @@ class YapaiaWlanCard extends HTMLElement {
   async _trennen() {
     try {
       await this._dienst("wlan_trennen");
-      this._meldung = { art: "info", text: "WLAN getrennt – Internet läuft jetzt über Mobilfunk (falls vorhanden)." };
+      this._meldung = { art: "info", text: t(this._hass, "getrennt") };
     } catch (err) {
-      this._meldung = { art: "fehler", text: `Trennen fehlgeschlagen: ${err.message ?? err}` };
+      this._meldung = { art: "fehler", text: t(this._hass, "trennen_fehlgeschlagen", { fehler: err.message ?? err }) };
     }
     this._listeZeichnen();
   }
@@ -198,14 +317,16 @@ class YapaiaWlanCard extends HTMLElement {
     if (s.ssid === v.ssid && s.verbunden) {
       this._verbinde = null;
       this._meldung = s.portal
-        ? { art: "warn", text: `Mit „${v.ssid}“ verbunden – jetzt noch im Browser anmelden (siehe oben).` }
-        : { art: "ok", text: `Mit „${v.ssid}“ verbunden.` };
+        ? { art: "warn", text: t(this._hass, "verbunden_anmelden", { ssid: v.ssid }) }
+        : { art: "ok", text: t(this._hass, "verbunden_mit", { ssid: v.ssid }) };
       if (this._netze) this._netze = this._netze.map((n) => ({ ...n, verbunden: n.ssid === v.ssid, gespeichert: n.gespeichert || n.ssid === v.ssid }));
       this._listeZeichnen();
     } else if (abgelaufen || Date.now() > v.bis) {
       this._verbinde = null;
-      const grund = FEHLER[s.fehler] ?? (s.fehler ? `Router meldet: ${s.fehler}` : "Der Router hat keine Verbindung gemeldet.");
-      this._meldung = { art: "fehler", text: `„${v.ssid}“: ${grund}` };
+      const grund = FEHLER[s.fehler]
+        ? t(this._hass, FEHLER[s.fehler])
+        : s.fehler ? t(this._hass, "router_meldet", { fehler: s.fehler }) : t(this._hass, "keine_verbindung");
+      this._meldung = { art: "fehler", text: t(this._hass, "netz_grund", { ssid: v.ssid, grund }) };
       this._listeZeichnen();
     }
   }
@@ -272,7 +393,7 @@ class YapaiaWlanCard extends HTMLElement {
         .schloss { width: 20px; color: var(--y-text-gedaempft, var(--secondary-text-color)); --mdc-icon-size: 18px; }
       </style>
       <ha-card>
-        <div class="kopf"><span class="titel"></span><button id="suchen" class="haupt">Suchen</button></div>
+        <div class="kopf"><span class="titel"></span><button id="suchen" class="haupt">${t(this._hass, "suchen")}</button></div>
         <div id="status"></div>
         <div id="liste"></div>
       </ha-card>`;
@@ -284,26 +405,25 @@ class YapaiaWlanCard extends HTMLElement {
     if (!this._hass || !this.shadowRoot) return;
     const c = this._config;
     const s = this._status();
-    const key = JSON.stringify([s, c.name]);
+    const key = JSON.stringify([s, c.name, spracheVon(this._hass)]);
     if (key === this._statusKey) return;
     this._statusKey = key;
     this.shadowRoot.querySelector(".titel").textContent = c.name;
     let html;
     if (!s.da) {
-      html = `<div class="status">Router nicht gefunden (${esc(c.internet)}). Ist die Integration „Yapaia“ mit dem GL.iNet-Router eingerichtet?</div>`;
+      html = `<div class="status">${esc(t(this._hass, "router_nicht_gefunden", { entitaet: c.internet }))}</div>`;
     } else if (s.verbunden) {
-      html = `<div class="status zeile">${balken(s.balken)}<div><b>${esc(s.ssid)}</b>
-        <div class="klein">verbunden${s.seit ? ` seit ${esc(s.seit)}` : ""} · Internet über ${esc(s.quelle ?? "?")}</div></div>
-        <span style="flex:1"></span><button id="trennen">Trennen</button></div>`;
+      html = `<div class="status zeile">${balken(s.balken, this._hass)}<div><b>${esc(s.ssid)}</b>
+        <div class="klein">${s.seit ? esc(t(this._hass, "verbunden_seit", { seit: s.seit })) : t(this._hass, "verbunden")} · ${esc(t(this._hass, "internet_ueber", { quelle: s.quelle ?? "?" }))}</div></div>
+        <span style="flex:1"></span><button id="trennen">${t(this._hass, "trennen")}</button></div>`;
     } else {
-      html = `<div class="status">Mit keinem WLAN verbunden · Internet über ${esc(s.quelle && s.quelle !== "unknown" ? s.quelle : "–")}</div>`;
+      html = `<div class="status">${t(this._hass, "nicht_verbunden")} · ${esc(t(this._hass, "internet_ueber", { quelle: s.quelle && s.quelle !== "unknown" ? s.quelle : "–" }))}</div>`;
     }
     if (s.portal) {
-      html += `<div class="portal"><b>Anmeldung im Browser nötig</b>
-        Dieses WLAN verlangt eine Anmeldung auf einer Webseite (Captive Portal), etwa mit Zugangscode oder
-        „Bedingungen akzeptieren“. Erst danach gibt es Internet.<br>
-        Die Seite mit einem Gerät öffnen, das im WLAN des Wohnmobils ist – die Anmeldung gilt dann für alle Geräte.
-        <br><button id="portal" class="haupt">Anmeldeseite öffnen</button></div>`;
+      html += `<div class="portal"><b>${t(this._hass, "portal_titel")}</b>
+        ${t(this._hass, "portal_text1")}<br>
+        ${t(this._hass, "portal_text2")}
+        <br><button id="portal" class="haupt">${t(this._hass, "portal_oeffnen")}</button></div>`;
     }
     this.shadowRoot.getElementById("status").innerHTML = html;
   }
@@ -312,12 +432,12 @@ class YapaiaWlanCard extends HTMLElement {
     if (!this.shadowRoot) return;
     const knopf = this.shadowRoot.getElementById("suchen");
     knopf.disabled = this._sucht;
-    knopf.textContent = this._sucht ? "Sucht …" : this._netze ? "Neu suchen" : "Suchen";
+    knopf.textContent = this._sucht ? t(this._hass, "sucht") : this._netze ? t(this._hass, "neu_suchen") : t(this._hass, "suchen");
     let html = this._meldung ? `<div class="meldung ${this._meldung.art}">${esc(this._meldung.text)}</div>` : "";
     if (this._netze === null) {
-      html += this._sucht ? "" : `<div class="klein">„Suchen“ zeigt die WLANs in der Umgebung. Die Suche dauert einige Sekunden.</div>`;
+      html += this._sucht ? "" : `<div class="klein">${t(this._hass, "suchen_hinweis")}</div>`;
     } else if (this._netze.length === 0) {
-      html += `<div class="klein">Keine WLANs gefunden.</div>`;
+      html += `<div class="klein">${t(this._hass, "keine_wlans")}</div>`;
     } else {
       html += `<ul>${this._netze.map((n) => this._eintrag(n)).join("")}</ul>`;
     }
@@ -331,25 +451,25 @@ class YapaiaWlanCard extends HTMLElement {
 
   _eintrag(n) {
     const marken = [
-      n.verbunden ? `<span class="marke verbunden">verbunden</span>` : "",
-      n.gespeichert && !n.verbunden ? `<span class="marke">gespeichert</span>` : "",
+      n.verbunden ? `<span class="marke verbunden">${t(this._hass, "verbunden")}</span>` : "",
+      n.gespeichert && !n.verbunden ? `<span class="marke">${t(this._hass, "gespeichert")}</span>` : "",
     ].join("");
-    const info = [n.baender?.join(" + "), n.zugangspunkte > 1 ? `${n.zugangspunkte} Zugangspunkte` : "", n.verschluesselt ? "" : "offen"]
+    const info = [n.baender?.join(" + "), n.zugangspunkte > 1 ? t(this._hass, "zugangspunkte", { n: n.zugangspunkte }) : "", n.verschluesselt ? "" : t(this._hass, "offen")]
       .filter(Boolean)
       .join(" · ");
     let form = "";
     if (this._offen === n.ssid && !n.verbunden) {
       const pwFeld = n.verschluesselt
-        ? `<input id="pw" type="password" autocomplete="off" placeholder="${n.gespeichert ? "Passwort (leer = gespeichertes)" : "Passwort"}">`
-        : `<div class="klein">Offenes WLAN – auf Campingplätzen meist mit Anmeldeseite. Nach dem Verbinden zeigt die Karte, ob eine Anmeldung nötig ist.</div>`;
+        ? `<input id="pw" type="password" autocomplete="off" placeholder="${t(this._hass, n.gespeichert ? "passwort_gespeichert" : "passwort")}">`
+        : `<div class="klein">${t(this._hass, "offenes_wlan")}</div>`;
       form = `<div class="form">${pwFeld}
-        <label><input id="merken" type="checkbox" ${this._merken ? "checked" : ""}> Im Router merken</label>
-        <div><button class="haupt" data-verbinden="${esc(n.ssid)}" ${this._verbinde ? "disabled" : ""}>Verbinden</button>
-        <button data-zu="1">Abbrechen</button></div></div>`;
+        <label><input id="merken" type="checkbox" ${this._merken ? "checked" : ""}> ${t(this._hass, "im_router_merken")}</label>
+        <div><button class="haupt" data-verbinden="${esc(n.ssid)}" ${this._verbinde ? "disabled" : ""}>${t(this._hass, "verbinden")}</button>
+        <button data-zu="1">${t(this._hass, "abbrechen")}</button></div></div>`;
     }
     return `<li><div class="netz" data-netz="${esc(n.ssid)}">
         <span class="schloss">${n.verschluesselt ? `<ha-icon icon="mdi:lock"></ha-icon>` : ""}</span>
-        <span class="name">${esc(n.ssid)}${marken}<small>${esc(info)}</small></span>${balken(n.balken)}</div>${form}</li>`;
+        <span class="name">${esc(n.ssid)}${marken}<small>${esc(info)}</small></span>${balken(n.balken, this._hass)}</div>${form}</li>`;
   }
 
   _klick(e) {
@@ -380,7 +500,7 @@ if (!window.customCards.some((k) => k.type === "yapaia-wlan-card")) {
   window.customCards.push({
     type: "yapaia-wlan-card",
     name: "Yapaia WLAN",
-    description: "WLANs in der Umgebung suchen und den GL.iNet-Router damit verbinden – mit Hinweis auf Captive Portals.",
+    description: t(null, "kartenbeschreibung"),
     preview: false,
   });
 }

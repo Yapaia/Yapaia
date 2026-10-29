@@ -73,18 +73,295 @@ const STANDARD = {
   lichter: LICHTER.map(([entity, name]) => ({ entity, name })),
 };
 
-// Truma-Warmwasser: Solltemperatur ↔ Modus
+// Truma-Warmwasser: Solltemperatur ↔ Modus (Schlüssel, Textschlüssel, °C)
 const WASSER_MODI = [
-  ["eco", "Eco", 40],
-  ["heiss", "Heiß", 60],
-  ["boost", "Boost", 80],
+  ["eco", "modus_eco", 40],
+  ["heiss", "modus_heiss", 60],
+  ["boost", "modus_boost", 80],
 ];
 
-const WETTER = {
-  "clear-night": "klare Nacht", cloudy: "bewölkt", exceptional: "Unwetter", fog: "Nebel", hail: "Hagel",
-  lightning: "Gewitter", "lightning-rainy": "Gewitter mit Regen", partlycloudy: "teils bewölkt", pouring: "Starkregen",
-  rainy: "Regen", snowy: "Schnee", "snowy-rainy": "Schneeregen", sunny: "sonnig", windy: "windig", "windy-variant": "windig, bewölkt",
+// Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    auto: "Automatisch",
+    stil: "Aufbau",
+    kacheln: "Kacheln",
+    magazin: "Magazin",
+    magazin_karten: "Magazin mit Karten",
+    breitbild: "Breitbild (1920 × 720)",
+    design: "Design-Schema",
+    titel: "Titel",
+    ort_fest: "Ort fest eintragen (sonst aus der Entität)",
+    ort_entity: "Ort aus Entität",
+    raum: "Heizung Raum",
+    warmwasser: "Warmwasser",
+    soc: "Ladestand Batterie 1",
+    soc_2: "Ladestand Batterie 2 (optional)",
+    spannung: "Spannung Batterie 1",
+    spannung_2: "Spannung Batterie 2 (optional)",
+    strom: "Strom Batterie 1",
+    strom_2: "Strom Batterie 2 (optional)",
+    restlaufzeit_tage: "Restlaufzeit (Tage)",
+    leistung: "Leistung Batterie 1 (optional, sonst Spannung × Strom)",
+    leistung_2: "Leistung Batterie 2 (optional)",
+    kapazitaet: "Kapazität aller Batterien",
+    solarleistung: "Solarleistung",
+    solarertrag: "Solarertrag heute",
+    gas_1: "Gas 1",
+    gas_2: "Gas 2",
+    frischwasser: "Frischwasser",
+    wasser_leer: "Wasser leer bei",
+    wasser_voll: "Wasser voll bei",
+    tuer: "Aufbautür",
+    radio: "Radio",
+    router_internet: "Router „Internet über“",
+    wetter: "Wetter",
+    sonne: "Sonne",
+    lichter_liste: "Lichter (Liste aus entity und name)",
+    hilfe_wasser: "Ohne beide Werte zeigt die Karte die Spannung des Drucksensors.",
+    hilfe_kapazitaet: "Für die Schätzung, wann die Batterie wieder voll ist.",
+    gruppe_heizung: "Heizung",
+    gruppe_batterie: "Batterie und Solar",
+    gruppe_vorraete: "Vorräte",
+    gruppe_sonstiges: "Tür, Radio, Internet, Wetter",
+    modus_eco: "Eco",
+    modus_heiss: "Heiß",
+    modus_boost: "Boost",
+    aus: "Aus",
+    "wetter_clear-night": "klare Nacht",
+    wetter_cloudy: "bewölkt",
+    wetter_exceptional: "Unwetter",
+    wetter_fog: "Nebel",
+    wetter_hail: "Hagel",
+    wetter_lightning: "Gewitter",
+    "wetter_lightning-rainy": "Gewitter mit Regen",
+    wetter_partlycloudy: "teils bewölkt",
+    wetter_pouring: "Starkregen",
+    wetter_rainy: "Regen",
+    wetter_snowy: "Schnee",
+    "wetter_snowy-rainy": "Schneeregen",
+    wetter_sunny: "sonnig",
+    wetter_windy: "windig",
+    "wetter_windy-variant": "windig, bewölkt",
+    dauer_tage: "{n} Tagen",
+    dauer_std: "{h} Std",
+    dauer_std_min: "{h} Std {m} Min",
+    dauer_min: "{m} Min",
+    voll_laedt: "voll · lädt",
+    voll_in: "voll in ca. {dauer} (gegen {uhr})",
+    laedt_gerade: "lädt gerade",
+    restlaufzeit_unbekannt: "Restlaufzeit unbekannt",
+    restlaufzeit_text: "{rest} Restlaufzeit",
+    batt_laedt: "Die Batterie <b>lädt mit {w} W</b>.",
+    batt_voll: " Sie ist voll.",
+    batt_voll_in: " Voll in ca. <b>{dauer}</b>, gegen {uhr}.",
+    batt_verbrauch: "Gerade werden <b>{w} W</b> verbraucht. ",
+    batt_kaum: "Gerade fließt kaum Strom. ",
+    batt_reicht: "Reicht noch <b>{rest}</b>.",
+    unbekannt: "unbekannt",
+    rest_tag: "{n} Tag {std} Std",
+    rest_tage: "{n} Tage {std} Std",
+    rest_std: "{std} Std",
+    gas_voll: "voll",
+    nochmal_entriegeln: "Nochmal tippen: entriegeln",
+    nochmal_verriegeln: "Nochmal tippen: verriegeln",
+    tuer_locked: "verriegelt",
+    tuer_unlocked: "offen",
+    tuer_locking: "verriegelt …",
+    tuer_unlocking: "entriegelt …",
+    tuer_jammed: "klemmt!",
+    raum_aus: "aus · innen {ist}°",
+    raum_innen: "innen {ist}° · {zustand}",
+    heizt: "heizt",
+    haelt: "hält",
+    kein_wlan: "kein WLAN",
+    kein_wlan_gross: "Kein WLAN",
+    internet_ueber: "Internet über {quelle}",
+    heizung_raum: "Heizung · Raum",
+    aus_klein: "aus",
+    waermer: "Wärmer",
+    kaelter: "Kälter",
+    heizung_an_aus: "Heizung an/aus",
+    wasser: "Wasser",
+    batterie: "Batterie",
+    richtung_laden: "lädt",
+    richtung_entladen: "entlädt",
+    richtung_ruhe: "Ruhe",
+    richtung_verbrauch: "Verbrauch",
+    solar: "Solar",
+    heute_kwh: "heute <b>{kwh} kWh</b>",
+    heute_kwh_klein: "heute {kwh} kWh",
+    licht: "Licht",
+    vorraete: "Vorräte",
+    sender_waehlen: "Sender wählen",
+    voriger_sender: "Voriger Sender",
+    wiedergabe: "Wiedergabe",
+    naechster_sender: "Nächster Sender",
+    sonnenuntergang: "Sonnenuntergang",
+    sonnenaufgang: "Sonnenaufgang",
+    uhrzeit: "Uhrzeit",
+    heute_im_mobil: "Heute im Mobil",
+    energie: "Energie",
+    waerme: "Wärme",
+    sonne_liefert: "Die Sonne liefert <b class=\"akz\">{w} W</b>, heute {kwh} kWh.",
+    sonne_heute: "Heute {kwh} kWh von der Sonne.",
+    magazin_raum_an: "Innen {ist}°, die Truma {zustand}.",
+    truma_heizt: "heizt",
+    truma_haelt: "hält die Temperatur",
+    magazin_raum_aus: "Heizung aus, innen {ist}°.",
+    warmwasser_satz: "Warmwasser <b>{w}</b>.",
+    alles_aus: "Alles aus",
+    laeuft_gerade: "Läuft gerade",
+    wind: "Wind {v} km/h",
+    warmwasser_kopf: "Warmwasser",
+    fehler: "Fehler: {fehler}",
+    kartenbeschreibung: "Ganzes Stellplatz-Dashboard in einer Karte – Stil Retro-Camper, Outdoor-Magazin oder Mix.",
+  },
+  en: {
+    auto: "Automatic",
+    stil: "Layout",
+    kacheln: "Tiles",
+    magazin: "Magazine",
+    magazin_karten: "Magazine with cards",
+    breitbild: "Widescreen (1920 × 720)",
+    design: "Design scheme",
+    titel: "Title",
+    ort_fest: "Fixed location (otherwise from the entity)",
+    ort_entity: "Location from entity",
+    raum: "Heating, cabin",
+    warmwasser: "Hot water",
+    soc: "State of charge battery 1",
+    soc_2: "State of charge battery 2 (optional)",
+    spannung: "Voltage battery 1",
+    spannung_2: "Voltage battery 2 (optional)",
+    strom: "Current battery 1",
+    strom_2: "Current battery 2 (optional)",
+    restlaufzeit_tage: "Remaining runtime (days)",
+    leistung: "Power battery 1 (optional, otherwise voltage × current)",
+    leistung_2: "Power battery 2 (optional)",
+    kapazitaet: "Capacity of all batteries",
+    solarleistung: "Solar power",
+    solarertrag: "Solar yield today",
+    gas_1: "Gas 1",
+    gas_2: "Gas 2",
+    frischwasser: "Fresh water",
+    wasser_leer: "Water empty at",
+    wasser_voll: "Water full at",
+    tuer: "Habitation door",
+    radio: "Radio",
+    router_internet: "Router “Internet via”",
+    wetter: "Weather",
+    sonne: "Sun",
+    lichter_liste: "Lights (list of entity and name)",
+    hilfe_wasser: "Without both values the card shows the pressure sensor voltage.",
+    hilfe_kapazitaet: "Used to estimate when the battery will be full.",
+    gruppe_heizung: "Heating",
+    gruppe_batterie: "Battery and solar",
+    gruppe_vorraete: "Supplies",
+    gruppe_sonstiges: "Door, radio, internet, weather",
+    modus_eco: "Eco",
+    modus_heiss: "Hot",
+    modus_boost: "Boost",
+    aus: "Off",
+    "wetter_clear-night": "clear night",
+    wetter_cloudy: "cloudy",
+    wetter_exceptional: "severe weather",
+    wetter_fog: "fog",
+    wetter_hail: "hail",
+    wetter_lightning: "thunderstorm",
+    "wetter_lightning-rainy": "thunderstorm with rain",
+    wetter_partlycloudy: "partly cloudy",
+    wetter_pouring: "heavy rain",
+    wetter_rainy: "rain",
+    wetter_snowy: "snow",
+    "wetter_snowy-rainy": "sleet",
+    wetter_sunny: "sunny",
+    wetter_windy: "windy",
+    "wetter_windy-variant": "windy, cloudy",
+    dauer_tage: "{n} days",
+    dauer_std: "{h} h",
+    dauer_std_min: "{h} h {m} min",
+    dauer_min: "{m} min",
+    voll_laedt: "full · charging",
+    voll_in: "full in approx. {dauer} (around {uhr})",
+    laedt_gerade: "charging now",
+    restlaufzeit_unbekannt: "Remaining runtime unknown",
+    restlaufzeit_text: "{rest} remaining",
+    batt_laedt: "The battery is <b>charging at {w} W</b>.",
+    batt_voll: " It is full.",
+    batt_voll_in: " Full in approx. <b>{dauer}</b>, around {uhr}.",
+    batt_verbrauch: "Currently <b>{w} W</b> in use. ",
+    batt_kaum: "Hardly any current is flowing. ",
+    batt_reicht: "Lasts another <b>{rest}</b>.",
+    unbekannt: "unknown",
+    rest_tag: "{n} day {std} h",
+    rest_tage: "{n} days {std} h",
+    rest_std: "{std} h",
+    gas_voll: "full",
+    nochmal_entriegeln: "Tap again to unlock",
+    nochmal_verriegeln: "Tap again to lock",
+    tuer_locked: "locked",
+    tuer_unlocked: "open",
+    tuer_locking: "locking …",
+    tuer_unlocking: "unlocking …",
+    tuer_jammed: "jammed!",
+    raum_aus: "off · inside {ist}°",
+    raum_innen: "inside {ist}° · {zustand}",
+    heizt: "heating",
+    haelt: "holding",
+    kein_wlan: "no Wi-Fi",
+    kein_wlan_gross: "No Wi-Fi",
+    internet_ueber: "Internet via {quelle}",
+    heizung_raum: "Heating · cabin",
+    aus_klein: "off",
+    waermer: "Warmer",
+    kaelter: "Cooler",
+    heizung_an_aus: "Heating on/off",
+    wasser: "Water",
+    batterie: "Battery",
+    richtung_laden: "charging",
+    richtung_entladen: "discharging",
+    richtung_ruhe: "idle",
+    richtung_verbrauch: "Usage",
+    solar: "Solar",
+    heute_kwh: "today <b>{kwh} kWh</b>",
+    heute_kwh_klein: "today {kwh} kWh",
+    licht: "Lights",
+    vorraete: "Supplies",
+    sender_waehlen: "Choose a station",
+    voriger_sender: "Previous station",
+    wiedergabe: "Play/pause",
+    naechster_sender: "Next station",
+    sonnenuntergang: "Sunset",
+    sonnenaufgang: "Sunrise",
+    uhrzeit: "Time",
+    heute_im_mobil: "Today in the motorhome",
+    energie: "Energy",
+    waerme: "Warmth",
+    sonne_liefert: "The sun delivers <b class=\"akz\">{w} W</b>, {kwh} kWh today.",
+    sonne_heute: "{kwh} kWh from the sun today.",
+    magazin_raum_an: "Inside {ist}°, the Truma {zustand}.",
+    truma_heizt: "is heating",
+    truma_haelt: "is holding the temperature",
+    magazin_raum_aus: "Heating off, inside {ist}°.",
+    warmwasser_satz: "Hot water <b>{w}</b>.",
+    alles_aus: "All off",
+    laeuft_gerade: "Now playing",
+    wind: "Wind {v} km/h",
+    warmwasser_kopf: "Hot water",
+    fehler: "Error: {fehler}",
+    kartenbeschreibung: "Complete pitch dashboard in one card – retro camper, outdoor magazine or mix style.",
+  },
 };
+const spracheVon = (hass) =>
+  String(hass?.locale?.language ?? hass?.language ?? document.querySelector("home-assistant")?.hass?.locale?.language ?? "en")
+    .toLowerCase().startsWith("de") ? "de" : "en";
+const t = (hass, schluessel, werte = {}) =>
+  String(TEXTE[spracheVon(hass)]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? "");
+// Zahlen, Datum, Uhrzeit im Format der HA-Sprache
+const gebiet = (hass) => hass?.locale?.language ?? hass?.language ?? "de-DE";
+// Format-Gebiet der gerade gezeichneten Karte (wird in _zeichnen gesetzt)
+let GEBIET = "de-DE";
 
 // Yapaia Design (Integration ab 0.7.0); ohne sie gelten die Rückfallfarben im CSS
 const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
@@ -93,9 +370,9 @@ const zahl = (v) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 };
-const de = (n, st = 0) => (n === null || n === undefined ? "–" : n.toLocaleString("de-DE", { minimumFractionDigits: st, maximumFractionDigits: st }));
+const de = (n, st = 0) => (n === null || n === undefined ? "–" : n.toLocaleString(GEBIET, { minimumFractionDigits: st, maximumFractionDigits: st }));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const uhrzeit = (iso) => (iso ? new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "–");
+const uhrzeit = (iso) => (iso ? new Date(iso).toLocaleTimeString(GEBIET, { hour: "2-digit", minute: "2-digit" }) : "–");
 
 const ICON = {
   schloss: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
@@ -128,42 +405,42 @@ class YapaiaStellplatzCard extends HTMLElement {
     return {
       schema: [
         { name: "stil", required: true, selector: { select: { mode: "box", options: [
-          { value: "retro", label: "Kacheln" }, { value: "magazin", label: "Magazin" }, { value: "mix", label: "Magazin mit Karten" },
-          { value: "breit", label: "Breitbild (1920 × 720)" }] } } },
-        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
+          { value: "retro", label: t(null, "kacheln") }, { value: "magazin", label: t(null, "magazin") }, { value: "mix", label: t(null, "magazin_karten") },
+          { value: "breit", label: t(null, "breitbild") }] } } },
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: t(null, "auto") }] } } },
         { type: "grid", name: "", schema: [{ name: "titel", selector: { text: {} } }, { name: "ort", selector: { text: {} } }] },
         { name: "ort_entity", selector: { entity: { domain: "sensor" } } },
-        { type: "expandable", flatten: true, name: "", title: "Heizung", schema: [
+        { type: "expandable", flatten: true, name: "", title: t(null, "gruppe_heizung"), schema: [
           { name: "raum", selector: e("climate") }, { name: "wasser", selector: e("climate") }] },
-        { type: "expandable", flatten: true, name: "", title: "Batterie und Solar", schema: [
+        { type: "expandable", flatten: true, name: "", title: t(null, "gruppe_batterie"), schema: [
           { name: "soc", selector: e("sensor") }, { name: "soc_2", selector: e("sensor") },
           { name: "spannung", selector: e("sensor") }, { name: "spannung_2", selector: e("sensor") },
           { name: "strom", selector: e("sensor") }, { name: "strom_2", selector: e("sensor") },
           { name: "restlaufzeit", selector: e("sensor") }, { name: "leistung", selector: e("sensor") }, { name: "leistung_2", selector: e("sensor") },
           { name: "kapazitaet_ah", selector: { number: { min: 10, max: 2000, step: 10, mode: "box", unit_of_measurement: "Ah" } } },
           { name: "pv", selector: e("sensor") }, { name: "ertrag", selector: e("sensor") }] },
-        { type: "expandable", flatten: true, name: "", title: "Vorräte", schema: [
+        { type: "expandable", flatten: true, name: "", title: t(null, "gruppe_vorraete"), schema: [
           { name: "gas_1", selector: e("sensor") }, { name: "gas_2", selector: e("sensor") }, { name: "frischwasser", selector: e("sensor") },
           { type: "grid", name: "", schema: [
             { name: "wasser_leer_v", selector: { number: { min: 0, max: 10, step: 0.01, mode: "box", unit_of_measurement: "V" } } },
             { name: "wasser_voll_v", selector: { number: { min: 0, max: 10, step: 0.01, mode: "box", unit_of_measurement: "V" } } }] }] },
-        { type: "expandable", flatten: true, name: "", title: "Tür, Radio, Internet, Wetter", schema: [
+        { type: "expandable", flatten: true, name: "", title: t(null, "gruppe_sonstiges"), schema: [
           { name: "tuer", selector: e("lock") }, { name: "radio", selector: e("media_player") },
           { name: "internet", selector: e("sensor") }, { name: "wetter", selector: e("weather") }, { name: "sonne", selector: e("sun") }] },
         { name: "lichter", selector: { object: {} } },
       ],
       computeLabel: (s) => ({
-        stil: "Aufbau", design: "Design-Schema", titel: "Titel", ort: "Ort fest eintragen (sonst aus der Entität)", ort_entity: "Ort aus Entität", raum: "Heizung Raum", wasser: "Warmwasser",
-        soc: "Ladestand Batterie 1", soc_2: "Ladestand Batterie 2 (optional)", spannung: "Spannung Batterie 1", spannung_2: "Spannung Batterie 2 (optional)", strom: "Strom Batterie 1",
-        strom_2: "Strom Batterie 2 (optional)", restlaufzeit: "Restlaufzeit (Tage)", leistung: "Leistung Batterie 1 (optional, sonst Spannung × Strom)",
-        leistung_2: "Leistung Batterie 2 (optional)", kapazitaet_ah: "Kapazität aller Batterien", pv: "Solarleistung", ertrag: "Solarertrag heute",
-        gas_1: "Gas 1", gas_2: "Gas 2", frischwasser: "Frischwasser", wasser_leer_v: "Wasser leer bei", wasser_voll_v: "Wasser voll bei",
-        tuer: "Aufbautür", radio: "Radio", internet: "Router „Internet über“", wetter: "Wetter", sonne: "Sonne",
-        lichter: "Lichter (Liste aus entity und name)",
+        stil: t(null, "stil"), design: t(null, "design"), titel: t(null, "titel"), ort: t(null, "ort_fest"), ort_entity: t(null, "ort_entity"), raum: t(null, "raum"), wasser: t(null, "warmwasser"),
+        soc: t(null, "soc"), soc_2: t(null, "soc_2"), spannung: t(null, "spannung"), spannung_2: t(null, "spannung_2"), strom: t(null, "strom"),
+        strom_2: t(null, "strom_2"), restlaufzeit: t(null, "restlaufzeit_tage"), leistung: t(null, "leistung"),
+        leistung_2: t(null, "leistung_2"), kapazitaet_ah: t(null, "kapazitaet"), pv: t(null, "solarleistung"), ertrag: t(null, "solarertrag"),
+        gas_1: t(null, "gas_1"), gas_2: t(null, "gas_2"), frischwasser: t(null, "frischwasser"), wasser_leer_v: t(null, "wasser_leer"), wasser_voll_v: t(null, "wasser_voll"),
+        tuer: t(null, "tuer"), radio: t(null, "radio"), internet: t(null, "router_internet"), wetter: t(null, "wetter"), sonne: t(null, "sonne"),
+        lichter: t(null, "lichter_liste"),
       })[s.name],
       computeHelper: (s) => ({
-        wasser_leer_v: "Ohne beide Werte zeigt die Karte die Spannung des Drucksensors.",
-        kapazitaet_ah: "Für die Schätzung, wann die Batterie wieder voll ist.",
+        wasser_leer_v: t(null, "hilfe_wasser"),
+        kapazitaet_ah: t(null, "hilfe_kapazitaet"),
       })[s.name],
     };
   }
@@ -245,9 +522,9 @@ class YapaiaStellplatzCard extends HTMLElement {
     return {
       titel: c.titel,
       ort: c.ort || this._ortAusEntitaet() || c.titel,
-      uhr: jetzt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      wochentag: jetzt.toLocaleDateString("de-DE", { weekday: "long" }),
-      datum: jetzt.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }),
+      uhr: jetzt.toLocaleTimeString(GEBIET, { hour: "2-digit", minute: "2-digit" }),
+      wochentag: jetzt.toLocaleDateString(GEBIET, { weekday: "long" }),
+      datum: jetzt.toLocaleDateString(GEBIET, { weekday: "long", day: "numeric", month: "long" }),
       raum: raum && {
         an: raum.state !== "off" && raum.state !== "unavailable",
         ist: zahl(raum.attributes.current_temperature),
@@ -273,7 +550,7 @@ class YapaiaStellplatzCard extends HTMLElement {
       wlan: inet && { ssid: inet.attributes.wlan_ssid || null, quelle: inet.state },
       wetter: wetter && {
         temp: zahl(wetter.attributes.temperature),
-        text: WETTER[wetter.state] || wetter.state,
+        text: TEXTE.en[`wetter_${wetter.state}`] ? t(this._hass, `wetter_${wetter.state}`) : wetter.state,
         wind: zahl(wetter.attributes.wind_speed),
       },
       sonne: sonne && { unter: sonne.attributes.next_setting, auf: sonne.attributes.next_rising, oben: sonne.state === "above_horizon" },
@@ -325,14 +602,14 @@ class YapaiaStellplatzCard extends HTMLElement {
 
   _dauer(std) {
     if (std === null || !Number.isFinite(std)) return "–";
-    if (std >= 48) return `${Math.round(std / 24)} Tagen`;
+    if (std >= 48) return t(this._hass, "dauer_tage", { n: Math.round(std / 24) });
     const h = Math.floor(std);
     const m = Math.round((std - h) * 60 / 5) * 5;
-    return h ? `${h} Std${m ? ` ${m} Min` : ""}` : `${Math.max(5, m)} Min`;
+    return h ? (m ? t(this._hass, "dauer_std_min", { h, m }) : t(this._hass, "dauer_std", { h })) : t(this._hass, "dauer_min", { m: Math.max(5, m) });
   }
 
   _vollUm(std) {
-    return new Date(Date.now() + std * 3600e3).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    return new Date(Date.now() + std * 3600e3).toLocaleTimeString(GEBIET, { hour: "2-digit", minute: "2-digit" });
   }
 
   /** „−24 W“ / „+120 W“ */
@@ -343,31 +620,36 @@ class YapaiaStellplatzCard extends HTMLElement {
   /** Kurzer Satz zur Batterie (Retro: unten in der Kachel). */
   _battZeile(b) {
     if (b.richtung === "laden") {
-      if (b.voll) return "voll · lädt";
-      return b.vollIn !== null ? `voll in ca. ${this._dauer(b.vollIn)} (gegen ${this._vollUm(b.vollIn)})` : "lädt gerade";
+      if (b.voll) return t(this._hass, "voll_laedt");
+      return b.vollIn !== null ? t(this._hass, "voll_in", { dauer: this._dauer(b.vollIn), uhr: this._vollUm(b.vollIn) }) : t(this._hass, "laedt_gerade");
     }
-    return b.rest === null ? "Restlaufzeit unbekannt" : `${this._restText(b)} Restlaufzeit`;
+    return b.rest === null ? t(this._hass, "restlaufzeit_unbekannt") : t(this._hass, "restlaufzeit_text", { rest: this._restText(b) });
   }
 
   /** Satz zur Batterie im Magazin-Stil. */
   _battSatz(b) {
     if (b.richtung === "laden") {
-      const voll = b.voll ? " Sie ist voll." : b.vollIn !== null ? ` Voll in ca. <b>${this._dauer(b.vollIn)}</b>, gegen ${this._vollUm(b.vollIn)}.` : "";
-      return `Die Batterie <b>lädt mit ${de(Math.abs(b.w ?? 0))} W</b>.${voll}`;
+      const voll = b.voll ? t(this._hass, "batt_voll") : b.vollIn !== null ? t(this._hass, "batt_voll_in", { dauer: this._dauer(b.vollIn), uhr: this._vollUm(b.vollIn) }) : "";
+      return `${t(this._hass, "batt_laedt", { w: de(Math.abs(b.w ?? 0)) })}${voll}`;
     }
-    const zieht = b.richtung === "entladen" ? `Gerade werden <b>${de(Math.abs(b.w))} W</b> verbraucht. ` : "Gerade fließt kaum Strom. ";
-    return `${zieht}${b.rest === null ? "" : `Reicht noch <b>${esc(this._restText(b))}</b>.`}`;
+    const zieht = b.richtung === "entladen" ? t(this._hass, "batt_verbrauch", { w: de(Math.abs(b.w)) }) : t(this._hass, "batt_kaum");
+    return `${zieht}${b.rest === null ? "" : t(this._hass, "batt_reicht", { rest: esc(this._restText(b)) })}`;
   }
 
   _restText(b) {
-    if (b.rest === null) return "unbekannt";
+    if (b.rest === null) return t(this._hass, "unbekannt");
     const tage = Math.floor(b.rest);
     const std = Math.round((b.rest - tage) * 24);
-    return tage > 0 ? `${tage} ${tage === 1 ? "Tag" : "Tage"} ${std} Std` : `${std} Std`;
+    return tage > 0 ? t(this._hass, tage === 1 ? "rest_tag" : "rest_tage", { n: tage, std }) : t(this._hass, "rest_std", { std });
+  }
+
+  /** Richtung der Batterie als Wort; `kurz` = „Verbrauch“ statt „entlädt“ (Magazin, Breitbild). */
+  _richtungText(b, verbrauch = false) {
+    return { laden: t(this._hass, "richtung_laden"), entladen: t(this._hass, verbrauch ? "richtung_verbrauch" : "richtung_entladen"), ruhe: t(this._hass, "richtung_ruhe") }[b.richtung] ?? "";
   }
 
   _gasText(v) {
-    return v === null ? "–" : v >= 99 ? "voll" : `${de(v)} %`;
+    return v === null ? "–" : v >= 99 ? t(this._hass, "gas_voll") : `${de(v)} %`;
   }
 
   _fwText(fw) {
@@ -384,7 +666,7 @@ class YapaiaStellplatzCard extends HTMLElement {
 
   _wasserKnoepfe(d) {
     if (!d.wasser) return "";
-    return [...WASSER_MODI.map(([k, n]) => [k, n]), ["aus", "Aus"]]
+    return [...WASSER_MODI.map(([k, n]) => [k, t(this._hass, n)]), ["aus", t(this._hass, "aus")]]
       .map(([k, n]) => `<button class="modus ${d.wasser.modus === k ? "an" : ""}" data-a="wasser" data-id="${k}">${n}</button>`)
       .join("");
   }
@@ -397,15 +679,15 @@ class YapaiaStellplatzCard extends HTMLElement {
 
   _tuerText(d) {
     if (!d.tuer) return "–";
-    if (this._tuerBestaetigen > Date.now()) return d.tuer.zu ? "Nochmal tippen: entriegeln" : "Nochmal tippen: verriegeln";
-    return { locked: "verriegelt", unlocked: "offen", locking: "verriegelt …", unlocking: "entriegelt …", jammed: "klemmt!" }[d.tuer.zustand] ?? d.tuer.zustand;
+    if (this._tuerBestaetigen > Date.now()) return d.tuer.zu ? t(this._hass, "nochmal_entriegeln") : t(this._hass, "nochmal_verriegeln");
+    return TEXTE.en[`tuer_${d.tuer.zustand}`] ? t(this._hass, `tuer_${d.tuer.zustand}`) : d.tuer.zustand;
   }
 
   _raumText(d) {
     const r = d.raum;
     if (!r) return "–";
-    if (!r.an) return `aus · innen ${de(r.ist, 1)}°`;
-    return `innen ${de(r.ist, 1)}° · ${r.heizt ? "heizt" : "hält"}`;
+    if (!r.an) return t(this._hass, "raum_aus", { ist: de(r.ist, 1) });
+    return t(this._hass, "raum_innen", { ist: de(r.ist, 1), zustand: t(this._hass, r.heizt ? "heizt" : "haelt") });
   }
 
   // ---- Stil A: Retro-Camper ---------------------------------------------------
@@ -420,68 +702,68 @@ class YapaiaStellplatzCard extends HTMLElement {
         <div><div class="dach">${esc(d.wochentag)} · ${d.uhr}</div><h1 class="${this._laenge(d.ort)}">${esc(d.ort)}</h1></div>
         <div class="chip">
           <span class="ic">${ICON.wlan}</span>
-          <div class="chiptext"><b>${esc(d.wlan?.ssid ?? "kein WLAN")}</b><small>Internet über ${esc(d.wlan?.quelle ?? "–")}</small></div>
+          <div class="chiptext"><b>${esc(d.wlan?.ssid ?? t(this._hass, "kein_wlan"))}</b><small>${esc(t(this._hass, "internet_ueber", { quelle: d.wlan?.quelle ?? "–" }))}</small></div>
           ${d.wetter ? `<span class="trenner"></span><span class="ic senf">${ICON.sonne}</span><span class="chiptemp">${de(d.wetter.temp)}°</span>` : ""}
         </div>
       </header>
       <main>
         <section class="k heizung">
           <div class="spalte">
-            <div class="label">Heizung · Raum</div>
-            <div class="riesig">${r?.an ? `${de(r.soll, 1)}°` : "aus"}</div>
+            <div class="label">${t(this._hass, "heizung_raum")}</div>
+            <div class="riesig">${r?.an ? `${de(r.soll, 1)}°` : t(this._hass, "aus_klein")}</div>
             <div>${esc(this._raumText(d))}</div>
           </div>
           <div class="rund">
-            <button data-a="raum" data-id="+" aria-label="Wärmer">+</button>
-            <button data-a="raum" data-id="-" aria-label="Kälter">−</button>
-            <button data-a="raum" data-id="an" aria-label="Heizung an/aus" class="${r?.an ? "aktiv" : ""}">${ICON.power}</button>
+            <button data-a="raum" data-id="+" aria-label="${t(this._hass, "waermer")}">+</button>
+            <button data-a="raum" data-id="-" aria-label="${t(this._hass, "kaelter")}">−</button>
+            <button data-a="raum" data-id="an" aria-label="${t(this._hass, "heizung_an_aus")}" class="${r?.an ? "aktiv" : ""}">${ICON.power}</button>
           </div>
           <div class="linie"></div>
           <div class="spalte schmal">
-            <div class="label">Wasser</div>
-            <div class="gross">${d.wasser?.soll ? `${de(d.wasser.soll)}°` : "aus"}</div>
+            <div class="label">${t(this._hass, "wasser")}</div>
+            <div class="gross">${d.wasser?.soll ? `${de(d.wasser.soll)}°` : t(this._hass, "aus_klein")}</div>
             <div class="modi">${this._wasserKnoepfe(d)}</div>
           </div>
         </section>
         <section class="k hell">
-          <div class="label braun">Batterie</div>
+          <div class="label braun">${t(this._hass, "batterie")}</div>
           <div class="batt">
             <div class="akku"><i style="height:${b.soc ?? 0}%"></i></div>
             <div><div class="gross">${b.soc === null ? "–" : `${de(b.soc)}%`}</div>
-              <div class="leistung ${b.richtung ?? ""}">${this._wText(b)}<small>${{ laden: "lädt", entladen: "entlädt", ruhe: "Ruhe" }[b.richtung] ?? ""}</small></div>
+              <div class="leistung ${b.richtung ?? ""}">${this._wText(b)}<small>${this._richtungText(b)}</small></div>
               <small>${de(b.volt, 1)} V · ${b.strom === null ? "–" : `${b.strom > 0 ? "+" : ""}${de(b.strom, 1)} A`}</small></div>
           </div>
           <div class="battzeile"><b>${esc(this._battZeile(b))}</b></div>
         </section>
         <section class="k dunkel">
-          <div class="kopf"><span class="label senf">Solar</span><span class="ic senf gross-ic">${ICON.sonne}</span></div>
+          <div class="kopf"><span class="label senf">${t(this._hass, "solar")}</span><span class="ic senf gross-ic">${ICON.sonne}</span></div>
           <div class="gross">${de(d.solar.w)}<span class="einheit"> W</span></div>
-          <div>heute <b>${de(d.solar.kwh, 1)} kWh</b></div>
+          <div>${t(this._hass, "heute_kwh", { kwh: de(d.solar.kwh, 1) })}</div>
         </section>
         <section class="k hell">
-          <div class="label braun">Licht</div>
+          <div class="label braun">${t(this._hass, "licht")}</div>
           <div class="lichter">${this._lichtKnoepfe(d)}</div>
         </section>
         <section class="k hell">
-          <div class="label braun">Vorräte</div>
+          <div class="label braun">${t(this._hass, "vorraete")}</div>
           <div class="tanks">
-            ${[["Gas 1", d.gas[0], "rost"], ["Gas 2", d.gas[1], "rost"], ["Wasser", d.fw.pct, "teal"]].map(([n, v, f], i) => `
+            ${[[t(this._hass, "gas_1"), d.gas[0], "rost"], [t(this._hass, "gas_2"), d.gas[1], "rost"], [t(this._hass, "wasser"), d.fw.pct, "teal"]].map(([n, v, f], i) => `
               <div class="tank"><div class="saeule"><i class="${f}" style="height:${v ?? 0}%"></i></div>
               <span>${n}<br>${i === 2 ? this._fwText(d.fw) : this._gasText(v)}</span></div>`).join("")}
           </div>
         </section>
         <section class="k senfk">
-          <div class="label">Aufbautür</div>
-          <button class="tuerknopf" data-a="tuer" aria-label="Aufbautür">${d.tuer?.zu ? ICON.schloss : ICON.offen}</button>
+          <div class="label">${t(this._hass, "tuer")}</div>
+          <button class="tuerknopf" data-a="tuer" aria-label="${t(this._hass, "tuer")}">${d.tuer?.zu ? ICON.schloss : ICON.offen}</button>
           <div class="tuertext">${esc(this._tuerText(d))}</div>
         </section>
         <section class="k dunkel radio">
-          <div class="label senf">Radio</div>
-          <div><div class="sender">${esc(d.radio?.sender ?? "Radio")}</div><small class="hellbraun">${esc(d.radio?.titel || (d.radio?.sender ? "" : "Sender wählen"))}</small></div>
+          <div class="label senf">${t(this._hass, "radio")}</div>
+          <div><div class="sender">${esc(d.radio?.sender ?? t(this._hass, "radio"))}</div><small class="hellbraun">${esc(d.radio?.titel || (d.radio?.sender ? "" : t(this._hass, "sender_waehlen")))}</small></div>
           <div class="steuer">
-            <button data-a="radio" data-id="previous" aria-label="Voriger Sender">${ICON.zurueck}</button>
-            <button class="pp" data-a="radio" data-id="play_pause" aria-label="Wiedergabe">${d.radio?.spielt ? ICON.pause : ICON.play}</button>
-            <button data-a="radio" data-id="next" aria-label="Nächster Sender">${ICON.vor}</button>
+            <button data-a="radio" data-id="previous" aria-label="${t(this._hass, "voriger_sender")}">${ICON.zurueck}</button>
+            <button class="pp" data-a="radio" data-id="play_pause" aria-label="${t(this._hass, "wiedergabe")}">${d.radio?.spielt ? ICON.pause : ICON.play}</button>
+            <button data-a="radio" data-id="next" aria-label="${t(this._hass, "naechster_sender")}">${ICON.vor}</button>
           </div>
         </section>
       </main>
@@ -493,7 +775,7 @@ class YapaiaStellplatzCard extends HTMLElement {
   _magazin(d, mix = false) {
     const b = d.batt;
     const r = d.raum;
-    const wetterZeile = d.wetter ? `${esc(d.wetter.text)}${d.wetter.wind !== null ? `,<br>Wind ${de(d.wetter.wind)} km/h` : ""}` : "";
+    const wetterZeile = d.wetter ? `${esc(d.wetter.text)}${d.wetter.wind !== null ? `,<br>${t(this._hass, "wind", { v: de(d.wetter.wind) })}` : ""}` : "";
     return `
     <div class="wurzel ${mix ? "mix" : "magazin"}">
       <aside>
@@ -506,49 +788,49 @@ class YapaiaStellplatzCard extends HTMLElement {
         <div class="unten">
           ${d.wetter ? `<div class="wetter"><span class="temp">${de(d.wetter.temp)}°</span><span>${wetterZeile}</span></div>` : ""}
           ${d.sonne ? `<div class="zwei">
-            <div><div class="mini">${d.sonne.oben ? "Sonnenuntergang" : "Sonnenaufgang"}</div><div class="zeit">${uhrzeit(d.sonne.oben ? d.sonne.unter : d.sonne.auf)}</div></div>
-            <div><div class="mini">Uhrzeit</div><div class="zeit">${d.uhr}</div></div></div>` : ""}
-          <div class="netz"><span class="ic">${ICON.wlan}</span><div><b>${esc(d.wlan?.ssid ?? "Kein WLAN")}</b><small>Internet über ${esc(d.wlan?.quelle ?? "–")}</small></div></div>
+            <div><div class="mini">${t(this._hass, d.sonne.oben ? "sonnenuntergang" : "sonnenaufgang")}</div><div class="zeit">${uhrzeit(d.sonne.oben ? d.sonne.unter : d.sonne.auf)}</div></div>
+            <div><div class="mini">${t(this._hass, "uhrzeit")}</div><div class="zeit">${d.uhr}</div></div></div>` : ""}
+          <div class="netz"><span class="ic">${ICON.wlan}</span><div><b>${esc(d.wlan?.ssid ?? t(this._hass, "kein_wlan_gross"))}</b><small>${esc(t(this._hass, "internet_ueber", { quelle: d.wlan?.quelle ?? "–" }))}</small></div></div>
         </div>
       </aside>
       <main>
-        <div class="leiste"><span class="rubrik"><i>Heute im Mobil</i></span><span>${esc(d.datum)} · ${d.uhr}</span></div>
+        <div class="leiste"><span class="rubrik"><i>${t(this._hass, "heute_im_mobil")}</i></span><span>${esc(d.datum)} · ${d.uhr}</span></div>
         <section class="${mix ? "karte energie" : ""}">
-          <div class="mini">Energie</div>
+          <div class="mini">${t(this._hass, "energie")}</div>
           <div class="zahl">${b.soc === null ? "–" : de(b.soc)}<span>%</span></div>
           <div class="balken"><i style="width:${b.soc ?? 0}%"></i></div>
-          <div class="leistung-gross ${b.richtung ?? ""}">${this._wText(b)}<span>${{ laden: "lädt", entladen: "Verbrauch", ruhe: "Ruhe" }[b.richtung] ?? ""}</span></div>
+          <div class="leistung-gross ${b.richtung ?? ""}">${this._wText(b)}<span>${this._richtungText(b, true)}</span></div>
           <p>${this._battSatz(b)}
-             ${d.solar.w ? `Die Sonne liefert <b class="akz">${de(d.solar.w)} W</b>, heute ${de(d.solar.kwh, 1)} kWh.` : `Heute ${de(d.solar.kwh, 1)} kWh von der Sonne.`}</p>
+             ${d.solar.w ? t(this._hass, "sonne_liefert", { w: de(d.solar.w), kwh: de(d.solar.kwh, 1) }) : t(this._hass, "sonne_heute", { kwh: de(d.solar.kwh, 1) })}</p>
         </section>
         <section class="${mix ? "karte waerme" : ""}">
-          <div class="mini">Wärme</div>
-          <div class="zahl">${r?.an ? `${de(r.soll, 1)}°` : "aus"}</div>
+          <div class="mini">${t(this._hass, "waerme")}</div>
+          <div class="zahl">${r?.an ? `${de(r.soll, 1)}°` : t(this._hass, "aus_klein")}</div>
           <div class="plusminus">
-            <button data-a="raum" data-id="-" aria-label="Kälter">−</button>
-            <button data-a="raum" data-id="+" aria-label="Wärmer" class="voll">+</button>
-            <button data-a="raum" data-id="an" aria-label="Heizung an/aus" class="${r?.an ? "aktiv" : ""}">${ICON.power}</button>
+            <button data-a="raum" data-id="-" aria-label="${t(this._hass, "kaelter")}">−</button>
+            <button data-a="raum" data-id="+" aria-label="${t(this._hass, "waermer")}" class="voll">+</button>
+            <button data-a="raum" data-id="an" aria-label="${t(this._hass, "heizung_an_aus")}" class="${r?.an ? "aktiv" : ""}">${ICON.power}</button>
           </div>
-          <p>${r ? (r.an ? `Innen ${de(r.ist, 1)}°, die Truma ${r.heizt ? "heizt" : "hält die Temperatur"}.` : `Heizung aus, innen ${de(r.ist, 1)}°.`) : ""}
-             Warmwasser <b>${d.wasser?.soll ? `${de(d.wasser.soll)}°` : "aus"}</b>.</p>
+          <p>${r ? (r.an ? t(this._hass, "magazin_raum_an", { ist: de(r.ist, 1), zustand: t(this._hass, r.heizt ? "truma_heizt" : "truma_haelt") }) : t(this._hass, "magazin_raum_aus", { ist: de(r.ist, 1) })) : ""}
+             ${t(this._hass, "warmwasser_satz", { w: d.wasser?.soll ? `${de(d.wasser.soll)}°` : t(this._hass, "aus_klein") })}</p>
           <div class="modi">${this._wasserKnoepfe(d)}</div>
         </section>
         <section class="${mix ? "karte vorraete" : ""}">
-          <div class="mini">Vorräte</div>
-          ${[["Gas 1", this._gasText(d.gas[0]), d.gas[0], "akzb"], ["Gas 2", this._gasText(d.gas[1]), d.gas[1], "akzb"], ["Frischwasser", this._fwText(d.fw), d.fw.pct, "blau"]]
+          <div class="mini">${t(this._hass, "vorraete")}</div>
+          ${[[t(this._hass, "gas_1"), this._gasText(d.gas[0]), d.gas[0], "akzb"], [t(this._hass, "gas_2"), this._gasText(d.gas[1]), d.gas[1], "akzb"], [t(this._hass, "frischwasser"), this._fwText(d.fw), d.fw.pct, "blau"]]
             .map(([n, t, v, f]) => `<div class="vorrat"><div class="vz"><span class="vn">${n}</span><b>${t}</b></div><div class="vl"><i class="${f}" style="width:${v ?? 0}%"></i></div></div>`).join("")}
         </section>
         <section class="licht-bereich ${mix ? "karte" : "linieoben"}">
-          <div class="vz"><div class="mini">Licht</div><button class="link" data-a="alle_aus">Alles aus</button></div>
+          <div class="vz"><div class="mini">${t(this._hass, "licht")}</div><button class="link" data-a="alle_aus">${t(this._hass, "alles_aus")}</button></div>
           <div class="pillen">${this._lichtKnoepfe(d)}</div>
         </section>
         <section class="tuer-bereich ${mix ? "karte senfk" : "linieoben"}">
-          <button class="tuerknopf" data-a="tuer" aria-label="Aufbautür">${d.tuer?.zu ? ICON.schloss : ICON.offen}</button>
-          <div><div class="mini">Aufbautür</div><div class="tuertext">${esc(this._tuerText(d))}</div></div>
+          <button class="tuerknopf" data-a="tuer" aria-label="${t(this._hass, "tuer")}">${d.tuer?.zu ? ICON.schloss : ICON.offen}</button>
+          <div><div class="mini">${t(this._hass, "tuer")}</div><div class="tuertext">${esc(this._tuerText(d))}</div></div>
         </section>
         <section class="radio-bereich">
-          <button class="pp" data-a="radio" data-id="play_pause" aria-label="Wiedergabe">${d.radio?.spielt ? ICON.pause : ICON.play}</button>
-          <div class="rt"><div class="mini">${d.radio?.spielt ? "Läuft gerade" : "Radio"}${d.radio?.sender ? ` · ${esc(d.radio.sender)}` : ""}</div><div class="titel">${esc(d.radio?.titel || d.radio?.sender || "Sender wählen")}</div></div>
+          <button class="pp" data-a="radio" data-id="play_pause" aria-label="${t(this._hass, "wiedergabe")}">${d.radio?.spielt ? ICON.pause : ICON.play}</button>
+          <div class="rt"><div class="mini">${d.radio?.spielt ? t(this._hass, "laeuft_gerade") : t(this._hass, "radio")}${d.radio?.sender ? ` · ${esc(d.radio.sender)}` : ""}</div><div class="titel">${esc(d.radio?.titel || d.radio?.sender || t(this._hass, "sender_waehlen"))}</div></div>
           <div class="favs">${this._radioFavoriten(d)}</div>
         </section>
       </main>
@@ -572,61 +854,61 @@ class YapaiaStellplatzCard extends HTMLElement {
         <div class="b-uhr">${d.uhr}</div>
         <div class="streifen" aria-hidden="true"><i></i><i></i><i></i></div>
         <div class="b-unten">
-          ${d.wetter ? `<div class="b-wetter"><span class="b-temp">${de(d.wetter.temp)}°</span><span>${esc(d.wetter.text)}${d.wetter.wind !== null ? `<br>Wind ${de(d.wetter.wind)} km/h` : ""}</span></div>` : ""}
-          ${zeitSonne ? `<div class="b-zeile"><span class="ic">${ICON.sonne}</span>${d.sonne.oben ? "Sonnenuntergang" : "Sonnenaufgang"} ${zeitSonne}</div>` : ""}
-          <div class="b-zeile"><span class="ic">${ICON.wlan}</span>${esc(d.wlan?.ssid ?? "kein WLAN")} · ${esc(d.wlan?.quelle ?? "–")}</div>
+          ${d.wetter ? `<div class="b-wetter"><span class="b-temp">${de(d.wetter.temp)}°</span><span>${esc(d.wetter.text)}${d.wetter.wind !== null ? `<br>${t(this._hass, "wind", { v: de(d.wetter.wind) })}` : ""}</span></div>` : ""}
+          ${zeitSonne ? `<div class="b-zeile"><span class="ic">${ICON.sonne}</span>${t(this._hass, d.sonne.oben ? "sonnenuntergang" : "sonnenaufgang")} ${zeitSonne}</div>` : ""}
+          <div class="b-zeile"><span class="ic">${ICON.wlan}</span>${esc(d.wlan?.ssid ?? t(this._hass, "kein_wlan"))} · ${esc(d.wlan?.quelle ?? "–")}</div>
         </div>
       </aside>
 
       <section class="b-k b-akzent">
-        <div class="b-label">Wärme</div>
-        <div class="b-riesig">${r?.an ? `${de(r.soll, 1)}°` : "aus"}</div>
+        <div class="b-label">${t(this._hass, "waerme")}</div>
+        <div class="b-riesig">${r?.an ? `${de(r.soll, 1)}°` : t(this._hass, "aus_klein")}</div>
         <div class="b-text">${esc(this._raumText(d))}</div>
         <div class="b-knoepfe">
-          <button data-a="raum" data-id="-" aria-label="Kälter">−</button>
-          <button data-a="raum" data-id="+" aria-label="Wärmer">+</button>
-          <button data-a="raum" data-id="an" aria-label="Heizung an/aus" class="${r?.an ? "aktiv" : ""}">${ICON.power}</button>
+          <button data-a="raum" data-id="-" aria-label="${t(this._hass, "kaelter")}">−</button>
+          <button data-a="raum" data-id="+" aria-label="${t(this._hass, "waermer")}">+</button>
+          <button data-a="raum" data-id="an" aria-label="${t(this._hass, "heizung_an_aus")}" class="${r?.an ? "aktiv" : ""}">${ICON.power}</button>
         </div>
         <div class="b-trenner"></div>
-        <div class="b-label">Warmwasser ${d.wasser?.soll ? `· ${de(d.wasser.soll)}°` : ""}</div>
+        <div class="b-label">${t(this._hass, "warmwasser_kopf")} ${d.wasser?.soll ? `· ${de(d.wasser.soll)}°` : ""}</div>
         <div class="modi">${this._wasserKnoepfe(d)}</div>
       </section>
 
       <section class="b-k">
-        <div class="b-label">Energie</div>
+        <div class="b-label">${t(this._hass, "energie")}</div>
         <div class="b-riesig">${b.soc === null ? "–" : de(b.soc)}<span class="b-einheit">%</span></div>
         <div class="b-balken"><i style="width:${b.soc ?? 0}%"></i></div>
-        <div class="b-leistung ${b.richtung ?? ""}">${this._wText(b)} <small>${{ laden: "lädt", entladen: "Verbrauch", ruhe: "Ruhe" }[b.richtung] ?? ""}</small></div>
+        <div class="b-leistung ${b.richtung ?? ""}">${this._wText(b)} <small>${this._richtungText(b, true)}</small></div>
         <div class="b-text">${esc(this._battZeile(b))}</div>
         <div class="b-trenner"></div>
-        <div class="b-solar"><span class="ic">${ICON.sonne}</span><b>${de(d.solar.w)} W</b><span>heute ${de(d.solar.kwh, 1)} kWh</span></div>
+        <div class="b-solar"><span class="ic">${ICON.sonne}</span><b>${de(d.solar.w)} W</b><span>${t(this._hass, "heute_kwh_klein", { kwh: de(d.solar.kwh, 1) })}</span></div>
       </section>
 
       <section class="b-k">
-        <div class="b-kopf"><div class="b-label">Licht</div><button class="b-link" data-a="alle_aus">Alles aus</button></div>
+        <div class="b-kopf"><div class="b-label">${t(this._hass, "licht")}</div><button class="b-link" data-a="alle_aus">${t(this._hass, "alles_aus")}</button></div>
         <div class="b-lichter">${this._lichtKnoepfe(d)}</div>
       </section>
 
       <div class="b-stapel">
         <section class="b-k">
-          <div class="b-label">Vorräte</div>
-          ${[["Gas 1", this._gasText(d.gas[0]), d.gas[0], ""], ["Gas 2", this._gasText(d.gas[1]), d.gas[1], ""], ["Wasser", this._fwText(d.fw), d.fw.pct, "blau"]]
+          <div class="b-label">${t(this._hass, "vorraete")}</div>
+          ${[[t(this._hass, "gas_1"), this._gasText(d.gas[0]), d.gas[0], ""], [t(this._hass, "gas_2"), this._gasText(d.gas[1]), d.gas[1], ""], [t(this._hass, "wasser"), this._fwText(d.fw), d.fw.pct, "blau"]]
             .map(([n, t, v, f]) => `<div class="b-vorrat"><div class="b-vz"><span>${n}</span><b>${t}</b></div><div class="b-vl"><i class="${f}" style="width:${v ?? 0}%"></i></div></div>`).join("")}
         </section>
         <section class="b-k b-tuer ${d.tuer?.zu ? "" : "offen"}">
-          <button class="tuerknopf" data-a="tuer" aria-label="Aufbautür">${d.tuer?.zu ? ICON.schloss : ICON.offen}</button>
-          <div><div class="b-label">Aufbautür</div><div class="b-tuertext">${esc(this._tuerText(d))}</div></div>
+          <button class="tuerknopf" data-a="tuer" aria-label="${t(this._hass, "tuer")}">${d.tuer?.zu ? ICON.schloss : ICON.offen}</button>
+          <div><div class="b-label">${t(this._hass, "tuer")}</div><div class="b-tuertext">${esc(this._tuerText(d))}</div></div>
         </section>
       </div>
 
       <section class="b-k b-dunkel">
-        <div class="b-label">Radio</div>
-        <div class="b-sender">${esc(d.radio?.sender ?? "Radio")}</div>
-        <div class="b-text">${esc(d.radio?.titel || (d.radio?.sender ? "" : "Sender wählen"))}</div>
+        <div class="b-label">${t(this._hass, "radio")}</div>
+        <div class="b-sender">${esc(d.radio?.sender ?? t(this._hass, "radio"))}</div>
+        <div class="b-text">${esc(d.radio?.titel || (d.radio?.sender ? "" : t(this._hass, "sender_waehlen")))}</div>
         <div class="b-steuer">
-          <button data-a="radio" data-id="previous" aria-label="Voriger Sender">${ICON.zurueck}</button>
-          <button class="pp" data-a="radio" data-id="play_pause" aria-label="Wiedergabe">${d.radio?.spielt ? ICON.pause : ICON.play}</button>
-          <button data-a="radio" data-id="next" aria-label="Nächster Sender">${ICON.vor}</button>
+          <button data-a="radio" data-id="previous" aria-label="${t(this._hass, "voriger_sender")}">${ICON.zurueck}</button>
+          <button class="pp" data-a="radio" data-id="play_pause" aria-label="${t(this._hass, "wiedergabe")}">${d.radio?.spielt ? ICON.pause : ICON.play}</button>
+          <button data-a="radio" data-id="next" aria-label="${t(this._hass, "naechster_sender")}">${ICON.vor}</button>
         </div>
         <div class="b-favs">${this._radioFavoriten(d)}</div>
       </section>
@@ -641,9 +923,10 @@ class YapaiaStellplatzCard extends HTMLElement {
       this.shadowRoot.innerHTML = `<style>${STIL}</style><ha-card></ha-card>`;
       return;
     }
+    GEBIET = gebiet(this._hass);
     const d = this._daten();
     const schema = window.YapaiaDesign?.waehle(this._hass, { wahl: this._config.design }) ?? null;
-    const key = JSON.stringify([d, this._config.stil, schema?.id, this._tuerBestaetigen > Date.now()]);
+    const key = JSON.stringify([d, this._config.stil, schema?.id, this._tuerBestaetigen > Date.now(), spracheVon(this._hass), GEBIET]);
     if (key === this._key) return;
     this._key = key;
     const stil = this._config.stil;
@@ -656,7 +939,7 @@ class YapaiaStellplatzCard extends HTMLElement {
 
   _dienst(domain, service, data) {
     return this._hass.callService(domain, service, data).catch((err) => {
-      this.dispatchEvent(new CustomEvent("hass-notification", { detail: { message: `Fehler: ${err.message ?? err}` }, bubbles: true, composed: true }));
+      this.dispatchEvent(new CustomEvent("hass-notification", { detail: { message: t(this._hass, "fehler", { fehler: err.message ?? err }) }, bubbles: true, composed: true }));
     });
   }
 
@@ -1046,7 +1329,7 @@ if (!window.customCards.some((k) => k.type === "yapaia-stellplatz-card")) {
   window.customCards.push({
     type: "yapaia-stellplatz-card",
     name: "Yapaia Stellplatz",
-    description: "Ganzes Stellplatz-Dashboard in einer Karte – Stil Retro-Camper, Outdoor-Magazin oder Mix.",
+    description: t(null, "kartenbeschreibung"),
     preview: false,
   });
 }

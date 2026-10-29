@@ -60,6 +60,51 @@
  *   addon: abcd1234_yapaia_go   # optional, nur falls die Suche danebenliegt
  */
 
+// Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    unbekannter_fehler: 'Unbekannter Fehler.',
+    zugriff_abgelehnt: 'Home Assistant hat den Zugriff auf das Add-on abgelehnt (401).',
+    ha_nicht_bereit: 'Home Assistant ist noch nicht bereit.',
+    addon_nicht_gestartet: 'Das Add-on ist nicht gestartet (Zustand „{zustand}").',
+    addon_ohne_ingress: 'Das Add-on meldet keinen Ingress-Pfad.',
+    addon_nicht_gefunden:
+      'Kein Add-on mit dem Slug „{slug}" gefunden (versucht: {versucht}). ' +
+      'Ist „Yapaia Go" installiert? Sonst den echten Slug als „addon:" in der Karte eintragen. ' +
+      'Letzte Meldung: {meldung}',
+    keine_sitzung: 'Home Assistant hat keine Ingress-Sitzung geliefert.',
+    height_ungueltig: 'height muss eine positive Zahl sein (Pixel).',
+    addon_ungueltig: 'addon muss der Slug des Add-ons sein (Text).',
+    nicht_geladen: 'Die Karte konnte nicht geladen werden.',
+    wird_geladen: 'Karte wird geladen …',
+    rahmen_titel: 'Yapaia Go — Karte',
+  },
+  en: {
+    unbekannter_fehler: 'Unknown error.',
+    zugriff_abgelehnt: 'Home Assistant denied access to the add-on (401).',
+    ha_nicht_bereit: 'Home Assistant is not ready yet.',
+    addon_nicht_gestartet: 'The add-on is not started (state "{zustand}").',
+    addon_ohne_ingress: 'The add-on reports no ingress path.',
+    addon_nicht_gefunden:
+      'No add-on with slug "{slug}" found (tried: {versucht}). ' +
+      'Is "Yapaia Go" installed? Otherwise enter the real slug as "addon:" in the card. ' +
+      'Last message: {meldung}',
+    keine_sitzung: 'Home Assistant did not return an ingress session.',
+    height_ungueltig: 'height must be a positive number (pixels).',
+    addon_ungueltig: 'addon must be the add-on slug (text).',
+    nicht_geladen: 'The map could not be loaded.',
+    wird_geladen: 'Loading map …',
+    rahmen_titel: 'Yapaia Go — Map',
+  },
+};
+const spracheVon = (hass) =>
+  String(hass?.locale?.language ?? hass?.language ?? globalThis.document?.querySelector('home-assistant')?.hass?.locale?.language ?? 'en')
+    .toLowerCase().startsWith('de') ? 'de' : 'en';
+const t = (hass, schluessel, werte = {}) =>
+  String(TEXTE[spracheVon(hass)]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? '');
+// Zahlen, Datum, Uhrzeit im Format der HA-Sprache
+const gebiet = (hass) => hass?.locale?.language ?? hass?.language ?? 'de-DE';
+
 export const CARD_TAG = 'yapaia-map-card';
 export const DEFAULT_HEIGHT = 400;
 
@@ -126,12 +171,12 @@ export function rahmenUrl(ingressUrl) {
 }
 
 /** Macht aus dem, was die Abfrage wirft, einen Satz, mit dem man etwas anfangen kann. */
-export function beschreibeFehler(err) {
-  if (!err) return 'Unbekannter Fehler.';
+export function beschreibeFehler(err, hass) {
+  if (!err) return t(hass, 'unbekannter_fehler');
   if (typeof err === 'string') return err;
   if (typeof err.message === 'string' && err.message.length > 0) return err.message;
   if (err.status_code === 401 || err.status === 401) {
-    return 'Home Assistant hat den Zugriff auf das Add-on abgelehnt (401).';
+    return t(hass, 'zugriff_abgelehnt');
   }
   try {
     return JSON.stringify(err);
@@ -163,7 +208,7 @@ export class IngressVerbindung {
   async _ruf(endpoint, method, data) {
     const hass = this.hassGeber();
     if (!hass || typeof hass.callWS !== 'function') {
-      throw new Error('Home Assistant ist noch nicht bereit.');
+      throw new Error(t(hass, 'ha_nicht_bereit'));
     }
     const nachricht = { type: 'supervisor/api', endpoint, method };
     if (data) nachricht.data = data;
@@ -185,27 +230,31 @@ export class IngressVerbindung {
       if (!info || !info.ingress_url) {
         // Gefunden, aber ohne Ingress-Pfad: das passiert genau dann, wenn das
         // Add-on gestoppt ist. Ein anderer Slug hilft dagegen nicht.
+        const hass = this.hassGeber();
         throw new Error(
           info && info.state && info.state !== 'started'
-            ? `Das Add-on ist nicht gestartet (Zustand „${info.state}").`
-            : 'Das Add-on meldet keinen Ingress-Pfad.',
+            ? t(hass, 'addon_nicht_gestartet', { zustand: info.state })
+            : t(hass, 'addon_ohne_ingress'),
         );
       }
       this.slug = kandidat;
       await this.sitzungAnlegen();
       return { url: rahmenUrl(info.ingress_url), slug: kandidat };
     }
+    const hassFehler = this.hassGeber();
     throw new Error(
-      `Kein Add-on mit dem Slug „${ADDON_SLUG}" gefunden (versucht: ${kandidaten.join(', ')}). ` +
-        `Ist „Yapaia Go" installiert? Sonst den echten Slug als „addon:" in der Karte eintragen. ` +
-        `Letzte Meldung: ${beschreibeFehler(letzterFehler)}`,
+      t(hassFehler, 'addon_nicht_gefunden', {
+        slug: ADDON_SLUG,
+        versucht: kandidaten.join(', '),
+        meldung: beschreibeFehler(letzterFehler, hassFehler),
+      }),
     );
   }
 
   async sitzungAnlegen() {
     const antwort = await this._ruf('/ingress/session', 'post');
     const session = antwort && antwort.session;
-    if (!session) throw new Error('Home Assistant hat keine Ingress-Sitzung geliefert.');
+    if (!session) throw new Error(t(this.hassGeber(), 'keine_sitzung'));
     this.session = session;
     this.cookieSchreiber(ingressCookie(session, this.istSicher()));
     return session;
@@ -269,11 +318,11 @@ function kartenKlasse() {
     setConfig(config) {
       const height = config && config.height;
       if (height !== undefined && (typeof height !== 'number' || height <= 0)) {
-        throw new Error('height muss eine positive Zahl sein (Pixel).');
+        throw new Error(t(this._hass, 'height_ungueltig'));
       }
       const addon = config && config.addon;
       if (addon !== undefined && typeof addon !== 'string') {
-        throw new Error('addon muss der Slug des Add-ons sein (Text).');
+        throw new Error(t(this._hass, 'addon_ungueltig'));
       }
       const neu = {
         height: height || DEFAULT_HEIGHT,
@@ -357,7 +406,7 @@ function kartenKlasse() {
         this._timerStarten();
       } catch (err) {
         this._frameUrl = null;
-        this._error = beschreibeFehler(err);
+        this._error = beschreibeFehler(err, this._hass);
       } finally {
         this._loading = false;
         this._rendered = false;
@@ -381,16 +430,16 @@ function kartenKlasse() {
       let body;
       if (this._error) {
         body = `<div class="msg error">
-                  <div class="msg-head">Die Karte konnte nicht geladen werden.</div>
+                  <div class="msg-head">${t(this._hass, 'nicht_geladen')}</div>
                   <div class="msg-detail">${escapeHtml(this._error)}</div>
                 </div>`;
       } else if (this._loading || !this._frameUrl) {
-        body = `<div class="msg">Karte wird geladen …</div>`;
+        body = `<div class="msg">${t(this._hass, 'wird_geladen')}</div>`;
       } else {
         // `allow`: die Anzeigeseite darf die Position nutzen und den
         // Bildschirm wachhalten (dafür ist ein Dashboard im Wohnmobil da).
         body = `<iframe src="${escapeHtml(this._frameUrl)}"
-                        title="Yapaia Go — Karte"
+                        title="${escapeHtml(t(this._hass, 'rahmen_titel'))}"
                         allow="geolocation; screen-wake-lock"></iframe>`;
       }
 

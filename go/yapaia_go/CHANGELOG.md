@@ -10,6 +10,13 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.66.1
+
+- **Die Karten sprechen jetzt die Sprache von Home Assistant** (Deutsch,
+  sonst Englisch): die Go-Karte im Dashboard und – über die mitgebrachte
+  Integration 0.8.1 – die Radio-Karte von Beat samt Editor.
+- Bringt die Integration 0.8.1 mit.
+
 ## 0.66.0
 
 **Die Go-Oberfläche folgt dem Yapaia-Design-Schema.** Farben, Schrift und

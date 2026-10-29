@@ -12,19 +12,14 @@
  * Solldruck vorne/hinten, Toleranzen, Batterie-Warnschwelle).
  */
 
-const RAEDER = [
-  { k: "fl", name: "Vorne links" },
-  { k: "fr", name: "Vorne rechts" },
-  { k: "rl", name: "Hinten links" },
-  { k: "rr", name: "Hinten rechts" },
-];
+const RAEDER = [{ k: "fl" }, { k: "fr" }, { k: "rl" }, { k: "rr" }];
 
 // Yapaia Design (docs/design-schemata.md); ohne die Integration gelten die HA-Farben
 const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
 const DESIGN_QUELLE = null;
 
 const STANDARD = {
-  name: "Reifendruck",
+  name: null, // ohne Angabe: Titel in der HA-Sprache (TEXTE.titel); "" = kein Titel
   ...Object.fromEntries(
     RAEDER.flatMap(({ k }) => [
       [`${k}_pressure`, `sensor.btcollector_${k}_pressure`],
@@ -42,21 +37,110 @@ const STANDARD = {
 
 const FARBE = { ok: "var(--y-ok, #2e9d4f)", fast: "var(--y-warnung, #e69500)", schief: "var(--y-fehler, #d93a2b)", aus: "var(--y-text-gedaempft, #8a8f98)" };
 
+// Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    titel: "Reifendruck",
+    automatisch: "Automatisch",
+    rad_fl: "Vorne links",
+    rad_fr: "Vorne rechts",
+    rad_rl: "Hinten links",
+    rad_rr: "Hinten rechts",
+    sensoren_rad: "Sensoren {rad}",
+    soll_warnungen: "Solldruck und Warnungen",
+    l_druck: "Druck",
+    l_temperature: "Temperatur (optional)",
+    l_battery: "Batteriespannung (optional)",
+    l_design: "Design-Schema",
+    l_name: "Titel",
+    l_target_front: "Solldruck vorne",
+    l_target_rear: "Solldruck hinten",
+    l_tolerance_warn: "Gelb ab Abweichung",
+    l_tolerance_alarm: "Rot ab Abweichung",
+    l_battery_low: "Sensorbatterie schwach unter",
+    l_stale_hours: "Werte gelten als alt nach",
+    h_target_front: "Laut Reifenaufkleber oder Fahrzeughandbuch (kalt gemessen).",
+    h_stale_hours: "Die Sensoren senden meist nur während der Fahrt.",
+    gerade_eben: "gerade eben",
+    vor_min: "vor {n} Min.",
+    vor_std: "vor {n} Std.",
+    vor_tagen: "vor {n} Tagen",
+    zu_wenig: "{bar} bar zu wenig",
+    zu_viel: "{bar} bar zu viel",
+    stufe_ok_teil: "In Ordnung (nicht alle Räder)",
+    stufe_ok: "Alles in Ordnung",
+    stufe_fast: "Druck prüfen",
+    stufe_schief: "Druck stimmt nicht",
+    stufe_aus: "Keine Werte",
+    wohnmobil_von_oben: "Wohnmobil von oben",
+    soll: "Soll {bar} bar",
+    kein_wert: "noch kein Wert",
+    batterie_schwach: "Sensorbatterie schwach: {raeder}",
+    hinweis: "Soll vorne {vorne} bar, hinten {hinten} bar. Die Sensoren senden meist nur während der Fahrt.",
+  },
+  en: {
+    titel: "Tyre pressure",
+    automatisch: "Automatic",
+    rad_fl: "Front left",
+    rad_fr: "Front right",
+    rad_rl: "Rear left",
+    rad_rr: "Rear right",
+    sensoren_rad: "Sensors {rad}",
+    soll_warnungen: "Target pressure and warnings",
+    l_druck: "Pressure",
+    l_temperature: "Temperature (optional)",
+    l_battery: "Battery voltage (optional)",
+    l_design: "Design scheme",
+    l_name: "Title",
+    l_target_front: "Target pressure front",
+    l_target_rear: "Target pressure rear",
+    l_tolerance_warn: "Yellow from deviation",
+    l_tolerance_alarm: "Red from deviation",
+    l_battery_low: "Sensor battery low below",
+    l_stale_hours: "Values count as old after",
+    h_target_front: "See the tyre sticker or vehicle manual (measured cold).",
+    h_stale_hours: "The sensors usually only transmit while driving.",
+    gerade_eben: "just now",
+    vor_min: "{n} min ago",
+    vor_std: "{n} h ago",
+    vor_tagen: "{n} days ago",
+    zu_wenig: "{bar} bar too low",
+    zu_viel: "{bar} bar too high",
+    stufe_ok_teil: "OK (not all wheels)",
+    stufe_ok: "All OK",
+    stufe_fast: "Check pressure",
+    stufe_schief: "Pressure is off",
+    stufe_aus: "No values",
+    wohnmobil_von_oben: "Motorhome from above",
+    soll: "Target {bar} bar",
+    kein_wert: "no value yet",
+    batterie_schwach: "Sensor battery low: {raeder}",
+    hinweis: "Target front {vorne} bar, rear {hinten} bar. The sensors usually only transmit while driving.",
+  },
+};
+const spracheVon = (hass) =>
+  String(hass?.locale?.language ?? hass?.language ?? document.querySelector("home-assistant")?.hass?.locale?.language ?? "en")
+    .toLowerCase().startsWith("de") ? "de" : "en";
+const t = (hass, schluessel, werte = {}) =>
+  String(TEXTE[spracheVon(hass)]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? "");
+// Zahlen, Datum, Uhrzeit im Format der HA-Sprache
+const gebiet = (hass) => hass?.locale?.language ?? hass?.language ?? "de-DE";
+
 const zahl = (v) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 };
 
-const fmt = (v, stellen) => (v === null ? "–" : v.toLocaleString("de-DE", { minimumFractionDigits: stellen, maximumFractionDigits: stellen }));
+const fmt = (hass, v, stellen) => (v === null ? "–" : v.toLocaleString(gebiet(hass), { minimumFractionDigits: stellen, maximumFractionDigits: stellen }));
 
-const alter = (iso) => {
+const alter = (hass, iso) => {
   if (!iso) return null;
   const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (min < 1) return "gerade eben";
-  if (min < 60) return `vor ${min} Min.`;
+  if (min < 1) return t(hass, "gerade_eben");
+  if (min < 60) return t(hass, "vor_min", { n: min });
   const h = Math.round(min / 60);
-  if (h < 48) return `vor ${h} Std.`;
-  return `vor ${Math.round(h / 24)} Tagen`;
+  if (h < 48) return t(hass, "vor_std", { n: h });
+  return t(hass, "vor_tagen", { n: Math.round(h / 24) });
 };
 
 class YapaiaReifenCard extends HTMLElement {
@@ -69,13 +153,13 @@ class YapaiaReifenCard extends HTMLElement {
     const bar = (min, max, step) => ({ number: { min, max, step, mode: "box", unit_of_measurement: "bar" } });
     return {
       schema: [
-        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: t(null, "automatisch") }] } } },
         { name: "name", selector: { text: {} } },
-        ...RAEDER.map(({ k, name }) => ({
+        ...RAEDER.map(({ k }) => ({
           type: "expandable",
           flatten: true,
           name: "",
-          title: `Sensoren ${name}`,
+          title: t(null, "sensoren_rad", { rad: t(null, `rad_${k}`) }),
           schema: [
             { name: `${k}_pressure`, required: true, selector: sensor },
             { name: `${k}_temperature`, selector: sensor },
@@ -86,7 +170,7 @@ class YapaiaReifenCard extends HTMLElement {
           type: "expandable",
           flatten: true,
           name: "",
-          title: "Solldruck und Warnungen",
+          title: t(null, "soll_warnungen"),
           expanded: true,
           schema: [
             {
@@ -106,23 +190,21 @@ class YapaiaReifenCard extends HTMLElement {
       ],
       computeLabel: (s) => {
         const rad = RAEDER.find(({ k }) => s.name.startsWith(`${k}_`));
-        if (rad) return { pressure: "Druck", temperature: "Temperatur (optional)", battery: "Batteriespannung (optional)" }[s.name.slice(3)];
-        return {
-          design: "Design-Schema",
-          name: "Titel",
-          target_front: "Solldruck vorne",
-          target_rear: "Solldruck hinten",
-          tolerance_warn: "Gelb ab Abweichung",
-          tolerance_alarm: "Rot ab Abweichung",
-          battery_low: "Sensorbatterie schwach unter",
-          stale_hours: "Werte gelten als alt nach",
+        if (rad) {
+          const k = { pressure: "l_druck", temperature: "l_temperature", battery: "l_battery" }[s.name.slice(3)];
+          return k ? t(null, k) : undefined;
+        }
+        const k = {
+          design: "l_design", name: "l_name", target_front: "l_target_front", target_rear: "l_target_rear",
+          tolerance_warn: "l_tolerance_warn", tolerance_alarm: "l_tolerance_alarm", battery_low: "l_battery_low",
+          stale_hours: "l_stale_hours",
         }[s.name];
+        return k ? t(null, k) : undefined;
       },
-      computeHelper: (s) =>
-        ({
-          target_front: "Laut Reifenaufkleber oder Fahrzeughandbuch (kalt gemessen).",
-          stale_hours: "Die Sensoren senden meist nur während der Fahrt.",
-        })[s.name],
+      computeHelper: (s) => {
+        const k = { target_front: "h_target_front", stale_hours: "h_stale_hours" }[s.name];
+        return k ? t(null, k) : undefined;
+      },
     };
   }
 
@@ -150,7 +232,8 @@ class YapaiaReifenCard extends HTMLElement {
     return { columns: "full", min_columns: 6, rows: "auto" };
   }
 
-  _rad({ k, name }) {
+  _rad({ k }) {
+    const name = t(this._hass, `rad_${k}`);
     const c = this._config;
     const st = (id) => (id && this._hass ? this._hass.states[id] : undefined);
     const p = st(c[`${k}_pressure`]);
@@ -168,7 +251,7 @@ class YapaiaReifenCard extends HTMLElement {
     const alt = zeit ? Date.now() - new Date(zeit).getTime() > c.stale_hours * 3600000 : false;
     const battSchwach = batt !== null && batt < c.battery_low;
     let tipp = "";
-    if (diff !== null && stufe !== "ok") tipp = diff < 0 ? `${fmt(-diff, 1)} bar zu wenig` : `${fmt(diff, 1)} bar zu viel`;
+    if (diff !== null && stufe !== "ok") tipp = diff < 0 ? t(this._hass, "zu_wenig", { bar: fmt(this._hass, -diff, 1) }) : t(this._hass, "zu_viel", { bar: fmt(this._hass, diff, 1) });
     return { k, name, druck, temp, batt, soll, stufe, zeit, alt, battSchwach, tipp };
   }
 
@@ -177,25 +260,21 @@ class YapaiaReifenCard extends HTMLElement {
     const c = this._config;
     const raeder = RAEDER.map((r) => this._rad(r));
     const yschema = window.YapaiaDesign?.waehle(this._hass, { wahl: this._config.design, quelle: DESIGN_QUELLE }) ?? null;
-    const key = JSON.stringify([yschema?.id, c, raeder.map((r) => [r.druck, r.temp, r.batt, r.zeit && alter(r.zeit)])]);
+    const key = JSON.stringify([yschema?.id, spracheVon(this._hass), c, raeder.map((r) => [r.druck, r.temp, r.batt, r.zeit && alter(this._hass, r.zeit)])]);
     if (key === this._key) return;
     this._key = key;
 
     const rang = { aus: 0, ok: 1, fast: 2, schief: 3 };
     const mitWert = raeder.filter((r) => r.stufe !== "aus");
     const gesamt = mitWert.length ? mitWert.reduce((a, r) => (rang[r.stufe] > rang[a] ? r.stufe : a), "ok") : "aus";
-    const statusText = {
-      ok: mitWert.length < 4 ? "In Ordnung (nicht alle Räder)" : "Alles in Ordnung",
-      fast: "Druck prüfen",
-      schief: "Druck stimmt nicht",
-      aus: "Keine Werte",
-    }[gesamt];
+    const h = this._hass;
+    const statusText = t(h, gesamt === "ok" && mitWert.length < 4 ? "stufe_ok_teil" : `stufe_${gesamt}`);
     const schwach = raeder.filter((r) => r.battSchwach).map((r) => r.name);
 
     // Draufsicht: Fahrtrichtung nach oben. Räder an den Ecken, Farbe = Stufe.
     const reifen = { fl: [18, 50], fr: [102, 50], rl: [18, 206], rr: [102, 206] };
     const svg = `
-      <svg viewBox="0 0 120 260" class="auto" role="img" aria-label="Wohnmobil von oben">
+      <svg viewBox="0 0 120 260" class="auto" role="img" aria-label="${t(h, 'wohnmobil_von_oben')}">
         ${raeder
           .map(({ k, stufe }) => {
             const [x, y] = reifen[k];
@@ -212,13 +291,13 @@ class YapaiaReifenCard extends HTMLElement {
     const plakette = (r) => `
       <div class="rad ${r.k}">
         <div class="radname">${r.name}</div>
-        <div class="druck" style="color:${FARBE[r.stufe]}">${fmt(r.druck, 1)}<small> bar</small></div>
-        <div class="soll">${r.tipp || (r.soll !== null ? `Soll ${fmt(r.soll, 1)} bar` : "")}</div>
+        <div class="druck" style="color:${FARBE[r.stufe]}">${fmt(h, r.druck, 1)}<small> bar</small></div>
+        <div class="soll">${r.tipp || (r.soll !== null ? t(h, "soll", { bar: fmt(h, r.soll, 1) }) : "")}</div>
         <div class="neben">
-          <span><ha-icon icon="mdi:thermometer"></ha-icon>${r.temp === null ? "–" : `${fmt(r.temp, 0)} °C`}</span>
-          <span class="${r.battSchwach ? "warn" : ""}"><ha-icon icon="${r.battSchwach ? "mdi:battery-alert-variant-outline" : "mdi:battery-outline"}"></ha-icon>${r.batt === null ? "–" : `${fmt(r.batt, 1)} V`}</span>
+          <span><ha-icon icon="mdi:thermometer"></ha-icon>${r.temp === null ? "–" : `${fmt(h, r.temp, 0)} °C`}</span>
+          <span class="${r.battSchwach ? "warn" : ""}"><ha-icon icon="${r.battSchwach ? "mdi:battery-alert-variant-outline" : "mdi:battery-outline"}"></ha-icon>${r.batt === null ? "–" : `${fmt(h, r.batt, 1)} V`}</span>
         </div>
-        <div class="zeit ${r.alt ? "alt" : ""}">${r.zeit ? alter(r.zeit) : "noch kein Wert"}</div>
+        <div class="zeit ${r.alt ? "alt" : ""}">${r.zeit ? alter(h, r.zeit) : t(h, "kein_wert")}</div>
       </div>`;
 
     const [fl, fr, rl, rr] = raeder;
@@ -258,16 +337,15 @@ class YapaiaReifenCard extends HTMLElement {
       </style>
       <ha-card>
         <div class="kopf">
-          <h2>${c.name || ""}</h2>
+          <h2>${c.name ?? t(this._hass, "titel")}</h2>
           <span class="status" style="background:${FARBE[gesamt]}">${statusText}</span>
         </div>
         <div class="feld">
           ${svg}
           ${plakette(fl)}${plakette(fr)}${plakette(rl)}${plakette(rr)}
         </div>
-        ${schwach.length ? `<div class="hinweis warn">Sensorbatterie schwach: ${schwach.join(", ")}</div>` : ""}
-        <div class="hinweis">Soll vorne ${fmt(zahl(c.target_front), 1)} bar, hinten ${fmt(zahl(c.target_rear), 1)} bar.
-          Die Sensoren senden meist nur während der Fahrt.</div>
+        ${schwach.length ? `<div class="hinweis warn">${t(h, "batterie_schwach", { raeder: schwach.join(", ") })}</div>` : ""}
+        <div class="hinweis">${t(h, "hinweis", { vorne: fmt(h, zahl(c.target_front), 1), hinten: fmt(h, zahl(c.target_rear), 1) })}</div>
       </ha-card>`;
     window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector("ha-card"), yschema);
   }

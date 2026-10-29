@@ -13,11 +13,94 @@
  *   show_output: true                                # optional, output picker (Mini-PC / this device / HA speakers)
  */
 
-const CARD_VERSION = "0.8.0";
+const CARD_VERSION = "0.8.1";
 const STREAM_PATH = "/api/yapaia/beat/stream";
 // Yapaia Design (docs/design-schemata.md); ohne die Integration ab 0.7.0 gilt `style`
 const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
 const SENDSPIN_URL = "/yapaia/beat/sendspin.js";
+
+// Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    ma_nicht_bereit: "Home Assistant ist noch nicht bereit.",
+    ma_nicht_gestartet: "Music Assistant ist nicht gestartet ({status}).",
+    ma_nicht_gefunden: "Music Assistant (Add-on) wurde nicht gefunden.",
+    ma_keine_sitzung: "Home Assistant hat keine Ingress-Sitzung geliefert.",
+    ma_abgelehnt: "Music Assistant nimmt die Anmeldung nicht an. Neuer Versuch in 5 Minuten (oder Schalter aus und wieder ein).",
+    ma_keine_verbindung: "Keine Verbindung zu Music Assistant.",
+    entity_fehlt: "entity muss gesetzt sein (media_player.yapaia_beat)",
+    vorheriger_favorit: "Vorheriger Favorit",
+    naechster_favorit: "Nächster Favorit",
+    play_stop: "Play/Stop",
+    favorit: "Favorit",
+    stumm: "Stumm",
+    senderverfolgung_auto: "Automatische Senderverfolgung",
+    ausgabe_waehlen: "Ausgabe wählen",
+    vergroessern: "Vergrößern",
+    mini_pc: "Mini-PC",
+    dieses_geraet: "Dieses Gerät",
+    mini_pc_und_geraet: "Mini-PC + dieses Gerät",
+    keine: "keine",
+    keine_ausgabe: "Keine Ausgabe",
+    entitaet_fehlt: "Entität nicht gefunden",
+    suchlauf: "Suchlauf …",
+    bereit: "— bereit —",
+    ukw: "UKW",
+    ausgabe_tippen: "Tippen, um den Ton auf diesem Gerät zu starten",
+    ausgabe: "Ausgabe: {ziel}",
+    automatisch: "Automatisch",
+    l_entity: "Yapaia Beat Media Player",
+    l_follow_entity: "Schalter Senderverfolgung",
+    l_design: "Design-Schema",
+    l_max_presets: "Anzahl Favoriten-Tasten",
+    l_show_slide: "DAB+ Slideshow anzeigen",
+    l_show_output: "Ausgabe-Auswahl (Mini-PC / dieses Gerät / Lautsprecher)",
+    beschreibung: "Radio-Karte für Yapaia Beat (FM & DAB+) mit Logo, RDS/DLS, Favoriten-Tasten und Lautstärke.",
+  },
+  en: {
+    ma_nicht_bereit: "Home Assistant is not ready yet.",
+    ma_nicht_gestartet: "Music Assistant is not running ({status}).",
+    ma_nicht_gefunden: "Music Assistant (add-on) was not found.",
+    ma_keine_sitzung: "Home Assistant did not provide an ingress session.",
+    ma_abgelehnt: "Music Assistant rejects the login. Trying again in 5 minutes (or switch off and on again).",
+    ma_keine_verbindung: "No connection to Music Assistant.",
+    entity_fehlt: "entity must be set (media_player.yapaia_beat)",
+    vorheriger_favorit: "Previous favourite",
+    naechster_favorit: "Next favourite",
+    play_stop: "Play/Stop",
+    favorit: "Favourite",
+    stumm: "Mute",
+    senderverfolgung_auto: "Automatic station following",
+    ausgabe_waehlen: "Choose output",
+    vergroessern: "Enlarge",
+    mini_pc: "Mini PC",
+    dieses_geraet: "This device",
+    mini_pc_und_geraet: "Mini PC + this device",
+    keine: "none",
+    keine_ausgabe: "No output",
+    entitaet_fehlt: "Entity not found",
+    suchlauf: "Scanning …",
+    bereit: "— ready —",
+    ukw: "FM",
+    ausgabe_tippen: "Tap to start the sound on this device",
+    ausgabe: "Output: {ziel}",
+    automatisch: "Automatic",
+    l_entity: "Yapaia Beat media player",
+    l_follow_entity: "Station following switch",
+    l_design: "Design scheme",
+    l_max_presets: "Number of favourite buttons",
+    l_show_slide: "Show DAB+ slideshow",
+    l_show_output: "Output picker (Mini PC / this device / speakers)",
+    beschreibung: "Radio card for Yapaia Beat (FM & DAB+) with logo, RDS/DLS, favourite buttons and volume.",
+  },
+};
+const spracheVon = (hass) =>
+  String(hass?.locale?.language ?? hass?.language ?? document.querySelector("home-assistant")?.hass?.locale?.language ?? "en")
+    .toLowerCase().startsWith("de") ? "de" : "en";
+const t = (hass, schluessel, werte = {}) =>
+  String(TEXTE[spracheVon(hass)]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? "");
+// Zahlen, Datum, Uhrzeit im Format der HA-Sprache
+const gebiet = (hass) => hass?.locale?.language ?? hass?.language ?? "de-DE";
 
 const ICONS = {
   speaker: "M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-5 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm0 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
@@ -272,7 +355,7 @@ const MaPlayer = {
   _hass() { const el = document.querySelector("home-assistant"); return el && el.hass; },
   async _sup(endpoint, method, data) {
     const hass = this._hass();
-    if (!hass) throw new Error("Home Assistant ist noch nicht bereit.");
+    if (!hass) throw new Error(t(null, "ma_nicht_bereit"));
     const msg = { type: "supervisor/api", endpoint, method };
     if (data) msg.data = data;
     return hass.callWS(msg);
@@ -299,11 +382,11 @@ const MaPlayer = {
       if (info && info.ingress_url) return info.ingress_url.replace(/\/$/, "");
       if (info) stopped = info.state;
     }
-    throw new Error(stopped ? `Music Assistant ist nicht gestartet (${stopped}).` : "Music Assistant (Add-on) wurde nicht gefunden.");
+    throw new Error(stopped ? t(null, "ma_nicht_gestartet", { status: stopped }) : t(null, "ma_nicht_gefunden"));
   },
   async _newSession() {
     const r = await this._sup("/ingress/session", "post");
-    if (!r || !r.session) throw new Error("Home Assistant hat keine Ingress-Sitzung geliefert.");
+    if (!r || !r.session) throw new Error(t(null, "ma_keine_sitzung"));
     this._session = r.session;
     this._cookie();
   },
@@ -329,7 +412,7 @@ const MaPlayer = {
     if (this._fehlversuche >= 10) {
       this._fehlversuche = 0;
       this._teardown();
-      this._set("fehler", "Music Assistant nimmt die Anmeldung nicht an. Neuer Versuch in 5 Minuten (oder Schalter aus und wieder ein).");
+      this._set("fehler", t(null, "ma_abgelehnt"));
       clearTimeout(this._retry);
       this._retry = setTimeout(() => { if (this.wanted) this.start(); }, 5 * 60000);
       return;
@@ -366,7 +449,7 @@ const MaPlayer = {
       this._sessionTimer = setInterval(() => this._keepSession(), 60000);
       this._check();
     } catch (err) {
-      this._set("fehler", (err && err.message) || "Keine Verbindung zu Music Assistant.");
+      this._set("fehler", (err && err.message) || t(null, "ma_keine_verbindung"));
       this._teardown();
       // try again later – Music Assistant may just be starting
       clearTimeout(this._retry);
@@ -545,24 +628,17 @@ class YapaiaBeatCard extends HTMLElement {
       schema: [
         { name: "entity", required: true, selector: { entity: { domain: "media_player" } } },
         { name: "follow_entity", selector: { entity: { domain: "switch" } } },
-        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: "Automatisch" }] } } },
+        { name: "design", selector: { select: { mode: "dropdown", options: window.YapaiaDesign?.optionen() ?? [{ value: "auto", label: t(null, "automatisch") }] } } },
         { name: "max_presets", selector: { number: { min: 0, max: 30, mode: "box" } } },
         { name: "show_slide", selector: { boolean: {} } },
         { name: "show_output", selector: { boolean: {} } },
       ],
-      computeLabel: (s) => ({
-        entity: "Yapaia Beat Media Player",
-        follow_entity: "Schalter Senderverfolgung",
-        design: "Design-Schema",
-        max_presets: "Anzahl Favoriten-Tasten",
-        show_slide: "DAB+ Slideshow anzeigen",
-        show_output: "Ausgabe-Auswahl (Mini-PC / dieses Gerät / Lautsprecher)",
-      }[s.name]),
+      computeLabel: (s) => t(null, "l_" + s.name),
     };
   }
 
   setConfig(config) {
-    if (!config.entity) throw new Error("entity muss gesetzt sein (media_player.yapaia_beat)");
+    if (!config.entity) throw new Error(t(null, "entity_fehlt"));
     this._config = { max_presets: 12, show_slide: true, show_output: true, ...config };
     if (!this._config.follow_entity) {
       this._config.follow_entity = config.entity.replace("media_player.", "switch.") + "_auto_follow";
@@ -639,16 +715,16 @@ class YapaiaBeatCard extends HTMLElement {
           </div>
           <div class="presets"></div>
           <div class="panel">
-            <button class="b prev" title="Vorheriger Favorit">${svg(ICONS.prev)}</button>
-            <button class="b play big" title="Play/Stop"></button>
-            <button class="b next" title="Nächster Favorit">${svg(ICONS.next)}</button>
-            <button class="b fav" title="Favorit"></button>
+            <button class="b prev" title="${t(this._hass, "vorheriger_favorit")}">${svg(ICONS.prev)}</button>
+            <button class="b play big" title="${t(this._hass, "play_stop")}"></button>
+            <button class="b next" title="${t(this._hass, "naechster_favorit")}">${svg(ICONS.next)}</button>
+            <button class="b fav" title="${t(this._hass, "favorit")}"></button>
             <div class="vol">
-              <button class="b mute small" title="Stumm"></button>
+              <button class="b mute small" title="${t(this._hass, "stumm")}"></button>
               <input type="range" min="0" max="100" step="1" class="volume">
             </div>
-            <button class="b follow small" title="Automatische Senderverfolgung">${svg(ICONS.follow)}</button>
-            <button class="b out small" title="Ausgabe wählen">${svg(ICONS.speaker)}</button>
+            <button class="b follow small" title="${t(this._hass, "senderverfolgung_auto")}">${svg(ICONS.follow)}</button>
+            <button class="b out small" title="${t(this._hass, "ausgabe_waehlen")}">${svg(ICONS.speaker)}</button>
           </div>
           <div class="outmenu" hidden></div>
           <div class="msg"></div>
@@ -707,7 +783,7 @@ class YapaiaBeatCard extends HTMLElement {
     this._el.logo.onload = () => { this._el.logo.style.visibility = "visible"; };
     this._el.slide.onerror = () => { this._el.slide.hidden = true; };
     this._el.slide.onclick = () => showZoom(this._el.slide.src);
-    this._el.slide.title = "Vergrößern";
+    this._el.slide.title = t(this._hass, "vergroessern");
     this._built = true;
     BrowserPlayer._entity = this._config.entity;
     if (!this._onPlayer) {
@@ -740,7 +816,10 @@ class YapaiaBeatCard extends HTMLElement {
       const p = (a.players || []).find((x) => x.entity_id === a.speaker);
       return p ? p.name : a.speaker;
     }
-    return { local: "Mini-PC", browser: "Dieses Gerät", both: "Mini-PC + dieses Gerät", none: "keine" }[mode];
+    return ({
+      local: t(this._hass, "mini_pc"), browser: t(this._hass, "dieses_geraet"),
+      both: t(this._hass, "mini_pc_und_geraet"), none: t(this._hass, "keine"),
+    })[mode];
   }
 
   _renderOutMenu() {
@@ -750,11 +829,11 @@ class YapaiaBeatCard extends HTMLElement {
       `<button data-out="${esc(value)}" class="${mode === value ? "active" : ""}" ${disabled ? "disabled" : ""}>${esc(label)}</button>`;
     const players = a.players || [];
     this._el.outMenu.innerHTML =
-      item("browser", "📱 Dieses Gerät", !a.stream_path) +
-      item("local", "🖥 Mini-PC", !a.local_audio) +
-      item("both", "🖥 Mini-PC + 📱 dieses Gerät", !a.local_audio || !a.stream_path) +
+      item("browser", "📱 " + t(this._hass, "dieses_geraet"), !a.stream_path) +
+      item("local", "🖥 " + t(this._hass, "mini_pc"), !a.local_audio) +
+      item("both", "🖥 " + t(this._hass, "mini_pc") + " + 📱 " + t(this._hass, "dieses_geraet"), !a.local_audio || !a.stream_path) +
       players.map((p) => item("speaker:" + p.entity_id, "🔊 " + p.name)).join("") +
-      (a.local_audio ? "" : item("none", "🔇 Keine Ausgabe"));
+      (a.local_audio ? "" : item("none", "🔇 " + t(this._hass, "keine_ausgabe")));
   }
 
   _render() {
@@ -764,7 +843,7 @@ class YapaiaBeatCard extends HTMLElement {
     const e = this._el;
     const s = (this._stateObj = this._hass.states[this._config.entity]);
     if (!s) {
-      e.name.textContent = "Entität nicht gefunden";
+      e.name.textContent = t(this._hass, "entitaet_fehlt");
       e.loc.textContent = this._config.entity;
       return;
     }
@@ -773,10 +852,10 @@ class YapaiaBeatCard extends HTMLElement {
     this._muted = !!a.is_volume_muted;
     e.root.classList.toggle("on", playing);
     e.name.textContent = a.station_name || "Yapaia Beat";
-    e.loc.textContent = a.radio_state === "scanning" ? "Suchlauf …" : a.location || "";
-    e.band.textContent = a.band === "dab" ? "DAB+" : a.band === "fm" ? "UKW" : "";
+    e.loc.textContent = a.radio_state === "scanning" ? t(this._hass, "suchlauf") : a.location || "";
+    e.band.textContent = a.band === "dab" ? "DAB+" : a.band === "fm" ? t(this._hass, "ukw") : "";
 
-    const text = a.radio_state === "scanning" ? a.media_title : (playing ? a.radiotext || a.station_name : "— bereit —") || "";
+    const text = a.radio_state === "scanning" ? a.media_title : (playing ? a.radiotext || a.station_name : t(this._hass, "bereit")) || "";
     if (text !== this._lastText) {
       this._lastText = text;
       e.text.textContent = text;
@@ -818,7 +897,7 @@ class YapaiaBeatCard extends HTMLElement {
     e.out.hidden = !this._config.show_output;
     e.out.classList.toggle("active", !!a.speaker || BrowserPlayer.wanted);
     e.out.classList.toggle("blink", BrowserPlayer.wanted && BrowserPlayer.blocked);
-    e.out.title = BrowserPlayer.blocked ? "Tippen, um den Ton auf diesem Gerät zu starten" : `Ausgabe: ${this._outLabel(a)}`;
+    e.out.title = BrowserPlayer.blocked ? t(this._hass, "ausgabe_tippen") : t(this._hass, "ausgabe", { ziel: this._outLabel(a) });
     if (!e.outMenu.hidden) this._renderOutMenu();
     BrowserPlayer.updateSession(a, this._hass);
     e.msg.textContent = a.speaker_error ? `⚠ ${a.speaker_error}` : a.follow_message || "";
@@ -942,7 +1021,7 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "yapaia-beat-card",
   name: "Yapaia Beat",
-  description: "Radio-Karte für Yapaia Beat (FM & DAB+) mit Logo, RDS/DLS, Favoriten-Tasten und Lautstärke.",
+  description: t(null, "beschreibung"),
   preview: true,
   documentationURL: "https://github.com/Yapaia/yapaia/blob/main/beat/yapaia_beat/DOCS.md",
 });
