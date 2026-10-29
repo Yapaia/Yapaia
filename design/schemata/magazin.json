@@ -1,0 +1,47 @@
+{
+  "$schema": "../schema.json",
+  "id": "magazin",
+  "name": "Magazin",
+  "beschreibung": "Outdoor-Magazin: Waldgrün, Höhenlinien, große Serifenschrift, ruhige Linien.",
+  "hell": true,
+  "farben": {
+    "grund": "#F7F5EF",
+    "flaeche": "#F7F5EF",
+    "flaeche2": "#EAE5D8",
+    "rand": "#CFC8B8",
+    "text": "#1C2620",
+    "text_gedaempft": "#56645A",
+    "akzent": "#1F3A2E",
+    "akzent_text": "#EEF2EA",
+    "akzent2": "#D9893A",
+    "ok": "#2F7A4F",
+    "warnung": "#B8692A",
+    "fehler": "#B4532A",
+    "info": "#3F6E8C"
+  },
+  "schrift": {
+    "anzeige": {
+      "familie": "Instrument Serif",
+      "gewicht": 400
+    },
+    "text": {
+      "familie": "Inter",
+      "gewicht": 400
+    },
+    "zahlen": {
+      "familie": "Instrument Serif",
+      "gewicht": 400
+    },
+    "ersatz": "Georgia, serif"
+  },
+  "form": {
+    "radius": 18,
+    "radius_klein": 24,
+    "rand_breite": 1,
+    "schatten": "none"
+  },
+  "deko": {
+    "hoehenlinien": true,
+    "seite": "#1F3A2E"
+  }
+}

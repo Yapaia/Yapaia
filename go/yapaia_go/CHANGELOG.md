@@ -10,6 +10,16 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.65.1
+
+**Bringt die Integration 0.7.0 mit: gemeinsame Design-Schemata.** Neues
+Gerät „Yapaia Design“ mit der Auswahl **Schema** (Sport, Retro, Magazin, Mix,
+Beat Modern, Beat Retro) für alle Yapaia-Oberflächen und an jedem Modul eine
+Auswahl **Design** („Wie gesamt“ oder ein eigenes). Auf Wunsch färbt
+**HA-Design** auch Home Assistant selbst passend ein – Standard ist „Nicht
+ändern“. Die Oberflächen folgen der Wahl in den nächsten Versionen; an Go
+selbst ändert sich jetzt noch nichts. Doku: docs/design-schemata.md.
+
 ## 0.65.0
 
 **Ort und Adresse als Sensoren – offline.** Go bestimmt aus dem Suchindex,

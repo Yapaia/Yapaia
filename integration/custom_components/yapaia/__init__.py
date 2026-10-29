@@ -5,13 +5,16 @@ from __future__ import annotations
 import logging
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from . import aktionen, partner
 from .client import YapaiaClient, YapaiaFehler
-from .const import ALLE_PLATTFORMEN, CONF_MODUL, CONF_TOKEN, CONF_URL, PLATTFORMEN, PROTOKOLL, SPEZIAL
+from .const import ALLE_PLATTFORMEN, CONF_MODUL, CONF_TOKEN, CONF_URL, DOMAIN, PLATTFORMEN, PROTOKOLL, SPEZIAL
 from .modul import YapaiaModul
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,7 +22,26 @@ _LOGGER = logging.getLogger(__name__)
 type YapaiaConfigEntry = ConfigEntry[YapaiaModul]
 
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Einmal je Start: gemeinsames Design (design/)."""
+    from . import design
+
+    await design.einrichten(hass)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bool:
+    if entry.data.get(CONF_MODUL) == "design":
+        # Gerät „Yapaia Design“: nur Auswahlen, kein Modul (keine runtime_data,
+        # damit Partnerliste und Aktionen es nicht für ein Modul halten)
+        from . import design
+
+        await design.einrichten(hass)
+        await hass.config_entries.async_forward_entry_setups(entry, [Platform.SELECT])
+        return True
     if entry.data.get(CONF_MODUL) == "router":
         return await _router_einrichten(hass, entry)
     client = YapaiaClient(async_get_clientsession(hass), entry.data[CONF_URL], entry.data[CONF_TOKEN])
@@ -85,6 +107,8 @@ async def _router_einrichten(hass: HomeAssistant, entry: YapaiaConfigEntry) -> b
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: YapaiaConfigEntry) -> bool:
+    if entry.data.get(CONF_MODUL) == "design":
+        return await hass.config_entries.async_unload_platforms(entry, [Platform.SELECT])
     ok = await hass.config_entries.async_unload_platforms(entry, ALLE_PLATTFORMEN)
     if ok:
         await entry.runtime_data.stoppen()

@@ -1,0 +1,49 @@
+{
+  "$schema": "../schema.json",
+  "id": "beat-modern",
+  "name": "Beat Modern",
+  "beschreibung": "Yapaia Beat: Nachtblau, Orange und Gelb, Systemschrift.",
+  "hell": false,
+  "farben": {
+    "grund": "#0f1226",
+    "flaeche": "#1d2244",
+    "flaeche2": "#171b36",
+    "rand": "#2c3263",
+    "text": "#eef0ff",
+    "text_gedaempft": "#9aa0c8",
+    "akzent": "#ff6b35",
+    "akzent_text": "#0f1226",
+    "akzent2": "#f7c548",
+    "ok": "#2ec4b6",
+    "warnung": "#f7c548",
+    "fehler": "#ff4d3d",
+    "info": "#7b8cff"
+  },
+  "schrift": {
+    "anzeige": {
+      "familie": "system-ui",
+      "gewicht": 700
+    },
+    "text": {
+      "familie": "system-ui",
+      "gewicht": 400
+    },
+    "zahlen": {
+      "familie": "system-ui",
+      "gewicht": 600
+    },
+    "ersatz": "-apple-system, \"Segoe UI\", Roboto, sans-serif"
+  },
+  "form": {
+    "radius": 18,
+    "radius_klein": 10,
+    "rand_breite": 1,
+    "schatten": "none"
+  },
+  "deko": {
+    "lcd": {
+      "grund": "#0c1030",
+      "text": "#eef0ff"
+    }
+  }
+}
