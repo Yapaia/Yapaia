@@ -227,3 +227,23 @@ def test_design_fuer_die_seite(ersatz_ffmpeg, tmp_path, monkeypatch):
             assert await (await c.get("/api/design")).json() == daten
 
     asyncio.run(ablauf())
+
+
+def test_sprache_fuer_die_seite(ersatz_ffmpeg, tmp_path, monkeypatch):
+    """§8b: HA-Sprache von der Integration, die eigene Seite holt sie über /api/sprache."""
+    monkeypatch.setattr(protokoll, "SPRACHE_DATEI", tmp_path / "sprache.json")
+
+    async def ablauf():
+        v = Vision(_opts(), gefunden=[])
+        ident = protokoll.Identitaet(tmp_path / "yapaia.json")
+        async with TestClient(TestServer(create_app(v, ident))) as c:
+            kopf = {"Authorization": f"Bearer {ident.token}"}
+            assert await (await c.get("/api/sprache")).json() == {"sprache": None}
+            assert (await c.post("/yapaia/v1/sprache", json={"sprache": "de"}, headers=kopf)).status == 200
+            assert await (await c.get("/api/sprache")).json() == {"sprache": "de"}
+            assert protokoll.sprache_laden() == "de"
+            assert (await c.post("/yapaia/v1/sprache", json={"sprache": "fr"}, headers=kopf)).status == 200
+            assert await (await c.get("/api/sprache")).json() == {"sprache": "en"}
+            assert (await c.post("/yapaia/v1/sprache", json={"sprache": 1}, headers=kopf)).status == 400
+
+    asyncio.run(ablauf())

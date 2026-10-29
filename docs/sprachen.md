@@ -25,7 +25,7 @@ Eine eigene Sprache je Modul gibt es nicht.
 | Entitäten, Aktionen, Ereignisse der Module | Beschreibung des Moduls (`{"de": …, "en": …}`), [Protokoll](integration-protokoll.md) §3 | Integration wählt die HA-Sprache |
 | Benachrichtigungen der Integration | im Code als `text({"de": …, "en": …}, sprache(hass))` | `sprache.py` |
 | Add-on-Optionen | `<addon>/translations/de.yaml`, `en.yaml` | Supervisor |
-| Oberflächen der Add-ons (Go, Beat, Vision) | je Add-on (geplant) | `POST /yapaia/v1/sprache` (Protokoll §8b) |
+| Oberflächen der Add-ons (Go, Beat, Vision) | `const TEXTE` im Skript der Seite, feste HTML-Texte mit `data-t…`; Beat und Vision erledigt, Go geplant | `POST /yapaia/v1/sprache` (Protokoll §8b) |
 | Karten/Dashboards | je Karte oben `const TEXTE = { de: {…}, en: {…} }` mit `t(hass, schlüssel, werte)`; Zahlen/Datum über `gebiet(hass)` – geprüft von `dashboards/sprachen-pruefen.mjs` | `hass.locale.language` |
 
 ## Stufen
@@ -33,6 +33,6 @@ Eine eigene Sprache je Modul gibt es nicht.
 1. Grundlage: Protokoll §8b, `sprache.py`, CI-Prüfung – **erledigt** (Integration 0.8.0)
 2. Integration: feste Namen und Meldungen übersetzt – **erledigt** (Integration 0.8.0)
 3. Karten und Dashboards – **erledigt** (Integration 0.8.1, Go 0.66.1)
-4. Oberflächen von Beat und Vision
+4. Oberflächen von Beat und Vision – **erledigt** (Beat 1.19.0, Vision 0.4.0; offen: Meldungen, die Vision vom Server schickt)
 5. Oberfläche von Go
 6. Go-Ansagen, Kartenbeschriftung, ESPHome-Geräte

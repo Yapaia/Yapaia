@@ -8,7 +8,150 @@ let stations = [];
 let band = "";
 let editId = null;
 
-const fmtFreq = (f) => (f == null ? "" : `${Number(f).toFixed(f * 100 % 10 ? 2 : 1).replace(".", ",")} MHz`);
+// Texte je Sprache (docs/sprachen.md): HA-Sprache über die Integration (api/sprache),
+// sonst Browsersprache; Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    verbinde: "verbinde …", verbunden: "verbunden", getrennt: "getrennt",
+    fehler: "Fehler {n}", ukw: "UKW", kanal: "Kanal",
+    zustand_idle: "Bereit", zustand_tuning: "Stimme ab …", zustand_playing: "Läuft", zustand_scanning: "Suchlauf",
+    zustand_following: "Senderverfolgung", zustand_standby: "Standby", zustand_error: "Fehler",
+    kein_sender: "Kein Sender", hilfe: "Wähle einen Sender aus deinen Favoriten oder starte einen Suchlauf.",
+    suchlauf_punkte: "Suchlauf …",
+    vergroessern: "Vergrößern", empfang: "Empfangsqualität", vorheriger: "Vorheriger Favorit", naechster: "Nächster Favorit",
+    favorit: "Favorit", ausgabe: "Ausgabe", ausgabe_titel: "Wo soll das Radio zu hören sein?", ton_starten: "▶ Ton hier starten",
+    stick_titel: "Auf welchem RTL-SDR-Stick gespielt wird", ma_titel: "Diesen Browser als Player bei Music Assistant anmelden",
+    ma_browser: "Music Assistant in diesem Browser", stumm_titel: "Stumm", stumm: "stumm",
+    verfolgung_titel: "Automatische Senderverfolgung bei schlechtem Empfang", verfolgung: "Senderverfolgung",
+    tab_favoriten: "Favoriten", tab_sender: "Sender", tab_suchlauf: "Suchlauf",
+    keine_favoriten: "Noch keine Favoriten. Unter <b>Sender</b> mit dem ☆ markieren.",
+    suche_ph: "Suche nach Name oder Frequenz (z. B. SWR3 oder 98,3)", alle: "Alle",
+    keine_sender: "Keine Sender gefunden. Starte einen Suchlauf.",
+    scan_info: "Der Suchlauf durchsucht das UKW-Band (87,5–108 MHz, inkl. RDS) und/oder DAB-Band III. Während des Suchlaufs ist die Wiedergabe unterbrochen. Tipp für unterwegs: nach einem Ortswechsel einfach erneut suchen – Favoriten bleiben erhalten und werden per PI-Code bzw. Service-ID zugeordnet.",
+    scan_fm: "FM-Suchlauf", scan_dab: "DAB+-Suchlauf", scan_alle: "Beides", dab_opt: "DAB-Empfang optimieren",
+    dab_opt_titel: "Misst je DAB-Kanal mehrere feste Verstärkungen und merkt sich die beste", abbrechen: "Abbrechen",
+    dab_opt_info: "„DAB-Empfang optimieren“ probiert je Kanal deiner Sender mehrere feste Verstärkungen (etwa eine Minute pro Kanal) und nutzt danach die beste statt der Automatik. Unterwegs gilt sie nur, solange der Empfang gut ist – wird er schlecht, regelt wieder die Automatik. Am besten am Standplatz ausführen und nach einem Ortswechsel wiederholen.",
+    vergleichen_titel: "Misst den laufenden Sender kurz auch auf dem freien Stick", vergleichen: "Antennen vergleichen",
+    sender_bearbeiten: "Sender bearbeiten", name: "Name", logo_hoch: "Logo hochladen", logo_suchen: "Logo online suchen",
+    logo_entfernen: "Eigenes Logo entfernen", sender_loeschen: "Sender löschen", speichern: "Speichern",
+    nach_vorne: "nach vorne", nach_hinten: "nach hinten", aus_favoriten: "Aus den Favoriten entfernen", seite: "Seite {n}",
+    zuletzt_nicht: "zuletzt nicht empfangen", bearbeiten: "Bearbeiten", direkt: "▶ {f} direkt einstellen",
+    original: "Original: {n}", logo_gespeichert: "Logo gespeichert", logo_gefunden: "Logo gefunden", kein_logo: "Kein Logo gefunden",
+    wirklich_loeschen: "Sender wirklich löschen?",
+    stick_auto: "Auto", stick_auto_titel: "Spielt auf dem Stick mit dem besseren Empfang", stick_n: "Stick {n}",
+    spielt_auf: "spielt auf {n}", dab_fest: " · DAB mit fester Verstärkung: {liste}",
+    busy_scan: "sucht Sender", busy_follow: "sucht für die Senderverfolgung", busy_switch: "stimmt den neuen Sender ab", busy_bereit: "bereit",
+    modus_gleich: "Suche und Umschalten ohne Pause", modus_hinten: "Suche im Hintergrund", zweiter: "Zweiter Stick: {modus} – {busy}.",
+    stream_info: "Lokale Wiedergabe über Home Assistant Audio: <b>{aktiv}</b> · MP3-Stream: <code>/stream.mp3</code> ({n} Hörer)",
+    aktiv: "aktiv", aus: "aus",
+    vergleiche: "Vergleiche …", misst: "misst den laufenden Sender auf dem freien Stick (bis 20 s) …",
+    zum_vergleichen: "Zum Vergleichen einen Sender abspielen", spielt_klammer: " (spielt)", etwa_gleich: "etwa gleich gut", besser: "besser: <b>{n}</b>",
+    ma_aus: "Meldet diesen Browser als Player {n} bei Music Assistant an. Er spielt auch weiter, wenn du das Dashboard wechselst, und Ansagen von Yapaia Go kommen dort ohne Verzögerung.",
+    ma_sucht: "Suche Music Assistant …", ma_verbindet: "Verbinde mit Music Assistant …",
+    ma_wartet: "Angemeldet als {n}. Music Assistant muss den Player einmal zulassen: in Music Assistant → Einstellungen → Wiedergabegeräte → {n} öffnen und ohne Kopplung verbinden.",
+    ma_bereit_aktiv: "Das Radio läuft über Music Assistant auf {n}.", ma_bereit_oben: "{n} ist bereit – oben bei „Ausgabe“ wählen.",
+    ma_bereit_ohne: "{n} ist mit Music Assistant verbunden. Er erscheint bei „Ausgabe“, sobald Music Assistant ihn an Home Assistant freigibt (Wiedergabegeräte → {n} → „für Home Assistant freigeben“).",
+    ma_spielt: "Music Assistant spielt in diesem Browser ({n}).", ma_fehler: "⚠ {fehler} – neuer Versuch in 30 s.",
+    ma_tippen: " Einmal irgendwo tippen, damit der Ton starten darf.",
+    mini_pc: "Mini-PC", dieses_geraet: "Dieses Gerät", mini_und_geraet: "Mini-PC + dieses Gerät", keine_ausgabe: "Keine Ausgabe",
+    und_geraet: " + dieses Gerät",
+    hint_ma: "Über Music Assistant · Ansagen von Yapaia Go spielt Music Assistant ohne Verzögerung ein und hat dabei Vorrang",
+    hint_tippen: "Der Browser startet den Ton erst nach einem Tippen – einfach irgendwo tippen",
+    hint_kein_audio: "Mini-PC-Ausgabe nicht verfügbar (Audio im Add-on prüfen)",
+    hint_nur_seite: "Ton läuft nur auf dieser Seite – beim Wechsel zu einem anderen Dashboard hört er auf. Home Assistant einmal neu laden.",
+    hint_ios: "Lautstärke am iPad/iPhone mit den Tasten regeln", hint_weiter: "Ton läuft auch auf anderen Dashboards weiter · ",
+    hint_host: "Ton läuft im Home-Assistant-Fenster weiter, auch auf anderen Dashboards (ca. 2–4 s verzögert)",
+    hint_verzoegert: "Wiedergabe ca. 2–4 s verzögert",
+    grp_hier: "Hier & am Mini-PC", grp_lautsprecher: "Home Assistant Lautsprecher",
+    klein_browser: "Browser, iPad, Autoradio …", klein_kein_audio: "Audio im Add-on nicht verfügbar", klein_lautsprecher: "Lautsprecher am Home-Assistant-Rechner",
+    dieser_browser: "dieser Browser", keine_player: "Keine weiteren Media Player gefunden. Sie erscheinen hier, sobald die Yapaia-Beat-Integration in Home Assistant eingerichtet ist.",
+    ma_hinweis_ein: "Music Assistant ist eingerichtet, gibt aber keinen Player an Home Assistant weiter. In Music Assistant: Einstellungen → Wiedergabegeräte → Player wählen → „Dieses Wiedergabegerät für Home Assistant freigeben“ einschalten und speichern.",
+    ma_hinweis_aus: "Music-Assistant-Player erscheinen hier, sobald Music Assistant als Integration in Home Assistant eingerichtet ist (Einstellungen → Geräte & Dienste) und seine Player für Home Assistant freigibt.",
+  },
+  en: {
+    verbinde: "connecting …", verbunden: "connected", getrennt: "disconnected",
+    fehler: "Error {n}", ukw: "FM", kanal: "channel",
+    zustand_idle: "Ready", zustand_tuning: "Tuning …", zustand_playing: "Playing", zustand_scanning: "Scanning",
+    zustand_following: "Station following", zustand_standby: "Standby", zustand_error: "Error",
+    kein_sender: "No station", hilfe: "Pick a station from your favourites or start a scan.",
+    suchlauf_punkte: "Scanning …",
+    vergroessern: "Enlarge", empfang: "Reception quality", vorheriger: "Previous favourite", naechster: "Next favourite",
+    favorit: "Favourite", ausgabe: "Output", ausgabe_titel: "Where should the radio play?", ton_starten: "▶ Start sound here",
+    stick_titel: "Which RTL-SDR stick is playing", ma_titel: "Register this browser as a player in Music Assistant",
+    ma_browser: "Music Assistant in this browser", stumm_titel: "Mute", stumm: "muted",
+    verfolgung_titel: "Automatically follow the station when reception is poor", verfolgung: "Station following",
+    tab_favoriten: "Favourites", tab_sender: "Stations", tab_suchlauf: "Scan",
+    keine_favoriten: "No favourites yet. Mark stations with ☆ under <b>Stations</b>.",
+    suche_ph: "Search by name or frequency (e.g. SWR3 or 98.3)", alle: "All",
+    keine_sender: "No stations found. Start a scan.",
+    scan_info: "The scan searches the FM band (87.5–108 MHz, incl. RDS) and/or DAB band III. Playback is interrupted while scanning. Tip for travelling: after moving to a new place just scan again – favourites are kept and matched by PI code or service ID.",
+    scan_fm: "FM scan", scan_dab: "DAB+ scan", scan_alle: "Both", dab_opt: "Optimise DAB reception",
+    dab_opt_titel: "Measures several fixed gains per DAB channel and remembers the best one", abbrechen: "Cancel",
+    dab_opt_info: "“Optimise DAB reception” tries several fixed gains on each channel of your stations (about a minute per channel) and then uses the best one instead of automatic gain. On the road it only applies while reception is good – when it gets poor, automatic gain takes over again. Best done at your pitch, and repeated after moving.",
+    vergleichen_titel: "Briefly measures the current station on the free stick, too", vergleichen: "Compare antennas",
+    sender_bearbeiten: "Edit station", name: "Name", logo_hoch: "Upload logo", logo_suchen: "Search logo online",
+    logo_entfernen: "Remove custom logo", sender_loeschen: "Delete station", speichern: "Save",
+    nach_vorne: "move forward", nach_hinten: "move back", aus_favoriten: "Remove from favourites", seite: "Page {n}",
+    zuletzt_nicht: "not received lately", bearbeiten: "Edit", direkt: "▶ Tune to {f} directly",
+    original: "Original: {n}", logo_gespeichert: "Logo saved", logo_gefunden: "Logo found", kein_logo: "No logo found",
+    wirklich_loeschen: "Really delete this station?",
+    stick_auto: "Auto", stick_auto_titel: "Plays on the stick with better reception", stick_n: "Stick {n}",
+    spielt_auf: "playing on {n}", dab_fest: " · DAB with fixed gain: {liste}",
+    busy_scan: "scanning", busy_follow: "searching for station following", busy_switch: "tuning the new station", busy_bereit: "ready",
+    modus_gleich: "scanning and switching without a break", modus_hinten: "scanning in the background", zweiter: "Second stick: {modus} – {busy}.",
+    stream_info: "Local playback via Home Assistant Audio: <b>{aktiv}</b> · MP3 stream: <code>/stream.mp3</code> ({n} listeners)",
+    aktiv: "on", aus: "off",
+    vergleiche: "Comparing …", misst: "measuring the current station on the free stick (up to 20 s) …",
+    zum_vergleichen: "Play a station to compare", spielt_klammer: " (playing)", etwa_gleich: "about equal", besser: "better: <b>{n}</b>",
+    ma_aus: "Registers this browser as player {n} in Music Assistant. It keeps playing when you switch dashboards, and Yapaia Go announcements arrive there without delay.",
+    ma_sucht: "Looking for Music Assistant …", ma_verbindet: "Connecting to Music Assistant …",
+    ma_wartet: "Registered as {n}. Music Assistant has to allow the player once: in Music Assistant open Settings → Players → {n} and connect without pairing.",
+    ma_bereit_aktiv: "The radio is playing via Music Assistant on {n}.", ma_bereit_oben: "{n} is ready – pick it under “Output” above.",
+    ma_bereit_ohne: "{n} is connected to Music Assistant. It shows up under “Output” as soon as Music Assistant shares it with Home Assistant (Players → {n} → “share with Home Assistant”).",
+    ma_spielt: "Music Assistant is playing in this browser ({n}).", ma_fehler: "⚠ {fehler} – retrying in 30 s.",
+    ma_tippen: " Tap anywhere once so the sound is allowed to start.",
+    mini_pc: "Mini PC", dieses_geraet: "This device", mini_und_geraet: "Mini PC + this device", keine_ausgabe: "No output",
+    und_geraet: " + this device",
+    hint_ma: "Via Music Assistant · Music Assistant plays Yapaia Go announcements without delay and gives them priority",
+    hint_tippen: "The browser only starts the sound after a tap – just tap anywhere",
+    hint_kein_audio: "Mini PC output unavailable (check audio in the add-on)",
+    hint_nur_seite: "Sound only plays on this page – it stops when you switch to another dashboard. Reload Home Assistant once.",
+    hint_ios: "Adjust the volume on the iPad/iPhone with the buttons", hint_weiter: "Sound keeps playing on other dashboards · ",
+    hint_host: "Sound keeps playing in the Home Assistant window, even on other dashboards (about 2–4 s delayed)",
+    hint_verzoegert: "Playback is about 2–4 s delayed",
+    grp_hier: "Here & on the mini PC", grp_lautsprecher: "Home Assistant speakers",
+    klein_browser: "Browser, iPad, car radio …", klein_kein_audio: "Audio not available in the add-on", klein_lautsprecher: "Speakers on the Home Assistant computer",
+    dieser_browser: "this browser", keine_player: "No other media players found. They appear here once the Yapaia Beat integration is set up in Home Assistant.",
+    ma_hinweis_ein: "Music Assistant is set up but does not share any player with Home Assistant. In Music Assistant: Settings → Players → pick the player → turn on “Share this player with Home Assistant” and save.",
+    ma_hinweis_aus: "Music Assistant players appear here once Music Assistant is set up as an integration in Home Assistant (Settings → Devices & services) and shares its players with Home Assistant.",
+  },
+};
+let SPRACHE = String(navigator.language || "en").toLowerCase().startsWith("de") ? "de" : "en";
+const t = (schluessel, werte = {}) =>
+  String(TEXTE[SPRACHE]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? "");
+// Feste Texte im HTML: data-t="schluessel" (Inhalt), data-t-html (Inhalt mit Markup), data-t-title, data-t-aria, data-t-ph (placeholder)
+function texteSetzen(wurzel = document) {
+  document.documentElement.lang = SPRACHE;
+  for (const el of wurzel.querySelectorAll("[data-t]")) el.textContent = t(el.dataset.t);
+  for (const el of wurzel.querySelectorAll("[data-t-html]")) el.innerHTML = t(el.dataset.tHtml);
+  for (const el of wurzel.querySelectorAll("[data-t-title]")) el.title = t(el.dataset.tTitle);
+  for (const el of wurzel.querySelectorAll("[data-t-aria]")) el.setAttribute("aria-label", t(el.dataset.tAria));
+  for (const el of wurzel.querySelectorAll("[data-t-ph]")) el.placeholder = t(el.dataset.tPh);
+}
+async function spracheLaden() {
+  try {
+    const d = await (await fetch("api/sprache", { cache: "no-store" })).json();
+    if (d?.sprache === "de" || d?.sprache === "en") SPRACHE = d.sprache;
+  } catch {}
+  texteSetzen();
+}
+const lokal = () => (SPRACHE === "de" ? "de-DE" : "en-GB");
+
+const fmtFreq = (f) => {
+  if (f == null) return "";
+  const z = Number(f).toFixed(f * 100 % 10 ? 2 : 1);
+  return `${SPRACHE === "de" ? z.replace(".", ",") : z} MHz`;
+};
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 async function api(path, body, method) {
@@ -17,7 +160,7 @@ async function api(path, body, method) {
   else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers["Content-Type"] = "application/json"; }
   const r = await fetch(path, opts);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok || data.ok === false) { toast(data.error || `Fehler ${r.status}`); throw new Error(data.error); }
+  if (!r.ok || data.ok === false) { toast(data.error || t("fehler", { n: r.status })); throw new Error(data.error); }
   return data;
 }
 
@@ -31,7 +174,7 @@ function sub(st) {
   if (!st) return "";
   if (st.band === "fm") {
     const extra = st.frequencies && st.frequencies.length > 1 ? ` (+${st.frequencies.length - 1})` : "";
-    return `UKW ${fmtFreq(st.frequency)}${extra}`;
+    return `${t("ukw")} ${fmtFreq(st.frequency)}${extra}`;
   }
   return `DAB+ ${st.channel || ""}${st.ensemble ? " · " + st.ensemble : ""}`;
 }
@@ -41,10 +184,10 @@ function connect() {
   const url = new URL("api/ws", location.href);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   const ws = new WebSocket(url);
-  ws.onopen = () => { $("#conn").textContent = "verbunden"; $("#conn").className = "chip ok"; };
+  ws.onopen = () => { $("#conn").textContent = t("verbunden"); $("#conn").className = "chip ok"; };
   ws.onmessage = (e) => render(JSON.parse(e.data));
   ws.onclose = () => {
-    $("#conn").textContent = "getrennt"; $("#conn").className = "chip warn";
+    $("#conn").textContent = t("getrennt"); $("#conn").className = "chip warn";
     setTimeout(connect, 2000);
   };
 }
@@ -58,20 +201,19 @@ function render(s) {
   // start / station changes at once instead of playing out the buffer
   if (!HOST) localPlayer.sync(["playing", "tuning", "following"].includes(s.state), s.station && s.station.id);
   const st = s.station;
-  const states = { idle: "Bereit", tuning: "Stimme ab …", playing: "Läuft", scanning: "Suchlauf", following: "Senderverfolgung", standby: "Standby", error: "Fehler" };
-  $("#now-state").textContent = states[s.state] || s.state;
-  $("#now-name").textContent = st ? st.name : "Kein Sender";
+  $("#now-state").textContent = TEXTE.de["zustand_" + s.state] ? t("zustand_" + s.state) : s.state;
+  $("#now-name").textContent = st ? st.name : t("kein_sender");
   const meta = [];
-  if (s.band === "fm" && s.frequency) meta.push("UKW " + fmtFreq(s.frequency));
-  if (s.band === "dab" && s.channel) meta.push("DAB+ Kanal " + s.channel);
+  if (s.band === "fm" && s.frequency) meta.push(t("ukw") + " " + fmtFreq(s.frequency));
+  if (s.band === "dab" && s.channel) meta.push("DAB+ " + t("kanal") + " " + s.channel);
   if (s.ensemble) meta.push(s.ensemble);
   if (s.rds && s.rds.pi) meta.push("PI " + s.rds.pi.replace("0x", "").toUpperCase());
   if (s.pty && s.pty !== "No PTY" && s.pty !== "None") meta.push(s.pty);
   if (!s.playing && st) meta.push(sub(st));
   $("#now-meta").textContent = meta.join(" · ");
 
-  let text = s.error ? "⚠ " + s.error : s.radiotext || (s.rds && s.rds.ps) || (s.playing ? "" : "Wähle einen Sender aus deinen Favoriten oder starte einen Suchlauf.");
-  if (s.state === "scanning") text = s.scan.message || "Suchlauf …";
+  let text = s.error ? "⚠ " + s.error : s.radiotext || (s.rds && s.rds.ps) || (s.playing ? "" : t("hilfe"));
+  if (s.state === "scanning") text = s.scan.message || t("suchlauf_punkte");
   if (text !== lastText) {
     lastText = text;
     const span = $("#now-text");
@@ -122,13 +264,13 @@ function render(s) {
   const stick = $("#stick-info");
   stick.hidden = !(s.sticks > 1);
   if (s.sticks > 1) {
-    const busy = { scan: "sucht Sender", follow: "sucht für die Senderverfolgung", switch: "stimmt den neuen Sender ab" }[s.second_stick_busy] || "bereit";
-    const mode = s.second_stick === "gleichwertig" ? "Suche und Umschalten ohne Pause" : "Suche im Hintergrund";
-    stick.textContent = `Zweiter Stick: ${mode} – ${busy}.` + (s.second_stick_hint ? ` ⚠ ${s.second_stick_hint}` : "");
+    const busy = ["scan", "follow", "switch"].includes(s.second_stick_busy) ? t("busy_" + s.second_stick_busy) : t("busy_bereit");
+    const modus = s.second_stick === "gleichwertig" ? t("modus_gleich") : t("modus_hinten");
+    stick.textContent = t("zweiter", { modus, busy }) + (s.second_stick_hint ? ` ⚠ ${s.second_stick_hint}` : "");
   }
   renderCompare(s);
   renderStickChoice(s);
-  $("#stream-info").innerHTML = `Lokale Wiedergabe über Home Assistant Audio: <b>${s.local_audio ? "aktiv" : "aus"}</b> · MP3-Stream: <code>/stream.mp3</code> (${s.stream_clients} Hörer)`;
+  $("#stream-info").innerHTML = t("stream_info", { aktiv: s.local_audio ? t("aktiv") : t("aus"), n: s.stream_clients });
 
   const favKey = JSON.stringify(s.favorites.map((f) => [f.id, f.name, f.logo_url])) + (s.active_favorite || "");
   if (favKey !== lastFavKey) { lastFavKey = favKey; renderFavorites(); }
@@ -175,9 +317,9 @@ function renderFavorites() {
         return `
         <div class="tile ${S.active_favorite === f.id ? "playing" : ""} ${favEdit === f.id ? "edit" : ""}" data-id="${esc(f.id)}">
           ${favEdit === f.id ? `
-          ${i > 0 ? `<button class="move l" data-move="-1" title="nach vorne" aria-label="nach vorne">‹</button>` : ""}
-          ${i < favs.length - 1 ? `<button class="move r" data-move="1" title="nach hinten" aria-label="nach hinten">›</button>` : ""}
-          <button class="del" data-del="1" title="Aus den Favoriten entfernen" aria-label="Aus den Favoriten entfernen">🗑</button>` : ""}
+          ${i > 0 ? `<button class="move l" data-move="-1" title="${t("nach_vorne")}" aria-label="${t("nach_vorne")}">‹</button>` : ""}
+          ${i < favs.length - 1 ? `<button class="move r" data-move="1" title="${t("nach_hinten")}" aria-label="${t("nach_hinten")}">›</button>` : ""}
+          <button class="del" data-del="1" title="${t("aus_favoriten")}" aria-label="${t("aus_favoriten")}">🗑</button>` : ""}
           <img src="${esc(f.logo_url)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='api/logo/${esc(f.id)}?placeholder=1'">
           <div class="name">${esc(f.name)}</div>
           <div class="band">${esc(sub(f))}</div>
@@ -185,7 +327,7 @@ function renderFavorites() {
       }).join("")}
     </div>`).join("");
   $("#fav-dots").innerHTML = pages.length > 1
-    ? pages.map((_, p) => `<button data-page="${p}" class="${p === favPage ? "active" : ""}" aria-label="Seite ${p + 1}"></button>`).join("")
+    ? pages.map((_, p) => `<button data-page="${p}" class="${p === favPage ? "active" : ""}" aria-label="${t("seite", { n: p + 1 })}"></button>`).join("")
     : "";
   box.scrollLeft = favPage * box.clientWidth;
 }
@@ -285,16 +427,16 @@ async function loadStations() {
   list.innerHTML = stations.map((st) => `
     <li data-id="${esc(st.id)}" class="${st.available ? "" : "unavailable"}">
       <img src="${esc(st.logo_url)}" alt="" loading="lazy">
-      <div class="txt" data-play><b>${esc(st.name)}</b><small>${esc(sub(st))}${st.pty ? " · " + esc(st.pty) : ""}${st.available ? "" : " · zuletzt nicht empfangen"}</small></div>
-      <button class="star ${st.favorite ? "on" : ""}" data-fav title="Favorit">${st.favorite ? "★" : "☆"}</button>
-      <button class="edit" data-edit title="Bearbeiten">✎</button>
+      <div class="txt" data-play><b>${esc(st.name)}</b><small>${esc(sub(st))}${st.pty ? " · " + esc(st.pty) : ""}${st.available ? "" : " · " + t("zuletzt_nicht")}</small></div>
+      <button class="star ${st.favorite ? "on" : ""}" data-fav title="${t("favorit")}">${st.favorite ? "★" : "☆"}</button>
+      <button class="edit" data-edit title="${t("bearbeiten")}">✎</button>
     </li>`).join("");
   $("#stations-empty").hidden = stations.length > 0;
   const f = parseFloat(q.replace(",", "."));
   const direct = $("#direct-tune");
   if (band !== "dab" && f >= 87.5 && f <= 108) {
     direct.hidden = false;
-    direct.innerHTML = `<button class="primary" id="tune-direct">▶ ${fmtFreq(f)} direkt einstellen</button>`;
+    direct.innerHTML = `<button class="primary" id="tune-direct">${esc(t("direkt", { f: fmtFreq(f) }))}</button>`;
     $("#tune-direct").onclick = () => api("api/play", { frequency: f });
   } else direct.hidden = true;
   markPlaying();
@@ -328,7 +470,7 @@ function openEdit(st) {
   editId = st.id;
   $("#edit-name").value = st.name;
   $("#edit-logo").src = st.logo_url;
-  $("#edit-info").textContent = [sub(st), st.pi && "PI " + st.pi, st.sid && "SId " + st.sid, st.original_name && `Original: ${st.original_name}`].filter(Boolean).join(" · ");
+  $("#edit-info").textContent = [sub(st), st.pi && "PI " + st.pi, st.sid && "SId " + st.sid, st.original_name && t("original", { n: st.original_name })].filter(Boolean).join(" · ");
   $("#edit").showModal();
 }
 async function refreshEdit() {
@@ -339,14 +481,14 @@ async function refreshEdit() {
 $("#edit-save").addEventListener("click", async () => { await api(`api/stations/${editId}`, { name: $("#edit-name").value }); loadStations(); });
 $("#edit-file").addEventListener("change", async (e) => {
   const fd = new FormData(); fd.append("file", e.target.files[0]);
-  await api(`api/stations/${editId}/logo`, fd); e.target.value = ""; refreshEdit(); toast("Logo gespeichert");
+  await api(`api/stations/${editId}/logo`, fd); e.target.value = ""; refreshEdit(); toast(t("logo_gespeichert"));
 });
 $("#edit-refresh").addEventListener("click", async () => {
-  const r = await api(`api/stations/${editId}/logo/refresh`, {}); toast(r.found ? "Logo gefunden" : "Kein Logo gefunden"); refreshEdit();
+  const r = await api(`api/stations/${editId}/logo/refresh`, {}); toast(r.found ? t("logo_gefunden") : t("kein_logo")); refreshEdit();
 });
 $("#edit-reset").addEventListener("click", async () => { await api(`api/stations/${editId}/logo`, undefined, "DELETE"); refreshEdit(); });
 $("#edit-delete").addEventListener("click", async () => {
-  if (!confirm("Sender wirklich löschen?")) return;
+  if (!confirm(t("wirklich_loeschen"))) return;
   await api(`api/stations/${editId}`, undefined, "DELETE"); $("#edit").close(); loadStations();
 });
 
@@ -379,8 +521,8 @@ function renderStickChoice(s) {
   if (row.hidden) return;
   const names = s.stick_names || {};
   const ids = Object.keys(names).length ? Object.keys(names).map(Number) : [0, 1];
-  const opts = [["auto", "Auto", "Spielt auf dem Stick mit dem besseren Empfang"]].concat(
-    ids.map((i) => [String(i), `Stick ${i + 1}`, names[i] || `Stick ${i + 1}`]));
+  const opts = [["auto", t("stick_auto"), t("stick_auto_titel")]].concat(
+    ids.map((i) => [String(i), t("stick_n", { n: i + 1 }), names[i] || t("stick_n", { n: i + 1 })]));
   const key = opts.map((o) => o.join("|")).join(";") + "#" + s.stick_choice + "#" + s.stick_playing;
   if (row.dataset.key === key) return;
   row.dataset.key = key;
@@ -390,9 +532,9 @@ function renderStickChoice(s) {
     return `<button data-stick="${v}" class="${on ? "active" : ""}" title="${esc(title)}">${esc(label)}${live ? " ●" : ""}</button>`;
   }).join("");
   $$("#stick-seg [data-stick]").forEach((b) => (b.onclick = () => api("api/sticks/choice", { choice: b.dataset.stick })));
-  const now = s.stick_playing != null ? (names[s.stick_playing] || `Stick ${s.stick_playing + 1}`) : null;
-  const fest = (s.dab_agc_failed || []).length ? ` · DAB mit fester Verstärkung: ${s.dab_agc_failed.join(", ")}` : "";
-  $("#stick-hint").textContent = (now ? `spielt auf ${now}` : "") + fest;
+  const now = s.stick_playing != null ? (names[s.stick_playing] || t("stick_n", { n: s.stick_playing + 1 })) : null;
+  const fest = (s.dab_agc_failed || []).length ? t("dab_fest", { liste: s.dab_agc_failed.join(", ") }) : "";
+  $("#stick-hint").textContent = (now ? t("spielt_auf", { n: now }) : "") + fest;
 }
 
 // Which stick (antenna) receives the current station better
@@ -402,17 +544,17 @@ function renderCompare(s) {
   const running = s.second_stick_busy === "compare";
   const btn = $("#compare-btn");
   btn.disabled = running || !s.playing || !!s.second_stick_busy;
-  btn.textContent = running ? "Vergleiche …" : "Antennen vergleichen";
+  btn.textContent = running ? t("vergleiche") : t("vergleichen");
   const c = s.stick_compare, res = $("#compare-res");
   res.classList.remove("err");
-  if (running) { res.textContent = "misst den laufenden Sender auf dem freien Stick (bis 20 s) …"; return; }
-  if (!c) { res.textContent = s.playing ? "" : "Zum Vergleichen einen Sender abspielen"; return; }
+  if (running) { res.textContent = t("misst"); return; }
+  if (!c) { res.textContent = s.playing ? "" : t("zum_vergleichen"); return; }
   if (c.error) { res.textContent = "⚠ " + c.error; res.classList.add("err"); return; }
-  const name = (st) => (s.stick_names || {})[st.index] || `Stick ${st.index + 1}`;
+  const name = (st) => (s.stick_names || {})[st.index] || t("stick_n", { n: st.index + 1 });
   const [a, b] = [...c.sticks].sort((x, y) => y.quality - x.quality);
-  const parts = c.sticks.map((st) => `${esc(name(st))}${st.playing ? " (spielt)" : ""}: <b>${st.quality} %</b>`);
-  const verdict = a.quality - b.quality < 5 ? "etwa gleich gut" : `besser: <b>${esc(name(a))}</b>`;
-  const at = new Date(c.time * 1000).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const parts = c.sticks.map((st) => `${esc(name(st))}${st.playing ? t("spielt_klammer") : ""}: <b>${st.quality} %</b>`);
+  const verdict = a.quality - b.quality < 5 ? t("etwa_gleich") : t("besser", { n: esc(name(a)) });
+  const at = new Date(c.time * 1000).toLocaleTimeString(lokal(), { hour: "2-digit", minute: "2-digit" });
   res.innerHTML = `${esc(c.station)} (${esc(c.where)}, ${at}) · ${parts.join(" · ")} → ${verdict}`;
 }
 $("#scan-cancel").onclick = () => api("api/scan/cancel", {});
@@ -627,19 +769,19 @@ function renderMa() {
   const n = "„" + MA.name + "“";
   const eigen = (S.players || []).find((p) => p.ma && p.name === MA.name);
   const texte = {
-    aus: `Meldet diesen Browser als Player ${n} bei Music Assistant an. Er spielt auch weiter, wenn du das Dashboard wechselst, und Ansagen von Yapaia Go kommen dort ohne Verzögerung.`,
-    sucht: "Suche Music Assistant …",
-    verbindet: "Verbinde mit Music Assistant …",
-    wartet: `Angemeldet als ${n}. Music Assistant muss den Player einmal zulassen: in Music Assistant → Einstellungen → Wiedergabegeräte → ${n} öffnen und ohne Kopplung verbinden.`,
+    aus: t("ma_aus", { n }),
+    sucht: t("ma_sucht"),
+    verbindet: t("ma_verbindet"),
+    wartet: t("ma_wartet", { n }),
     bereit: eigen
-      ? (S.speaker === eigen.entity_id ? `Das Radio läuft über Music Assistant auf ${n}.` : `${n} ist bereit – oben bei „Ausgabe“ wählen.`)
-      : `${n} ist mit Music Assistant verbunden. Er erscheint bei „Ausgabe“, sobald Music Assistant ihn an Home Assistant freigibt (Wiedergabegeräte → ${n} → „für Home Assistant freigeben“).`,
-    spielt: `Music Assistant spielt in diesem Browser (${n}).`,
-    fehler: "⚠ " + MA.error + " – neuer Versuch in 30 s.",
+      ? (S.speaker === eigen.entity_id ? t("ma_bereit_aktiv", { n }) : t("ma_bereit_oben", { n }))
+      : t("ma_bereit_ohne", { n }),
+    spielt: t("ma_spielt", { n }),
+    fehler: t("ma_fehler", { fehler: MA.error }),
   };
-  let t = texte[MA.status] || "";
-  if (MA.wanted && MA.needsTap && MA.status !== "fehler") t += " Einmal irgendwo tippen, damit der Ton starten darf.";
-  $("#ma-hint").textContent = t;
+  let text = texte[MA.status] || "";
+  if (MA.wanted && MA.needsTap && MA.status !== "fehler") text += t("ma_tippen");
+  $("#ma-hint").textContent = text;
   $("#ma-hint").classList.toggle("err", MA.status === "fehler");
 }
 $("#ma-on").addEventListener("change", (e) => {
@@ -657,9 +799,9 @@ function renderOutput() {
   if (!S) return;
   const mode = outputMode();
   const labels = {
-    local: ["🖥", "Mini-PC"], browser: ["📱", "Dieses Gerät"], both: ["🖥", "Mini-PC + dieses Gerät"], none: ["🔇", "Keine Ausgabe"],
+    local: ["🖥", t("mini_pc")], browser: ["📱", t("dieses_geraet")], both: ["🖥", t("mini_und_geraet")], none: ["🔇", t("keine_ausgabe")],
   };
-  const [icon, label] = mode.startsWith("speaker:") ? ["🔊", speakerName(S.speaker) + (player.wanted ? " + dieses Gerät" : "")] : labels[mode];
+  const [icon, label] = mode.startsWith("speaker:") ? ["🔊", speakerName(S.speaker) + (player.wanted ? t("und_geraet") : "")] : labels[mode];
   $("#out-icon").textContent = icon;
   $("#out-label").textContent = label;
   $("#out-btn").classList.toggle("casting", !!S.speaker && !S.speaker_error);
@@ -668,19 +810,19 @@ function renderOutput() {
   let hint = "", err = false;
   const maSpeaker = S.speaker && (S.players || []).some((x) => x.entity_id === S.speaker && x.ma);
   if (S.speaker_error) { hint = "⚠ " + S.speaker_error; err = true; }
-  else if (maSpeaker) hint = "Über Music Assistant · Ansagen von Yapaia Go spielt Music Assistant ohne Verzögerung ein und hat dabei Vorrang";
-  else if (player.wanted && player.blocked) hint = "Der Browser startet den Ton erst nach einem Tippen – einfach irgendwo tippen";
-  else if (!S.local_audio && mode === "none") hint = "Mini-PC-Ausgabe nicht verfügbar (Audio im Add-on prüfen)";
-  else if (player.wanted && !HOST && window.parent !== window) hint = "Ton läuft nur auf dieser Seite – beim Wechsel zu einem anderen Dashboard hört er auf. Home Assistant einmal neu laden.";
-  else if (player.wanted && IS_IOS) hint = (HOST ? "Ton läuft auch auf anderen Dashboards weiter · " : "") + "Lautstärke am iPad/iPhone mit den Tasten regeln";
-  else if (player.wanted) hint = HOST ? "Ton läuft im Home-Assistant-Fenster weiter, auch auf anderen Dashboards (ca. 2–4 s verzögert)" : "Wiedergabe ca. 2–4 s verzögert";
+  else if (maSpeaker) hint = t("hint_ma");
+  else if (player.wanted && player.blocked) hint = t("hint_tippen");
+  else if (!S.local_audio && mode === "none") hint = t("hint_kein_audio");
+  else if (player.wanted && !HOST && window.parent !== window) hint = t("hint_nur_seite");
+  else if (player.wanted && IS_IOS) hint = (HOST ? t("hint_weiter") : "") + t("hint_ios");
+  else if (player.wanted) hint = HOST ? t("hint_host") : t("hint_verzoegert");
   $("#out-hint").textContent = hint;
   renderMa();
   $("#out-hint").classList.toggle("err", err);
   const vol = browserOnly() ? player.volume : S.volume;
   if (document.activeElement !== $("#volume")) $("#volume").value = vol;
   fill($("#volume"));
-  $("#volume-text").textContent = !browserOnly() && S.muted ? "stumm" : vol;
+  $("#volume-text").textContent = !browserOnly() && S.muted ? t("stumm") : vol;
 }
 
 function renderOutMenu() {
@@ -692,28 +834,26 @@ function renderOutMenu() {
   const noLocal = !S.local_audio;
   const players = S.players || [];
   $("#out-menu").innerHTML = `
-    <div class="grp">Hier &amp; am Mini-PC</div>
-    ${item("browser", "📱", "Dieses Gerät", { small: "Browser, iPad, Autoradio …" })}
-    ${item("local", "🖥", "Mini-PC", { disabled: noLocal, small: noLocal ? "Audio im Add-on nicht verfügbar" : "Lautsprecher am Home-Assistant-Rechner" })}
-    ${item("both", "🖥", "Mini-PC + dieses Gerät", { disabled: noLocal })}
-    <div class="grp">Home Assistant Lautsprecher</div>
+    <div class="grp">${esc(t("grp_hier"))}</div>
+    ${item("browser", "📱", t("dieses_geraet"), { small: t("klein_browser") })}
+    ${item("local", "🖥", t("mini_pc"), { disabled: noLocal, small: noLocal ? t("klein_kein_audio") : t("klein_lautsprecher") })}
+    ${item("both", "🖥", t("mini_und_geraet"), { disabled: noLocal })}
+    <div class="grp">${esc(t("grp_lautsprecher"))}</div>
     ${players.length
       ? players.map((p) => {
           const hier = p.ma && MA && MA.wanted && p.name === MA.name;
-          return item("speaker:" + p.entity_id, p.ma ? "🎵" : "🔊", p.name, { small: (p.ma ? "Music Assistant · " : "") + (hier ? "dieser Browser" : p.entity_id) });
+          return item("speaker:" + p.entity_id, p.ma ? "🎵" : "🔊", p.name, { small: (p.ma ? "Music Assistant · " : "") + (hier ? t("dieser_browser") : p.entity_id) });
         }).join("")
-      : `<div class="none">Keine weiteren Media Player gefunden. Sie erscheinen hier, sobald die Yapaia-Beat-Integration in Home Assistant eingerichtet ist.</div>`}
+      : `<div class="none">${esc(t("keine_player"))}</div>`}
     ${maHinweis(players)}
-    ${S.local_audio ? "" : item("none", "🔇", "Keine Ausgabe")}`;
+    ${S.local_audio ? "" : item("none", "🔇", t("keine_ausgabe"))}`;
 }
 
 /* Why no player of Music Assistant shows up -- the most common reason is
  * that Music Assistant does not hand its players to Home Assistant. */
 function maHinweis(players) {
   if (players.some((p) => p.ma)) return "";
-  const text = S.music_assistant
-    ? "Music Assistant ist eingerichtet, gibt aber keinen Player an Home Assistant weiter. In Music Assistant: Einstellungen → Wiedergabegeräte → Player wählen → „Dieses Wiedergabegerät für Home Assistant freigeben“ einschalten und speichern."
-    : "Music-Assistant-Player erscheinen hier, sobald Music Assistant als Integration in Home Assistant eingerichtet ist (Einstellungen → Geräte & Dienste) und seine Player für Home Assistant freigibt.";
+  const text = t(S.music_assistant ? "ma_hinweis_ein" : "ma_hinweis_aus");
   return `<div class="grp">Music Assistant</div><div class="none">${esc(text)}</div>`;
 }
 
@@ -781,8 +921,7 @@ if (!HOST && "mediaSession" in navigator) {
 
 if (player.wanted && !player.playing) player.start(); // may be blocked until the first tap anywhere
 
-connect();
-loadStations();
+spracheLaden().then(() => { connect(); loadStations(); });
 
 // ---- Yapaia Design (docs/integration-protokoll.md §8a) --------------------
 // Das Schema schickt die Integration an Beat; hier nur die CSS-Variablen setzen.

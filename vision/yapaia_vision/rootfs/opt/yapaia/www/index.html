@@ -33,17 +33,57 @@
   <h1>Yapaia Vision <small id="geraet"></small></h1>
   <div id="hinweise"></div>
   <form class="hinweis" id="firmware" hidden>
-    <b>Firmware für den EasyCAP</b><br>
-    Treiberdatei von der CD zum Stick wählen: <code>SmiUsbGrabber3F.sys</code>,
-    <code>SmiUsbGrabber3E.sys</code> oder das ganze <code>Setup.exe</code>.<br>
-    <input type="file" id="fw-datei"> <button type="submit">Hochladen</button>
+    <b data-t="fw_titel">Firmware für den EasyCAP</b><br>
+    <span data-t="fw_hinweis_1">Treiberdatei von der CD zum Stick wählen:</span> <code>SmiUsbGrabber3F.sys</code>,
+    <code>SmiUsbGrabber3E.sys</code> <span data-t="fw_oder">oder das ganze</span> <code>Setup.exe</code>.<br>
+    <input type="file" id="fw-datei"> <button type="submit" data-t="hochladen">Hochladen</button>
     <div id="fw-antwort"></div>
   </form>
   <div class="knoepfe" id="knoepfe"></div>
   <div class="raster" id="raster"></div>
-  <details><summary>Technik</summary><pre id="technik"></pre></details>
+  <details><summary data-t="technik">Technik</summary><pre id="technik"></pre></details>
 </main>
 <script>
+// Texte je Sprache (docs/sprachen.md): HA-Sprache über die Integration (api/sprache),
+// sonst Browsersprache; Deutsch oder sonst Englisch
+const TEXTE = {
+  de: {
+    fw_titel: "Firmware für den EasyCAP",
+    fw_hinweis_1: "Treiberdatei von der CD zum Stick wählen:",
+    fw_oder: "oder das ganze",
+    hochladen: "Hochladen",
+    technik: "Technik",
+    lade_hoch: "Lade hoch …",
+    eingang: "{geraet} · Eingang {eingang}",
+  },
+  en: {
+    fw_titel: "Firmware for the EasyCAP",
+    fw_hinweis_1: "Choose the driver file from the CD for the stick:",
+    fw_oder: "or the whole",
+    hochladen: "Upload",
+    technik: "Technical details",
+    lade_hoch: "Uploading …",
+    eingang: "{geraet} · input {eingang}",
+  },
+};
+let SPRACHE = String(navigator.language || "en").toLowerCase().startsWith("de") ? "de" : "en";
+const t = (schluessel, werte = {}) =>
+  String(TEXTE[SPRACHE]?.[schluessel] ?? TEXTE.en[schluessel] ?? schluessel).replace(/\{(\w+)\}/g, (_, k) => werte[k] ?? "");
+// Feste Texte im HTML: data-t="schluessel" (Inhalt), data-t-title, data-t-aria, data-t-ph (placeholder)
+function texteSetzen(wurzel = document) {
+  document.documentElement.lang = SPRACHE;
+  for (const el of wurzel.querySelectorAll("[data-t]")) el.textContent = t(el.dataset.t);
+  for (const el of wurzel.querySelectorAll("[data-t-title]")) el.title = t(el.dataset.tTitle);
+  for (const el of wurzel.querySelectorAll("[data-t-aria]")) el.setAttribute("aria-label", t(el.dataset.tAria));
+  for (const el of wurzel.querySelectorAll("[data-t-ph]")) el.placeholder = t(el.dataset.tPh);
+}
+async function spracheLaden() {
+  try {
+    const d = await (await fetch("api/sprache", { cache: "no-store" })).json();
+    if (d?.sprache === "de" || d?.sprache === "en") SPRACHE = d.sprache;
+  } catch {}
+  texteSetzen();
+}
   // Relative Pfade: die Seite läuft hinter dem Ingress von Home Assistant.
   const $ = (id) => document.getElementById(id);
   let gezeigt = '';
@@ -124,7 +164,7 @@
         const c = document.createElement('figcaption');
         c.innerHTML = '<span></span><span></span>';
         c.firstChild.textContent = k.name;
-        c.lastChild.textContent = `${k.geraet} · Eingang ${k.eingang}`;
+        c.lastChild.textContent = t('eingang', { geraet: k.geraet, eingang: k.eingang });
         f.append(img, c);
         return f;
       }));
@@ -136,7 +176,7 @@
     if (!datei) return;
     const form = new FormData();
     form.append('datei', datei);
-    $('fw-antwort').textContent = 'Lade hoch …';
+    $('fw-antwort').textContent = t('lade_hoch');
     try {
       const r = await (await fetch('api/firmware', { method: 'POST', body: form })).json();
       $('fw-antwort').textContent = r.ok ? r.text : r.fehler;
@@ -144,8 +184,16 @@
       $('fw-antwort').textContent = String(e);
     }
   };
-  laden();
-  setInterval(laden, 3000);
+  // Sprache zuerst holen, dann erst zeichnen; danach folgt die Seite einer Änderung
+  spracheLaden().then(() => {
+    laden();
+    setInterval(laden, 3000);
+    setInterval(async () => {
+      const alt = SPRACHE;
+      await spracheLaden();
+      if (alt !== SPRACHE) { gezeigt = ''; laden(); }
+    }, 60000);
+  });
 
 // ---- Yapaia Design (docs/integration-protokoll.md §8a) --------------------
 async function designHolen() {

@@ -137,12 +137,18 @@ async def design(request: web.Request) -> web.Response:
     """Das Design-Schema der Integration für die eigene Seite (oder {} ohne)."""
     return web.json_response(request.app.get("yapaia_design") or {}, headers={"Cache-Control": "no-cache"})
 
+async def sprache(request: web.Request) -> web.Response:
+    """Die HA-Sprache der Integration für die eigene Seite (null ohne)."""
+    return web.json_response({"sprache": request.app.get("yapaia_sprache")}, headers={"Cache-Control": "no-cache"})
+
+
 def create_app(vision: Vision, ident: protokoll.Identitaet) -> web.Application:
     app = web.Application(client_max_size=200 * 1024 * 1024)
     app["vision"] = vision
     app.router.add_get("/", seite)
     app.router.add_get("/api/status", status)
     app.router.add_get("/api/design", design)
+    app.router.add_get("/api/sprache", sprache)
     app.router.add_post("/api/kanal", waehlen)
     app.router.add_post("/api/firmware", firmware)
     for basis in ("/api", protokoll.API):

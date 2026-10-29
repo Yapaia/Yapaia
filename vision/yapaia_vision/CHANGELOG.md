@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.4.0
+
+**Die Vision-Oberfläche spricht die Sprache von Home Assistant** (Deutsch,
+sonst Englisch). Die Integration meldet die HA-Sprache (Protokoll §8b);
+ohne Integration gilt die Sprache des Browsers. Meldungen des Add-ons
+(Hinweise, Firmware) sind noch deutsch.
+
 ## 0.3.0
 
 **Die Vision-Oberfläche folgt dem Yapaia-Design-Schema** (Gerät „Yapaia
