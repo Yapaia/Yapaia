@@ -66,7 +66,9 @@ class YapaiaEntity(Entity):
     async def _ausfuehren(self, feld: str, daten: dict[str, Any] | None = None) -> None:
         name = self.d.get(feld)
         if not name:
-            raise HomeAssistantError(f"{self.entity_id}: keine Aktion „{feld}“ beschrieben")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="keine_aktion", translation_placeholders={"entity_id": self.entity_id, "feld": feld}
+            )
         try:
             await self.modul.client.aktion(name, daten or {})
         except YapaiaFehler as err:

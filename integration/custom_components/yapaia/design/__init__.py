@@ -27,6 +27,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 
 from ..const import CONF_MODUL, DOMAIN
+from ..modul import text
+from ..sprache import sprache
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,8 +37,9 @@ MODUL = "design"
 STATISCH = "/yapaia_design"
 EREIGNIS = "yapaia_design_geaendert"
 STANDARD = "retro"
-WIE_GESAMT = "Wie gesamt"
-NICHT_AENDERN = "Nicht ändern"
+# Feste Optionen der Auswahlen (übersetzt über translations/*.json → state)
+WIE_GESAMT = "wie_gesamt"
+NICHT_AENDERN = "nicht_aendern"
 SCHRIFTEN_JS = f"{STATISCH}/yapaia-schriften.js"
 THEME_VORSILBE = "Yapaia "
 HIER = Path(__file__).parent
@@ -152,12 +155,16 @@ class Design:
             await self.hass.services.async_call("frontend", "reload_themes", blocking=True)
         geladen = self.hass.data.get("frontend_themes") or {}
         if theme not in geladen:
+            yaml = "\n\n```yaml\nfrontend:\n  themes: !include_dir_merge_named themes\n```"
             persistent_notification.async_create(
                 self.hass,
-                "Das Yapaia-Theme liegt in `themes/yapaia.yaml`, Home Assistant lädt aber keine Themes aus "
-                "diesem Ordner. Bitte in `configuration.yaml` ergänzen und HA neu starten:\n\n"
-                "```yaml\nfrontend:\n  themes: !include_dir_merge_named themes\n```",
-                title="Yapaia Design: HA-Design noch nicht aktiv",
+                text({"de": "Das Yapaia-Theme liegt in `themes/yapaia.yaml`, Home Assistant lädt aber keine Themes aus "
+                            "diesem Ordner. Bitte in `configuration.yaml` ergänzen und HA neu starten:",
+                      "en": "The Yapaia theme is in `themes/yapaia.yaml`, but Home Assistant does not load themes "
+                            "from this folder. Please add this to `configuration.yaml` and restart HA:"},
+                     sprache(self.hass)) + yaml,
+                title=text({"de": "Yapaia Design: HA-Design noch nicht aktiv",
+                            "en": "Yapaia Design: HA theme not active yet"}, sprache(self.hass)),
                 notification_id=f"{DOMAIN}_design_theme",
             )
             return

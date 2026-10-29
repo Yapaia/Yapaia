@@ -33,7 +33,8 @@ from homeassistant.helpers.device_registry import format_mac
 
 from ..client import YapaiaFehler
 from ..const import DOMAIN
-from ..modul import YapaiaModul
+from ..modul import YapaiaModul, text
+from ..sprache import sprache
 from .api import (
     SWITCH_CANDIDATES,
     CellularState,
@@ -407,13 +408,18 @@ class RouterModul(YapaiaModul):
                 versucht.append(f"{methode} {json.dumps(vorlage)}: angenommen, aber keine Umschaltung")
             self._status = f"fehlgeschlagen: SIM {ziel}"
             self._ereignis("sim_wechsel_fehlgeschlagen", {"sim": ziel, "grund": grund})
+            sp = sprache(self.hass)
             persistent_notification.async_create(
                 self.hass,
-                f"Die Umschaltung auf SIM {ziel} hat der Router nicht bestätigt. Versucht:\n\n"
-                + "\n".join(f"- `{v}`" for v in versucht)
-                + "\n\nBitte unter Einstellungen → Geräte & Dienste → Yapaia → Yapaia Router → ⋮ → "
-                "„Diagnose herunterladen“ die Datei weitergeben; damit lässt sich der richtige Aufruf finden.",
-                title="Yapaia Router: SIM-Umschaltung nicht bestätigt",
+                text({"de": f"Die Umschaltung auf SIM {ziel} hat der Router nicht bestätigt. Versucht:",
+                      "en": f"The router did not confirm switching to SIM {ziel}. Tried:"}, sp)
+                + "\n\n" + "\n".join(f"- `{v}`" for v in versucht) + "\n\n"
+                + text({"de": "Bitte unter Einstellungen → Geräte & Dienste → Yapaia → Yapaia Router → ⋮ → "
+                              "„Diagnose herunterladen“ die Datei weitergeben; damit lässt sich der richtige Aufruf finden.",
+                        "en": "Please share the file from Settings → Devices & services → Yapaia → Yapaia Router → ⋮ → "
+                              "“Download diagnostics”; it helps find the right call."}, sp),
+                title=text({"de": "Yapaia Router: SIM-Umschaltung nicht bestätigt",
+                            "en": "Yapaia Router: SIM switch not confirmed"}, sp),
                 notification_id=f"{DOMAIN}_{self.kennung}_sim",
             )
         finally:

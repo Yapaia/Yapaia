@@ -60,6 +60,7 @@ class FakeModul:
         self.aufrufe: list[tuple[str, dict[str, Any]]] = []
         self.partner: list[list[dict[str, Any]]] = []
         self.design: list[dict[str, Any]] = []
+        self.sprache: list[str] = []
         self.ws: set[web.WebSocketResponse] = set()
         self.antwort: dict[str, Any] = {"ok": True}
         self.server: TestServer | None = None
@@ -69,6 +70,7 @@ class FakeModul:
         app.router.add_post("/yapaia/v1/aktion/{name}", self._aktion)
         app.router.add_post("/yapaia/v1/partner", self._partner)
         app.router.add_post("/yapaia/v1/design", self._design)
+        app.router.add_post("/yapaia/v1/sprache", self._sprache)
         # Kameras (Vision): Pfad → JPEG; Strom = dasselbe Bild als MJPEG-Teil
         self.bilder: dict[str, bytes] = {}
         app.router.add_get("/yapaia/v1/kamera/{nummer}/{datei}", self._kamera)
@@ -116,6 +118,12 @@ class FakeModul:
         if not self._ok(request):
             return web.json_response({"ok": False}, status=401)
         self.design.append(await request.json())
+        return web.json_response({"ok": True})
+
+    async def _sprache(self, request: web.Request) -> web.Response:
+        if not self._ok(request):
+            return web.json_response({"ok": False}, status=401)
+        self.sprache.append((await request.json())["sprache"])
         return web.json_response({"ok": True})
 
     async def _kamera(self, request: web.Request) -> web.StreamResponse:

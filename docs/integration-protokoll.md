@@ -42,6 +42,8 @@ Umgebungsvariablen, Entity-IDs und Dateinamen.
  │              │ ◀───────────────────────────────────────────── │                 │
  │              │  6. POST /yapaia/v1/design   (wie aussehen)    │                 │
  │              │ ◀───────────────────────────────────────────── │                 │
+ │              │  6b. POST /yapaia/v1/sprache (welche Sprache)  │                 │
+ │              │ ◀───────────────────────────────────────────── │                 │
  └──────────────┘                                                └─────────────────┘
         ▲  7. Modul ↔ Modul direkt (dokumentierte Fähigkeiten)
         ▼
@@ -324,6 +326,29 @@ es gilt (eigenes oder das gesamte):
   Ersatzschriften des Schemas.
 - Optional: ein Modul ohne Oberfläche antwortet 404; die Integration nimmt
   das hin. Ohne Integration bleibt das Modul bei seinem eigenen Aussehen.
+
+## 8b. Sprache
+
+Yapaia folgt der Sprache von Home Assistant. Unterstützt sind `de` und `en`;
+jede andere HA-Sprache wird zu `en`. Die Integration schickt jedem Modul den
+Code:
+
+`POST /yapaia/v1/sprache`
+
+```json
+{"sprache": "de"}
+```
+
+- Gesendet beim Verbinden der Live-Verbindung; ändert sich die HA-Sprache,
+  lädt die Integration ihre Einträge neu (die Namen der Entitäten folgen) und
+  sendet beim erneuten Verbinden die neue Sprache.
+- Das Modul merkt es sich (auch über Neustarts) und zeigt seine Oberfläche,
+  Ansagen und Meldungen in dieser Sprache. Fehlt ein Text, gilt Englisch.
+- Texte in der Beschreibung (`name`, `titel`, `beschreibung`, Optionen) gibt das
+  Modul weiterhin je Sprache an (`{"de": …, "en": …}`); die Integration wählt.
+- Optional: ein Modul ohne eigene Texte antwortet 404; die Integration nimmt
+  das hin. Ohne Integration bleibt das Modul bei seiner Standardsprache.
+- Mehr: [Sprachen](sprachen.md).
 
 ## 9. Installation der Integration
 

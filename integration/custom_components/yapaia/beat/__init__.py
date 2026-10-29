@@ -97,7 +97,7 @@ async def _einmalig(hass: HomeAssistant) -> None:
     async def _call(path: str, payload: dict) -> None:
         coords = _coordinators(hass)
         if not coords:
-            raise HomeAssistantError("Yapaia Beat ist nicht eingerichtet")
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="beat_fehlt")
         for coord in coords:
             await coord.command(path, payload)
 
@@ -132,7 +132,7 @@ async def _einmalig(hass: HomeAssistant) -> None:
         try:
             coords = _coordinators(hass)
             if not coords:
-                raise HomeAssistantError("Yapaia Beat ist nicht eingerichtet")
+                raise HomeAssistantError(translation_domain=DOMAIN, translation_key="beat_fehlt")
             # Beat mischt die Ansage selbst ins Radio – auch wenn es über einen
             # Player von Music Assistant läuft (dessen Strom kommt ja von hier).
             # Music Assistant würde das Radio für die Ansage sonst anhalten und
@@ -214,7 +214,7 @@ async def tts_audio(hass: HomeAssistant, message: str, engine: str | None, langu
 
     engine = engine or tts.async_default_engine(hass)
     if not engine:
-        raise HomeAssistantError("Keine Sprachausgabe (TTS) in Home Assistant eingerichtet")
+        raise HomeAssistantError(translation_domain=DOMAIN, translation_key="kein_tts")
     language = tts_language(hass, engine, language)
     wunsch = {"preferred_format": "wav", "preferred_sample_rate": 48000, "preferred_sample_channels": 1}
     for options in (wunsch, None):
@@ -226,7 +226,7 @@ async def tts_audio(hass: HomeAssistant, message: str, engine: str | None, langu
                 raise
             continue
         return data, ext
-    raise HomeAssistantError("Sprachausgabe fehlgeschlagen")  # pragma: no cover
+    raise HomeAssistantError(translation_domain=DOMAIN, translation_key="tts_fehlgeschlagen")  # pragma: no cover
 
 
 def ansage_lautsprecher(hass: HomeAssistant, entity_id: str) -> bool:
@@ -244,7 +244,7 @@ async def sprich_auf_lautsprecher(
 
     engine = engine or tts.async_default_engine(hass)
     if not engine:
-        raise HomeAssistantError("Keine Sprachausgabe (TTS) in Home Assistant eingerichtet")
+        raise HomeAssistantError(translation_domain=DOMAIN, translation_key="kein_tts")
     language = tts_language(hass, engine, language)
     await hass.services.async_call(
         "tts",
@@ -292,7 +292,7 @@ def output_payload(output: str) -> dict:
     if output in ("none", "browser", "off", ""):
         return {"local_output": False, "speaker": None}
     if not output.startswith("media_player."):
-        raise HomeAssistantError(f"Unbekannte Ausgabe: {output}")
+        raise HomeAssistantError(translation_domain=DOMAIN, translation_key="unbekannte_ausgabe", translation_placeholders={"ausgabe": output})
     return {"local_output": False, "speaker": output}
 
 

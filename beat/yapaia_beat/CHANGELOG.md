@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.18.1
+
+- Add-on-Option „FM-Kanalraster“ hat jetzt auch auf Englisch eine Beschreibung.
+- Bringt die Integration 0.8.0 mit: Yapaia folgt der Sprache von Home Assistant
+  (Deutsch/Englisch) – Namen der Design-Auswahlen und Fehlermeldungen sind
+  übersetzt, Module bekommen die HA-Sprache (Protokoll §8b).
+
 ## 1.18.0
 
 **Die Beat-Oberfläche folgt dem Yapaia-Design-Schema.** Farben und Schrift

@@ -63,6 +63,22 @@
       },
       "output": {
         "name": "Output"
+      },
+      "schema": {
+        "name": "Scheme"
+      },
+      "ha_design": {
+        "name": "HA theme",
+        "state": {
+          "nicht_aendern": "Don't change",
+          "wie_gesamt": "Same as overall"
+        }
+      },
+      "design": {
+        "name": "Design",
+        "state": {
+          "wie_gesamt": "Same as overall"
+        }
       }
     },
     "sensor": {
@@ -247,6 +263,35 @@
         "1": "SIM 1",
         "2": "SIM 2"
       }
+    }
+  },
+  "exceptions": {
+    "kein_modul": {
+      "message": "No Yapaia module “{modul}” set up"
+    },
+    "mehrere_module": {
+      "message": "Several “{modul}” devices – please choose one as target"
+    },
+    "falsches_geraet": {
+      "message": "The selected device does not belong to this module"
+    },
+    "keine_aktion": {
+      "message": "{entity_id}: no action “{feld}” described"
+    },
+    "beat_fehlt": {
+      "message": "Yapaia Beat is not set up"
+    },
+    "kein_tts": {
+      "message": "No text-to-speech (TTS) set up in Home Assistant"
+    },
+    "tts_fehlgeschlagen": {
+      "message": "Speech output failed"
+    },
+    "unbekannte_ausgabe": {
+      "message": "Unknown output: {ausgabe}"
+    },
+    "unbekannter_ordner": {
+      "message": "Unknown folder {ordner}"
     }
   }
 }

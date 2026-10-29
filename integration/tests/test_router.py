@@ -141,7 +141,7 @@ async def test_umschalten_ohne_wirkung_meldet_es(hass: HomeAssistant, patch_rout
     await hass.async_block_till_done()
     meldungen = _async_get_or_create_notifications(hass)
     text = next(iter(meldungen.values()))["message"]
-    assert "modem.set_slot_config" in text and "Diagnose" in text
+    assert "modem.set_slot_config" in text and "diagnostics" in text  # Testumgebung: HA-Sprache en
     assert zustand(hass, "select.yapaia_router_sim") == "SIM 1"
     assert zustand(hass, "sensor.yapaia_router_umschaltung") == "fehlgeschlagen: SIM 2"
 
