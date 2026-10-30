@@ -113,7 +113,7 @@ static Color k_h{0,0,0}, k_t{255,255,255}, k_g{128,128,128}, k_p{0,0,255},
              k_w{255,0,0}, k_gut{0,255,0}, k_s{255,255,255};
 static sensor::Sensor s_tempo, s_limit, s_limit_fz, s_mdist, s_rest, s_lr, s_vh;
 static binary_sensor::BinarySensor s_schnell;
-static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel, s_spuren;
+static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel, s_spuren, s_sprache;
 static switch_::Switch s_erzwingen, s_fahrzeug, s_restzeit;
 static RealTimeClock s_uhr;
 static BaseFont *font_xl=&f_xl,*font_l=&f_l,*font_m=&f_m,*font_s=&f_s;
@@ -127,7 +127,7 @@ static switch_::Switch *waage_erzwingen=&s_erzwingen,*waage_fahrzeug=&s_fahrzeug
 static RealTimeClock *ha_zeit=&s_uhr;
 static binary_sensor::BinarySensor *yapaia_zu_schnell=&s_schnell;
 static text_sensor::TextSensor *yapaia_anweisung=&s_anweisung,*yapaia_manoever_art=&s_art,
-  *yapaia_fahrzustand=&s_zustand,*yapaia_ankunft=&s_ankunft,*yapaia_kreisel=&s_kreisel,*yapaia_spuren=&s_spuren;
+  *yapaia_fahrzustand=&s_zustand,*yapaia_ankunft=&s_ankunft,*yapaia_kreisel=&s_kreisel,*yapaia_spuren=&s_spuren,*yapaia_sprache=&s_sprache;
 
 static void zeichne(Display &it) {
 #include "lambda_body.inc"
