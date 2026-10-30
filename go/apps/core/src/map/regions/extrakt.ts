@@ -35,6 +35,8 @@ import type { CatalogEntry } from './catalog.js';
 import { existingPartBytes, streamToFile } from './download.js';
 import { extraktPfad } from './graphAbdeckung.js';
 import type { JobRegistry } from './jobs.js';
+import { tx } from '../../i18n.js';
+import { T } from './texte.js';
 
 /** Job-Art der Extrakt-Downloads. Bewusst NICHT `BUILD_JOB_KIND`: ein
  *  Download ist Netz, kein Arbeitsspeicher — er sperrt keinen Bau. */
@@ -85,7 +87,7 @@ export function runExtraktJob(
     if (!url) {
       jobs.markError(jobId, {
         code: 'NO_BUILD_SOURCE',
-        message: `Für die Region "${entry.id}" ist kein OSM-Extrakt hinterlegt.`,
+        message: tx(T, 'keinExtrakt', { id: entry.id }),
       });
       return;
     }
@@ -95,7 +97,7 @@ export function runExtraktJob(
     } catch (err) {
       jobs.markError(jobId, {
         code: 'DOWNLOAD_FAILED',
-        message: `Das Zwischenlager ${lagerPfad} ließ sich nicht anlegen: ${(err as Error).message}`,
+        message: tx(T, 'lagerFehler', { pfad: lagerPfad, grund: (err as Error).message }),
       });
       return;
     }
@@ -105,19 +107,18 @@ export function runExtraktJob(
       await streamToFile({ url, dest: part, resumeFrom, jobId, jobs });
     } catch (err) {
       if (jobs.isCancelled(jobId)) {
-        jobs.markError(jobId, { code: 'CANCELLED', message: 'Download abgebrochen' });
+        jobs.markError(jobId, { code: 'CANCELLED', message: tx(T, 'downloadAbbruch') });
         return;
       }
       jobs.markError(jobId, {
         code: 'DOWNLOAD_FAILED',
         message:
-          `Der OSM-Extrakt ließ sich nicht laden (${err instanceof Error ? err.message : String(err)}). ` +
-          'Erneut „Herunterladen" setzt dort fort, wo es abbrach.',
+          tx(T, 'extraktLadeFehler', { grund: err instanceof Error ? err.message : String(err) }),
       });
       return;
     }
     if (jobs.isCancelled(jobId)) {
-      jobs.markError(jobId, { code: 'CANCELLED', message: 'Download abgebrochen' });
+      jobs.markError(jobId, { code: 'CANCELLED', message: tx(T, 'downloadAbbruch') });
       return;
     }
     if (!(await istOsmPbf(part))) {
@@ -125,8 +126,7 @@ export function runExtraktJob(
       jobs.markError(jobId, {
         code: 'NOT_OSM_PBF',
         message:
-          'Das Heruntergeladene ist kein OSM-Extrakt (Kopfkennung „OSMHeader" fehlt) und wurde ' +
-          'verworfen. Häufigste Ursache: der Server lieferte eine Fehlerseite statt der Datei.',
+          tx(T, 'keinOsm'),
       });
       return;
     }
@@ -135,11 +135,11 @@ export function runExtraktJob(
     } catch (err) {
       jobs.markError(jobId, {
         code: 'DOWNLOAD_FAILED',
-        message: `Der fertige Extrakt ließ sich nicht ablegen: ${(err as Error).message}`,
+        message: tx(T, 'ablegenFehler', { grund: (err as Error).message }),
       });
       return;
     }
-    jobs.setNote(jobId, 'Heruntergeladen. Gebaut wird mit „Fehlendes bauen", zusammen mit den anderen Karten.');
+    jobs.setNote(jobId, tx(T, 'extraktGeladen'));
     jobs.markDone(jobId);
   })();
 }

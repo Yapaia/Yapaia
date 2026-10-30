@@ -29,6 +29,8 @@ import type { CatalogEntry } from './catalog.js';
 import { existingPartBytes, finalFilePath, hashFile, streamToFile } from './download.js';
 import type { JobRegistry } from './jobs.js';
 import { bauInfoAus, bauInfoJetzt, passtDazu, teilgraphErgaenzen, teilgraphNeuBegonnen, vergleicheVersion } from './teilgraph.js';
+import { gebiet, tx } from '../../i18n.js';
+import { T } from './texte.js';
 
 const ausfuehren = promisify(execFile);
 
@@ -109,9 +111,17 @@ function datei(roh: unknown, basis?: string): PaketDatei | undefined {
   };
 }
 
+/** Bezeichnung eines Pakettyps (Schlüssel bleibt deutsch, Anzeige folgt der Sprache). */
+function wasText(was: string): string {
+  if (was === 'Karte') return tx(T, 'ksKarte');
+  if (was === 'Suchindex') return tx(T, 'ksSucheIndex');
+  if (was === 'Routing') return tx(T, 'ksRouting');
+  return was;
+}
+
 function datum(iso: unknown): string {
   const d = typeof iso === 'string' ? new Date(iso) : null;
-  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString('de-DE') : 'unbekannt';
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(gebiet()) : tx(T, 'ksUnbekannt');
 }
 
 /** Ein Eintrag aus `GET /v1/katalog` -- oder `null`, wenn er nicht taugt. */
@@ -125,7 +135,7 @@ export function eintragAus(roh: unknown, basis?: string): KartenserverEintrag | 
   const suche = datei(r.suche, basis);
   const routing = datei(r.routing, basis);
   if (!karte && !suche && !routing) return null;
-  const teile = [karte && 'Karte', suche && 'Suche', routing && 'Routing'].filter(Boolean).join(', ');
+  const teile = [karte && tx(T, 'ksKarte'), suche && tx(T, 'ksSuche'), routing && tx(T, 'ksRouting')].filter(Boolean).join(', ');
   return {
     id: r.id,
     name: r.name,
@@ -138,10 +148,8 @@ export function eintragAus(roh: unknown, basis?: string): KartenserverEintrag | 
     ...(suche ? { suche } : {}),
     ...(routing ? { routing } : {}),
     note:
-      `Vom Kartenserver, gebaut am ${datum(r.gebaut)}: ${teile}.` +
-      (routing
-        ? ' Stammt das Routing aus demselben Bau wie das vorhandene, kommt es dazu; sonst ersetzt es den bisherigen Graphen.'
-        : ''),
+      tx(T, 'ksNote', { datum: datum(r.gebaut), teile }) +
+      (routing ? tx(T, 'ksNoteRouting') : ''),
   };
 }
 
@@ -157,10 +165,10 @@ export async function holeKatalog(
       signal: AbortSignal.timeout(10_000),
     });
   } catch (err) {
-    throw new Error(`Kartenserver nicht erreichbar (${err instanceof Error ? err.message : String(err)})`);
+    throw new Error(tx(T, 'ksNichtErreichbar', { grund: err instanceof Error ? err.message : String(err) }));
   }
-  if (r.status === 401) throw new Error('Der Kartenserver hat das Token abgelehnt');
-  if (!r.ok) throw new Error(`Kartenserver antwortet mit HTTP ${r.status}`);
+  if (r.status === 401) throw new Error(tx(T, 'ksToken'));
+  if (!r.ok) throw new Error(tx(T, 'ksHttp', { status: r.status }));
   const daten = (await r.json().catch(() => null)) as unknown;
   if (!Array.isArray(daten)) throw new Error('Unerwartete Antwort vom Kartenserver');
   return daten.map((d) => eintragAus(d, v.url)).filter((e): e is KartenserverEintrag => e !== null);
@@ -260,7 +268,7 @@ export async function routingInstallieren(tarPfad: string, graphDir: string, dep
       const eigene = await (deps.valhallaVersion ?? eigeneValhallaVersion)();
       if (eigene && vergleicheVersion(paket.valhalla, eigene) > 0) {
         throw Object.assign(
-          new Error(`Dieses Routing braucht Valhalla ${paket.valhalla}, hier läuft ${eigene} – bitte Yapaia Go aktualisieren.`),
+          new Error(tx(T, 'ksValhallaAlt', { paket: paket.valhalla, eigene })),
           { code: 'VALHALLA_ZU_ALT' },
         );
       }
@@ -345,7 +353,7 @@ async function ladeGeprueft(
     const ist = await hashFile(teil);
     if (ist.toLowerCase() !== sha256.toLowerCase()) {
       await rm(teil, { force: true });
-      throw Object.assign(new Error(`Prüfsumme stimmt nicht (${name})`), { code: 'HASH_MISMATCH' });
+      throw Object.assign(new Error(tx(T, 'ksPruefsumme', { name: name ?? '' })), { code: 'HASH_MISMATCH' });
     }
   }
 }
@@ -377,7 +385,7 @@ export function runPaketJob(
       // Gepackte Teile werden als `<ziel>.zst.part` geladen und geprueft.
       const ladeziel = (t: { datei: PaketDatei; ziel: string }) => (t.datei.komprimiert ? `${t.ziel}.zst` : t.ziel);
       for (const t of teile) {
-        jobs.setNote(jobId, `${t.was} wird geladen …`);
+        jobs.setNote(jobId, tx(T, 'ksLaedt', { was: wasText(t.was) }));
         // `<ziel>.part` -- fuer die Karte dieselbe Datei wie beim normalen
         // Download (`partFilePath`), damit ein Abbruch dort weitermacht.
         await ladeGeprueft(t.datei, ladeziel(t), { jobId, jobs, token, davor, gesamt });
@@ -388,11 +396,11 @@ export function runPaketJob(
       // die bisherigen Daten unangetastet.
       for (const t of teile) {
         if (!t.datei.komprimiert) continue;
-        jobs.setNote(jobId, `${t.was} wird entpackt …`);
+        jobs.setNote(jobId, tx(T, 'ksEntpackt', { was: wasText(t.was) }));
         await zstdEntpacken(`${ladeziel(t)}.part`, `${t.ziel}.part`);
         await rm(`${ladeziel(t)}.part`, { force: true });
       }
-      jobs.setNote(jobId, 'Wird installiert …');
+      jobs.setNote(jobId, tx(T, 'ksInstalliert'));
       let routing: RoutingErgebnis | null = null;
       for (const t of teile) {
         if (t.was === 'Routing') {
@@ -403,12 +411,11 @@ export function runPaketJob(
           await rename(`${t.ziel}.part`, t.ziel);
         }
       }
-      let note = `Installiert: ${teile.map((t) => t.was).join(', ')}`;
-      if (routing?.art === 'ergaenzt') note += ' (Routing zum vorhandenen hinzugefügt)';
+      let note = tx(T, 'ksFertig', { liste: teile.map((t) => wasText(t.was)).join(', ') });
+      if (routing?.art === 'ergaenzt') note += tx(T, 'ksErgaenzt');
       if (routing && routing.verloren.length > 0) {
         note +=
-          `. Das Routing für ${routing.verloren.join(', ')} stammte aus einem anderen Bau und ist ersetzt worden – ` +
-          'dafür die Pakete dieser Länder erneut laden.';
+          tx(T, 'ksVerloren', { liste: routing.verloren.join(', ') });
       }
       jobs.setNote(jobId, note);
       jobs.markDone(jobId);
@@ -416,7 +423,7 @@ export function runPaketJob(
       const e = err as Error & { code?: string };
       jobs.markError(jobId, {
         code: jobs.isCancelled(jobId) ? 'CANCELLED' : (e.code ?? 'DOWNLOAD_FAILED'),
-        message: jobs.isCancelled(jobId) ? 'Abgebrochen' : e.message,
+        message: jobs.isCancelled(jobId) ? tx(T, 'ksAbgebrochen') : e.message,
       });
     }
   })();

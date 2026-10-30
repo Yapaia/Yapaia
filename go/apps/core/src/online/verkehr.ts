@@ -29,6 +29,8 @@
  *    `ohne_ort` ist die Zahl der übrigen.
  */
 
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 import {
   ausAntwort,
   autobahnDienstUrl,
@@ -249,7 +251,7 @@ export async function holeVerkehr(
  */
 export function verkehrUrteil(befund: VerkehrBefund): string {
   if (befund.strassen.length === 0) {
-    return 'Keine Autobahn genannt — es wurde nichts abgefragt.';
+    return tx(T, 'keineAutobahn');
   }
   const fehlend = befund.strassen.filter((s) => s.quelle === 'fehler');
   const alt = befund.strassen.filter((s) => s.quelle === 'zwischenspeicher');
@@ -257,21 +259,19 @@ export function verkehrUrteil(befund: VerkehrBefund): string {
   const teile: string[] = [];
   if (fehlend.length > 0) {
     teile.push(
-      `Für ${fehlend.map((s) => s.strasse).join(', ')} liegen KEINE Daten vor — ` +
-        'dort kann etwas sein, das hier nicht steht.',
+      tx(T, 'keineDaten', { strassen: fehlend.map((s) => s.strasse).join(', ') }),
     );
   }
   if (alt.length > 0) {
     const aeltest = Math.max(...alt.map((s) => s.alter_s ?? 0));
     teile.push(
-      `Für ${alt.map((s) => s.strasse).join(', ')} stammen die Daten aus dem Zwischenspeicher ` +
-        `(bis zu ${Math.round(aeltest / 60)} Minuten alt).`,
+      tx(T, 'zwischenspeicher', { strassen: alt.map((s) => s.strasse).join(', '), min: Math.round(aeltest / 60) }),
     );
   }
   teile.push(
     befund.meldungen.length === 0
-      ? 'Aktuell ist nichts gemeldet.'
-      : `${befund.meldungen.length} Meldung(en) auf der Strecke.`,
+      ? tx(T, 'nichtsGemeldet')
+      : tx(T, 'meldungen', { n: befund.meldungen.length }),
   );
   return teile.join(' ');
 }

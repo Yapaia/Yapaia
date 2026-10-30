@@ -25,6 +25,7 @@
  * E04-T4 and intentionally NOT implemented here.
  */
 
+import { kernSprache } from '../i18n.js';
 import type {
   LatLng,
   Maneuver,
@@ -794,7 +795,7 @@ export class NavigationService implements DeadReckoningRouteSource {
         distanceM: result.fire.distanceM,
         immediate: result.fire.immediate,
       },
-      'de',
+      kernSprache(),
     );
     this.bus.publish('nav/instruction', {
       maneuver: result.fire.maneuver,

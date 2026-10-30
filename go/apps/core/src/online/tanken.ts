@@ -24,6 +24,9 @@
  * gehalten. Hinaus geht nur dieser gerundete Ort und der Radius.
  */
 
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
+
 export interface Tankstelle {
   id: string;
   name: string;
@@ -115,13 +118,13 @@ export class Tankerkoenig {
       const antwort = await this.fetchFn(url, { signal: AbortSignal.timeout(10_000) });
       roh = await antwort.json();
     } catch (err) {
-      throw new TankerkoenigFehler(`Tankerkönig nicht erreichbar: ${(err as Error).message}`, 'NETZ');
+      throw new TankerkoenigFehler(tx(T, 'tkNetz', { grund: (err as Error).message }), 'NETZ');
     }
     const o = (roh ?? {}) as Record<string, unknown>;
     if (o.ok !== true) {
-      const text = typeof o.message === 'string' ? o.message : 'unbekannter Fehler';
+      const text = typeof o.message === 'string' ? o.message : tx(T, 'unbekannterFehler');
       const code = /api ?key/i.test(text) ? 'SCHLUESSEL' : 'ANTWORT';
-      throw new TankerkoenigFehler(`Tankerkönig: ${text}`, code);
+      throw new TankerkoenigFehler(tx(T, 'tkFehler', { text }), code);
     }
     const stationen = (Array.isArray(o.stations) ? o.stations : [])
       .map(station)

@@ -18,6 +18,7 @@ from aiohttp import web
 
 from . import protokoll, somagic
 from .config import APP_DIR, DATA_DIR, VERSION
+from .texte import t, uebersetzen
 from .vision import Vision
 
 GRENZE = "yapaiabild"
@@ -77,7 +78,7 @@ async def strom(request: web.Request) -> web.StreamResponse:
 
 
 async def status(request: web.Request) -> web.Response:
-    st = request.app["vision"].status()
+    st = request.app["vision"].status(request.app)
     st["version"] = VERSION
     return web.json_response(st)
 
@@ -90,7 +91,7 @@ async def waehlen(request: web.Request) -> web.Response:
     try:
         k = request.app["vision"].waehlen(daten.get("kanal") if isinstance(daten, dict) else None)
     except ValueError as err:
-        return web.json_response({"ok": False, "fehler": str(err)}, status=400)
+        return web.json_response({"ok": False, "fehler": uebersetzen(err.args[0], request.app) if err.args else str(err)}, status=400)
     return web.json_response({"ok": True, "kanal": k.name})
 
 
@@ -105,7 +106,7 @@ async def firmware(request: web.Request) -> web.Response:
     except (ValueError, AssertionError):
         teil = None
     if teil is None or not getattr(teil, "filename", None):
-        return web.json_response({"ok": False, "fehler": "Keine Datei"}, status=400)
+        return web.json_response({"ok": False, "fehler": t(request.app, "keine_datei")}, status=400)
     ordner = DATA_DIR / "hochgeladen"
     ordner.mkdir(parents=True, exist_ok=True)
     datei = ordner / Path(teil.filename).name
@@ -115,17 +116,17 @@ async def firmware(request: web.Request) -> web.Response:
             groesse += len(chunk)
             if groesse > 200 * 1024 * 1024:
                 datei.unlink(missing_ok=True)
-                return web.json_response({"ok": False, "fehler": "Datei zu groß"}, status=413)
+                return web.json_response({"ok": False, "fehler": t(request.app, "datei_zu_gross")}, status=413)
             f.write(chunk)
     try:
         ok, text = await asyncio.to_thread(somagic.extrahieren, datei)
     finally:
         datei.unlink(missing_ok=True)
     if not ok:
-        return web.json_response({"ok": False, "fehler": text}, status=400)
+        return web.json_response({"ok": False, "fehler": uebersetzen(text, request.app)}, status=400)
     # s6 startet den Dienst neu (Ende mit 0 hält den Container nicht an).
     asyncio.get_running_loop().call_later(1, os._exit, 0)
-    return web.json_response({"ok": True, "text": f"{text}. Vision startet neu …"})
+    return web.json_response({"ok": True, "text": t(request.app, "neustart", text=text)})
 
 
 async def seite(request: web.Request) -> web.FileResponse:

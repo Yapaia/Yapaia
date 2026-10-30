@@ -50,6 +50,9 @@
  *                  wird deshalb benannt statt kaschiert.
  */
 
+import { tx } from '../../i18n.js';
+import { T } from './texte.js';
+
 /**
  * Was in einem Gesamtbau nacheinander gebaut wird.
  *
@@ -202,13 +205,13 @@ export function restdauer({
  * der Schätzung gar nicht zusteht.
  */
 export function dauerText(sekunden: number): string {
-  if (sekunden < 60) return 'weniger als 1 Min.';
+  if (sekunden < 60) return tx(T, 'unterMinute');
   const minutenGesamt = Math.round(sekunden / 60);
   const stunden = Math.floor(minutenGesamt / 60);
   const minuten = minutenGesamt % 60;
-  if (stunden === 0) return `${minuten} Min.`;
-  if (minuten === 0) return `${stunden} Std.`;
-  return `${stunden} Std. ${minuten} Min.`;
+  if (stunden === 0) return tx(T, 'nurMin', { m: minuten });
+  if (minuten === 0) return tx(T, 'nurStd', { h: stunden });
+  return tx(T, 'stdMin', { h: stunden, m: minuten });
 }
 
 /**
@@ -222,13 +225,15 @@ export function restText(auskunft: Restauskunft): string | null {
   if (auskunft.sekunden === null) return null;
   switch (auskunft.grund) {
     case 'geschaetzt':
-      return auskunft.sekunden <= 0 ? 'gleich fertig' : `noch etwa ${dauerText(auskunft.sekunden)}`;
+      return auskunft.sekunden <= 0
+        ? tx(T, 'gleichFertig')
+        : tx(T, 'restEtwa', { zeit: dauerText(auskunft.sekunden) });
     case 'mindestens':
-      return `mindestens noch ${dauerText(auskunft.sekunden)} (ein Schritt läuft zum ersten Mal)`;
+      return tx(T, 'restMindestens', { zeit: dauerText(auskunft.sekunden) });
     case 'ueberfaellig':
       return auskunft.sekunden <= 0
-        ? 'dauert länger als beim letzten Mal'
-        : `dauert länger als beim letzten Mal, danach noch etwa ${dauerText(auskunft.sekunden)}`;
+        ? tx(T, 'laenger')
+        : tx(T, 'laengerDanach', { zeit: dauerText(auskunft.sekunden) });
     case 'unbekannt':
       return null;
   }

@@ -50,6 +50,7 @@ import { geoIndexAnlegen } from './search/lite/geoIndex.js';
 import { AdressDienst } from './search/adresseDienst.js';
 import { DesignSpeicher, registriereDesign } from './yapaia/design.js';
 import { registriereHaSprache } from './yapaia/sprache.js';
+import { setzeSprachQuelle } from './i18n.js';
 import { setInterval, setTimeout, clearInterval, clearTimeout } from 'node:timers';
 import { favoritesPlugin } from './favorites/routes.js';
 import { FavoriteService } from './favorites/service.js';
@@ -202,6 +203,8 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   // the "build outside, inject via `service:`" pattern used for the routing/
   // search/navigation services.
   const settingsService = new SettingsService();
+  // Sprache der Kern-Texte (i18n.ts): Einstellung `language`
+  setzeSprachQuelle(() => settingsService.get('language'));
 
   // E08-T3 token auth (docs/04 §2, SECURITY): a Bearer token guards `/api/*`
   // (health + auth/status open). Auth is ENFORCED only when a token is

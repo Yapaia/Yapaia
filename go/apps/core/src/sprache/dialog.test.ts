@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NavState, Route } from '@yapaia/shared';
 import { Sprachdialog, dauerText, entfernungText, type SprachDeps, type Treffer } from './dialog.js';
+import { setzeSprachQuelle } from '../i18n.js';
 
 const MAGDEBURG: Treffer = { name: 'Ziolkowskistraße', beschreibung: 'Ziolkowskistraße, Magdeburg', lat: 52.16, lon: 11.63 };
 const ROUTE = { id: 'r1', distance_m: 401_000, duration_s: 4 * 3600 + 20 * 60 } as unknown as Route;
@@ -160,5 +161,35 @@ describe('Sprachdialog', () => {
     ki.mockClear();
     await s.verarbeite('stoppe navigation');
     expect(ki).not.toHaveBeenCalled();
+  });
+});
+
+describe('Sprachdialog auf Englisch', () => {
+  afterEach(() => setzeSprachQuelle(() => null));
+
+  it('englischer Satz, englische Antwort -- und deutsche Sätze gehen weiter', async () => {
+    setzeSprachQuelle(() => 'en');
+    const d = deps();
+    const s = new Sprachdialog(d);
+    const a = await s.verarbeite('Please take me to Magdeburg');
+    expect(d.suche).toHaveBeenCalledWith('magdeburg');
+    expect(a.antwort).toBe('Ziolkowskistraße, Magdeburg: 401 kilometres, about 4 hours 20 minutes. Shall we go?');
+    const b = await s.verarbeite('ja');
+    expect(b.antwort).toBe('Off we go to Ziolkowskistraße.');
+    expect(d.starte).toHaveBeenCalledTimes(1);
+  });
+
+  it('nächste Tankstelle, Ankunft, Nichtverstandenes', async () => {
+    setzeSprachQuelle(() => 'en');
+    const s = new Sprachdialog(deps('navigating'));
+    expect((await s.verarbeite('where is the nearest petrol station')).antwort).toBe(
+      'Nearest petrol station: Aral, Ziolkowskistraße 14, in 2.3 kilometres. Shall I take you there? I found 2; say “the second” for the next one.',
+    );
+    expect((await s.verarbeite('when will we arrive')).antwort).toBe(
+      'Arrival at 17:29 in 6 hours 4 minutes, 515 kilometres to go.',
+    );
+    expect((await s.verarbeite('what is the weather like')).antwort).toMatch(/^Sorry, I did not understand/);
+    expect(dauerText(60)).toBe('1 minute');
+    expect(entfernungText(430)).toBe('450 metres');
   });
 });

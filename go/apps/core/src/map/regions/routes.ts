@@ -73,6 +73,8 @@ import {
   type KartenserverVerbindung,
 } from './kartenserver.js';
 import { teilgraphEntfernen } from './teilgraph.js';
+import { tx } from '../../i18n.js';
+import { T } from './texte.js';
 
 export interface RegionsPluginOptions {
   /** Injectable for tests (simulates a near-full disk); defaults to the
@@ -182,7 +184,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
   // PUT /api/v1/kartenserver -- einrichten (leere Adresse = entfernen). Ein
   // leeres Token behaelt das bisherige.
   fastify.put<{ Body: { url?: unknown; token?: unknown } }>('/api/v1/kartenserver', async (request, reply) => {
-    if (!einstellungen) return reply.code(503).send(createErrorResponse('NICHT_VERFUEGBAR', 'Einstellungen nicht verfügbar'));
+    if (!einstellungen) return reply.code(503).send(createErrorResponse('NICHT_VERFUEGBAR', tx(T, 'nichtVerfuegbar')));
     const url = typeof request.body?.url === 'string' ? request.body.url.trim() : '';
     if (!url) {
       einstellungen.patch({ [KARTENSERVER]: null });
@@ -192,7 +194,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
     const token = typeof request.body?.token === 'string' && request.body.token.trim() ? request.body.token.trim() : (bisher?.token ?? '');
     const v = verbindungAus({ url, token });
     if (!v) {
-      return reply.code(400).send(createErrorResponse('UNGUELTIG', 'Bitte die Adresse mit http:// oder https:// angeben'));
+      return reply.code(400).send(createErrorResponse('UNGUELTIG', tx(T, 'adresseUngueltig')));
     }
     try {
       const pakete = await holeKatalog(v, opts.fetchImpl);
@@ -235,7 +237,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
   ): Promise<{ status: number; body: PostRegionsReply | ApiError }> => {
     const laufend = jobs.findUnfinished('kartenserver');
     if (laufend) {
-      return { status: 409, body: createErrorResponse('JOB_RUNNING', 'Es wird schon ein Paket vom Kartenserver geladen', { job_id: laufend.id }) };
+      return { status: 409, body: createErrorResponse('JOB_RUNNING', tx(T, 'paketLaeuft'), { job_id: laufend.id }) };
     }
     const bytes = (entry.url ? entry.sizeBytes : 0) + (entry.suche?.sizeBytes ?? 0) + (entry.routing?.sizeBytes ?? 0) * 2;
     const diskCheck = await checkDiskSpace(tilesDir, bytes, statfsImpl);
@@ -360,7 +362,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           .send(
             createErrorResponse(
               'NO_BUILD_SOURCE',
-              `Für die Region '${regionId}' ist kein OSM-Extrakt hinterlegt (pbfUrl).`,
+              tx(T, 'keineQuelle', { id: regionId }),
             ),
           );
       }
@@ -394,10 +396,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'BUILD_IN_PROGRESS',
-            'Es läuft bereits ein Kachelbau. Zwei Bauten gleichzeitig sind nicht ' +
-              'möglich, weil beide dieselben Basisdaten verwenden — der zweite würde ' +
-              'auf halb geladene Dateien treffen. Warten Sie das Ende ab oder brechen ' +
-              'Sie den laufenden Bau ab.',
+            tx(T, 'bauKachel'),
             { jobId: running.id },
           ),
         );
@@ -409,8 +408,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'INSUFFICIENT_SPACE',
-            'Nicht genug freier Speicherplatz für den Kachelbau. Der Bau braucht neben ' +
-              'der fertigen Datei auch Platz für das Zwischenergebnis.',
+            tx(T, 'platzKachel'),
             { requiredBytes: diskCheck.requiredBytes, freeBytes: diskCheck.freeBytes },
           ),
         );
@@ -423,10 +421,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'INSUFFICIENT_MEMORY',
-            'Zu wenig freier Arbeitsspeicher für den Kachelbau. Schalten Sie Photon in ' +
-              'der Add-on-Konfiguration ab („photon_enabled: false") und versuchen Sie es ' +
-              'erneut — das ist auf einem Gerät mit 8 GB ohnehin die empfohlene ' +
-              'Einstellung (W-12).',
+            tx(T, 'ramKachel'),
             { requiredBytes: requiredMemory, freeBytes: freeMemory },
           ),
         );
@@ -489,7 +484,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           .send(
             createErrorResponse(
               'NO_BUILD_SOURCE',
-              `Für die Region '${regionId}' ist kein OSM-Extrakt hinterlegt (pbfUrl).`,
+              tx(T, 'keineQuelle', { id: regionId }),
             ),
           );
       }
@@ -502,8 +497,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'BUILD_IN_PROGRESS',
-            'Es läuft bereits ein Bau. Zwei schwere Bauten gleichzeitig überlasten ' +
-              'das Gerät — warten Sie das Ende ab oder brechen Sie den laufenden Bau ab.',
+            tx(T, 'bauSchwer'),
             { jobId: running.id },
           ),
         );
@@ -516,9 +510,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'INSUFFICIENT_MEMORY',
-            'Zu wenig freier Arbeitsspeicher für den Bau des Routinggraphen. Schalten ' +
-              'Sie Photon in der Add-on-Konfiguration ab („photon_enabled: false") und ' +
-              'versuchen Sie es erneut.',
+            tx(T, 'ramGraph'),
             { requiredBytes: requiredMemory, freeBytes: freeMemory },
           ),
         );
@@ -633,7 +625,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           .send(
             createErrorResponse(
               'NO_BUILD_SOURCE',
-              `Für die Region '${regionId}' ist kein OSM-Extrakt hinterlegt (pbfUrl).`,
+              tx(T, 'keineQuelle', { id: regionId }),
             ),
           );
       }
@@ -646,8 +638,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'BUILD_IN_PROGRESS',
-            'Es läuft bereits ein Bau. Zwei schwere Bauten gleichzeitig überlasten ' +
-              'das Gerät — warten Sie das Ende ab oder brechen Sie den laufenden Bau ab.',
+            tx(T, 'bauSchwer'),
             { jobId: running.id },
           ),
         );
@@ -660,9 +651,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'INSUFFICIENT_MEMORY',
-            'Zu wenig freier Arbeitsspeicher für den Bau des Suchindex. Schalten ' +
-              'Sie Photon in der Add-on-Konfiguration ab („photon_enabled: false") und ' +
-              'versuchen Sie es erneut.',
+            tx(T, 'ramSuche'),
             { requiredBytes: requiredMemory, freeBytes: freeMemory },
           ),
         );
@@ -712,7 +701,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           .send(
             createErrorResponse(
               'NO_BUILD_SOURCE',
-              `Für die Region '${regionId}' ist kein OSM-Extrakt hinterlegt (pbfUrl).`,
+              tx(T, 'keineQuelle', { id: regionId }),
             ),
           );
       }
@@ -720,7 +709,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
       if (hatExtrakt(lager, regionId)) {
         return reply
           .code(409)
-          .send(createErrorResponse('ALREADY_DOWNLOADED', `Region '${regionId}' ist bereits heruntergeladen`));
+          .send(createErrorResponse('ALREADY_DOWNLOADED', tx(T, 'schonGeladen', { id: regionId })));
       }
       // Waehrend eines Baus nicht: der Routingbau laedt fehlende Extrakte
       // selbst nach -- unter demselben Namen. Zwei Schreiber auf einer Datei
@@ -730,7 +719,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'BUILD_IN_PROGRESS',
-            'Es läuft gerade ein Bau. Bitte dessen Ende abwarten und dann herunterladen.',
+            tx(T, 'extraktWarten'),
             { jobId: bau.id },
           ),
         );
@@ -747,7 +736,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
       );
       if (!diskCheck.ok) {
         return reply.code(409).send(
-          createErrorResponse('INSUFFICIENT_SPACE', 'Nicht genug freier Speicherplatz für den OSM-Extrakt.', {
+          createErrorResponse('INSUFFICIENT_SPACE', tx(T, 'platzExtrakt'), {
             requiredBytes: diskCheck.requiredBytes,
             freeBytes: diskCheck.freeBytes,
           }),
@@ -776,14 +765,14 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           .send(
             createErrorResponse(
               'ALREADY_INSTALLED',
-              `Region '${regionId}' ist gebaut — zum Entfernen die Karte löschen.`,
+              tx(T, 'schonGebaut', { id: regionId }),
             ),
           );
       }
       if (jobs.findUnfinished(BUILD_JOB_KIND)) {
         return reply
           .code(409)
-          .send(createErrorResponse('BUILD_IN_PROGRESS', 'Während eines Baus wird nichts entfernt.'));
+          .send(createErrorResponse('BUILD_IN_PROGRESS', tx(T, 'nichtsEntfernt')));
       }
       const lager = pbfLagerPfad(resolveGraphDir());
       await rm(extraktPfad(lager, regionId), { force: true });
@@ -845,8 +834,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           .send(
             createErrorResponse(
               'NO_REGIONS',
-              'Es ist keine Karte installiert oder heruntergeladen. Lade zuerst eine Karte ' +
-                'herunter — ohne Karte gibt es nichts zu bauen.',
+              tx(T, 'keineKarteGesamt'),
             ),
           );
       }
@@ -857,8 +845,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'BUILD_IN_PROGRESS',
-            'Es läuft bereits ein Bau. Zwei schwere Bauten gleichzeitig überlasten ' +
-              'das Gerät — warten Sie das Ende ab oder brechen Sie den laufenden Bau ab.',
+            tx(T, 'bauSchwer'),
             { jobId: running.id },
           ),
         );
@@ -871,9 +858,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'INSUFFICIENT_MEMORY',
-            'Zu wenig freier Arbeitsspeicher für den Bau. Schalten Sie Photon in ' +
-              'der Add-on-Konfiguration ab („photon_enabled: false") und versuchen ' +
-              'Sie es erneut.',
+            tx(T, 'ramGesamt'),
             { requiredBytes: requiredMemory, freeBytes: freeMemory },
           ),
         );
@@ -894,8 +879,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
           return reply.code(409).send(
             createErrorResponse(
               'INSUFFICIENT_SPACE',
-              'Nicht genug freier Speicherplatz für den Kartenbau. Der Bau braucht neben ' +
-                'der fertigen Datei auch Platz für das Zwischenergebnis.',
+              tx(T, 'platzKarte'),
               { requiredBytes: platz.requiredBytes, freeBytes: platz.freeBytes },
             ),
           );
@@ -999,8 +983,7 @@ export const regionsPlugin: FastifyPluginAsync<RegionsPluginOptions> = async (fa
         return reply.code(409).send(
           createErrorResponse(
             'BUILD_IN_PROGRESS',
-            'Es läuft gerade ein Bau, der die Daten dieser Karte verwenden kann. ' +
-              'Warten Sie das Ende ab oder brechen Sie den laufenden Bau ab.',
+            tx(T, 'bauVerwendet'),
             { jobId: running.id },
           ),
         );

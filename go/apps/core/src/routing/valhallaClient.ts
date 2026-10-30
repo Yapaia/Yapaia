@@ -14,6 +14,8 @@
  */
 
 import { RoutingError } from './errors.js';
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 import type {
   ValhallaErrorBody,
   ValhallaRouteRequestBody,
@@ -104,7 +106,7 @@ function mapValhallaError(body: ValhallaErrorBody): RoutingError {
   return new RoutingError(
     400,
     'NO_ROUTE',
-    'Keine für dein Fahrzeug befahrbare Route gefunden. Überprüfe Fahrzeugabmessungen (Höhe, Breite) und Vermeidungseinstellungen.',
+    tx(T, 'keineRoute'),
   );
 }
 

@@ -37,6 +37,8 @@
  * der Anfrage selbst -- keine Position, keine Route, keine Kennung.
  */
 
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 import {
   AUTOBAHN_DIENSTE,
   ausAntwort,
@@ -116,7 +118,7 @@ async function ruf(
           url,
           status: antwort.status,
           dauer_ms,
-          befund: `Der Dienst antwortete mit ${antwort.status}. Die Adresse lässt sich im Browser öffnen, dann steht dort meist der Grund.`,
+          befund: tx(T, 'httpStatus', { status: antwort.status }),
         },
         json: null,
       };
@@ -133,15 +135,14 @@ async function ruf(
           status: antwort.status,
           dauer_ms,
           befund:
-            'Die Antwort kam an, war aber kein JSON. Häufigste Ursache: ein Portal ' +
-            'im Netz (Hotspot, Gastzugang) schiebt eine Anmeldeseite dazwischen.',
+            tx(T, 'keinJson'),
         },
         json: null,
       };
     }
 
     return {
-      zeile: { dienst, url, status: antwort.status, dauer_ms, befund: 'Antwort erhalten.' },
+      zeile: { dienst, url, status: antwort.status, dauer_ms, befund: tx(T, 'erhalten') },
       json,
     };
   } catch (err) {
@@ -154,8 +155,8 @@ async function ruf(
         status: null,
         dauer_ms,
         befund: abgebrochen
-          ? `Keine Antwort innerhalb von ${grenze} ms. Entweder ist gerade kein Netz da, oder der Dienst ist langsam.`
-          : `Die Verbindung kam nicht zustande: ${(err as Error)?.message ?? 'unbekannter Fehler'}.`,
+          ? tx(T, 'zeitUeberschreitung', { ms: grenze })
+          : tx(T, 'verbindungFehlt', { grund: (err as Error)?.message ?? tx(T, 'unbekannterFehler') }),
       },
       json: null,
     };
@@ -174,39 +175,32 @@ export function beschreibeListe(
   ohneKoordinaten = 0,
 ): string {
   if (mehrdeutig.length > 0) {
-    return (
-      'Mehrdeutig: die Antwort führt mehrere Listen (' +
-      mehrdeutig.join(', ') +
-      '). Yapaia rät hier NICHT — welche gemeint ist, muss im Quelltext eingetragen werden.'
-    );
+    return tx(T, 'mehrdeutig', { listen: mehrdeutig.join(', ') });
   }
   if (schluessel === null) {
-    return 'In der Antwort war überhaupt keine Liste zu finden. Der Aufbau ist ein anderer als angenommen.';
+    return tx(T, 'keineListe');
   }
   if (eintraege === 0) {
-    return `Liste unter „${schluessel}" gefunden, sie ist leer. Das kann stimmen — auf einer Autobahn ohne Baustelle ist das der Normalfall.`;
+    return tx(T, 'listeLeer', { key: schluessel });
   }
   if (verworfen === eintraege) {
-    return `Liste unter „${schluessel}" mit ${eintraege} Einträgen — aber KEINER war brauchbar. Die Felder heißen anders als erwartet.`;
+    return tx(T, 'listeUnbrauchbar', { key: schluessel, n: eintraege });
   }
 
   const brauchbar = eintraege - verworfen;
-  const teile = [`Liste unter „${schluessel}": ${eintraege} Einträge`];
-  if (verworfen > 0) teile.push(`davon ${verworfen} ohne Titel übersprungen`);
+  const teile = [tx(T, 'listeKopf', { key: schluessel, n: eintraege })];
+  if (verworfen > 0) teile.push(tx(T, 'ohneTitel', { n: verworfen }));
 
   // ─── DIE KORREKTUR AUS DER ERSTEN ECHTEN PRUEFUNG ───────────────────────
   // Hier stand „alle brauchbar" — auch bei sechzig LKW-Parkplätzen, von denen
   // kein einziger Koordinaten hatte. Für eine Karte ist das nicht brauchbar,
   // und genau diese Sorte beruhigender Befund sollte diese Datei verhindern.
   if (ohneKoordinaten === brauchbar) {
-    teile.push(
-      'aber KEINER hat Koordinaten — auf die Karte kann davon nichts. ' +
-        'Die Feldnamen stehen unten; dieser Dienst ist anders aufgebaut als die übrigen',
-    );
+    teile.push(tx(T, 'keineKoordinaten'));
   } else if (ohneKoordinaten > 0) {
-    teile.push(`${ohneKoordinaten} ohne Koordinaten (nicht zeichenbar)`);
+    teile.push(tx(T, 'teilsKoordinaten', { n: ohneKoordinaten }));
   } else if (verworfen === 0) {
-    teile.push('alle mit Koordinaten');
+    teile.push(tx(T, 'alleKoordinaten'));
   }
   return `${teile.join(', ')}.`;
 }
@@ -225,7 +219,7 @@ export async function diagnoseAutobahn(
   const zeilen: DiagnoseZeile[] = [];
 
   const { zeile: wurzel, json: wurzelJson } = await ruf(
-    'Autobahn — Straßenliste',
+    tx(T, 'strassenliste'),
     autobahnStrassenUrl(),
     deps,
   );
@@ -274,10 +268,10 @@ export async function diagnoseAutobahn(
  * sieben Zeilen zusammenreimen muss.
  */
 export function gesamturteil(zeilen: readonly DiagnoseZeile[]): string {
-  if (zeilen.length === 0) return 'Es wurde nichts geprüft.';
+  if (zeilen.length === 0) return tx(T, 'nichtsGeprueft');
   const erreicht = zeilen.filter((z) => z.status !== null);
   if (erreicht.length === 0) {
-    return 'Kein einziger Dienst war erreichbar. Sehr wahrscheinlich ist gerade kein Internet da — für die Navigation ist das folgenlos, sie arbeitet offline.';
+    return tx(T, 'keinDienst');
   }
   // ─── „VERWERTBAR" HEISST: DAMIT LAESST SICH ETWAS ZEICHNEN ──────────────
   // Hier zählte nur `verworfen === 0`. Die erste echte Prüfung meldete
@@ -292,16 +286,13 @@ export function gesamturteil(zeilen: readonly DiagnoseZeile[]): string {
     (z) => (z.eintraege ?? 0) > 0 && (z.ohne_koordinaten ?? 0) > 0,
   );
   if (mitDaten.length > 0) {
-    const satz = `${erreicht.length} von ${zeilen.length} Diensten antworteten, und ${mitDaten.length} davon lieferten Daten mit Koordinaten.`;
+    const satz = tx(T, 'urteilMitDaten', { a: erreicht.length, b: zeilen.length, c: mitDaten.length });
     if (nurText.length === 0) return satz;
-    return (
-      `${satz} Bei ${nurText.length} weiteren kamen Einträge an, denen die Koordinaten ` +
-      'fehlen — die stehen im Text, aber nicht auf der Karte. Die Feldnamen dazu stehen in der jeweiligen Zeile.'
-    );
+    return tx(T, 'urteilNurText', { satz, n: nurText.length });
   }
   const verstanden = zeilen.filter((z) => z.schluessel != null);
   if (verstanden.length > 0) {
-    return `${erreicht.length} von ${zeilen.length} Diensten antworteten. Listen wurden gefunden, aber es kamen keine brauchbaren Einträge — entweder ist gerade nichts gemeldet, oder die Felder heißen anders als erwartet.`;
+    return tx(T, 'urteilNichtsBrauchbar', { a: erreicht.length, b: zeilen.length });
   }
-  return `${erreicht.length} von ${zeilen.length} Diensten antworteten, aber der Aufbau der Antworten ist ein anderer als angenommen. Die Einzelzeilen nennen die gefundenen Felder.`;
+  return tx(T, 'urteilAufbau', { a: erreicht.length, b: zeilen.length });
 }

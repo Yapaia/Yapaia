@@ -9,6 +9,7 @@
  * Indizes ohne ihn werden nicht gefragt, bis er angelegt ist.
  */
 
+import { kernSprache } from '../i18n.js';
 import type { AdressTreffer } from './lite/reader.js';
 
 export interface Adresse {
@@ -57,12 +58,17 @@ const LAND: Record<string, string> = {
   saarland: 'DE', sachsen: 'DE', 'sachsen-anhalt': 'DE', 'schleswig-holstein': 'DE', thueringen: 'DE',
 };
 
-let laenderNamen: Intl.DisplayNames | null = null;
+const laenderNamen = new Map<string, Intl.DisplayNames>();
 function landName(code: string | null): string | null {
   if (!code) return null;
   try {
-    laenderNamen ??= new Intl.DisplayNames(['de'], { type: 'region' });
-    return laenderNamen.of(code) ?? code;
+    const sprache = kernSprache();
+    let namen = laenderNamen.get(sprache);
+    if (!namen) {
+      namen = new Intl.DisplayNames([sprache], { type: 'region' });
+      laenderNamen.set(sprache, namen);
+    }
+    return namen.of(code) ?? code;
   } catch {
     return code;
   }

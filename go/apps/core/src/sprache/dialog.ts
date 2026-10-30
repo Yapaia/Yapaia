@@ -14,6 +14,8 @@
 
 import type { NavState, Route } from '@yapaia/shared';
 import { kategorieName, verstehe, type Absicht } from './verstehen.js';
+import { gebiet, tx } from '../i18n.js';
+import { T } from './texte.js';
 
 export interface Treffer {
   name: string;
@@ -84,24 +86,29 @@ type Offen =
   | { art: 'auswahl'; treffer: Treffer[]; bis: number };
 
 export function entfernungText(m: number): string {
-  if (m < 950) return `${Math.max(50, Math.round(m / 50) * 50)} Meter`;
-  if (m < 10_000) return `${(m / 1000).toFixed(1).replace('.', ',')} Kilometer`;
-  return `${Math.round(m / 1000)} Kilometer`;
+  if (m < 950) return tx(T, 'meter', { n: Math.max(50, Math.round(m / 50) * 50) });
+  if (m < 10_000) {
+    const km = (m / 1000).toLocaleString(gebiet(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return tx(T, 'kilometer', { n: km });
+  }
+  return tx(T, 'kilometer', { n: Math.round(m / 1000) });
 }
 
 export function dauerText(s: number): string {
   const min = Math.max(1, Math.round(s / 60));
-  if (min < 60) return `${min} Minuten`;
+  if (min < 60) return min === 1 ? tx(T, 'eine_minute') : tx(T, 'minuten', { n: min });
   const h = Math.floor(min / 60);
   const rest = min % 60;
-  const stunden = h === 1 ? 'eine Stunde' : `${h} Stunden`;
-  return rest === 0 ? stunden : `${stunden} ${rest} Minuten`;
+  const stunden = h === 1 ? tx(T, 'eine_stunde') : tx(T, 'stunden', { n: h });
+  return rest === 0 ? stunden : `${stunden} ${rest === 1 ? tx(T, 'eine_minute') : tx(T, 'minuten', { n: rest })}`;
 }
 
 const AKTIV = new Set<NavState['status']>(['navigating', 'paused', 'off_route', 'routing']);
 
-export const HILFE =
-  'Du kannst zum Beispiel sagen: „Fahre mich nach Magdeburg", „Wo ist die nächste Tankstelle?", „Finde den nächsten Aldi", „Lies die Verkehrsmeldungen vor", „Wann sind wir da?" oder „Stoppe die Navigation".';
+/** Die Hilfe in der eingestellten Sprache. */
+export function hilfeText(): string {
+  return tx(T, 'hilfe');
+}
 
 export class Sprachdialog {
   private offen: Offen | null = null;
@@ -123,7 +130,7 @@ export class Sprachdialog {
         return this.bestaetigt();
       case 'nein':
         this.offen = null;
-        return { antwort: 'Okay, abgebrochen.', absicht: 'nein' };
+        return { antwort: tx(T, 'abgebrochen'), absicht: 'nein' };
       case 'wahl':
         return this.waehle(absicht.nummer);
       case 'ziel':
@@ -134,25 +141,25 @@ export class Sprachdialog {
         return this.naechsteNamens(absicht.name);
       case 'stopp': {
         if (!AKTIV.has(this.deps.navigation().status)) {
-          return { antwort: 'Es läuft gerade keine Navigation.', absicht: 'stopp' };
+          return { antwort: tx(T, 'keine_navigation'), absicht: 'stopp' };
         }
         this.deps.stopp();
         this.offen = null;
-        return { antwort: 'Navigation beendet.', absicht: 'stopp', aktion: { art: 'navigation_beendet' } };
+        return { antwort: tx(T, 'beendet'), absicht: 'stopp', aktion: { art: 'navigation_beendet' } };
       }
       case 'pause': {
         if (this.deps.navigation().status !== 'navigating' && this.deps.navigation().status !== 'off_route') {
-          return { antwort: 'Es läuft gerade keine Navigation, die ich pausieren könnte.', absicht: 'pause' };
+          return { antwort: tx(T, 'nichts_zu_pausieren'), absicht: 'pause' };
         }
         this.deps.pause();
-        return { antwort: 'Navigation pausiert. Sag „weiter", wenn es weitergeht.', absicht: 'pause' };
+        return { antwort: tx(T, 'pausiert'), absicht: 'pause' };
       }
       case 'weiter': {
         if (this.deps.navigation().status !== 'paused') {
-          return { antwort: 'Die Navigation ist nicht pausiert.', absicht: 'weiter' };
+          return { antwort: tx(T, 'nicht_pausiert'), absicht: 'weiter' };
         }
         this.deps.weiter();
-        return { antwort: 'Weiter geht es.', absicht: 'weiter' };
+        return { antwort: tx(T, 'weiter'), absicht: 'weiter' };
       }
       case 'ankunft':
         return this.ankunft();
@@ -160,15 +167,15 @@ export class Sprachdialog {
         return this.verkehr(absicht.anzahl);
       case 'ansagen':
         return {
-          antwort: absicht.an ? 'Ansagen sind an.' : 'Ansagen sind aus.',
+          antwort: absicht.an ? tx(T, 'ansagen_an') : tx(T, 'ansagen_aus'),
           absicht: 'ansagen',
           aktion: { art: 'ansagen', an: absicht.an },
         };
       case 'hilfe':
-        return { antwort: HILFE, absicht: 'hilfe' };
+        return { antwort: hilfeText(), absicht: 'hilfe' };
       case 'unbekannt':
         return {
-          antwort: 'Das habe ich nicht verstanden. Sag zum Beispiel „Fahre mich nach Magdeburg" oder „Wo ist die nächste Tankstelle?".',
+          antwort: tx(T, 'nicht_verstanden'),
           absicht: 'unbekannt',
         };
     }
@@ -182,7 +189,7 @@ export class Sprachdialog {
       return { antwort: 'Die Suche ist gerade nicht erreichbar.', absicht: 'ziel' };
     }
     if (treffer.length === 0) {
-      return { antwort: `Zu „${ort}" habe ich nichts gefunden.`, absicht: 'ziel' };
+      return { antwort: tx(T, 'nichts_gefunden', { ort }), absicht: 'ziel' };
     }
     return this.routeZu(treffer[0]!, 'ziel');
   }
@@ -193,14 +200,17 @@ export class Sprachdialog {
       route = await this.deps.route(ziel);
     } catch (err) {
       const grund = err instanceof Error && err.message ? ` (${err.message})` : '';
-      return { antwort: `Zu ${ziel.beschreibung} konnte ich keine Route berechnen${grund}.`, absicht };
+      return { antwort: tx(T, 'keine_route', { ziel: ziel.beschreibung, grund }), absicht };
     }
     this.offen = { art: 'route', route, ziel, bis: this.deps.jetzt() + RUECKFRAGE_MS };
     const laeuft = AKTIV.has(this.deps.navigation().status);
     return {
       antwort:
-        `${ziel.beschreibung}: ${entfernungText(route.distance_m)}, etwa ${dauerText(route.duration_s)}. ` +
-        (laeuft ? 'Soll ich die laufende Navigation dorthin ändern?' : 'Soll ich losfahren?'),
+        tx(T, 'vorschlag', {
+          ziel: ziel.beschreibung,
+          strecke: entfernungText(route.distance_m),
+          dauer: dauerText(route.duration_s),
+        }) + (laeuft ? tx(T, 'aendern') : tx(T, 'losfahren')),
       absicht,
       aktion: { art: 'route_vorschlag', route, ziel },
       rueckfrage: true,
@@ -211,14 +221,15 @@ export class Sprachdialog {
     const name = kategorieName(kategorie);
     const treffer = this.deps.naechste(kategorie);
     if (treffer.length === 0) {
-      return { antwort: `In der Nähe habe ich nichts gefunden (${name}).`, absicht: 'naechste' };
+      return { antwort: tx(T, 'nichts_in_naehe', { name }), absicht: 'naechste' };
     }
     this.offen = { art: 'auswahl', treffer, bis: this.deps.jetzt() + RUECKFRAGE_MS };
     const erste = treffer[0]!;
-    const wo = typeof erste.entfernung_m === 'number' ? `, in ${entfernungText(erste.entfernung_m)}` : '';
-    const weitere = treffer.length > 1 ? ` Ich habe ${treffer.length} gefunden; sag „die zweite" für die nächste.` : '';
+    const wo =
+      typeof erste.entfernung_m === 'number' ? tx(T, 'in_entfernung', { strecke: entfernungText(erste.entfernung_m) }) : '';
+    const weitere = treffer.length > 1 ? tx(T, 'weitere', { n: treffer.length }) : '';
     return {
-      antwort: `Nächste ${name}: ${erste.beschreibung}${wo}. Soll ich dich hinführen?${weitere}`,
+      antwort: tx(T, 'naechste', { name, ziel: erste.beschreibung, wo, weitere }),
       absicht: 'naechste',
       aktion: { art: 'auswahl', treffer },
       rueckfrage: true,
@@ -233,14 +244,15 @@ export class Sprachdialog {
       return { antwort: 'Die Suche ist gerade nicht erreichbar.', absicht: 'naechste_name' };
     }
     if (treffer.length === 0) {
-      return { antwort: `„${name}" habe ich in der Nähe nicht gefunden.`, absicht: 'naechste_name' };
+      return { antwort: tx(T, 'name_fehlt', { name }), absicht: 'naechste_name' };
     }
     this.offen = { art: 'auswahl', treffer, bis: this.deps.jetzt() + RUECKFRAGE_MS };
     const erste = treffer[0]!;
-    const wo = typeof erste.entfernung_m === 'number' ? `, in ${entfernungText(erste.entfernung_m)}` : '';
-    const weitere = treffer.length > 1 ? ` Ich habe ${treffer.length} gefunden; sag „die zweite" für die nächste.` : '';
+    const wo =
+      typeof erste.entfernung_m === 'number' ? tx(T, 'in_entfernung', { strecke: entfernungText(erste.entfernung_m) }) : '';
+    const weitere = treffer.length > 1 ? tx(T, 'weitere', { n: treffer.length }) : '';
     return {
-      antwort: `Am nächsten: ${erste.beschreibung}${wo}. Soll ich dich hinführen?${weitere}`,
+      antwort: tx(T, 'am_naechsten', { ziel: erste.beschreibung, wo, weitere }),
       absicht: 'naechste_name',
       aktion: { art: 'auswahl', treffer },
       rueckfrage: true,
@@ -249,40 +261,42 @@ export class Sprachdialog {
 
   private async waehle(nummer: number): Promise<Antwort> {
     if (!this.offen || this.offen.art !== 'auswahl') {
-      return { antwort: 'Es gibt gerade keine Auswahl.', absicht: 'wahl' };
+      return { antwort: tx(T, 'keine_auswahl'), absicht: 'wahl' };
     }
     const t = this.offen.treffer[nummer - 1];
-    if (!t) return { antwort: `Es gibt nur ${this.offen.treffer.length} Treffer.`, absicht: 'wahl' };
+    if (!t) return { antwort: tx(T, 'nur_n', { n: this.offen.treffer.length }), absicht: 'wahl' };
     return this.routeZu(t, 'wahl');
   }
 
   private async bestaetigt(): Promise<Antwort> {
     const o = this.offen;
-    if (!o) return { antwort: 'Es gibt gerade nichts zu bestätigen.', absicht: 'ja' };
+    if (!o) return { antwort: tx(T, 'nichts_zu_bestaetigen'), absicht: 'ja' };
     if (o.art === 'auswahl') return this.routeZu(o.treffer[0]!, 'ja');
     this.offen = null;
     try {
       this.deps.starte(o.route, o.ziel);
     } catch (err) {
       const grund = err instanceof Error && err.message ? `: ${err.message}` : '.';
-      return { antwort: `Die Navigation ließ sich nicht starten${grund}`, absicht: 'ja' };
+      return { antwort: tx(T, 'start_fehler', { grund }), absicht: 'ja' };
     }
-    return { antwort: `Los geht's nach ${o.ziel.name}.`, absicht: 'ja', aktion: { art: 'navigation_gestartet' } };
+    return { antwort: tx(T, 'los', { ziel: o.ziel.name }), absicht: 'ja', aktion: { art: 'navigation_gestartet' } };
   }
 
   private ankunft(): Antwort {
     const s = this.deps.navigation();
     if (!AKTIV.has(s.status) || s.eta === null) {
-      return { antwort: 'Es läuft gerade keine Navigation.', absicht: 'ankunft' };
+      return { antwort: tx(T, 'keine_navigation'), absicht: 'ankunft' };
     }
-    const rest = s.distance_remaining_m !== null ? `, noch ${entfernungText(s.distance_remaining_m)}` : '';
-    const dauer = s.duration_remaining_s !== null ? ` in ${dauerText(s.duration_remaining_s)}` : '';
-    return { antwort: `Ankunft um ${this.deps.uhrzeit(s.eta)}${dauer}${rest}.`, absicht: 'ankunft' };
+    const rest =
+      s.distance_remaining_m !== null ? tx(T, 'ankunft_rest', { strecke: entfernungText(s.distance_remaining_m) }) : '';
+    const dauer =
+      s.duration_remaining_s !== null ? tx(T, 'ankunft_dauer', { dauer: dauerText(s.duration_remaining_s) }) : '';
+    return { antwort: tx(T, 'ankunft', { uhr: this.deps.uhrzeit(s.eta), dauer, rest }), absicht: 'ankunft' };
   }
 
   private async verkehr(anzahl: number): Promise<Antwort> {
     if (!AKTIV.has(this.deps.navigation().status)) {
-      return { antwort: 'Verkehrsmeldungen lese ich während einer Navigation vor.', absicht: 'verkehr' };
+      return { antwort: tx(T, 'verkehr_nur_navi'), absicht: 'verkehr' };
     }
     const r = await this.deps.verkehr();
     if ('fehler' in r) return { antwort: r.fehler, absicht: 'verkehr' };
@@ -290,9 +304,9 @@ export class Sprachdialog {
       .filter((m) => m.voraus_m === null || m.voraus_m >= -200)
       .sort((a, b) => (a.voraus_m ?? 0) - (b.voraus_m ?? 0))
       .slice(0, anzahl);
-    if (voraus.length === 0) return { antwort: 'Auf der Route voraus liegen keine Meldungen vor.', absicht: 'verkehr' };
+    if (voraus.length === 0) return { antwort: tx(T, 'keine_meldungen'), absicht: 'verkehr' };
     const saetze = voraus.map((m) => {
-      const wo = m.voraus_m !== null ? `In ${entfernungText(Math.max(0, m.voraus_m))}: ` : '';
+      const wo = m.voraus_m !== null ? tx(T, 'meldung_in', { strecke: entfernungText(Math.max(0, m.voraus_m)) }) : '';
       const text = m.beschreibung.split(/\n/)[0]?.trim();
       return `${wo}${m.titel}${text ? `. ${text}` : ''}.`;
     });

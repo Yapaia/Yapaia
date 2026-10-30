@@ -40,6 +40,8 @@ import process from 'node:process';
 import type { CatalogEntry } from './catalog.js';
 import type { JobRegistry } from './jobs.js';
 import { procLastQuelle, starteLastwaechter, type LastQuelle } from './lastwaechter.js';
+import { tx } from '../../i18n.js';
+import { T } from './texte.js';
 
 /** Der Wrapper aus `yapaia_go/rootfs/usr/bin/` -- er setzt TILES_DIR, holt
  *  beim ersten Lauf planetiler.jar und ruft dann das eigentliche Skript. */
@@ -79,8 +81,12 @@ export interface BuildVariant {
 export const TILE_BUILD: BuildVariant = {
   command: BUILD_COMMAND,
   logPrefix: 'Kachelbau',
-  humanName: 'Der Kachelbau',
-  doneNote: 'Kacheln fertig eingewechselt.',
+  get humanName() {
+    return tx(T, 'nameKacheln');
+  },
+  get doneNote() {
+    return tx(T, 'doneKacheln');
+  },
 };
 
 /** Der Wrapper fuer den OFFLINE-SUCHINDEX. Er benutzt `osmium` (seit 0.3.4
@@ -92,15 +98,23 @@ export const LITE_INDEX_BUILD_COMMAND = '/usr/bin/yapaia-build-lite-index';
 export const GRAPH_BUILD: BuildVariant = {
   command: GRAPH_BUILD_COMMAND,
   logPrefix: 'Routingbau',
-  humanName: 'Der Bau des Routinggraphen',
-  doneNote: 'Routinggraph fertig eingewechselt. Der Dienst startet binnen 30 Sekunden von allein.',
+  get humanName() {
+    return tx(T, 'nameGraph');
+  },
+  get doneNote() {
+    return tx(T, 'doneGraph');
+  },
 };
 
 export const LITE_INDEX_BUILD: BuildVariant = {
   command: LITE_INDEX_BUILD_COMMAND,
   logPrefix: 'Suchindex',
-  humanName: 'Der Bau des Suchindex',
-  doneNote: 'Suchindex fertig. Die Adresssuche ist ab sofort nutzbar — ohne Neustart.',
+  get humanName() {
+    return tx(T, 'nameSuche');
+  },
+  get doneNote() {
+    return tx(T, 'doneSuche');
+  },
 };
 
 /** JVM-Heap fuer planetiler. 2 GB ist der Wert, mit dem eine kleine bis
@@ -268,17 +282,21 @@ export function humanDuration(hms: string): string | null {
   if (!m) return null;
   const hours = Number(m[1]);
   const minutes = Number(m[2]);
-  if (hours > 0) return `${hours} Std. ${minutes} Min.`;
-  if (minutes > 0) return `${minutes} Min.`;
-  return 'weniger als 1 Min.';
+  if (hours > 0) return tx(T, 'stdMin', { h: hours, m: minutes });
+  if (minutes > 0) return tx(T, 'nurMin', { m: minutes });
+  return tx(T, 'unterMinute');
 }
 
 /** Die Notiz zu einer Fortschrittszeile. */
 export function formatDownloadNote(p: CurlProgress): string {
-  const base = `Kartendaten werden geladen: ${humanSize(p.received)} von ${humanSize(p.total)} (${Math.round(p.percent)} %)`;
+  const base = tx(T, 'kartendaten', {
+    von: humanSize(p.received),
+    gesamt: humanSize(p.total),
+    prozent: Math.round(p.percent),
+  });
   const left = p.timeLeft ? humanDuration(p.timeLeft) : null;
   // Ohne Schaetzung wird KEINE genannt. „noch etwa 0 Min." waere geraten.
-  return left ? `${base}, noch etwa ${left}` : base;
+  return left ? base + tx(T, 'nochEtwa', { zeit: left }) : base;
 }
 
 /**
@@ -399,15 +417,14 @@ export function laufeBau(
       info: {
         code: 'NO_BUILD_SOURCE',
         message:
-          `Für die Region "${entry.id}" ist kein OSM-Extrakt hinterlegt (pbfUrl). ` +
-          'Ohne Quelle lässt sich nichts bauen.',
+          tx(T, 'keinExtraktPbf', { id: entry.id }),
       },
     });
     return;
   }
 
   jobs.markRunning(jobId, null);
-  jobs.setNote(jobId, 'Bau wird gestartet…');
+  jobs.setNote(jobId, tx(T, 'bauStart'));
 
   let child: SpawnedBuild;
   try {
@@ -421,9 +438,7 @@ export function laufeBau(
       art: 'fehler',
       info: {
         code: 'BUILD_START_FAILED',
-        message: `Der Bau konnte nicht gestartet werden: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
+        message: tx(T, 'bauStartFehler', { grund: err instanceof Error ? err.message : String(err) }),
       },
     });
     return;
@@ -459,12 +474,12 @@ export function laufeBau(
         onPause: (grund) => {
           child.kill('SIGSTOP');
           logger?.(`[${variant.logPrefix} ${entry.id}] Pausiert: System ausgelastet (${grund})`);
-          jobs.setNote(jobId, `Pausiert – System ausgelastet (${grund}). Geht von selbst weiter.`);
+          jobs.setNote(jobId, tx(T, 'pausiert', { grund }));
         },
         onWeiter: () => {
           child.kill('SIGCONT');
           logger?.(`[${variant.logPrefix} ${entry.id}] Last wieder normal, Bau geht weiter`);
-          jobs.setNote(jobId, 'Last wieder normal – Bau geht weiter…');
+          jobs.setNote(jobId, tx(T, 'lastNormal'));
         },
         onAbbruch: (grund) => {
           beenden();
@@ -474,9 +489,7 @@ export function laufeBau(
             info: {
               code: 'SYSTEM_UEBERLASTET',
               message:
-                `${variant.humanName} wurde abgebrochen, um das System zu schützen: ${grund}. ` +
-                'Der bisherige Stand ist unverändert. Große Regionen besser auf einem Rechner ' +
-                'mit mehr Arbeitsspeicher bauen und die fertigen Dateien einspielen.',
+                tx(T, 'ueberlastet', { name: variant.humanName, grund }),
             },
           });
         },
@@ -517,8 +530,7 @@ export function laufeBau(
       info: {
         code: 'BUILD_START_FAILED',
         message:
-          `Der Bau konnte nicht gestartet werden: ${err.message}. ` +
-          `Erwartet wurde das Werkzeug ${variant.command} — es gehört zum Add-on-Image.`,
+          tx(T, 'bauStartWerkzeug', { grund: err.message, werkzeug: variant.command }),
       },
     });
   });
@@ -543,7 +555,13 @@ export function laufeBau(
       info: {
         code: 'BUILD_FAILED',
         message:
-          `${variant.humanName} ist mit Code ${code ?? 'unbekannt'} fehlgeschlagen. ` +
+          tx(T, 'bauFehlgeschlagen', {
+            name: variant.humanName,
+            code: code ?? tx(T, 'codeUnbekannt'),
+            zuletzt: lastLine ? tx(T, 'zuletzt', { zeile: lastLine }) : '',
+            prefix: variant.logPrefix,
+            id: entry.id,
+          }) +
           (lastLine ? `Zuletzt: „${lastLine}". ` : '') +
           'Die vollständige Ausgabe steht im Add-on-Protokoll (Zeilen mit ' +
           `„[${variant.logPrefix} ${entry.id}]"). Der bisherige Stand ist unverändert.`,
@@ -556,10 +574,11 @@ export function laufeBau(
  *  brauchen — der Einzelbau und der Gesamtbau. */
 export const ABBRUCH_MELDUNG = {
   code: 'CANCELLED',
-  message:
-    'Bau abgebrochen. Die bisherige Kartendatei ist unverändert — das Skript ' +
-    'wechselt erst nach vollständiger Prüfung ein (W-17).',
+  get message() {
+    return tx(T, 'abbruch');
+  },
 } as const;
+
 
 /**
  * Startet den Bau im Hintergrund. Der Aufrufer (Route) hat den Job bereits

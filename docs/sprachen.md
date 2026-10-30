@@ -35,4 +35,10 @@ Eine eigene Sprache je Modul gibt es nicht.
 3. Karten und Dashboards – **erledigt** (Integration 0.8.1, Go 0.66.1)
 4. Oberflächen von Beat und Vision – **erledigt** (Beat 1.19.0, Vision 0.4.0; offen: Meldungen, die Vision vom Server schickt)
 5. Oberfläche von Go – **erledigt** (Go 0.67.0; `apps/web/src/i18n`, je Bereich `texte.ts`; offen: Texte, die der Kern erzeugt, und Sprachbefehle)
-6. Go-Ansagen, Kartenbeschriftung, ESPHome-Geräte
+6. Kern-Texte, Sprachbefehle, ESPHome – **erledigt** (Go 0.68.0, Vision 0.4.1):
+   Go-Kern übersetzt seine Meldungen (`apps/core/src/i18n.ts`, je Bereich
+   `texte.ts`), versteht Sprachbefehle auf Deutsch und Englisch und meldet
+   seine Sprache als Sensor `sprache` (für die ESPHome-Navi-Anzeige);
+   Kartenbeschriftung wählbar im Stil-Menü (`name_en` ist in den Kacheln).
+   Offen: Add-on-/Marktplatz-Meldungen in Go, Zustandstexte des Routers
+   (die Cockpit-Karte wertet sie aus), Entitätsnamen der ESPHome-Geräte.

@@ -26,6 +26,8 @@ import type { HaEntityState, HaFetchLike } from './client.js';
 import { defaultHaFetch } from './client.js';
 import { BEAT_ENTITAET, type AnsagePrioritaet, type AnsageZiel, type Pruefergebnis, type RufErgebnis } from './beatAnsage.js';
 import { wsBefehl, type WsBefehlDeps } from './wsBefehl.js';
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 
 /** Woran ein Player von Music Assistant zu erkennen ist. */
 export const MA_ATTRIBUT = 'mass_player_type';
@@ -263,7 +265,7 @@ export async function ttsAudioPfad(
       }),
       signal: abbruch.signal,
     });
-    if (!r.ok || !r.json) return { fehler: `Home Assistant lieferte keine Sprache (HTTP ${r.status}).` };
+    if (!r.ok || !r.json) return { fehler: tx(T, 'haKeineSpracheHttp', { status: r.status }) };
     const d = (await r.json()) as { path?: unknown; url?: unknown };
     if (typeof d.path === 'string' && d.path.startsWith('/')) return { pfad: d.path };
     if (typeof d.url === 'string') {
@@ -273,9 +275,9 @@ export async function ttsAudioPfad(
         // fällt durch
       }
     }
-    return { fehler: 'Home Assistant lieferte keine Sprache.' };
+    return { fehler: tx(T, 'haKeineSprache') };
   } catch {
-    return { fehler: 'Home Assistant hat nicht geantwortet.' };
+    return { fehler: tx(T, 'haKeineAntwort') };
   } finally {
     clearTimeout(uhr);
   }
@@ -395,12 +397,12 @@ export class LautsprecherAnsage implements AnsageZiel {
   async versuche(text: string): Promise<Pruefergebnis & { zustaendig: boolean }> {
     try {
       const v = this.deps.verbindung();
-      if (!v || !text.trim()) return { ok: false, zustaendig: false, grund: 'Keine Verbindung zu Home Assistant.' };
+      if (!v || !text.trim()) return { ok: false, zustaendig: false, grund: tx(T, 'keineVerbindung') };
       const ziel = await this.deps.ziel(v);
-      if (!ziel) return { ok: false, zustaendig: false, grund: 'Kein Lautsprecher für Ansagen gewählt.' };
+      if (!ziel) return { ok: false, zustaendig: false, grund: tx(T, 'keinLautsprecher') };
       const stimme = await this.deps.stimme(v);
       if (!stimme) {
-        return { ok: false, zustaendig: true, grund: 'In Home Assistant ist keine Sprachausgabe (TTS) eingerichtet.' };
+        return { ok: false, zustaendig: true, grund: tx(T, 'keinTts') };
       }
       // Statt `tts.speak` direkt `play_media` als Ansage: nur so lässt sich
       // Music Assistant der Gong davor abgewöhnen (`use_pre_announce`).
@@ -413,21 +415,25 @@ export class LautsprecherAnsage implements AnsageZiel {
       });
       const stimmeText = `${stimme.engine}${stimme.language ? `, ${stimme.language}` : ''}`;
       return r.ok
-        ? { ok: true, zustaendig: true, grund: `Die Ansage ging an ${ziel} (Stimme ${stimmeText}).` }
+        ? { ok: true, zustaendig: true, grund: tx(T, 'ansageGing', { ziel, stimme: stimmeText }) }
         : {
             ok: false,
             zustaendig: true,
             // Gewünscht: sagen, WARUM -- Home Assistant nennt den Grund.
             grund:
-              `${ziel} hat die Ansage nicht angenommen (Stimme ${stimmeText})` +
-              (r.fehler ? `: ${r.fehler}` : r.status ? ` (HTTP ${r.status}).` : '.'),
+              tx(T, 'ansageAbgelehnt', { ziel, stimme: stimmeText }) +
+              (r.fehler
+                ? tx(T, 'mitFehler', { fehler: r.fehler })
+                : r.status
+                  ? tx(T, 'mitHttp', { status: r.status })
+                  : tx(T, 'punkt')),
           };
     } catch {
-      return { ok: false, zustaendig: true, grund: 'Home Assistant hat nicht geantwortet.' };
+      return { ok: false, zustaendig: true, grund: tx(T, 'haKeineAntwort') };
     }
   }
 
-  async pruefe(text = 'Das ist eine Testansage von Yapaia.'): Promise<Pruefergebnis & { zustaendig: boolean }> {
+  async pruefe(text = tx(T, 'testAnsage')): Promise<Pruefergebnis & { zustaendig: boolean }> {
     return this.versuche(text);
   }
 }

@@ -4,6 +4,8 @@
 Navigationsinstrument fürs Armaturenbrett: nächstes Manöver mit Pfeil und
 Entfernung, Tempo gegen Tempolimit, Ankunftszeit.
 
+Die Anzeigetexte sind zweisprachig (Deutsch/Englisch) und folgen der Sprache aus Yapaia Go (Sensor `${entity_praefix}_sprache`, ab Go 0.68.0); kommt nichts an, bleibt es Deutsch. Die Entitätsnamen des Geräts selbst bleiben deutsch.
+
 ## Das Board — und warum das wichtig ist
 
 Der **ESP32-2424S012** trägt einen **ESP32-C3**, keinen S3. Das ist kein

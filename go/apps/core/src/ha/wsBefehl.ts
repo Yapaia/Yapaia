@@ -11,6 +11,8 @@
  */
 
 import type { HaConnection } from './config.js';
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 
 /** Die WebSocket-Adresse zu einer REST-Basis (Supervisor-Proxy oder direkt). */
 export function wsUrlFor(apiBase: string): string {
@@ -77,15 +79,15 @@ export async function wsBefehlErgebnis(
       }
       fertig(ergebnis);
     };
-    const uhr = setTimeout(() => ende({ ok: false, zeitUm: true, fehler: 'Home Assistant hat nicht rechtzeitig geantwortet.' }), deps.timeoutMs ?? 8_000);
+    const uhr = setTimeout(() => ende({ ok: false, zeitUm: true, fehler: tx(T, 'wsZeit') }), deps.timeoutMs ?? 8_000);
     try {
       socket = erzeuge(wsUrlFor(verbindung.apiBase));
     } catch {
-      ende({ ok: false, fehler: 'Home Assistant ist nicht erreichbar.' });
+      ende({ ok: false, fehler: tx(T, 'wsNichtErreichbar') });
       return;
     }
-    socket.addEventListener('error', () => ende({ ok: false, fehler: 'Home Assistant ist nicht erreichbar.' }));
-    socket.addEventListener('close', () => ende({ ok: false, fehler: 'Home Assistant hat die Verbindung beendet.' }));
+    socket.addEventListener('error', () => ende({ ok: false, fehler: tx(T, 'wsNichtErreichbar') }));
+    socket.addEventListener('close', () => ende({ ok: false, fehler: tx(T, 'wsBeendet') }));
     socket.addEventListener('message', (e) => {
       let n: Record<string, unknown>;
       try {
@@ -94,7 +96,7 @@ export async function wsBefehlErgebnis(
         return;
       }
       if (n.type === 'auth_required') socket?.send(JSON.stringify({ type: 'auth', access_token: verbindung.token }));
-      else if (n.type === 'auth_invalid') ende({ ok: false, fehler: 'Home Assistant hat die Anmeldung abgelehnt.' });
+      else if (n.type === 'auth_invalid') ende({ ok: false, fehler: tx(T, 'wsAuth') });
       else if (n.type === 'auth_ok') socket?.send(JSON.stringify({ id: 1, ...befehl }));
       else if (n.type === 'result' && n.id === 1) {
         if (n.success === true) ende({ ok: true, result: n.result ?? null });

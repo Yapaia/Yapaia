@@ -8,7 +8,7 @@
  * Eingabefeld, und gesprochen wird über Home Assistant Assist.
  */
 
-import { tx } from '../i18n/index.js';
+import { gebiet, tx } from '../i18n/index.js';
 import { T } from './texte.js';
 
 interface ErgebnisListe {
@@ -59,7 +59,8 @@ export function hoereZu(
     return () => {};
   }
   const e = new K();
-  e.lang = 'de-DE';
+  // Erkannt wird in der Sprache der Oberfläche (de-DE oder en-GB).
+  e.lang = gebiet();
   e.interimResults = true;
   e.continuous = false;
   let endgueltig: string | null = null;

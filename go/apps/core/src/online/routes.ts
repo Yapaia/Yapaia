@@ -25,6 +25,8 @@
  * ableiten kann, ob es nichts zu melden gab oder ob gar nicht gefragt wurde.
  */
 
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 import type { FastifyPluginAsync } from 'fastify';
 import type { ApiError } from '@yapaia/shared';
 import { diagnoseAutobahn, gesamturteil, type DiagnoseDeps, type DiagnoseZeile } from './diagnose.js';
@@ -54,26 +56,24 @@ export interface OnlineStatus {
 export function onlineStatus(aktiv: boolean): OnlineStatus {
   return {
     aktiv,
-    hinweis: aktiv
-      ? 'Online-Dienste sind eingeschaltet. Yapaia fragt sie nur ab, wenn Sie es anstoßen oder während einer Fahrt danach verlangt wird; die Navigation selbst arbeitet weiterhin offline.'
-      : 'Online-Dienste sind ausgeschaltet. Yapaia verlässt damit nie das Haus. Einschalten in der Add-on-Konfiguration unter „online" → „enabled".',
+    hinweis: aktiv ? tx(T, 'onAn') : tx(T, 'onAus'),
     dienste: [
       {
         name: 'Autobahn GmbH',
         beschreibung:
-          'Baustellen, Sperrungen, Warnungen, Rastanlagen und LKW-Parkplätze auf Bundesautobahnen.',
+          tx(T, 'dienstAutobahn'),
         schluessel_noetig: false,
       },
       {
         name: 'OpenStreetMap, Wikipedia, Wikimedia Commons',
         beschreibung:
-          'Infos zu einem angetippten Ort: Öffnungszeiten, Website, Telefon, Wikipedia-Auszug und Bilder. Hinaus gehen nur Koordinaten und Name dieses Ortes.',
+          tx(T, 'dienstOrt'),
         schluessel_noetig: false,
       },
       {
         name: 'Tankerkönig',
         beschreibung:
-          'Aktuelle Spritpreise deutscher Tankstellen in der Tankstellensuche. Braucht einen kostenlosen Schlüssel von tankerkoenig.de; hinaus geht nur die auf etwa 5 km gerundete Gegend der gefundenen Tankstellen.',
+          tx(T, 'dienstTanken'),
         schluessel_noetig: true,
       },
     ],
@@ -136,8 +136,7 @@ export const onlinePlugin: FastifyPluginAsync<OnlinePluginOptions> = async (fast
         .send(
           fehler(
             'TANKERKOENIG_AUS',
-            'Spritpreise brauchen eingeschaltete Online-Dienste und einen Tankerkönig-Schlüssel ' +
-              '(Add-on-Konfiguration → „online").',
+            tx(T, 'tankerAus'),
           ),
         );
     }
@@ -153,7 +152,7 @@ export const onlinePlugin: FastifyPluginAsync<OnlinePluginOptions> = async (fast
       Math.abs(lon) > 180 ||
       !Number.isFinite(rad)
     ) {
-      return reply.code(400).send(fehler('VALIDATION_ERROR', 'lat und lon (und rad) als Zahlen angeben.'));
+      return reply.code(400).send(fehler('VALIDATION_ERROR', tx(T, 'zahlenAngeben')));
     }
     let client = tanken.get(key);
     if (!client) {
@@ -184,8 +183,7 @@ export const onlinePlugin: FastifyPluginAsync<OnlinePluginOptions> = async (fast
           .send(
             fehler(
               'ONLINE_DISABLED',
-              'Die Online-Dienste sind ausgeschaltet. Einschalten in der Add-on-Konfiguration ' +
-                'unter „online" → „enabled"; danach verlässt eine Anfrage das Haus.',
+              tx(T, 'onlineAus'),
             ),
           );
       }
@@ -243,8 +241,7 @@ export const onlinePlugin: FastifyPluginAsync<OnlinePluginOptions> = async (fast
           .send(
             fehler(
               'ONLINE_DISABLED',
-              'Die Online-Dienste sind ausgeschaltet. Einschalten in der Add-on-Konfiguration ' +
-                'unter „online" → „enabled"; danach verlässt eine Anfrage das Haus.',
+              tx(T, 'onlineAus'),
             ),
           );
       }
@@ -286,15 +283,14 @@ export const onlinePlugin: FastifyPluginAsync<OnlinePluginOptions> = async (fast
           .send(
             fehler(
               'ONLINE_DISABLED',
-              'Die Online-Dienste sind ausgeschaltet. Einschalten in der Add-on-Konfiguration ' +
-                'unter „online" → „enabled"; danach verlässt eine Anfrage das Haus.',
+              tx(T, 'onlineAus'),
             ),
           );
       }
       const { lat, lon, name } = request.body ?? {};
       if (typeof lat !== 'number' || typeof lon !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lon) ||
           Math.abs(lat) > 90 || Math.abs(lon) > 180) {
-        return reply.code(400).send(fehler('INVALID_POSITION', 'lat/lon fehlen oder liegen außerhalb der Erde.'));
+        return reply.code(400).send(fehler('INVALID_POSITION', tx(T, 'positionUngueltig')));
       }
       const ortsname = typeof name === 'string' && name.trim() ? name.trim().slice(0, 200) : undefined;
       const schluessel = `${lat.toFixed(4)}|${lon.toFixed(4)}|${ortsname ?? ''}`;

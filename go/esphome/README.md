@@ -56,6 +56,8 @@ zeigt diese Datei.
 
 ## Was auf dem Display steht
 
+Die Anzeigetexte sind zweisprachig (Deutsch/Englisch) und folgen der Sprache aus Yapaia Go (Sensor `${entity_praefix}_sprache`, ab Go 0.68.0); kommt nichts an, bleibt es Deutsch. Die Entitätsnamen des Geräts selbst (Schalter, Taste) bleiben deutsch.
+
 ```
         ╭───────────────────╮
       ╱         ┌─┐           ╲

@@ -26,6 +26,8 @@
 
 import type { HaConnection } from './config.js';
 import { defaultHaFetch, type HaFetchLike } from './client.js';
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 
 export const AUTOMATION_ID = 'yapaia_sprachbefehle';
 
@@ -116,7 +118,7 @@ export async function sprachsteuerungEinrichten(deps: SprachBrueckeDeps): Promis
   const v = deps.verbindung();
   const integration = deps.integrationVerbunden();
   if (!v) {
-    return { integration, automation: false, hinweis: 'Keine Verbindung zu Home Assistant (nur im Add-on verfügbar).' };
+    return { integration, automation: false, hinweis: tx(T, 'keineVerbindungAddon') };
   }
   const fetchImpl = deps.fetch ?? defaultHaFetch;
   const controller = new AbortController();
@@ -134,18 +136,17 @@ export async function sprachsteuerungEinrichten(deps: SprachBrueckeDeps): Promis
     if (!res.ok) {
       hinweis =
         res.status === 401 || res.status === 403
-          ? 'Home Assistant erlaubt Yapaia nicht, Automationen anzulegen.'
-          : `Home Assistant lehnte die Automation ab (HTTP ${res.status}).`;
+          ? tx(T, 'keineAutomation')
+          : tx(T, 'automationAbgelehnt', { status: res.status });
     }
   } catch (err) {
-    hinweis = `Home Assistant nicht erreichbar: ${err instanceof Error ? err.message : String(err)}`;
+    hinweis = tx(T, 'haNichtErreichbar', { grund: err instanceof Error ? err.message : String(err) });
   } finally {
     clearTimeout(uhr);
   }
   if (automation && !integration && !hinweis) {
     hinweis =
-      'Die Integration „Yapaia" ist noch nicht mit Yapaia Go verbunden – ohne sie gibt es yapaia.go_befehl nicht. ' +
-      'Einstellungen → Geräte & Dienste → „Yapaia Go“ einrichten.';
+      tx(T, 'integrationFehlt');
   }
   deps.logger.info('Sprachsteuerung in Home Assistant eingerichtet', { integration, automation, hinweis });
   return { integration, automation, ...(hinweis ? { hinweis } : {}) };

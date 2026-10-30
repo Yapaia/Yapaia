@@ -10,6 +10,7 @@ from . import quellen
 from .aufnahme import Erfassung
 from .config import Kanal, Options
 from .quellen import Geraet, Quelle
+from .texte import Meldung, uebersetzen
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,10 +73,10 @@ class Vision:
     def waehlen(self, wert: Any) -> Kanal:
         k = self.kanal(wert)
         if k is None:
-            raise ValueError(f"Keinen Kanal „{wert}“ gefunden")
+            raise ValueError(Meldung("kanal_unbekannt", wert=wert))
         e = self.erfassung(k.nummer)
         if e is None:
-            raise ValueError(f"{k.name} hat kein Gerät")
+            raise ValueError(Meldung("kanal_ohne_geraet", name=k.name))
         e.waehlen(k.nummer)
         return k
 
@@ -98,7 +99,8 @@ class Vision:
                 return e.kanaele[e.gewaehlt][0].name
         return None
 
-    def status(self) -> dict[str, Any]:
+    def status(self, sprache: Any = None) -> dict[str, Any]:
+        """`sprache`: App oder "de"/"en"; übersetzt die Meldungen."""
         kanaele = []
         for k in self.opts.kanaele:
             q = self.zuordnung.get(k.nummer)
@@ -112,7 +114,7 @@ class Vision:
                     "gewaehlt": bool(e and e.gewaehlt == k.nummer),
                     "live": bool(e and e.gewaehlt == k.nummer and e.laeuft),
                     "zuschauer": e.zuschauer(k.nummer) if e else 0,
-                    "fehler": e.fehler if e else None,
+                    "fehler": uebersetzen(e.fehler, sprache) if e else None,
                 }
             )
         return {
@@ -125,7 +127,7 @@ class Vision:
             "firmware_fehlt": self.firmware_fehlt,
             "gewaehlt": self.gewaehlt(),
             "aufnahme": any(e.laeuft for e in self.erfassungen.values()),
-            "hinweise": self.hinweise,
+            "hinweise": [uebersetzen(h, sprache) for h in self.hinweise],
             "kanaele": kanaele,
         }
 

@@ -8,6 +8,8 @@
  * ("Photon down -> next backend + degraded, never a crash"). Hard 3s
  * timeout per request.
  */
+import { kernSprache, tx } from '../i18n.js';
+import { T } from './texte.js';
 import type { SearchResult } from '@yapaia/shared';
 import { GeocoderBackendError } from './errors.js';
 import { defaultFetch, type FetchLike, type HttpResponseLike } from './httpTypes.js';
@@ -38,14 +40,14 @@ export interface PhotonBackendOptions {
 export class PhotonBackend implements GeocoderBackend {
   readonly source = 'photon' as const;
   private readonly baseUrl: string;
-  private readonly lang: string;
+  private readonly lang: string | undefined;
   private readonly timeoutMs: number;
   private readonly fetchImpl: FetchLike;
   private readonly logger: SearchLogger;
 
   constructor(opts: PhotonBackendOptions = {}) {
     this.baseUrl = (opts.baseUrl ?? DEFAULT_PHOTON_URL).replace(/\/+$/, '');
-    this.lang = opts.lang ?? 'de';
+    this.lang = opts.lang;
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_BACKEND_TIMEOUT_MS;
     this.fetchImpl = opts.fetchImpl ?? defaultFetch;
     this.logger = opts.logger ?? noopLogger;
@@ -55,7 +57,7 @@ export class PhotonBackend implements GeocoderBackend {
     const params = new URLSearchParams({
       q: query.q,
       limit: String(query.limit),
-      lang: query.lang ?? this.lang,
+      lang: query.lang ?? this.lang ?? kernSprache(),
     });
     if (query.lat !== undefined && query.lon !== undefined) {
       params.set('lat', String(query.lat));
@@ -70,7 +72,7 @@ export class PhotonBackend implements GeocoderBackend {
       lat: String(query.lat),
       lon: String(query.lon),
       limit: String(query.limit),
-      lang: query.lang ?? this.lang,
+      lang: query.lang ?? this.lang ?? kernSprache(),
     });
     const json = await this.request(`${this.baseUrl}/reverse?${params.toString()}`);
     return mapPhotonResponse(json);
@@ -145,7 +147,7 @@ function mapPhotonResponse(json: PhotonResponse): SearchResult[] {
     if (typeof lat !== 'number' || typeof lon !== 'number') continue;
 
     const props = feature.properties ?? {};
-    const name = typeof props.name === 'string' && props.name.length > 0 ? props.name : 'Unbenannt';
+    const name = typeof props.name === 'string' && props.name.length > 0 ? props.name : tx(T, 'unbenannt');
     const city = typeof props.city === 'string' && props.city !== name ? props.city : undefined;
     const country = typeof props.country === 'string' ? props.country : undefined;
     const labelParts = [name, city, country].filter((p): p is string => Boolean(p));

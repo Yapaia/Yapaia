@@ -103,6 +103,8 @@ export const ZEIGER_IDS = new Set([
   'waage_erzwingen', 'waage_fahrzeug',
   // Ankunftszeit oder Restzeit -- und die Uhr, aus der die Restzeit faellt.
   'eta_als_restzeit', 'ha_zeit',
+  // Die Sprache der Anzeige ("de" / "en").
+  'yapaia_sprache',
 ]);
 
 export const WERT_IDS = new Set([
