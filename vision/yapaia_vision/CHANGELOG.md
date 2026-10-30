@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.4.1
+
+Auch die Meldungen des Add-ons (Hinweise, Kanal- und Firmware-Fehler)
+kommen jetzt in der Sprache von Home Assistant.
+
 ## 0.4.0
 
 **Die Vision-Oberfläche spricht die Sprache von Home Assistant** (Deutsch,

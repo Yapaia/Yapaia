@@ -37,6 +37,7 @@ from pathlib import Path
 from . import somagic
 from .config import Kanal, Options
 from .quellen import TESTGERAET, Geraet, Quelle
+from .texte import Meldung
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -283,7 +284,7 @@ class Erfassung:
                     *befehl, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
         except OSError as err:
-            self._fehler(f"{(vor_befehl or befehl)[0]} nicht startbar: {err}")
+            self._fehler(Meldung("nicht_startbar", befehl=(vor_befehl or befehl)[0], grund=str(err)))
             textdatei.unlink(missing_ok=True)
             if vor is not None:
                 await _beenden(vor)
@@ -305,7 +306,7 @@ class Erfassung:
                 try:
                     daten = await asyncio.wait_for(proc.stdout.read(65536), STILLE_S)
                 except asyncio.TimeoutError:
-                    self._fehler(f"{self.pfad}: seit {STILLE_S} s kein Bild – Kamera angeschlossen?")
+                    self._fehler(Meldung("kein_bild", pfad=self.pfad, sekunden=STILLE_S))
                     break
                 if not daten:
                     break
@@ -329,7 +330,7 @@ class Erfassung:
             textdatei.unlink(missing_ok=True)
         if bilder == 0 and self._gebraucht():
             text = fehlertext.decode(errors="replace").strip().splitlines()
-            self._fehler(f"{self.pfad}: ffmpeg endete ohne Bild ({text[-1] if text else proc.returncode})")
+            self._fehler(Meldung("ffmpeg_ohne_bild", pfad=self.pfad, grund=str(text[-1] if text else proc.returncode)))
         return bilder > 0
 
     def _verteilen(self, nummer: int, bild: bytes) -> None:

@@ -31,6 +31,8 @@ import { listRegions } from '../map/regions.js';
 import { loadCatalog } from '../map/regions/catalog.js';
 import { resolveGraphDir, resolveTilesDir } from '../map/paths.js';
 import { graphRegionenJetzt } from '../map/regions/graphAbdeckung.js';
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 
 export interface RoutingRoutesOptions {
   positionService: PositionLookup;
@@ -87,10 +89,7 @@ async function standardGraphLuecke(): Promise<string[]> {
 /** Haengt an eine Routingmeldung an, dass Karten im Graphen fehlen. */
 export function mitLueckenHinweis(message: string, fehlt: readonly string[]): string {
   if (fehlt.length === 0) return message;
-  return (
-    `${message} Hinweis: Im Routing fehlt ${fehlt.join(', ')} — Ziele dort sind nicht erreichbar. ` +
-    'In der Kartenverwaltung „Fehlendes bauen" ausführen.'
-  );
+  return tx(T, 'lueckenHinweis', { message, fehlt: fehlt.join(', ') });
 }
 
 /**

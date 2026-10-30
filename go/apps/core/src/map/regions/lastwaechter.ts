@@ -24,6 +24,8 @@
 
 import { readFileSync } from 'fs';
 import { clearInterval, setInterval } from 'node:timers';
+import { tx } from '../../i18n.js';
+import { T } from './texte.js';
 
 export interface LastMessung {
   /** Belegte CPU des ganzen Rechners seit der letzten Messung, 0–100.
@@ -123,7 +125,7 @@ export function lastRegeln(o: Omit<LastwaechterOptionen, 'quelle' | 'intervallMs
 
     if (frei < ramKritisch(g)) {
       beendet = true;
-      o.onAbbruch(`nur noch ${gb(frei)} Arbeitsspeicher frei`);
+      o.onAbbruch(tx(T, 'nurNochRam', { gb: gb(frei) }));
       return;
     }
 
@@ -132,7 +134,7 @@ export function lastRegeln(o: Omit<LastwaechterOptionen, 'quelle' | 'intervallMs
       ramKnappSeit ??= jetzt();
       if (jetzt() - ramKnappSeit >= RAM_KNAPP_MAX_MS) {
         beendet = true;
-        o.onAbbruch(`Arbeitsspeicher über 10 Minuten knapp (${gb(frei)} frei)`);
+        o.onAbbruch(tx(T, 'ramKnapp', { gb: gb(frei) }));
         return;
       }
     } else if (frei >= ramGenug(g)) {
@@ -147,8 +149,8 @@ export function lastRegeln(o: Omit<LastwaechterOptionen, 'quelle' | 'intervallMs
       const cpuVoll = cpuHochMessungen >= CPU_HOCH_MESSUNGEN;
       if (knapp || cpuVoll) {
         pausiert = true;
-        const cpu = m.cpuProzent !== null ? `CPU ${Math.round(m.cpuProzent)} %, ` : '';
-        o.onPause(`${cpu}${gb(frei)} Arbeitsspeicher frei`);
+        const cpu = m.cpuProzent !== null ? tx(T, 'cpu', { p: Math.round(m.cpuProzent) }) : '';
+        o.onPause(tx(T, 'ramFrei', { cpu, gb: gb(frei) }));
       }
       return;
     }

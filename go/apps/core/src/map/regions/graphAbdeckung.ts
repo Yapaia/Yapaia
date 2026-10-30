@@ -44,6 +44,8 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { tx } from '../../i18n.js';
+import { T } from './texte.js';
 
 /** Endung der OSM-Extrakte im Zwischenlager. */
 const PBF_SUFFIX = '.osm.pbf';
@@ -125,23 +127,19 @@ export function abdeckungNachBau(args: {
  * allein wäre genau die Auskunft, die hier gefehlt hat.
  */
 export function abdeckungSatz(a: GraphAbdeckung): string {
-  const teile = [`Der neue Routinggraph enthält: ${a.danach.join(', ')}.`];
+  const teile = [tx(T, 'abdGraph', { liste: a.danach.join(', ') })];
   if (a.verliert.length > 0) {
     teile.push(
-      `Verloren geht das Routing für: ${a.verliert.join(', ')} — es ist derzeit im Graphen, ` +
-        'aber es liegt kein OSM-Extrakt mehr dafür bereit.',
+      tx(T, 'abdVerliert', { liste: a.verliert.join(', ') }),
     );
   }
   if (a.ohneRouting.length > 0) {
     teile.push(
-      `Ohne Routing bleiben diese installierten Karten: ${a.ohneRouting.join(', ')}. ` +
-        'Eine installierte Karte enthält keine Straßendaten für die Routenberechnung — ' +
-        'dafür muss für jede Region einmal „Routing bauen" gedrückt werden. Der Graph ' +
-        'sammelt danach alles ein, was schon da ist.',
+      tx(T, 'abdOhne', { liste: a.ohneRouting.join(', ') }),
     );
   }
   if (a.verliert.length === 0 && a.ohneRouting.length === 0) {
-    teile.push('Alle installierten Karten sind damit abgedeckt.');
+    teile.push(tx(T, 'abdAlle'));
   }
   return teile.join(' ');
 }

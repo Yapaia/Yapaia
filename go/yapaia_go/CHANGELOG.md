@@ -10,6 +10,19 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.68.0
+
+- **Sprachbefehle auch auf Englisch** („navigate to Vaduz“, „nearest fuel
+  station“, „pause“, „yes“/„no“ …); Deutsch versteht Go weiterhin immer.
+  Die Antworten kommen in der Sprache von Home Assistant, die Spracherkennung
+  im Browser hört in dieser Sprache.
+- **Meldungen des Kerns in der HA-Sprache:** Bordhinweise, Verkehrs- und
+  Diagnosemeldungen, Prüfhinweise („Installation prüfen“), Routing- und
+  Kartenbau-Meldungen, Ansagen, Suche (Ländernamen, Sprache der Treffer).
+- Neuer Sensor **Sprache** (Diagnose): sagt Geräten ohne eigene Verbindung
+  zur HA-Sprache, etwa der ESPHome-Navi-Anzeige, welche Sprache gilt.
+- Noch deutsch: Meldungen zu Add-ons/Marktplatz, einige Kartendownload-Fehler.
+
 ## 0.67.0
 
 - **Go spricht die Sprache von Home Assistant** (Deutsch, sonst Englisch):

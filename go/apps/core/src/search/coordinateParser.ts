@@ -17,9 +17,10 @@
  * valid pair, no coords result is returned (falls through to Photon).
  */
 
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 import type { SearchResult } from '@yapaia/shared';
 
-const SWAP_NOTE = 'Koordinaten evtl. vertauscht?';
 
 function isValidLat(n: number): boolean {
   return Number.isFinite(n) && n >= -90 && n <= 90;
@@ -40,10 +41,10 @@ function normalize(raw: string): string {
 
 function buildResult(lat: number, lon: number, swapped: boolean): SearchResult {
   const label = swapped
-    ? `${lat.toFixed(5)}, ${lon.toFixed(5)} (${SWAP_NOTE})`
+    ? `${lat.toFixed(5)}, ${lon.toFixed(5)} (${tx(T, 'vertauscht')})`
     : `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   return {
-    name: 'Koordinaten',
+    name: tx(T, 'koordinaten'),
     label,
     latlng: { lat, lon },
     type: 'coordinates',

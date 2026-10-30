@@ -56,3 +56,50 @@ describe('verstehe -- weitere Sätze', () => {
     expect(glaetten('Hey Yapaia, kannst du bitte mal...')).toBe('');
   });
 });
+
+describe('verstehe -- englische Befehle (immer, unabhängig von der Spracheinstellung)', () => {
+  it.each([
+    ['Please take me to Ziolkowski Street in Magdeburg', { art: 'ziel', ort: 'ziolkowski street magdeburg' }],
+    ['navigate to Bath', { art: 'ziel', ort: 'bath' }],
+    ['Yapaia, drive us to the campsite by the lake', { art: 'ziel', ort: 'campsite by lake' }],
+    ['show me the way to York', { art: 'ziel', ort: 'york' }],
+    ["let's go to London", { art: 'ziel', ort: 'london' }],
+    ['Hey Yapaia, where is the nearest petrol station?', { art: 'naechste', kategorie: 'fuel' }],
+    ['find the closest gas station', { art: 'naechste', kategorie: 'fuel' }],
+    ['we need diesel', { art: 'naechste', kategorie: 'fuel' }],
+    ['take me to the nearest dump station', { art: 'naechste', kategorie: 'sanitary_dump_station' }],
+    ['where can we stay overnight nearby', { art: 'naechste', kategorie: 'caravan_site' }],
+    ['nearest toilet', { art: 'naechste', kategorie: 'toilets' }],
+    ['find the nearest Aldi', { art: 'naechste_name', name: 'aldi' }],
+    ["where's the closest Lidl?", { art: 'naechste_name', name: 'lidl' }],
+    ['is there a Tesco nearby', { art: 'naechste_name', name: 'tesco' }],
+    ['stop navigation', { art: 'stopp' }],
+    ['cancel the route', { art: 'stopp' }],
+    ['end navigation', { art: 'stopp' }],
+    ['pause navigation', { art: 'pause' }],
+    ['continue', { art: 'weiter' }],
+    ['resume navigation', { art: 'weiter' }],
+    ['when will we arrive', { art: 'ankunft' }],
+    ['how long left', { art: 'ankunft' }],
+    ['read me the next traffic report', { art: 'verkehr', anzahl: 1 }],
+    ['read all roadworks', { art: 'verkehr', anzahl: 3 }],
+    ['announcements off', { art: 'ansagen', an: false }],
+    ['turn the voice on', { art: 'ansagen', an: true }],
+    ['be quiet', { art: 'ansagen', an: false }],
+    ['yes', { art: 'ja' }],
+    ["let's go", { art: 'ja' }],
+    ['go ahead', { art: 'ja' }],
+    ['no', { art: 'nein' }],
+    ['never mind', { art: 'nein' }],
+    ['the second one', { art: 'wahl', nummer: 2 }],
+    ['number 3', { art: 'wahl', nummer: 3 }],
+    ['help', { art: 'hilfe' }],
+    ['what can you do', { art: 'hilfe' }],
+  ])('%s', (satz, erwartet) => {
+    expect(verstehe(satz)).toEqual(erwartet);
+  });
+
+  it('Unverstandenes bleibt auch auf Englisch unverstanden', () => {
+    expect(verstehe("what's the weather like tomorrow").art).toBe('unbekannt');
+  });
+});

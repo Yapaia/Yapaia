@@ -21,6 +21,7 @@ from typing import Any
 from aiohttp import WSMsgType, web
 
 from .config import DATA_DIR, VERSION
+from .texte import t, uebersetzen
 from .vision import Vision
 
 _LOGGER = logging.getLogger(__name__)
@@ -152,8 +153,8 @@ def beschreibung_neu(ident: Identitaet, vision: Vision) -> bool:
     return alt != neu and not (alt is None and ident.frisch)
 
 
-def zustand(vision: Vision) -> dict[str, Any]:
-    st = vision.status()
+def zustand(vision: Vision, sprache: Any = None) -> dict[str, Any]:
+    st = vision.status(sprache)
     werte: dict[str, Any] = {
         "aufnahme": st["aufnahme"],
         "geraet": st["geraet"],
@@ -173,7 +174,7 @@ async def nur_mit_token(request: web.Request, handler):
     if request.path.startswith(API + "/"):
         ident: Identitaet = request.app["yapaia_identitaet"]
         if request.headers.get("Authorization") != f"Bearer {ident.token}":
-            return web.json_response({"ok": False, "fehler": "Token fehlt oder falsch"}, status=401)
+            return web.json_response({"ok": False, "fehler": t(request.app, "token")}, status=401)
     return await handler(request)
 
 
@@ -186,7 +187,7 @@ async def _live(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse(heartbeat=30)
     await ws.prepare(request)
     queue = vision.abonnieren()
-    letzter = zustand(vision)
+    letzter = zustand(vision, request.app)
     await ws.send_str(json.dumps({"typ": "zustand", "werte": letzter}, ensure_ascii=False))
     if request.app["yapaia_beschreibung_neu"]:
         # einmal: die Integration lädt daraufhin neu und verbindet sich wieder
@@ -197,7 +198,7 @@ async def _live(request: web.Request) -> web.WebSocketResponse:
         nonlocal letzter
         while True:
             await queue.get()
-            neu = zustand(vision)
+            neu = zustand(vision, request.app)
             diff = {k: v for k, v in neu.items() if letzter.get(k) != v}
             if diff:
                 letzter = neu
@@ -217,7 +218,7 @@ async def _live(request: web.Request) -> web.WebSocketResponse:
 async def _aktion(request: web.Request) -> web.Response:
     name = request.match_info["name"]
     if name != "kanal_waehlen":
-        return web.json_response({"ok": False, "fehler": f"Unbekannte Aktion {name}"}, status=404)
+        return web.json_response({"ok": False, "fehler": t(request.app, "aktion_unbekannt", name=name)}, status=404)
     try:
         daten = await request.json()
     except ValueError:
@@ -227,7 +228,7 @@ async def _aktion(request: web.Request) -> web.Response:
     try:
         k = request.app["vision"].waehlen(wert)
     except ValueError as err:
-        return web.json_response({"ok": False, "fehler": str(err)}, status=400)
+        return web.json_response({"ok": False, "fehler": uebersetzen(err.args[0], request.app) if err.args else str(err)}, status=400)
     return web.json_response({"ok": True, "ergebnis": {"kanal": k.name}})
 
 

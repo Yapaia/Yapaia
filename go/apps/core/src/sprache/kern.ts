@@ -15,6 +15,8 @@ import { leseKandidaten, unterwegsKategorie } from '../search/unterwegs.js';
 import { holeVerkehr, type VerkehrDeps } from '../online/verkehr.js';
 import { onlineEingeschaltet } from '../online/routes.js';
 import type { AnsageZiel, AnsagePrioritaet, Pruefergebnis } from '../ha/beatAnsage.js';
+import { gebiet, tx } from '../i18n.js';
+import { T } from './texte.js';
 
 /** So weit um die Position sucht „der nächste Aldi". */
 export const UMKREIS_NAME_KM = 25;
@@ -123,7 +125,7 @@ export function sprachDeps(k: KernDienste): SprachDeps {
     },
     async verkehr() {
       if (!onlineEingeschaltet()) {
-        return { fehler: 'Verkehrsmeldungen brauchen die Online-Dienste. Schalte in der Add-on-Konfiguration „online" ein.' };
+        return { fehler: tx(T, 'verkehr_offline') };
       }
       const route = k.navigation.getActiveRoute();
       const strassen = autobahnenDerRoute(route);
@@ -150,7 +152,7 @@ export function sprachDeps(k: KernDienste): SprachDeps {
       return { meldungen };
     },
     uhrzeit: (iso) =>
-      new Intl.DateTimeFormat('de-DE', {
+      new Intl.DateTimeFormat(gebiet(), {
         hour: '2-digit',
         minute: '2-digit',
         ...(k.zeitzone ? { timeZone: k.zeitzone } : {}),
@@ -222,7 +224,7 @@ export function registriereSprache(
   // POST /api/v1/ansage/test -- „Ansage ins Radio testen": spricht eine
   // Testansage über Yapaia Beat und sagt in Klartext, warum es nicht geht.
   fastify.post('/api/v1/ansage/test', async (_request, reply) => {
-    const r = ansageZiel?.pruefe ? await ansageZiel.pruefe() : { ok: false, grund: 'Nur im Home-Assistant-Add-on verfügbar.' };
+    const r = ansageZiel?.pruefe ? await ansageZiel.pruefe() : { ok: false, grund: tx(T, 'nur_addon') };
     return reply.code(200).send({ data: r });
   });
 }

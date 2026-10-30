@@ -19,6 +19,9 @@
  * {@link HYSTERESE} zurückgegangen ist (Tank geleert, Wasser aufgefüllt).
  */
 
+import { gebiet, tx } from '../i18n.js';
+import { T } from './texte.js';
+
 /** Um so viel muss ein Wert zurück, bevor ein Hinweis wieder erlischt. */
 export const HYSTERESE = {
   /** Prozentpunkte bei Füllständen und Ladezustand. */
@@ -110,7 +113,7 @@ export function bordBefunde(
 
   const grau = werte.grauwasser_prozent;
   if (zahl(grau) && obenAktiv(grau, schwellen.grauwasser_ab_prozent, HYSTERESE.prozent, vorher.has('grauwasser'))) {
-    raus.push({ art: 'grauwasser', wert: grau, text: `Grauwasser bei ${prozent(grau)}.` });
+    raus.push({ art: 'grauwasser', wert: grau, text: tx(T, 'grauwasser', { p: prozent(grau) }) });
   }
 
   const frisch = werte.frischwasser_prozent;
@@ -118,7 +121,7 @@ export function bordBefunde(
     zahl(frisch) &&
     untenAktiv(frisch, schwellen.frischwasser_bis_prozent, HYSTERESE.prozent, vorher.has('frischwasser'))
   ) {
-    raus.push({ art: 'frischwasser', wert: frisch, text: `Frischwasser nur noch ${prozent(frisch)}.` });
+    raus.push({ art: 'frischwasser', wert: frisch, text: tx(T, 'frischwasser', { p: prozent(frisch) }) });
   }
 
   const batt = werte.batterie_prozent;
@@ -126,7 +129,7 @@ export function bordBefunde(
     raus.push({
       art: 'batterie',
       wert: batt,
-      text: `Bordbatterie bei ${prozent(batt)} — für die Nacht besser einen Platz mit Strom.`,
+      text: tx(T, 'batterie', { p: prozent(batt) }),
     });
   }
 
@@ -135,7 +138,9 @@ export function bordBefunde(
     raus.push({
       art: 'frost',
       wert: temp,
-      text: `Außen ${temp.toFixed(1).replace('.', ',')} °C — Frostschutz für die Wasseranlage prüfen.`,
+      text: tx(T, 'frost', {
+        t: temp.toLocaleString(gebiet(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      }),
     });
   }
 

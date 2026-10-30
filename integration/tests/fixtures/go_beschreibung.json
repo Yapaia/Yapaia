@@ -155,6 +155,16 @@
       ]
     },
     {
+      "schluessel": "sprache",
+      "plattform": "sensor",
+      "name": {
+        "de": "Sprache",
+        "en": "Language"
+      },
+      "symbol": "mdi:translate",
+      "kategorie": "diagnostic"
+    },
+    {
       "schluessel": "adresse",
       "plattform": "sensor",
       "name": {

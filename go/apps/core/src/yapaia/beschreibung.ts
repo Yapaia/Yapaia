@@ -9,6 +9,7 @@
  * (deutsche, feste Schluessel) und aus `"unknown"` wird `null`.
  */
 
+import { kernSprache } from '../i18n.js';
 import { buildHaStates, UNBEKANNT, type YapaiaZustand } from '../ha/statesBridge.js';
 import { EIGENER_FAHRZEUG_TRACKER } from '../ha/eigeneEntitaeten.js';
 import type { Adresse } from '../search/adresseDienst.js';
@@ -133,6 +134,16 @@ export const ENTITAETEN: readonly Entitaet[] = [
     name: { de: 'Ort', en: 'Place' },
     symbol: 'mdi:map-marker-radius',
     attribute: ['land', 'land_code'],
+  },
+  {
+    // Sprache von Go (Einstellung `language`, von der Integration aus der
+    // HA-Sprache gesetzt) -- für Geräte ohne eigene Verbindung zur
+    // HA-Sprache, etwa die ESPHome-Navi-Anzeige
+    schluessel: 'sprache',
+    plattform: 'sensor',
+    name: { de: 'Sprache', en: 'Language' },
+    symbol: 'mdi:translate',
+    kategorie: 'diagnostic',
   },
   {
     schluessel: 'adresse',
@@ -295,6 +306,7 @@ export function werte(z: GoZustand): Record<string, unknown> {
       : null,
     profile: z.profile,
     profil: z.profil,
+    sprache: kernSprache(),
     ort: z.adresse?.ort ?? null,
     adresse: z.adresse?.text ?? null,
     strasse: z.adresse?.strasse ?? null,

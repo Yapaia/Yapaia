@@ -52,6 +52,8 @@ import {
   type Bauschritt,
 } from './bauzeit.js';
 import { leseErfahrung, merkeDauer } from './bauzeitSpeicher.js';
+import { tx } from '../../i18n.js';
+import { T } from './texte.js';
 
 /**
  * Der Ablauf für eine Menge installierter Karten.
@@ -199,26 +201,28 @@ export function fertigText(plan: readonly Bauschritt[], regionen: readonly strin
   const suche = plan.filter((s) => s.bauart === 'suche').map((s) => s.region);
   const karten = plan.filter((s) => s.bauart === 'kacheln').map((s) => s.region);
   const teile: string[] = [];
-  if (karten.length > 0) teile.push(karten.length === 1 ? `Karte ${karten[0]}` : `${karten.length} Karten`);
+  if (karten.length > 0) teile.push(karten.length === 1 ? tx(T, 'teilKarte', { region: karten[0] }) : tx(T, 'teilKarten', { n: karten.length }));
   if (routing) {
-    teile.push(regionen.length === 1 ? 'Routing' : `Routing über ${regionen.length} Karten`);
+    teile.push(regionen.length === 1 ? tx(T, 'teilRouting') : tx(T, 'teilRoutingN', { n: regionen.length }));
   }
-  if (suche.length === regionen.length && suche.length > 1) teile.push(`Suche für ${suche.length} Karten`);
-  else if (suche.length > 0) teile.push(`Suche für ${suche.join(', ')}`);
+  if (suche.length === regionen.length && suche.length > 1) teile.push(tx(T, 'teilSucheN', { n: suche.length }));
+  else if (suche.length > 0) teile.push(tx(T, 'teilSuche', { liste: suche.join(', ') }));
   const text =
-    teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile[teile.length - 1]}` : (teile[0] ?? '');
-  return `Gebaut: ${text}.`;
+    teile.length > 1
+      ? tx(T, 'und', { liste: teile.slice(0, -1).join(', '), letztes: teile[teile.length - 1] })
+      : (teile[0] ?? '');
+  return tx(T, 'gebaut', { text });
 }
 
 /** Was in der Oberfläche über einem Schritt steht. */
 export function schrittText(schritt: Bauschritt, regionen: readonly string[]): string {
   if (schritt.bauart === 'routing') {
     return regionen.length === 1
-      ? `Routing bauen (${regionen[0]})`
-      : `Routing bauen (${regionen.length} Karten)`;
+      ? tx(T, 'schrittRouting', { region: regionen[0] })
+      : tx(T, 'schrittRoutingN', { n: regionen.length });
   }
-  if (schritt.bauart === 'kacheln') return `Karte bauen (${schritt.region})`;
-  return `Suche bauen (${schritt.region})`;
+  if (schritt.bauart === 'kacheln') return tx(T, 'schrittKarte', { region: schritt.region });
+  return tx(T, 'schrittSuche', { region: schritt.region });
 }
 
 function variante(schritt: Bauschritt): BuildVariant {
@@ -281,13 +285,12 @@ export function starteGesamtbau(eingabe: GesamtbauEingabe): void {
     jobs.markError(jobId, {
       code: 'NO_REGIONS',
       message:
-        'Es ist keine Karte installiert. Es gibt also nichts zu bauen — ' +
-        'installiere zuerst eine Karte.',
+        tx(T, 'keineKarte'),
     });
     return;
   }
   if (plan.length === 0) {
-    jobs.setNote(jobId, 'Alles aktuell — es gab nichts zu bauen.');
+    jobs.setNote(jobId, tx(T, 'allesAktuell'));
     jobs.markDone(jobId);
     return;
   }
@@ -337,7 +340,7 @@ export function starteGesamtbau(eingabe: GesamtbauEingabe): void {
       // Handablage stirbt, wäre für den Rest wertlos.
       jobs.setNote(
         jobId,
-        `Übersprungen: für „${schritt.region}" ist keine OpenStreetMap-Quelle hinterlegt.`,
+        tx(T, 'uebersprungen', { region: schritt.region }),
       );
       erledigt += 1;
       schrittStartMs = jetzt();
@@ -370,8 +373,12 @@ export function starteGesamtbau(eingabe: GesamtbauEingabe): void {
           jobs.markError(jobId, {
             ...ergebnis.info,
             message:
-              `Schritt ${erledigt + 1} von ${plan.length} (${schrittText(schritt, regionen)}) ` +
-              `ist fehlgeschlagen. ${ergebnis.info.message}`,
+              tx(T, 'schrittFehler', {
+              n: erledigt + 1,
+              m: plan.length,
+              text: schrittText(schritt, regionen),
+              meldung: ergebnis.info.message,
+            }),
           });
           return;
         }
@@ -382,8 +389,7 @@ export function starteGesamtbau(eingabe: GesamtbauEingabe): void {
           const fehlt = fehltImGraph();
           if (fehlt.length > 0) {
             warnung =
-              ` ACHTUNG: im Routing fehlt ${fehlt.join(', ')} — der OSM-Extrakt war nicht zu laden. ` +
-              'Dorthin lässt sich nicht routen. Erneut „Bauen" versuchen; das Add-on-Protokoll nennt den Grund.';
+              tx(T, 'achtungRouting', { fehlt: fehlt.join(', ') });
           }
         }
         const gedauert = (jetzt() - begonnen) / 1000;

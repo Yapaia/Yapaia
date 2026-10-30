@@ -22,6 +22,8 @@
 
 import type { HaConnection } from './config.js';
 import { defaultHaFetch, type HaFetchLike } from './client.js';
+import { kernSprache, tx } from '../i18n.js';
+import { T } from './texte.js';
 
 /** Die Entität und die Aktion der Yapaia-Beat-Integration. */
 export const BEAT_ENTITAET = 'media_player.yapaia_beat';
@@ -89,7 +91,7 @@ export class BeatAnsage implements AnsageZiel {
    * es nicht geht. Gemeldet: die Antwort kam aus dem Browser statt aus dem
    * Radio -- und von außen war nicht zu sehen, weshalb Beat nicht übernahm.
    */
-  async pruefe(text = 'Das ist eine Testansage von Yapaia.'): Promise<Pruefergebnis> {
+  async pruefe(text = tx(T, 'testAnsage')): Promise<Pruefergebnis> {
     return this.versuche(text, 'hinweis', true);
   }
 
@@ -97,24 +99,24 @@ export class BeatAnsage implements AnsageZiel {
     try {
       const t = text.trim();
       const v = this.deps.verbindung();
-      if (!t) return { ok: false, grund: 'Kein Text.' };
-      if (!v) return { ok: false, grund: 'Keine Verbindung zu Home Assistant.' };
-      if (!this.deps.eingeschaltet()) return { ok: false, grund: 'Ansagen ins Radio sind ausgeschaltet.' };
+      if (!t) return { ok: false, grund: tx(T, 'keinText') };
+      if (!v) return { ok: false, grund: tx(T, 'keineVerbindung') };
+      if (!this.deps.eingeschaltet()) return { ok: false, grund: tx(T, 'radioAus') };
       const partner = this.deps.partner?.() ?? null;
       if (partner && !partner.some((p) => p.faehigkeiten?.includes(FAEHIGKEIT))) {
-        return { ok: false, grund: 'Kein Yapaia-Modul meldet die Fähigkeit „ansage.einmischen“ – Yapaia Beat ist nicht eingerichtet.' };
+        return { ok: false, grund: tx(T, 'keinBeatModul') };
       }
       // Erst nachsehen, dann rufen: ohne Beat oder mit ausgeschaltetem Radio
       // wäre jeder Aufruf ein Fehler im Protokoll von Home Assistant.
       const zustand = (await this.deps.leseZustaende(v, [BEAT_ENTITAET])).get(BEAT_ENTITAET);
       if (!zustand) {
-        return { ok: false, grund: 'Yapaia Beat ist in Home Assistant nicht eingerichtet (media_player.yapaia_beat fehlt).' };
+        return { ok: false, grund: tx(T, 'beatFehlt') };
       }
-      if (!LAEUFT.has(zustand)) return { ok: false, grund: 'Yapaia Beat spielt gerade nicht.' };
+      if (!LAEUFT.has(zustand)) return { ok: false, grund: tx(T, 'beatSpieltNicht') };
       if (genau && this.deps.aktionVorhanden && (await this.deps.aktionVorhanden(v)) === false) {
         return {
           ok: false,
-          grund: 'Die Aktion yapaia.beat_ansage fehlt: Yapaia Beat auf 1.14 oder neuer aktualisieren und Home Assistant neu starten.',
+          grund: tx(T, 'aktionFehlt'),
         };
       }
       const { engine, language } = this.deps.stimme();
@@ -128,22 +130,24 @@ export class BeatAnsage implements AnsageZiel {
         // Die Dauer hilft, eine späte Ansage einzuordnen: Erzeugen der Sprache
         // in Home Assistant oder Vorrat im Browser.
         const dauer =
-          typeof r.ttsS === 'number' ? ` Die Sprache zu erzeugen dauerte ${r.ttsS.toFixed(1).replace('.', ',')} s.` : '';
-        return { ok: true, grund: `Yapaia Beat hat die Ansage ins Radio gemischt.${dauer}` };
+          typeof r.ttsS === 'number'
+            ? tx(T, 'ttsDauer', { s: r.ttsS.toFixed(1).replace('.', kernSprache() === 'de' ? ',' : '.') })
+            : '';
+        return { ok: true, grund: tx(T, 'beatGemischt', { dauer }) };
       }
-      if (r.fehler) return { ok: false, grund: `Yapaia Beat: ${r.fehler}` };
+      if (r.fehler) return { ok: false, grund: tx(T, 'beatFehler', { fehler: r.fehler }) };
       if (r.status === 400) {
-        return { ok: false, grund: 'Home Assistant kennt die Aktion yapaia.beat_ansage nicht: Home Assistant neu starten.' };
+        return { ok: false, grund: tx(T, 'aktionUnbekannt') };
       }
       return {
         ok: false,
         grund:
-          'Yapaia Beat konnte die Ansage nicht sprechen' +
-          (r.status ? ` (HTTP ${r.status})` : '') +
-          '. Häufigster Grund: in Home Assistant ist keine Sprachausgabe (TTS) eingerichtet. Details stehen im Protokoll von Home Assistant.',
+          tx(T, 'beatNichtGesprochen') +
+          (r.status ? tx(T, 'beatNichtGesprochenHttp', { status: r.status }) : '') +
+          tx(T, 'beatNichtGesprochenEnde'),
       };
     } catch {
-      return { ok: false, grund: 'Home Assistant hat nicht geantwortet.' };
+      return { ok: false, grund: tx(T, 'haKeineAntwort') };
     }
   }
 }

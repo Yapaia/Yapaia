@@ -8,6 +8,7 @@
  * policy: a descriptive `User-Agent` header and a hard max-1-req/s rate
  * limit via the injectable {@link RateLimiter}. Hard 3s timeout per request.
  */
+import { kernSprache } from '../i18n.js';
 import type { SearchResult } from '@yapaia/shared';
 import { GeocoderBackendError } from './errors.js';
 import { defaultFetch, type FetchLike, type HttpResponseLike } from './httpTypes.js';
@@ -46,7 +47,7 @@ export class NominatimBackend implements GeocoderBackend {
   readonly source = 'nominatim' as const;
   private readonly baseUrl: string;
   private readonly userAgent: string;
-  private readonly lang: string;
+  private readonly lang: string | undefined;
   private readonly timeoutMs: number;
   private readonly fetchImpl: FetchLike;
   private readonly logger: SearchLogger;
@@ -55,7 +56,7 @@ export class NominatimBackend implements GeocoderBackend {
   constructor(opts: NominatimBackendOptions = {}) {
     this.baseUrl = (opts.baseUrl ?? DEFAULT_NOMINATIM_URL).replace(/\/+$/, '');
     this.userAgent = opts.userAgent ?? DEFAULT_NOMINATIM_USER_AGENT;
-    this.lang = opts.lang ?? 'de';
+    this.lang = opts.lang;
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_BACKEND_TIMEOUT_MS;
     this.fetchImpl = opts.fetchImpl ?? defaultFetch;
     this.logger = opts.logger ?? noopLogger;
@@ -67,7 +68,7 @@ export class NominatimBackend implements GeocoderBackend {
       q: query.q,
       format: 'jsonv2',
       limit: String(query.limit),
-      'accept-language': query.lang ?? this.lang,
+      'accept-language': query.lang ?? this.lang ?? kernSprache(),
     });
     const json = await this.request(`${this.baseUrl}/search?${params.toString()}`);
     return mapNominatimResponse(Array.isArray(json) ? json : []);
@@ -78,7 +79,7 @@ export class NominatimBackend implements GeocoderBackend {
       lat: String(query.lat),
       lon: String(query.lon),
       format: 'jsonv2',
-      'accept-language': query.lang ?? this.lang,
+      'accept-language': query.lang ?? this.lang ?? kernSprache(),
     });
     const json = await this.request(`${this.baseUrl}/reverse?${params.toString()}`);
     const items = Array.isArray(json) ? json : json !== null && json !== undefined ? [json] : [];

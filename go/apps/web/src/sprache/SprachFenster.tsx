@@ -17,13 +17,8 @@ import { useSchmal } from '../shell/useSchmal.js';
 import { gebiet, useSprache, useT } from '../i18n/index.js';
 import { T } from './texte.js';
 
-const BEISPIELE = [
-  'Fahre mich nach Magdeburg',
-  'Wo ist die nächste Tankstelle?',
-  'Lies die Verkehrsmeldungen vor',
-  'Wann sind wir da?',
-  'Stoppe die Navigation',
-];
+/** Beispielbefehle (Schlüssel in texte.ts), je Sprache der Oberfläche. */
+const BEISPIELE = ['beispiel_1', 'beispiel_2', 'beispiel_3', 'beispiel_4', 'beispiel_5'] as const;
 
 function km(m: number | null | undefined, sprache: string): string {
   if (typeof m !== 'number') return '';
@@ -136,7 +131,7 @@ export default function SprachFenster(): React.ReactElement | null {
           <div className="space-y-2 text-slate-500 dark:text-slate-400">
             <p>{t('beispiel_einleitung')}</p>
             <ul className="flex flex-wrap gap-1">
-              {BEISPIELE.map((b) => (
+              {BEISPIELE.map((k) => t(k)).map((b) => (
                 <li key={b}>
                   <button
                     type="button"
@@ -169,7 +164,7 @@ export default function SprachFenster(): React.ReactElement | null {
               <li key={`${tr.lat},${tr.lon}`}>
                 <button
                   type="button"
-                  onClick={() => senden(`nummer ${i + 1}`)}
+                  onClick={() => senden(t('befehl_nummer', { n: i + 1 }))}
                   className="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
                 >
                   <span className="font-semibold">{i + 1}.</span>
@@ -184,7 +179,7 @@ export default function SprachFenster(): React.ReactElement | null {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => senden('ja')}
+              onClick={() => senden(t('befehl_ja'))}
               className="flex-1 rounded-full bg-blue-600 px-4 py-2 font-semibold text-white"
               data-testid="sprach-ja"
             >
@@ -192,7 +187,7 @@ export default function SprachFenster(): React.ReactElement | null {
             </button>
             <button
               type="button"
-              onClick={() => senden('nein')}
+              onClick={() => senden(t('befehl_nein'))}
               className="flex-1 rounded-full border border-slate-300 px-4 py-2 dark:border-slate-600"
               data-testid="sprach-nein"
             >

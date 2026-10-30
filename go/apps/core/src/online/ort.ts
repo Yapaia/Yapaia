@@ -31,6 +31,9 @@
  * Jede Quelle darf ausfallen; die Antwort enthält dann einfach weniger.
  */
 
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
+
 export interface OrtAnfrage {
   lat: number;
   lon: number;
@@ -82,19 +85,19 @@ const MAX_BILD_BYTES = 400_000;
 
 /** Bekannte OSM-Merkmale, die für ein Wohnmobil zählen -- Schlüssel → Klartext. */
 const MERKMALE: ReadonlyArray<[string, (v: string) => string | null]> = [
-  ['motorhome', (v) => (v === 'yes' ? 'Wohnmobile erlaubt' : v === 'no' ? 'Keine Wohnmobile' : null)],
-  ['caravans', (v) => (v === 'yes' ? 'Wohnwagen erlaubt' : null)],
-  ['capacity', (v) => `${v} Stellplätze`],
-  ['maxstay', (v) => `Höchstdauer: ${v}`],
-  ['power_supply', (v) => (v === 'yes' ? 'Strom' : null)],
-  ['drinking_water', (v) => (v === 'yes' ? 'Trinkwasser' : null)],
-  ['water_point', (v) => (v === 'yes' ? 'Frischwasser' : null)],
-  ['sanitary_dump_station', (v) => (v === 'yes' ? 'Entsorgung' : null)],
-  ['toilets', (v) => (v === 'yes' ? 'Toiletten' : null)],
-  ['shower', (v) => (v === 'yes' ? 'Duschen' : null)],
-  ['internet_access', (v) => (v === 'wlan' || v === 'yes' ? 'WLAN' : null)],
-  ['dog', (v) => (v === 'yes' ? 'Hunde erlaubt' : v === 'no' ? 'Keine Hunde' : null)],
-  ['wheelchair', (v) => (v === 'yes' ? 'Rollstuhlgerecht' : null)],
+  ['motorhome', (v) => (v === 'yes' ? tx(T, 'motorhomeYes') : v === 'no' ? tx(T, 'motorhomeNo') : null)],
+  ['caravans', (v) => (v === 'yes' ? tx(T, 'caravansYes') : null)],
+  ['capacity', (v) => tx(T, 'capacity', { v })],
+  ['maxstay', (v) => tx(T, 'maxstay', { v })],
+  ['power_supply', (v) => (v === 'yes' ? tx(T, 'power') : null)],
+  ['drinking_water', (v) => (v === 'yes' ? tx(T, 'drinkingWater') : null)],
+  ['water_point', (v) => (v === 'yes' ? tx(T, 'waterPoint') : null)],
+  ['sanitary_dump_station', (v) => (v === 'yes' ? tx(T, 'dump') : null)],
+  ['toilets', (v) => (v === 'yes' ? tx(T, 'toilets') : null)],
+  ['shower', (v) => (v === 'yes' ? tx(T, 'shower') : null)],
+  ['internet_access', (v) => (v === 'wlan' || v === 'yes' ? tx(T, 'wifi') : null)],
+  ['dog', (v) => (v === 'yes' ? tx(T, 'dogYes') : v === 'no' ? tx(T, 'dogNo') : null)],
+  ['wheelchair', (v) => (v === 'yes' ? tx(T, 'wheelchair') : null)],
 ];
 
 /** Ein Aufruf mit Zeitgrenze, der nie wirft. */

@@ -23,6 +23,7 @@ import subprocess
 from dataclasses import dataclass, field
 
 from .config import Kanal, Options
+from .texte import Meldung
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ def zuordnen(opts: Options, gefunden: list[Geraet]) -> tuple[dict[int, Quelle], 
     3. Mehrere Aufnahmegeräte: Kanal 1 → erstes Gerät, Kanal 2 → zweites …
     4. Ein Gerät: Kanal 1 → Eingang 0, Kanal 2 → Eingang 1 …
     """
-    hinweise: list[str] = []
+    hinweise: list[str] = []  # Meldung (str mit Übersetzung)
     raus: dict[int, Quelle] = {}
     if opts.testbild:
         for i, k in enumerate(opts.kanaele):
@@ -138,7 +139,7 @@ def zuordnen(opts: Options, gefunden: list[Geraet]) -> tuple[dict[int, Quelle], 
     if not offen:
         return raus, hinweise
     if not kandidaten:
-        hinweise.append("Kein Video-Grabber gefunden – ist er an Home Assistant durchgereicht?")
+        hinweise.append(Meldung("kein_grabber"))
         return raus, hinweise
 
     if len(kandidaten) > 1:
@@ -146,7 +147,7 @@ def zuordnen(opts: Options, gefunden: list[Geraet]) -> tuple[dict[int, Quelle], 
             if i < len(kandidaten):
                 raus[k.nummer] = Quelle(kandidaten[i].pfad, k.eingang or 0)
             else:
-                hinweise.append(f"{k.name}: kein freies Aufnahmegerät mehr (nur {len(kandidaten)} gefunden)")
+                hinweise.append(Meldung("kein_freies_geraet", name=k.name, anzahl=len(kandidaten)))
         return raus, hinweise
 
     g = kandidaten[0]
@@ -154,9 +155,7 @@ def zuordnen(opts: Options, gefunden: list[Geraet]) -> tuple[dict[int, Quelle], 
     for i, k in enumerate(offen):
         eingang = k.eingang if k.eingang is not None else i
         if g.pfad in nach_pfad and eingang >= anzahl:
-            hinweise.append(
-                f"{k.name}: Eingang {eingang + 1} gibt es an {g.beschreibung} nicht (nur {anzahl})"
-            )
+            hinweise.append(Meldung("eingang_fehlt", name=k.name, eingang=eingang + 1, geraet=g.beschreibung, anzahl=anzahl))
             continue
         raus[k.nummer] = Quelle(g.pfad, eingang)
     return raus, hinweise

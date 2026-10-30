@@ -8,6 +8,8 @@
 
 import type { LatLng } from '@yapaia/shared';
 import { RoutingError } from './errors.js';
+import { tx } from '../i18n.js';
+import { T } from './texte.js';
 
 /** Represents a region with geographical bounds. */
 export interface BoundedRegion {
@@ -97,7 +99,7 @@ export async function checkCoverage(
       const catalogRegions = await provider.getCatalogRegions();
       const hintRegion = findHintRegion(point, catalogRegions);
 
-      const message = `${role} liegt außerhalb der installierten Kartenabdeckung.`;
+      const message = tx(T, 'ausserhalb', { role });
       const details: Record<string, unknown> = {
         point: { lat: point.lat, lon: point.lon },
         role,
@@ -107,7 +109,7 @@ export async function checkCoverage(
       // Attach missing_region_hint as a property (will be included in error response)
       (error as RoutingError & { missing_region_hint?: string }).missing_region_hint = hintRegion
         ? `${hintRegion.name} (${hintRegion.id})`
-        : 'keine passende Region im Katalog gefunden.';
+        : tx(T, 'keineRegion');
       (error as RoutingError & { details?: Record<string, unknown> }).details = details;
       throw error;
     }

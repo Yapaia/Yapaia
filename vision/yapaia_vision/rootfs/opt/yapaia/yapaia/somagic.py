@@ -37,6 +37,7 @@ from pathlib import Path
 
 from .config import DATA_DIR
 from .quellen import Geraet
+from .texte import Meldung
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ def konfigurieren(kennung: str) -> str | None:
     try:
         u = ctypes.CDLL("libusb-1.0.so.0")
     except OSError as err:
-        return f"libusb fehlt: {err}"
+        return Meldung("libusb_fehlt", grund=str(err))
     u.libusb_open_device_with_vid_pid.restype = ctypes.c_void_p
     u.libusb_open_device_with_vid_pid.argtypes = [ctypes.c_void_p, ctypes.c_uint16, ctypes.c_uint16]
     u.libusb_reset_device.argtypes = [ctypes.c_void_p]
@@ -110,16 +111,16 @@ def konfigurieren(kennung: str) -> str | None:
     u.libusb_error_name.restype = ctypes.c_char_p
     ctx = ctypes.c_void_p()
     if u.libusb_init(ctypes.byref(ctx)) != 0:
-        return "libusb startet nicht"
+        return Meldung("libusb_start")
     try:
         h = u.libusb_open_device_with_vid_pid(ctx, int(HERSTELLER, 16), int(kennung, 16))
         if not h:
-            return "Stick lässt sich nicht öffnen"
+            return Meldung("stick_oeffnen")
         try:
             u.libusb_reset_device(h)
             r = u.libusb_set_configuration(h, 1)
             if r != 0:
-                return f"USB-Konfiguration scheitert: {u.libusb_error_name(r).decode()}"
+                return Meldung("usb_konfiguration", grund=u.libusb_error_name(r).decode())
             _LOGGER.info("USB-Konfiguration nachträglich gesetzt (Reset)")
             return None
         finally:
@@ -152,11 +153,11 @@ def extrahieren(datei: Path, ziel: Path = FIRMWARE) -> tuple[bool, str]:
         ok, text = _ausfuehren(["7z", "x", "-y", f"-o{tmp}", str(datei)], timeout=120)
         if not ok:
             shutil.rmtree(tmp, ignore_errors=True)
-            return False, f"{datei.name} lässt sich nicht auspacken: {text.splitlines()[-1] if text else '?'}"
+            return False, Meldung("nicht_auspacken", datei=datei.name, grund=text.splitlines()[-1] if text else "?")
         kandidaten = _treiberdateien(tmp)
         if not kandidaten:
             shutil.rmtree(tmp, ignore_errors=True)
-            return False, f"In {datei.name} steckt kein SmiUsbGrabber-Treiber"
+            return False, Meldung("kein_treiber", datei=datei.name)
     try:
         letzter = ""
         for k in kandidaten:
@@ -164,9 +165,9 @@ def extrahieren(datei: Path, ziel: Path = FIRMWARE) -> tuple[bool, str]:
             ok, letzter = _ausfuehren(["somagic-extract-firmware", "-f", str(ziel), str(k)])
             if ok and ziel.is_file():
                 _LOGGER.info("Firmware aus %s gewonnen", k.name)
-                return True, f"Firmware aus {k.name} übernommen"
+                return True, Meldung("firmware_uebernommen", datei=k.name)
         ziel.unlink(missing_ok=True)
-        return False, f"Keine gültige Firmware gefunden ({letzter.splitlines()[-1] if letzter else '?'})"
+        return False, Meldung("keine_firmware", grund=letzter.splitlines()[-1] if letzter else "?")
     finally:
         if tmp is not None:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -182,11 +183,7 @@ def firmware_suchen() -> tuple[bool, str | None]:
             if ok:
                 return True, text
             _LOGGER.warning("%s", text)
-    return False, (
-        "Der EasyCAP braucht die Firmware aus seinem Windows-Treiber: SmiUsbGrabber3F.sys oder "
-        "SmiUsbGrabber3E.sys (auf der CD zum Stick, auch Setup.exe geht) auf der Seite von "
-        "Yapaia Vision hochladen oder nach /share/yapaia-vision/ legen."
-    )
+    return False, Meldung("firmware_noetig")
 
 
 async def vorbereiten() -> tuple[Geraet | None, list[str]]:
@@ -201,13 +198,13 @@ async def vorbereiten() -> tuple[Geraet | None, list[str]]:
 
     vorhanden, text = await asyncio.to_thread(firmware_suchen)
     if not vorhanden:
-        return None, [text or "Firmware fehlt"]
+        return None, [text or Meldung("firmware_fehlt")]
     fehler = await asyncio.to_thread(konfigurieren, kennung)
     if fehler:
         return None, [fehler]
     ok, ausgabe = await asyncio.to_thread(_ausfuehren, ["somagic-init", "-f", str(FIRMWARE)])
     if not ok:
-        return None, [f"Firmware ließ sich nicht laden: {ausgabe.splitlines()[-1] if ausgabe else '?'}"]
+        return None, [Meldung("firmware_laden", grund=ausgabe.splitlines()[-1] if ausgabe else "?")]
     # Der Stick meldet sich mit neuer Kennung neu an.
     for _ in range(30):
         await asyncio.sleep(0.5)
@@ -215,11 +212,7 @@ async def vorbereiten() -> tuple[Geraet | None, list[str]]:
         if neu and neu != OHNE_FIRMWARE:
             _LOGGER.info("Firmware geladen, Stick jetzt %s:%s", HERSTELLER, neu)
             return geraet(neu), []
-    return None, [
-        "Firmware geladen, aber der Stick hat sich nicht neu gemeldet. Unter Proxmox: den Stick "
-        "nach USB-Anschluss durchreichen oder zusätzlich die neue Kennung 1c88:003c (bzw. 003e/003f) "
-        "an die VM geben -- mit der Firmware meldet er sich unter ihr neu an."
-    ]
+    return None, [Meldung("stick_meldet_sich_nicht")]
 
 
 def capture_befehl(norm: str, eingang: int) -> list[str]:
