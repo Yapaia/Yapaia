@@ -1,2 +1,5 @@
 # ESPHome-Geheimnisse nie einchecken
 devices/esphome/**/secrets.yaml
+
+# Python-Pakete (z. B. heruntergeladen für Vorschau-Skripte)
+*.whl
