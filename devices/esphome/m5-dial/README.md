@@ -85,6 +85,12 @@ Waage nur kurz nach dem Umschalten).
 | „Nichts kommt an" auf der Navi-Ansicht | Gerät ist in Home Assistant nicht eingebunden |
 | Eine Ansicht zeigt nur „--" | Entitätsname oben in den `substitutions:` prüfen |
 
+## Sprache
+
+Alle Anzeigetexte gibt es auf Deutsch und Englisch; die Sprache kommt von
+Home Assistant über `${entity_praefix}_sprache` (`en` = Englisch, sonst oder
+ohne Wert Deutsch). Die Vorschau zeigt die Sprache mit `--sprache en|de`.
+
 ## Vorschau ohne Gerät
 
 `vorschau/vorschau.py` holt die Zeichenroutine aus der YAML, übersetzt sie mit

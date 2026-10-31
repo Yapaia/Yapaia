@@ -609,6 +609,14 @@ sensor:
   - { platform: homeassistant, id: reifen_hr_t, entity_id: "${reifen_hr_temp}" }
 
 text_sensor:
+  # Sprache von Home Assistant (de/en); ohne Wert bleibt die Anzeige deutsch.
+  # Englische Anzeigetexte nur in ASCII.
+  - platform: homeassistant
+    id: yapaia_sprache
+    entity_id: ${entity_praefix}_sprache
+    on_value:
+      then:
+        - component.update: anzeige
   - platform: homeassistant
     id: yapaia_anweisung
     entity_id: ${entity_praefix}_anweisung
@@ -766,6 +774,9 @@ display:
       const int r = std::min(B, H) / 2 - 8;
       const uint32_t jetzt = millis();
       const float GRAD = 3.14159265f / 180.0f;
+      // Anzeigetext nach Sprache: deutsch oder englisch (Sprache aus `yapaia_sprache`).
+      const bool en = id(yapaia_sprache).state == "en";
+      auto T = [en](const char *de, const char *eng) { return en ? eng : de; };
 
       auto halbbreite = [&](int y) -> int {
         const int dy = y - cy;
@@ -841,22 +852,22 @@ display:
             (hat_text(id(yapaia_anweisung))      ? 1 : 0);
         if (diag_da == 0) {
           titel("Navi");
-          it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER, "Nichts kommt an");
-          it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER, "ESPHome in HA einbinden");
+          it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER, T("Nichts kommt an","Nothing arriving"));
+          it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER, T("ESPHome in HA einbinden","Add ESPHome in HA"));
           return;
         }
 
         if (!navigiert) {
-          const char *text = "Keine Route";
-          if (zustand == "routing")   text = "Route wird berechnet";
-          if (zustand == "paused")    text = "Pausiert";
-          if (zustand == "arrived")   text = "Angekommen";
-          if (zustand == "off_route") text = "Abseits der Route";
+          const char *text = T("Keine Route","No route");
+          if (zustand == "routing")   text = T("Route wird berechnet","Calculating route");
+          if (zustand == "paused")    text = T("Pausiert","Paused");
+          if (zustand == "arrived")   text = T("Angekommen","Arrived");
+          if (zustand == "off_route") text = T("Abseits der Route","Off route");
           if (zustand.empty() || zustand == "unavailable" || zustand == "unknown") {
             it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER,
-                     "Kein Wert aus Home Assistant");
+                     T("Kein Wert aus Home Assistant","No value from Home Assistant"));
             it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER,
-                     "Entität prüfen: Filter \"yapa\"");
+                     T("Entität prüfen: Filter \"yapa\"","Check entity: filter \"yapa\""));
             return;
           }
           if (hat(id(yapaia_tempo))) {
@@ -1077,7 +1088,7 @@ display:
           if (id(eta_als_restzeit).state) {
             const int32_t rest_s = (int32_t) (t.timestamp - id(ha_zeit).now().timestamp);
             if (rest_s < 30) {
-              it.print(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT, "gleich");
+              it.print(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT, T("gleich","now"));
             } else {
               const int min = (rest_s + 30) / 60;
               if (min < 60) {
@@ -1104,10 +1115,10 @@ display:
       auto zeichne_waage = [&]() {
         const float rr = r - 4;
         if (!(hat(id(neigung_lr)) && hat(id(neigung_vh)))) {
-          titel("Waage");
+          titel(T("Waage", "Level"));
           it.circle(cx, cy, (int) rr, id(c_gedaempft));
-          it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER, "Keine Neigungswerte");
-          it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER, "Sensoren prüfen");
+          it.print(cx, cy - 10, id(font_s), id(c_warnung), TextAlign::CENTER, T("Keine Neigungswerte","No tilt values"));
+          it.print(cx, cy + 10, id(font_s), id(c_gedaempft), TextAlign::CENTER, T("Sensoren prüfen","Check sensors"));
           return;
         }
         const float lr = id(neigung_lr).state * (float) (${neigung_lr_vorzeichen});
@@ -1171,7 +1182,7 @@ display:
           it.printf(cx, cy + 58, id(font_s), id(c_text), TextAlign::CENTER,
                     "L/R %+d mm  %+.1f°", (int) (mm_lr + (mm_lr >= 0 ? 0.5f : -0.5f)), lr);
           if (steht_gerade) {
-            it.print(cx, cy + 84, id(font_s), id(c_gut), TextAlign::CENTER, "steht gerade");
+            it.print(cx, cy + 84, id(font_s), id(c_gut), TextAlign::CENTER, T("steht gerade","level"));
           }
           return;
         }
@@ -1195,7 +1206,7 @@ display:
                   "V/H %+.1f°", vh);
         if (steht_gerade) {
           it.print(cx, cy - (int) (rr * 0.62f), id(font_s), id(c_gut), TextAlign::CENTER,
-                   "steht gerade");
+                   T("steht gerade","level"));
         }
       };
 
@@ -1225,13 +1236,13 @@ display:
         const bool gedreht = noch(id(licht_soll_bis)) && id(licht_soll) >= 0;
         if (gedreht) pct = id(licht_soll);
 
-        titel("Licht");
+        titel(T("Licht", "Light"));
         skala(pct > 0 ? pct / 100.0f : 0.0f, id(c_licht));
         it.print(cx, cy - 34, id(font_m), id(c_text), TextAlign::CENTER, NAMEN[k]);
         if (pct < 0) {
           it.print(cx, cy + 4, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
         } else if (pct == 0) {
-          it.print(cx, cy + 4, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "Aus");
+          it.print(cx, cy + 4, id(font_xl), id(c_gedaempft), TextAlign::CENTER, T("Aus","Off"));
         } else {
           it.printf(cx, cy + 4, id(font_xl), gedreht ? id(c_akzent) : id(c_licht),
                     TextAlign::CENTER, "%d %%", pct);
@@ -1248,7 +1259,7 @@ display:
           if (p > 0) it.filled_circle(x, py, 5, id(c_licht));
           else it.circle(x, py, 5, id(c_gedaempft));
         }
-        hinweis("lang: nächstes Licht");
+        hinweis(T("lang: nächstes Licht","long: next light"));
       };
 
       // ═════════════════════════════════════════════════════════════════════
@@ -1257,7 +1268,7 @@ display:
       auto zeichne_heizung = [&]() {
         const bool gedreht = noch(id(heiz_soll_bis));
         if (id(heiz_wahl) == 0) {
-          titel("Heizung Raum");
+          titel(T("Heizung Raum", "Room heating"));
           float soll = hat(id(heiz_raum_soll_wert)) ? id(heiz_raum_soll_wert).state : -1.0f;
           if (gedreht && id(raum_soll_neu) >= 0) soll = id(raum_soll_neu);
           const bool an = soll >= 5.0f;
@@ -1269,18 +1280,18 @@ display:
             it.print(cx, cy - 8, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
           }
           if (soll < 0) {
-            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Soll --");
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, T("Soll --","Set --"));
           } else if (!an) {
-            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Aus");
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, T("Aus","Off"));
           } else {
             it.printf(cx, cy + 32, id(font_m), id(c_akzent), TextAlign::CENTER,
-                      "Soll %d°", (int) (soll + 0.5f));
+                      T("Soll %d°","Set %d°"), (int) (soll + 0.5f));
           }
           if (id(heiz_raum_aktiv_an).state) {
-            it.print(cx, cy - 44, id(font_s), id(c_akzent), TextAlign::CENTER, "heizt");
+            it.print(cx, cy - 44, id(font_s), id(c_akzent), TextAlign::CENTER, T("heizt","heating"));
           }
         } else {
-          titel("Heizung Wasser");
+          titel(T("Heizung Wasser", "Water heating"));
           int soll = hat(id(heiz_wasser_soll_wert)) ? (int) id(heiz_wasser_soll_wert).state : -1;
           if (gedreht && id(wasser_soll_neu) >= 0) soll = id(wasser_soll_neu);
           // Vier Stufen, vier Stuecke der Skala.
@@ -1299,17 +1310,17 @@ display:
             it.print(cx, cy - 8, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
           }
           if (soll < 0) {
-            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Soll --");
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, T("Soll --","Set --"));
           } else if (soll == 0) {
-            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, "Aus");
+            it.print(cx, cy + 32, id(font_m), id(c_gedaempft), TextAlign::CENTER, T("Aus","Off"));
           } else {
-            it.printf(cx, cy + 32, id(font_m), id(c_wasser), TextAlign::CENTER, "Soll %d°", soll);
+            it.printf(cx, cy + 32, id(font_m), id(c_wasser), TextAlign::CENTER, T("Soll %d°","Set %d°"), soll);
           }
           if (id(heiz_wasser_aktiv_an).state) {
-            it.print(cx, cy - 44, id(font_s), id(c_wasser), TextAlign::CENTER, "heizt");
+            it.print(cx, cy - 44, id(font_s), id(c_wasser), TextAlign::CENTER, T("heizt","heating"));
           }
         }
-        hinweis("lang: Raum / Wasser");
+        hinweis(T("lang: Raum / Wasser","long: room / water"));
       };
 
       // ═════════════════════════════════════════════════════════════════════
@@ -1325,7 +1336,7 @@ display:
         if (!hat(soc)) {
           skala(0, id(c_gut));
           it.print(cx, cy, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
-          hinweis("lang: andere Batterie");
+          hinweis(T("lang: andere Batterie","long: other battery"));
           return;
         }
         const float p = soc->state;
@@ -1342,13 +1353,13 @@ display:
         if (hat(rest) && hat(i) && i->state < -0.05f && rest->state > 0) {
           const int min = (int) rest->state;
           it.printf(cx, cy + 44, id(font_s), id(c_gedaempft), TextAlign::CENTER,
-                    "reicht noch %d:%02d h", min / 60, min % 60);
+                    T("reicht noch %d:%02d h","lasts %d:%02d h"), min / 60, min % 60);
         }
         if (hat(id(solar_wert))) {
           it.printf(cx, cy + 62, id(font_s), id(c_licht), TextAlign::CENTER,
                     "Solar %d W", (int) (id(solar_wert).state + 0.5f));
         }
-        hinweis("lang: andere Batterie");
+        hinweis(T("lang: andere Batterie","long: other battery"));
       };
 
       // ═════════════════════════════════════════════════════════════════════
@@ -1381,7 +1392,7 @@ display:
       // 6  REIFEN -- das Fahrzeug von oben, vorn ist oben
       // ═════════════════════════════════════════════════════════════════════
       auto zeichne_reifen = [&]() {
-        titel("Reifen  bar");
+        titel(T("Reifen  bar", "Tyres  bar"));
         const float warn = (float) (${reifen_warn_bar});
         const int fw = 54, fh = 118, ox = cx - fw / 2, oy = cy - fh / 2 + 6;
         it.rectangle(ox, oy, fw, fh, id(c_gedaempft));
@@ -1411,23 +1422,25 @@ display:
         auto t = id(ha_zeit).now();
         if (t.is_valid()) {
           it.printf(cx, cy - 20, id(font_xxl), id(c_text), TextAlign::CENTER, "%02d:%02d", t.hour, t.minute);
-          static const char *const TAGE[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
-          it.printf(cx, cy + 22, id(font_m), id(c_gedaempft), TextAlign::CENTER, "%s %d.%d.",
-                    TAGE[(t.day_of_week + 6) % 7], t.day_of_month, t.month);
+          static const char *const TAGE_DE[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+          static const char *const TAGE_EN[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+          const char *const *TAGE = en ? TAGE_EN : TAGE_DE;
+          it.printf(cx, cy + 22, id(font_m), id(c_gedaempft), TextAlign::CENTER, T("%s %d.%d.", "%s %d/%d"),
+                    TAGE[(t.day_of_week + 6) % 7], en ? t.month : t.day_of_month, en ? t.day_of_month : t.month);
         } else {
           it.print(cx, cy - 20, id(font_xxl), id(c_gedaempft), TextAlign::CENTER, "--:--");
         }
         if (hat(id(heiz_raum_ist_wert))) {
           it.printf(cx, cy + 48, id(font_s), id(c_text), TextAlign::CENTER,
-                    "innen %.1f°", id(heiz_raum_ist_wert).state);
+                    T("innen %.1f°","inside %.1f°"), id(heiz_raum_ist_wert).state);
         }
         const std::string tz = id(tuer_zustand).state;
         if (noch(id(tuer_bestaetigen_bis))) {
-          it.print(cx, cy + 70, id(font_s), id(c_akzent), TextAlign::CENTER, "nochmal lang: Tür auf");
+          it.print(cx, cy + 70, id(font_s), id(c_akzent), TextAlign::CENTER, T("nochmal lang: Tür auf","long again: open door"));
         } else if (tz == "locked") {
-          it.print(cx, cy + 70, id(font_s), id(c_gut), TextAlign::CENTER, "Tür zu");
+          it.print(cx, cy + 70, id(font_s), id(c_gut), TextAlign::CENTER, T("Tür zu","Door locked"));
         } else if (tz == "unlocked") {
-          it.print(cx, cy + 70, id(font_s), id(c_akzent), TextAlign::CENTER, "Tür offen");
+          it.print(cx, cy + 70, id(font_s), id(c_akzent), TextAlign::CENTER, T("Tür offen","Door open"));
         } else if (hat_text(id(tuer_zustand))) {
           it.print(cx, cy + 70, id(font_s), id(c_gedaempft), TextAlign::CENTER, tz.c_str());
         }
@@ -1435,7 +1448,7 @@ display:
           const float b = id(backlight).current_values.get_brightness();
           skala(b, id(c_akzent));
           it.printf(cx, cy - 62, id(font_s), id(c_akzent), TextAlign::CENTER,
-                    "Helligkeit %d %%", (int) (b * 100.0f + 0.5f));
+                    T("Helligkeit %d %%","Brightness %d %%"), (int) (b * 100.0f + 0.5f));
         }
       };
 
