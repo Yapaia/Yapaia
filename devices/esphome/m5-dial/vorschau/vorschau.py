@@ -17,7 +17,7 @@ Es ersetzt nicht den ESPHome-Build: Schriftbreiten, Kantenglaettung und
 Farben des echten Panels weichen etwas ab.
 
 Aufruf:
-    python3 vorschau.py --schriften <ordner mit Roboto-{Regular,Medium,Bold}.ttf> --ziel <ordner>
+    python3 vorschau.py --schriften <ordner mit Roboto-{Regular,Medium,Bold}.ttf> --ziel <ordner> [--sprache de|en]
 
 Braucht: g++, Python 3 mit Pillow und PyYAML.
 """
@@ -371,6 +371,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--schriften', required=True)
     ap.add_argument('--ziel', required=True)
+    ap.add_argument('--sprache', choices=['de', 'en'], default='de', help='Anzeigesprache (Standard: de)')
     args = ap.parse_args()
 
     text = open(YAML, encoding='utf-8').read()
@@ -382,7 +383,7 @@ def main():
     bau = tempfile.mkdtemp(prefix='m5dial-')
     quelle = os.path.join(bau, 'vorschau.cpp')
     with open(quelle, 'w', encoding='utf-8') as f:
-        f.write(programm(daten, rumpf, szenen()))
+        f.write(programm(daten, rumpf, [(n, a + [T('yapaia_sprache', args.sprache)]) for n, a in szenen()]))
     prog = os.path.join(bau, 'vorschau')
     r = subprocess.run(['g++', '-std=c++17', '-O1', '-Wall', '-Wno-unused-variable', '-Wno-unused-but-set-variable',
                         quelle, '-o', prog])
