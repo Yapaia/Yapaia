@@ -118,6 +118,9 @@ class YapaiaModul:
 
                         design.senden_bald(self.hass, self)
                         sprache.senden_bald(self.hass, self)
+                        self.hass.async_create_background_task(
+                            self._beschreibung_pruefen(), f"{DOMAIN}_beschreibung_{self.kennung}"
+                        )
                     self._verarbeiten(nachricht)
             except asyncio.CancelledError:
                 raise
@@ -128,6 +131,18 @@ class YapaiaModul:
                 self._melden()
             await asyncio.sleep(pause)
             pause = min(pause * 2, RECONNECT_MAX_S)
+
+    async def _beschreibung_pruefen(self) -> None:
+        """Nach jedem Verbinden: hat sich die Beschreibung geändert (z. B. Add-on-Update
+        mit neuen Entitäten)? Dann neu laden – auch wenn das Modul es nicht meldet."""
+        try:
+            neu = await self.client.beschreibung()
+        except Exception as err:  # noqa: BLE001 – beim nächsten Verbinden wieder
+            _LOGGER.debug("%s: Beschreibung nicht geholt (%s)", self.kennung, err)
+            return
+        if neu != self.beschreibung:
+            _LOGGER.info("%s: Beschreibung nach dem Verbinden anders – lade neu", self.kennung)
+            self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
 
     @callback
     def _verarbeiten(self, n: dict[str, Any]) -> None:

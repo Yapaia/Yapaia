@@ -192,3 +192,17 @@ async def test_partnerliste_ohne_sich_selbst_und_mit_satelliten(hass: HomeAssist
     assert sat_eintrag["media_player"] == "media_player.yapaia_satellite_kueche"
     assert sat_eintrag["faehigkeiten"] == ["sprache.eingabe", "sprache.ausgabe"]
     assert all(p["modul"] != "beat" for p in beat.partner[-1])
+
+
+async def test_neue_entitaet_nach_update_ohne_meldung(hass: HomeAssistant, modul_fabrik) -> None:
+    """Add-on-Update bringt eine neue Entität mit, meldet aber kein
+    `beschreibung_geaendert` (z. B. Go): nach dem erneuten Verbinden lädt die
+    Integration selbst neu."""
+    m = await modul_fabrik()
+    entry = await einrichten(hass, m)
+    assert hass.states.get("sensor.yapaia_go_sprache") is None
+    m.b = {**m.b, "entitaeten": [*m.b["entitaeten"], {"schluessel": "sprache", "plattform": "sensor",
+                                                       "name": {"de": "Sprache", "en": "Language"}}]}
+    await m.trennen()
+    await warten(lambda: hass.states.get("sensor.yapaia_go_sprache") is not None, versuche=400)
+    assert entry.runtime_data.beschreibung == m.b
