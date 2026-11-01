@@ -8,7 +8,6 @@ Im Betrieb liegen die Dateien im ESPHome Device Builder unter `/config/esphome/`
 | [`btcollector/`](btcollector/) | Bluetooth-Sammler: Batterie-BMS, Victron SmartShunt, Gasflaschen, Reifendruck |
 | [`door/`](door/) | Tür / Aufbauschloss |
 | [`heizung/`](heizung/) | Truma-Heizung (iNet Box) und Neigungssensor |
-| [`navi/`](navi/) | Navigationsanzeige, Gerätedatei in der Fassung der Fahrzeug-Installation (ohne Sprachumschaltung; für neue Geräte `yapaia-nav-display/` nehmen) |
 | [`smartwomo/`](smartwomo/) | Schaltausgänge im Wohnmobil |
 | [`swc/`](swc/) | Lenkradfernbedienung (SWC) fürs Autoradio: zwei Digitalpotis (X9C) bilden die Lenkradtasten nach; dazu ein GPS-Empfänger |
 | [`yapaia-satellite/`](yapaia-satellite/) | Gerätedatei des Sprachsatelliten; die eigentliche Firmware liegt in [`satellite/`](../../satellite/) |
