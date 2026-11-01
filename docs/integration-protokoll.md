@@ -254,7 +254,9 @@ Ereignisse kommen über die Live-Verbindung (unten). Die Integration
   Schlüsseln; danach nur Änderungen.
 - Werte sind JSON; `null` = unbekannt (HA zeigt „unbekannt“).
 - `beschreibung_geaendert` (z. B. neue Profile, Update): die Integration holt
-  die Beschreibung neu.
+  die Beschreibung neu. Zusätzlich holt sie die Beschreibung nach **jedem**
+  Verbinden und lädt neu, wenn sie sich geändert hat – ein Add-on-Update mit
+  neuen Entitäten braucht die Meldung also nicht.
 - Bricht die Verbindung ab, werden die Entitäten **nicht verfügbar**; die
   Integration verbindet sich neu (1, 2, 4 … höchstens 60 s) und bekommt
   wieder den vollständigen Zustand. Ein Modul muss dafür nichts merken.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.19.1
+
+Bringt die Integration 0.8.2 mit: Nach einem Update eines Yapaia-Add-ons
+erscheinen dessen neue Entitäten von selbst – die Integration vergleicht
+nach jedem Verbinden die Beschreibung und lädt bei Änderungen neu.
+
 ## 1.19.0
 
 **Die Beat-Oberfläche spricht die Sprache von Home Assistant** (Deutsch,
