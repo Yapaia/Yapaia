@@ -595,6 +595,16 @@ async function checkPosition(
     if (up) {
       return { ...base, status: 'ok', detail: tx(T, 'gpsdUp', { host, port }) };
     }
+    // `network`: der gpsd steht auf einem anderen Geraet. USB-Geraete und die
+    // Begruendung des Container-gpsd haben damit nichts zu tun.
+    if (env.GPS_SOURCE === 'network') {
+      return {
+        ...base,
+        status: 'warn',
+        detail: tx(T, 'gpsdDownDetail', { host, port }),
+        remedy: tx(T, 'gpsdNetRemedy'),
+      };
+    }
     // ─── WELCHE GERAETE ES UEBERHAUPT GIBT ────────────────────────────────
     // Ohne diese Liste muesste man fuer den Pfad auf die Kommandozeile --
     // und der Betreiber hat ausdruecklich gesagt, dass er alles aus der

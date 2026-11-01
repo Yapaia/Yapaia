@@ -32,6 +32,12 @@ configuration:
       at, for example "192.168.1.1" or "192.168.1.1:502". Leave empty for the factory
       default (192.168.1.1, port 502). On the router, enable the server under Services
       → Modbus → Modbus TCP Server, and GPS under Services → GPS.'
+  gpsd_host:
+    name: gpsd address
+    description: 'Only for the source "network": the address of the gpsd on your
+      network, for example "192.168.8.20" or "192.168.8.20:2947" (port 2947 if
+      omitted). That gpsd must accept connections from the network (started with
+      -G). The add-on''s own gpsd stays off with this source.'
   ha_device_tracker:
     name: Companion App device
     description: Which device supplies the position, e.g. "device_tracker.my_phone".

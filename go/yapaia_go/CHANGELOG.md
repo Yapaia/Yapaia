@@ -10,6 +10,15 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.68.1
+
+- **GPS von einem gpsd im Netz funktioniert:** Mit `gps_source: network` und
+  der neuen Option `gpsd_host` (`host` oder `host:port`, Standard-Port 2947)
+  liest Go die Position von einem gpsd auf einem anderen Gerät. Bisher fragte
+  Go dabei nur den leeren lokalen gpsd ab.
+- Die Installationsprüfung gibt bei dieser Quelle einen passenden Hinweis
+  (Adresse prüfen, gpsd mit `-G` starten).
+
 ## 0.68.0
 
 - **Sprachbefehle auch auf Englisch** („navigate to Vaduz“, „nearest fuel

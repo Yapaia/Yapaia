@@ -571,6 +571,20 @@ describe('Positionsprüfung', () => {
     expect(byId(report.checks, 'position').detail).toContain('keine echte Position');
   });
 
+  it('nennt bei "network" die gpsd-Adresse statt USB-Geräten', async () => {
+    const report = await runPreflight(
+      healthyDeps({
+        env: { ...healthyDeps().env, GPS_SOURCE: 'network', GPSD_HOST: 'gps-box', GPSD_PORT: '2947' },
+        tcpProbe: async () => false,
+      }),
+    );
+    const pos = byId(report.checks, 'position');
+    expect(pos.status).toBe('warn');
+    expect(pos.detail).toContain('gps-box:2947');
+    expect(pos.remedy).toContain('-G');
+    expect(pos.remedy).not.toContain('/dev/serial');
+  });
+
   it('benutzt den konfigurierten gpsd-Host und -Port', async () => {
     const seen: Array<[string, number]> = [];
     await runPreflight(

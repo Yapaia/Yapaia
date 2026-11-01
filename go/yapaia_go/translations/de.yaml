@@ -34,6 +34,12 @@ configuration:
       ist, zum Beispiel „192.168.1.1" oder „192.168.1.1:502". Leer lassen heißt
       Werkseinstellung (192.168.1.1, Port 502). Im Router muss unter Services → Modbus
       → Modbus TCP Server der Server eingeschaltet sein und GPS unter Services → GPS.'
+  gpsd_host:
+    name: Adresse des gpsd
+    description: 'Nur für die Quelle „network": unter welcher Adresse der gpsd im
+      Netz erreichbar ist, zum Beispiel „192.168.8.20" oder „192.168.8.20:2947"
+      (ohne Port gilt 2947). Der gpsd dort muss Verbindungen aus dem Netz annehmen
+      (Start mit -G). Der gpsd im Add-on bleibt bei dieser Quelle aus.'
   ha_device_tracker:
     name: Gerät der Companion App
     description: Welches Gerät die Position liefert, zum Beispiel „device_tracker.mein_telefon".

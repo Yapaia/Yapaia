@@ -7,7 +7,7 @@
 name: "Yapaia Go"
 description: "Offline-fähige Wohnmobil-Navigation (Karten, Routing, GPS, Home-Assistant-Integration) als HA-Add-on."
 slug: "yapaia_go"
-version: "0.68.0"
+version: "0.68.1"
 # ─── MINDESTVERSION VON HOME ASSISTANT ──────────────────────────────────────
 # Die Optionen sind in aufklappbaren Gruppen verschachtelt. Verschachtelte
 # Konfiguration gibt es in Home Assistant erst ab 2025.10 (maximal zwei Ebenen);
@@ -118,6 +118,10 @@ homeassistant_api: true
 # die GPS-Register ab Adresse 143. Andere Teltonika-Router mit GPS und RutOS
 # (RUTX50, RUTM50, RUT955 …) haben dieselbe Registerkarte.
 #
+# `gpsd_host`: nur für `network` – „host" oder „host:port" des entfernten gpsd,
+# Port-Vorgabe 2947. Der gpsd im Add-on bleibt dann aus; der gpsd dort muss
+# im Netz lauschen (gpsd -G bzw. GPSD_OPTIONS="-G").
+#
 # `companion_app` genügt für sich allein: gibt es genau einen `device_tracker`
 # mit Koordinaten, wählt Yapaia ihn selbst. Bei mehreren wird keiner geraten;
 # die Installationsprüfung listet sie, und man trägt den gewünschten in
@@ -151,6 +155,7 @@ options:
   # Installationsprüfung in Yapaia.
   gps_device: ""
   rut50_host: ""
+  gpsd_host: ""
   ha_device_tracker: ""
   search:
     photon_enabled: true
@@ -205,6 +210,7 @@ schema:
   gps_source: "list(usb|network|rut50|companion_app|none)"
   gps_device: "str?"
   rut50_host: "str?"
+  gpsd_host: "str?"
   ha_device_tracker: "str?"
   search:
     photon_enabled: "bool"
