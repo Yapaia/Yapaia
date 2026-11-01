@@ -1,10 +1,10 @@
-# Registry-Guide (E09-T7)
+# Registry-Guide
 
 Dieser Guide beschreibt das Repo-Layout der öffentlichen Add-on-Registry
 (`yapaia-addons-registry`), das `index.json`-Schema, wie der Core es lädt und
 cached, sowie die Review-Checkliste für Einreichungs-PRs. Siehe auch
-docs/05-addon-system.md §5 (Marketplace/Store) und Wargame W-11/W-13
-(docs/08-wargame.md).
+[`marktplatz.md`](marktplatz.md) (Marktplatz-Protokoll) und den
+[Add-on-Entwicklungsleitfaden](addon-dev-guide.md).
 
 ## 1. Registry-Repo-Struktur
 
@@ -34,7 +34,7 @@ der Core lädt sie unabhängig vom Rest des Repo-Layouts.
 
 Das Repo ist **statisch hostbar** (GitHub Pages, raw.githubusercontent.com,
 oder ein beliebiger Static-File-Host) — kein Server-Code nötig, funktioniert
-mit sporadischem Internet (W-13: der Core cached den Katalog lokal und bleibt
+mit sporadischem Internet (der Core cached den Katalog lokal und bleibt
 auch bei unerreichbarer Registry benutzbar, siehe §5 unten).
 
 ## 2. `index.json`-Schema
@@ -69,7 +69,7 @@ Ein JSON-**Array** von Einträgen (kein umschließendes Objekt). Jeder Eintrag:
 | `icon` | nein | `http(s)`- oder `data:`-URL |
 | `download_url` | ja | `http(s)`-URL auf den Release-Tarball |
 | `sha256` | ja | **64 Hex-Zeichen**, sha256 des exakten Tarballs unter `download_url` |
-| `scopes` | ja | Array der im Manifest deklarierten Permission-Scopes (docs/05 §2) — die "Scope-Vorschau" im Store |
+| `scopes` | ja | Array der im Manifest deklarierten Permission-Scopes ([Add-on-Entwicklungsleitfaden](addon-dev-guide.md)) — die "Scope-Vorschau" im Store |
 | `core_api` | ja | Semver-Range, identisch zum Manifest-Feld; geprüft gegen `@yapaia/core` (derzeit 0.0.x, daher `"*"`) |
 | `screenshots` | nein | Array von `http(s)`-URLs |
 | `signature` | nein (ohne: nur im Entwicklermodus installierbar) | `ysig1`-Release-Signatur, siehe §3 |
@@ -108,7 +108,7 @@ herunterladen, sha256 bilden, vergleichen) passiert ausschließlich dort
 Registry-Eintrag kann diese Prüfung **nicht umgehen**: `sha256` ist für
 einen URL-Install serverseitig ohnehin Pflicht.
 
-## 3. Das `signature`-Feld (seit Go 0.56.0 geprüft)
+## 3. Das `signature`-Feld
 
 `signature` ist eine `ysig1`-Release-Signatur des Marktplatzes (Ed25519,
 Format und Schlüssel: [`marktplatz.md`](marktplatz.md)). Der Core prüft sie
@@ -119,7 +119,7 @@ bei **jeder** Installation (`installService.ts#checkRelease`):
 - vorhandene, aber ungültige Signatur → immer abgelehnt (`SIGNATURE_INVALID`);
 - keine Signatur → nur im **Entwicklermodus** erlaubt (`SIGNATURE_REQUIRED`).
 
-Ein statisches Registry-Repo ohne Marktplatz-Schlüssel liefert also nur noch
+Ein statisches Registry-Repo ohne Marktplatz-Schlüssel liefert also nur
 im Entwicklermodus installierbare Einträge. Der Weg für veröffentlichte
 Add-ons ist der Marktplatz (`Yapaia/Addon-server`), der beim Veröffentlichen
 signiert.
@@ -127,14 +127,14 @@ signiert.
 ## 4. Einreichungs-PR-Checkliste
 
 Jede neue/aktualisierte `index.json`-Zeile geht über einen PR ins
-Registry-Repo. Review-Punkte (aus docs/05 §5 sowie den allgemeinen
-Sicherheits-Leitplanken des Add-on-Systems):
+Registry-Repo. Review-Punkte (aus den allgemeinen Sicherheits-Leitplanken des
+Add-on-Systems):
 
 - [ ] **Scopes minimal**: jeder angeforderte Permission-Scope ist im README
   des Add-ons begründet; kein Scope "auf Vorrat".
 - [ ] **Gefährliche Kombinationen geprüft**: `nav.control` + `net.fetch:*`
   gemeinsam wird besonders kritisch geprüft (der Store zeigt hierfür schon
-  eine Warnung beim Install, docs/05 §2 — das ersetzt keine Review).
+  eine Warnung beim Install — das ersetzt keine Review).
 - [ ] **Lizenz** vorhanden und im Manifest (`license`) sowie im Repo (z. B.
   `LICENSE`-Datei) konsistent.
 - [ ] **Kein obfuskierter Code**: Quelltext ist lesbar, kein minifiziertes/
@@ -159,7 +159,7 @@ Ein PR, der nur diese Checkliste abhakt aber keinen der Punkte tatsächlich
 verifiziert hat, wird nicht gemerged — die Checkliste ist eine
 Review-Gedächtnisstütze, kein Selbstzertifizierungsformular.
 
-## 5. Core-Konfiguration & Caching (W-13)
+## 5. Core-Konfiguration & Caching
 
 - **Registry-URL**: `ADDONS_REGISTRY_URL` (Env, höchste Priorität) →
   `…/v1/index.json` des eingetragenen Marktplatzes ([`marktplatz.md`](marktplatz.md)) →

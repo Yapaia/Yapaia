@@ -38,7 +38,7 @@ Boot oder Ferienhaus, weil es **komplett offline** funktioniert.
   USB-3-Ports, die im 2,4-GHz- und UKW-Bereich stören können).
 
 Ein Stick kann immer nur eine Sache gleichzeitig: während eines Suchlaufs oder
-einer Senderverfolgungs-Suche ist die Wiedergabe kurz unterbrochen — außer mit
+einer Senderverfolgungs-Suche ist die Wiedergabe kurz unterbrochen – außer mit
 einem zweiten Stick.
 
 ### Zweiter Stick
@@ -68,23 +68,22 @@ mindestens 10 Punkte besser empfängt. **Stick 1** und **Stick 2** spielen
 fest auf diesem Stick (die Namen stehen im Tooltip und dahinter). Der jeweils
 andere Stick sucht im Hintergrund.
 
-**DAB+ und die Verstärkungs-Automatik:** Manche Sticks (gesehen beim Nooelec
+**DAB+ und die Verstärkungs-Automatik:** Bei manchen Sticks (z. B. Nooelec
 NESDR SMArt v5) regelt die Automatik von welle-cli auf wenige dB herunter,
 dann findet DAB+ nichts. Beat erkennt das (unter 10 dB und kein Ensemble)
-und nimmt für diesen Stick ab dann eine feste Verstärkung von 37 dB. Der
+und nimmt für diesen Stick dann eine feste Verstärkung von 37 dB. Der
 Hinweis neben dem Schalter zeigt, welche Sticks das betrifft. Eine feste
 Verstärkung in der Option `rtl_gain` hat immer Vorrang.
 
 **Antennen vergleichen:** Unter dem Suchlauf steht bei zwei Sticks der Knopf
 „Antennen vergleichen“. Er misst den laufenden Sender einige Sekunden auch auf
 dem freien Stick, ohne die Wiedergabe zu unterbrechen, und zeigt beide Werte mit
-Namen des Sticks (z. B. „Nooelec NESDR SMArt v5: 72 % · Realtek RTL2838UHIDIR:
-81 % → besser: Realtek …“). Liegen beide weniger als 5 Punkte auseinander, heißt
+Namen des Sticks (z. B. „Stick A: 72 % · Stick B: 81 % → besser: Stick B“). Liegen beide weniger als 5 Punkte auseinander, heißt
 es „etwa gleich gut“. Zum Vergleich zweier Antennen: am selben Ort mehrere Sender
 (UKW und DAB+) messen, Antennen tauschen und nochmal messen. Die Gegenprobe der
 Senderverfolgung landet ebenfalls in dieser Anzeige.
 
-„DAB-Empfang optimieren" läuft weiterhin auf dem Stick, auf dem gehört wird,
+„DAB-Empfang optimieren" läuft auf dem Stick, auf dem gehört wird,
 und unterbricht die Wiedergabe.
 
 ## Installation
@@ -128,7 +127,8 @@ Die Karte wird von der Integration automatisch geladen – im Dashboard einfach
 ```yaml
 type: custom:yapaia-beat-card
 entity: media_player.yapaia_beat
-style: retro          # retro (Holz & LCD) oder modern
+design: auto          # auto (folgt dem Design von Beat) oder eine Schema-ID
+# style: retro        # alternativ feste Wahl: retro (Holz & LCD) oder modern
 max_presets: 12       # Anzahl Favoriten-Tasten, 0 = aus
 show_slide: true      # DAB+-Slideshow anzeigen
 show_output: true     # Tasten Mini-PC / dieses Gerät
@@ -201,6 +201,7 @@ tap_action:
 | `switch.yapaia_beat_auto_follow` | Automatische Senderverfolgung |
 | `switch.yapaia_beat_mute` | Stumm |
 | `switch.yapaia_beat_local_output` | Lautsprecher am Mini-PC an/aus (Browser-Stream läuft weiter) |
+| `select.yapaia_beat_design` | Design-Schema von Beat (oder „Wie gesamt“) – siehe „Design und Sprache“ |
 | `select.yapaia_beat_output` | Ausgabe: Mini-PC, nur Browser oder ein anderer Media Player (Sonos, Chromecast, Music Assistant …) |
 | `button.yapaia_beat_*` | Suchlauf FM/DAB+/beide, nächster/vorheriger Favorit, FM ±, Favorit umschalten |
 | `image.yapaia_beat_logo` / `_slideshow` | Senderlogo / DAB+-Slideshow |
@@ -265,6 +266,17 @@ Verstanden wird ohne KI, anhand der Senderliste: der Sender muss im Suchlauf
 gefunden sein. Ein bloßes „Lauter“ oder „Stopp“ gehört dem Sprachassistenten
 selbst – fürs Radio „Radio“ oder „Musik“ dazusagen. Abschalten über die
 Option `voice_commands`.
+
+## Design und Sprache
+
+Aussehen: Das Gerät **Yapaia Design** der Integration wählt ein Schema für alle
+Yapaia-Module; mit `select.yapaia_beat_design` bekommt Beat ein eigenes (oder
+„Wie gesamt“). Die Seitenleiste und die Radio-Karte übernehmen Farben und
+Schriften; bei der Karte gilt `design: auto` (Standard) oder eine Schema-ID,
+`style: retro|modern` bleibt als feste Wahl möglich.
+
+Sprache: Die Oberfläche und die Radio-Karte sind auf Deutsch und Englisch und
+folgen der Sprache von Home Assistant.
 
 ## Ausgabe wählen: Mini-PC, dieses Gerät oder andere Lautsprecher
 
@@ -446,9 +458,10 @@ sucht Yapaia Beat in dieser Reihenfolge:
 3. Wenn erlaubt: **Bandsuche** nach PI-Code bzw. Service-ID.
 
 Findet sich nichts Besseres, bleibt der Sender eingestellt und die Suche
-pausiert zwei Minuten (mit zweitem Stick, ohne Unterbrechung, eine Minute).
-Mit zweitem Stick spielt der Sender während der ganzen Suche weiter. Nach einem Ortswechsel lohnt sich ein neuer Suchlauf –
-Favoriten bleiben erhalten und werden automatisch zugeordnet.
+pausiert zwei Minuten (mit zweitem Stick eine Minute); bei weiteren
+Fehlschlägen wird die Pause länger. Mit zweitem Stick spielt der Sender
+während der ganzen Suche weiter. Nach einem Ortswechsel lohnt sich ein neuer
+Suchlauf – Favoriten bleiben erhalten und werden automatisch zugeordnet.
 
 ## Optionen
 

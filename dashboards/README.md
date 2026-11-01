@@ -12,7 +12,10 @@ einen eigenen Ordner mit
 | [Cockpit Sport](cockpit-sport/) | Navigation, Radio und Fahrdaten im Stil eines Auto-Infotainments |
 | [Rangieren](rangieren/) | Parkmanöver: Rückfahrkamera, Nivellierung, Licht Dinette, Aufbautür |
 | [Stellplatz](stellplatz/) | Stellplatz/Camping: Heizung, Licht, Tür, Batterie, Gas, Wasser, Radio |
-| [Stellplatz Stil](stellplatz-stil/) | Dasselbe als eigene Karte in drei Stilen: Retro-Camper, Outdoor-Magazin, Mix |
+| [Stellplatz Stil](stellplatz-stil/) | Dasselbe als eigene Karte in vier Ansichten: Kacheln (Retro-Camper), Magazin, Magazin mit Karten, Breitbild |
+
+Texte folgen der Sprache von Home Assistant (Deutsch/Englisch), Farben und
+Schriften dem gewählten [Design-Schema](../docs/design-schemata.md).
 
 Rangieren, Stellplatz und Teile von Cockpit Sport zeigen auch Werte der
 ESPHome-Geräte aus [`devices/esphome/`](../devices/esphome/) (Heizung, Tür,
@@ -34,7 +37,7 @@ nicht mehr nötig: Die Prüfsumme ändert sich genau dann, wenn sich die Datei
 die Ressource noch, legt das Skript sie an. Neue Karten trägt man in
 `KARTEN` in `deploy.py` ein.
 
-Mit `--dashboard <ordner>` legt das Skript zusätzlich das Dashboard aus
+Mit `--dashboard <ordner>` (mehrfach möglich) legt das Skript zusätzlich das Dashboard aus
 `<ordner>/dashboard.yaml` an bzw. überschreibt es (eingetragen in `DASHBOARDS`).
 Ohne die Option bleiben Dashboards unangetastet. Python braucht `aiohttp`
 und `pyyaml`.

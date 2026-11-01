@@ -1,249 +1,113 @@
 # GPS vom eigenen Endgerät (Telefon, iPad, Android-Autoradio)
 
-**Stand:** 2026-09-02. Vorbereitung, damit die Umsetzung zusammen mit dem
-Ergebnis des 0.1.6-Tests eingebaut werden kann.
+Telefon, iPad und Android-Autoradio haben alle einen GPS-Sensor, und Yapaia
+wird ohnehin im Browser bedient. Diese Seite erklärt, wie die Position dieser
+Geräte in die Navigation kommt und warum der naheliegende Weg oft nicht
+funktioniert.
 
-> **Inzwischen umgesetzt.** Diese Seite ist die Analyse von damals. Der unten
-> vorgeschlagene zweite Weg (B-05) ist gebaut: die Positionsquelle
-> **`gps_source: companion_app`** (bis 0.8.2 `ha_tracker`), auswählbar unter
-> **⚙ → 🩺 Installation prüfen**. Auch das Wachhalten des Bildschirms (§7)
-> gibt es inzwischen. Für die Einrichtung gilt das
-> [User Manual](manual.md#where-your-position-comes-from) (englisch) bzw.
-> [`yapaia_go/DOCS.md`](../yapaia_go/DOCS.md).
-
-Die Ausgangsfrage: Telefon, iPad und Android-Autoradio haben alle einen
-GPS-Sensor. Yapaia wird ohnehin per Browser bedient. Wie kommen diese Daten
-in die Navigation?
-
-Die kurze Antwort vorweg: **es sind zwei Wege, und der naheliegende ist
-derzeit auf diesem Gerät blockiert.** Beides steht unten mit Begründung.
+Es gibt **zwei Wege**: den Browser-Standort und die Home-Assistant-Companion-App.
+Welche Quelle Yapaia benutzt, steht unter **⚙ → 🩺 Installation prüfen**. Die
+Einrichtung aller Quellen ist im [User Manual](manual.md#where-your-position-comes-from)
+(englisch) und in [`yapaia_go/DOCS.md`](../yapaia_go/DOCS.md) beschrieben.
 
 ---
 
-## 1 Was schon gebaut ist
+## 1 Browser-Standort
 
-Die Browser-Geolocation ist eine vollwertige Positionsquelle, nicht ein
-Notbehelf:
+Yapaia liest die Position über die Standortfreigabe des Browsers
+(`navigator.geolocation`, hohe Genauigkeit) und schickt jeden Fix an den Core.
 
-* `apps/web/src/position/browserSource.ts` liest
-  `navigator.geolocation.watchPosition()` mit `enableHighAccuracy: true` und
-  schickt jeden Fix an `POST /api/v1/position/browser`.
-* `apps/core/src/position/routes.ts` prüft Schema und Plausibilität und
-  reicht ihn an den `PositionService`.
-* Die Prioritätskette ist `gpsd > browser > simulator` (ADR-007). Ohne
-  angeschlossenes USB-GPS **gewinnt der Browser automatisch** — es muss
-  nichts umgestellt werden.
-* Die Add-on-Option `gps_source` (heute `usb|network|companion_app|none`;
-  `companion_app` hieß damals `ha_tracker`) schaltet den gpsd-Dienst im
-  Container an oder aus und wählt seit 0.3.1 zusätzlich die
-  HA-Tracker-Quelle. Sie hat in **keinem** Fall Einfluss darauf, ob
-  Browser-Positionen angenommen werden — der Browser-Weg funktioniert bei
-  jedem Wert.
-* Der Onboarding-Schritt „GPS" (`GpsStep.tsx`) listet „Browser-Standort" und
-  kann ihn fest wählen.
+- Die Quellen haben diese Rangfolge: USB-/Netzwerk-GPS (`gpsd`) vor dem
+  GPS-Empfänger eines Teltonika-Routers (`rut50`) vor dem Browser vor der
+  Companion App vor dem Simulator. Ist kein GPS-Empfänger angeschlossen,
+  **gewinnt der Browser automatisch**; du musst nichts umstellen.
+- Die Add-on-Option `gps_source` (`usb`, `network`, `rut50`, `companion_app`,
+  `none`) schaltet nur die jeweilige Quelle ein. Browser-Positionen werden bei
+  **jedem** Wert angenommen.
+- Im Einrichtungsassistenten (Schritt „GPS") steht „Browser-Standort" zur
+  Auswahl.
 
-Es fehlt also **nicht** die Anbindung. Es fehlen zwei Dinge davor.
+### Voraussetzung: sicherer Kontext (HTTPS)
 
----
+Der Browser gibt den Standort nur in einem **sicheren Kontext** frei. Das ist
+eine Regel des Browsers; weder Yapaia noch das Add-on können sie umgehen. Bei
+einem Aufruf über einfaches HTTP (z. B. `http://homeassistant.local:8123/…`)
+erscheint der Hinweis „Standortzugriff nicht verfügbar (unsicherer Kontext)",
+auf iPad-Safari, Telefon und Autoradio gleichermaßen.
 
-## 2 Blocker A — der eigentliche Grund, warum es heute nicht geht
+Häufige Irrtümer:
 
-Der Browser gibt den GPS-Sensor nur in einem **secure context** frei. Das ist
-eine Regel des Browsers, keine Einstellung von Yapaia und nichts, was das
-Add-on umgehen kann.
+- **„Ingress ist doch HTTPS."** Nein. Ingress übernimmt das Protokoll von Home
+  Assistant. Wer HA über `http://…:8123` erreicht, bekommt auch Yapaia über
+  HTTP.
+- **„`.local` ist doch lokal, also sicher."** Nein. Die Ausnahme gilt nur für
+  `localhost`, `127.0.0.0/8` und `::1`, nicht für einen mDNS-Namen oder eine
+  LAN-IP.
+- **„Dann eben ein zweiter Port."** Ändert nichts; entscheidend ist das
+  Protokoll.
 
-Der Aufruf im Test lautet `http://camperassistant.local:8123/…` — also
-einfaches HTTP. Damit gilt:
-
-* `window.isSecureContext` ist `false`;
-* `browserSource.start()` bricht sofort mit `insecure-context` ab;
-* `navigator.geolocation` wird gar nicht erst aufgerufen.
-
-Auf **allen drei** Geräten gleichermaßen: iPad-Safari, Telefon, Autoradio.
-
-Drei verbreitete Irrtümer dazu, die hier ausdrücklich nicht gelten:
-
-* **„Ingress ist doch HTTPS."** Nein. Ingress erbt das Protokoll von Home
-  Assistant selbst. Wer HA über `http://…:8123` erreicht, bekommt Ingress
-  ebenfalls über HTTP. Genau dieser falsche Hinweis stand bis heute im
-  Fehlerbanner der App und ist entfernt.
-* **„`.local` ist doch lokal, also sicher."** Nein. Die Ausnahme gilt nur für
-  `localhost`, `127.0.0.0/8` und `::1` — nicht für einen mDNS-Namen und nicht
-  für eine LAN-IP. Vom iPad aus ist der Mini-PC nie `localhost`.
-* **„Dann eben ein zweiter Port."** Ändert nichts; entscheidend ist das
-  Protokoll, nicht der Port.
-
-### Was tatsächlich hilft
+### Was hilft
 
 | Weg | Aufwand | Offline-tauglich | Bewertung |
 |---|---|---|---|
-| **(a) Nabu Casa Cloud** (`https://….ui.nabu.casa`) | Abo, keine Einrichtung | ❌ braucht Internet | Zum **Ausprobieren** gut. Zum Fahren ungeeignet: eine Offline-Navigation über einen Internet-Umweg zu betreiben, hebt ihren Zweck auf. |
-| **(b) Eigenes Zertifikat für einen echten Namen** (Let's Encrypt per DNS-01, z. B. `ha.meinedomain.de` → LAN-IP) | einmalig mittel, per HA-Add-on aus der GUI machbar | ✅ nach Ausstellung; Internet nur zur Verlängerung alle 90 Tage | **Der empfohlene Weg.** Keine Zertifikatswarnung, funktioniert auf allen Geräten gleich, auch im Autoradio-Browser. |
-| **(c) Selbstsigniertes Zertifikat** | gering | ✅ vollständig | Funktioniert (nach einmaliger Bestätigung ist der Origin ein secure context), aber jedes Gerät muss die Warnung einmal wegklicken, und manche Autoradio-Browser lassen das nicht zu. Rückfallebene, nicht erste Wahl. |
-| **(d) USB-GPS am Mini-PC** | Hardware | ✅ | Umgeht die Frage vollständig — deshalb steht diese Empfehlung schon heute im Fehlerbanner. Hilft aber nicht, wenn ausdrücklich das Telefon liefern soll. |
+| **Companion App** (siehe Abschnitt 2) | App installieren | ja | Braucht kein HTTPS; empfohlen, wenn das Telefon liefern soll. |
+| **USB-GPS am Mini-PC** (`gps_source: usb`) | Hardware | ja | Umgeht die Frage vollständig und ist am genauesten. |
+| **Eigenes Zertifikat für einen echten Namen** (z. B. Let's Encrypt per DNS-01, `ha.meinedomain.de` → LAN-IP) | einmalig mittel, per HA-Add-on machbar | ja; Internet nur zur Verlängerung alle 90 Tage | Keine Zertifikatswarnung, funktioniert auf allen Geräten gleich, auch im Autoradio-Browser. |
+| **Selbstsigniertes Zertifikat** | gering | ja | Funktioniert nach einmaliger Bestätigung je Gerät; manche Autoradio-Browser lassen das nicht zu. Rückfallebene. |
+| **Nabu Casa Cloud** (`https://….ui.nabu.casa`) | Abo, keine Einrichtung | nein, braucht Internet | Zum Ausprobieren gut, zum Fahren ungeeignet. |
 
-Für (b) und (c) wird in Home Assistant `configuration.yaml` um
-`http: ssl_certificate / ssl_key` ergänzt. Das ist der einzige Punkt der
-ganzen Kette, der **nicht** aus der GUI kommt — mit dem Add-on „File editor"
-allerdings ohne SSH.
-
----
-
-## 3 Blocker B — ein Fehler in unserem eigenen Code (behoben)
-
-Selbst mit HTTPS wäre Browser-GPS unbrauchbar gewesen. Der Client fragte den
-Core alle 5 Sekunden, ob er senden darf, und wertete dabei das **falsche
-Feld** aus: gelesen wurde `s.id`, geliefert wird `s.name`.
-
-Die Folge war kein sauberer Ausfall, sondern ein Flattern, das man leicht dem
-GPS-Empfang anlastet:
-
-1. Kaltstart, keine Quelle aktiv → **ein** Fix wird gesendet.
-2. Der Core führt `browser` daraufhin 5 s lang als aktiv. Der nächste Poll
-   findet `s.id` nicht → der Client schaltet sich **selbst stumm**.
-3. Nach 5 s ohne Fix meldet der Core `event/gps_lost`; ab 3 s zeigt die
-   Oberfläche „GPS-Signal verloren".
-4. Der nächste Poll sieht wieder „keine Quelle aktiv" → ein Fix → zurück zu 2.
-
-Also: Position und Verlust-Banner im 5-Sekunden-Takt abwechselnd, dauerhaft.
-
-**Warum das niemand gemerkt hat** — und das ist der wichtigere Teil:
-
-* `browserSource.test.ts` prüfte ausschließlich, dass die exportierten
-  Typ-Unions existieren (`expect(errorTypes.length).toBe(3)`). Ein Test, der
-  nicht fehlschlagen kann.
-* Die einzige E2E-Zusicherung dazu stand in
-  `if (sentPositions.length > 0) { … }` — sie schwieg also genau dann, wenn
-  nichts gesendet wurde.
-
-Beides ist ersetzt: 10 echte Tests fahren jetzt den Weg
-`watchPosition` → `POST /position/browser` durch, die Erlaubnis hängt an
-`forced` statt an `active` (inhaltlich auch die richtige Frage: `active`
-beschreibt, wer *gerade* liefert — und wurde durch unser eigenes Senden wahr,
-der Client schaltete sich also an seinem eigenen Erfolg ab; `forced`
-beschreibt, wer liefern *darf*), und die E2E-Zusicherung ist unbedingt.
+Für ein eigenes Zertifikat ergänzt du in der `configuration.yaml` von Home
+Assistant `http: ssl_certificate` und `ssl_key` (mit dem Add-on „File editor"
+ohne SSH möglich).
 
 ---
 
-## 4 Der zweite Weg: Home-Assistant-App statt Browser — Vorschlag B-05
+## 2 Home-Assistant-Companion-App
 
-Für die genannten Geräte gibt es einen Weg, der **beide** Blocker umgeht und
-technisch klar besser zum Anwendungsfall passt.
+Auf Telefon, iPad und Android-Autoradio läuft (oder kann laufen) die
+**Home Assistant Companion App**. Sie meldet die Position als
+`device_tracker.<gerät>` an Home Assistant, auch im Hintergrund und bei
+gesperrtem Bildschirm; Yapaia liest diese Entität.
 
-Auf Telefon, iPad und dem Android-Autoradio läuft ohnehin (oder kann laufen)
-die **Home Assistant Companion App**. Sie meldet die Position als
-`device_tracker.<gerät>` an Home Assistant — mit Hintergrund-Ortung und
-optional „high accuracy mode". Das Add-on hat mit `homeassistant_api: true`
-bereits Zugriff auf `http://supervisor/core/api` (`SUPERVISOR_TOKEN`), also
-auf genau diese Zustände.
-
-### Warum das dem Browser-Weg überlegen ist
-
-| | Browser (`watchPosition`) | Companion App (`device_tracker`) |
+| | Browser | Companion App |
 |---|---|---|
-| HTTPS nötig | **ja** (Blocker A) | nein |
-| Bildschirm aus / Tab im Hintergrund | Safari **friert den Tab ein**, Chrome-Android drosselt ihn — Positionen bleiben aus | läuft weiter, dafür ist die App gebaut |
-| Genauigkeit | hoch, solange der Tab vorn ist | hoch im „high accuracy mode", sonst gröber und in Intervallen |
+| HTTPS nötig | **ja** | nein |
+| Bildschirm aus / Tab im Hintergrund | Safari friert den Tab ein, Chrome-Android drosselt ihn; Positionen bleiben aus | läuft weiter |
+| Genauigkeit | hoch, solange der Tab vorn ist | hoch im „High Accuracy Mode", sonst gröber und in Intervallen |
 | Latenz | ~1 s | je nach Einstellung Sekunden bis Minuten |
-| Zusätzliche Einrichtung | keine | App installieren, Ortung erlauben |
+| Einrichtung | keine | App installieren, Ortung erlauben |
 
-Der ehrliche Einwand: die Companion App ist **träger**. Für eine
-Abbiegeanweisung in 200 m ist ein Intervall von 30 s zu wenig. Deshalb ist
-das eine **zusätzliche Quelle unterhalb des Browsers**, kein Ersatz.
+Die Companion App ist **träger** als der Browser: Für eine Abbiegeanweisung in
+200 m ist ein Intervall von 30 s zu lang. Sie ist deshalb eine zusätzliche
+Quelle unterhalb des Browsers, kein Ersatz.
 
-### Was dafür zu bauen wäre
+**Einrichten:**
 
-1. `PositionSourceName` und `Position.source` um `'ha_tracker'` erweitern —
-   betrifft `packages/shared/src/types.ts` und
-   `packages/shared/src/schemas/position.ts` (`enum`), also den validierten
-   Schematyp. Kleine, aber nicht rein additive Änderung.
-2. Priorität: `gpsd > browser > ha_tracker > simulator`. Begründung: ein
-   echter Empfänger schlägt einen Browser-Fix, ein Browser-Fix schlägt einen
-   gepollten Zustand aus HA, und der Simulator bleibt letztes Mittel.
-3. Ein GET-Helfer neben `callHaService` (`apps/core/src/ha/client.ts` kann
-   heute nur POST): `GET {apiBase}/states/{entity_id}` liest
-   `attributes.latitude/longitude/gps_accuracy`. Dieselben Regeln wie dort —
-   hartes Zeitlimit, jeder Fehler wird geloggt und geschluckt, ein
-   ausgefallenes HA darf die Navigation nie blockieren.
-4. Eine neue Option `ha_device_tracker` (`str?`, leer = aus). Auswahl im
-   Onboarding-GPS-Schritt, der die Trackerliste aus HA anbieten kann.
-5. Der `PlausibilityGuard` **muss** hier davor (siehe §5) — ein Tracker, der
-   nach einem Ausfall 300 km weiter wieder auftaucht, ist genau sein Fall.
-
-Aufwand: überschaubar, aber ein eigener Bau, kein Nebenbei. Deshalb als
-Backlog-Eintrag **B-05** notiert und nicht mit dieser Vorbereitung
-mitgeliefert.
+1. In der Add-on-Konfiguration `gps_source: companion_app` setzen.
+2. In Yapaia **⚙ → 🩺 Installation prüfen** öffnen und unter „Gerät der
+   Companion App" dein Telefon wählen. Das gilt sofort, ohne Neustart. Gibt es
+   genau einen Kandidaten, wählt Yapaia ihn selbst; bei mehreren fragt es,
+   statt zu raten.
+3. Optional trägst du die Entität in der Add-on-Option „Gerät der Companion
+   App" (`ha_device_tracker`) von Hand ein, z. B. `device_tracker.mein_telefon`.
 
 ---
 
-## 5 Was dabei ans Licht kam: B-03 ist beantwortet
+## 3 Mehrere Geräte gleichzeitig
 
-Backlog **B-03** („Mehrere Browser-Clients: wer liefert die Position?")
-endete mit der offenen Frage, ob der bestehende `PlausibilityGuard` das
-Springen zwischen zwei Geräten an verschiedenen Orten vielleicht schon
-abfängt — dann wäre es nur eine Doku-Frage gewesen.
-
-**Er fängt es nicht ab, denn er ist auf diesem Weg gar nicht verdrahtet.**
-`PlausibilityGuard` wird ausschließlich in
-`apps/core/src/position/gpsd/index.ts` benutzt. `POST /position/browser` ruft
-`service.pushFix('browser', …)` direkt auf. Die einzige Prüfung dort ist
-`checkPosition()` (Wertebereiche), und die kennt keinen Vorgänger-Fix, sieht
-also keinen Sprung.
-
-Und selbst mit Verdrahtung bliebe ein Rest: nach drei abgelehnten Sprüngen
-akzeptiert der Guard den vierten Fix bewusst als neue Grundwahrheit (W-02,
-Fähre/Transport). Zwei dauerhaft sendende Geräte — Telefon zu Hause, Tablet
-im Wohnmobil — würden also nicht still stehen, sondern langsamer hin- und
-herspringen. Der Guard ist die halbe Antwort, nicht die ganze; die andere
-Hälfte ist eine Client-Kennung beim Ingest.
-
-Das ist in B-03 nachgetragen.
+Senden zwei Geräte dauerhaft eine Browser-Position, aber an verschiedenen
+Orten (z. B. Telefon zu Hause, Tablet im Wohnmobil), springt die Position
+hin und her. Die Plausibilitätsprüfung (ab dem vierten abgelehnten Sprung in
+Folge wird die neue Position übernommen, z. B. nach einer Fähre) fängt das
+nicht ab. Öffne Yapaia deshalb zur Navigation nur auf dem Gerät, das im
+Fahrzeug liegt.
 
 ---
 
-## 6 Konkret: was der Betreiber jetzt tun kann
+## 4 Bildschirm wach halten
 
-**Sofort, ohne auf Code zu warten:**
-
-* Zum **Ausprobieren** über Nabu Casa (`https://….ui.nabu.casa`) auf Yapaia
-  gehen und Standortzugriff erlauben. Damit ist Blocker A weg, und mit der
-  Korrektur aus §3 läuft die Position stabil. Zum tatsächlichen Fahren ist
-  das aber der falsche Weg — dafür (b) aus §2.
-* Prüfen, ob das Fehlerbanner „Standortzugriff nicht verfügbar (unsicherer
-  Kontext)" erscheint. Wenn ja, ist Blocker A bestätigt und alles andere
-  Folgefehler.
-
-**Für den Dauerbetrieb:** Weg (b) aus §2 — eigenes Zertifikat. Danach
-funktionieren Telefon, iPad und Autoradio ohne weitere Änderung an Yapaia.
-
-**Falls die Companion App ohnehin schon läuft:** Rückmeldung, welche
-`device_tracker`-Entität sie liefert und in welchem Intervall. Dann lässt
-sich B-05 mit einem realistischen Wert statt einer Annahme bauen.
-
----
-
-## 7 Was hier bewusst NICHT gebaut wurde
-
-* **Kein Wake Lock.** Ein `navigator.wakeLock` hält den Bildschirm an, solange
-  der Tab vorn ist — es hilft nicht gegen den eingefrorenen Hintergrund-Tab,
-  und den Bildschirm einer Fahrzeugbedienung ungefragt dauerhaft anzuschalten
-  ist eine Entscheidung des Betreibers, keine Voreinstellung.
-* **Kein `browser` in `gps_source`.** Die Option um `browser` zu erweitern
-  klänge stimmig, wäre aber irreführend: sie schaltet den gpsd-Dienst, nicht
-  die Annahme von Browser-Fixes. Browser-GPS funktioniert bei **jedem** Wert.
-  Statt einer neuen Auswahlmöglichkeit gehört das in die Beschreibung der
-  Option.
-
-  **Nachtrag 0.3.1:** Für `ha_tracker` gilt dieses Argument gerade *nicht*,
-  und deshalb steht der Wert dort inzwischen. Er ist keine Anzeige eines
-  Zustands, der ohnehin gilt, sondern schaltet die Quelle tatsächlich ein:
-  gesetzt, sucht sie sich ihre Entität selbst. Ohne ihn ließ sie sich nur
-  über das Textfeld `ha_device_tracker` aktivieren — und dafür musste man
-  eine Entity-ID kennen, die man erst in Home Assistant nachschlagen muss.
-  Der erste Betreiber, der 0.3.0 in Betrieb nahm, meldete genau das: „den ha
-  tracker kann ich nicht auswählen. In der Konfiguration sehe ich nur usb."
-* **Kein Backoff im Browser-Client.** Der Modul-Kopf behauptete
-  „retry with backoff"; implementiert war nie einer. Er wird auch nicht
-  gebraucht: `watchPosition` läuft nach einem Zeitlimit weiter, und der
-  nächste erfolgreiche Fix setzt den Zustand von allein zurück. Die
-  Behauptung ist entfernt statt nachgebaut.
+Yapaia hält den Bildschirm an, solange die App zu sehen ist. Auf Geräten ohne
+Wake-Lock-Schnittstelle (HTTP-Aufruf, iPad) geschieht das über ein winziges,
+stummes Video; die Musikwiedergabe wird dadurch nicht unterbrochen. Ein in den
+Hintergrund gewechselter Tab bleibt trotzdem eingefroren: Die Positionsquelle
+Browser setzt dann aus (siehe Abschnitt 2).

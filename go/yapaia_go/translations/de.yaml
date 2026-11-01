@@ -1,23 +1,8 @@
 ---
-# Beschriftungen der Add-on-Konfiguration.
-#
-# ─── WOZU DIESE DATEI ───────────────────────────────────────────────────────
-# Ohne sie zeigt Home Assistant die rohen Schlüssel an: „photon_xmx_mb",
-# „ha_device_tracker", „valhalla_memory_mb". Wer die Seite zum ersten Mal
-# öffnet, sieht technische Wörter ohne Zusammenhang und muss für jedes
-# einzelne in die Dokumentation.
-#
-# ─── DIE STRUKTUR FOLGT DEM SCHEMA ──────────────────────────────────────────
-# Seit 0.8.4 sind die selten angefassten Optionen in `config.yaml` in Gruppen
-# verschachtelt, und Home Assistant zeichnet daraus aufklappbare Blöcke (wie
-# „Terminal & SSH" es mit seinem Block „Server" macht). Diese Datei bildet
-# dieselbe Verschachtelung ab: erst der Name der Gruppe, darunter ihre
-# Optionen.
-#
-# Bis 0.8.3 stand hier das Gegenteil — die Gruppe klebte als Präfix im Namen
-# jeder Option („Position — Quelle"), weil ich angenommen hatte, echte
-# Abschnitte seien nicht möglich. Das war falsch; der Betreiber hat das
-# Gegenbeispiel gefunden.
+# Beschriftungen der Add-on-Konfiguration. Ohne diese Datei zeigt Home
+# Assistant die rohen Schlüssel („photon_xmx_mb"). Die Struktur folgt dem Schema
+# in `config.yaml`: erst der Name der Gruppe (aufklappbarer Block), darunter
+# ihre Optionen.
 configuration:
   region:
     name: Region

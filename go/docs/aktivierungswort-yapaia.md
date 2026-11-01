@@ -1,11 +1,9 @@
 # Aktivierungswort „Yapaia“ für Home-Assistant-Sprachsatelliten
 
-Gewünscht: „Wenn es ein Wakeword braucht, nimm bitte ‚Yapaia‘.“
-
 Yapaia selbst hört nicht dauerhaft zu. Das macht der **Sprachsatellit**
 (z. B. Home Assistant Voice PE oder ein ESPHome-Gerät mit Mikrofon) bzw. der
 Assist-Knopf der Home-Assistant-App. Diese Seite erklärt, was ohne eigenes
-Wort sofort geht und wie man „Yapaia“ als eigenes Aktivierungswort trainiert.
+Wort sofort geht und wie Du „Yapaia“ als eigenes Aktivierungswort trainierst.
 
 > Stand: Oktober 2026. Die Menüs von Home Assistant ändern sich gelegentlich —
 > wenn ein Punkt anders heißt, gilt die aktuelle Home-Assistant-Dokumentation

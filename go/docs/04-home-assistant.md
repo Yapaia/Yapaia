@@ -5,7 +5,6 @@
 > [Entwicklerhandbuch](developers.md) an; die Bedienung steht im
 > [Handbuch](manual.md).
 
-
 Yapaia Go und Home Assistant laufen auf demselben Mini-PC (Proxmox: HAOS-VM +
 Yapaia-LXC/VM, **oder** Yapaia als HA-Add-on direkt in HAOS). Der Weg zu Home
 Assistant ist die **Integration „Yapaia"** (§1b). Dazu kommen **MQTT** als
@@ -45,31 +44,24 @@ UI-Zugriff via Ingress).
 
 
   **Warum die beiden Anweisungs-Sensoren an `nav/maneuver` hängen und nicht an
-  `nav/instruction` (0.7.2):** `nav/instruction` ist die ANSAGE. Sie entsteht
-  nur, wenn eine Ansage-Schwelle fällt, und ihre `distance_m` ist die
-  Entfernung in genau diesem Augenblick — der Typ sagt das selbst („AT THE
-  MOMENT the threshold fired"). Gemeldet wurde: „Die Strecke bis zur nächsten
-  Abbiegung wird nicht geupdated. Die anderen Werte wohl schon." Die anderen
-  kamen aus `nav/state`. Betroffen war auch der TEXT: nach einer Abbiegung
-  blieb die eben absolvierte Anweisung stehen, bis für die nächste eine
-  Schwelle fiel. `nav/maneuver` wird aus `nav/state` gebildet und kommt
-  deshalb im selben Takt wie Tempo, ETA und Reststrecke. Dasselbe gilt für den
-  HA-internen Kanal (`ha/statesBridge.ts`), der denselben Fehler hatte.
+  `nav/instruction`:** `nav/instruction` ist die ANSAGE. Sie entsteht nur,
+  wenn eine Ansage-Schwelle fällt, und ihre `distance_m` ist die Entfernung in
+  genau diesem Augenblick. `nav/maneuver` wird aus `nav/state` gebildet und
+  kommt deshalb im selben Takt (1 Hz) wie Tempo, ETA und Reststrecke. Dasselbe
+  gilt für den HA-internen Kanal (`ha/statesBridge.ts`).
 
   Alle Entitäten hängen an einem HA-**Device** „Yapaia Go" (identifiers:
   `yapaia_go`, sw_version, configuration_url → App-URL).
 
-  **Die Entity-IDs oben gelten seit 0.6.9 wörtlich** — jede Discovery-Config
-  schickt ein `object_id` mit (`mqtt/discovery.ts`). Davor waren sie eine
-  Absichtserklärung: ohne `object_id` bildet Home Assistant die ID aus
-  Geräte- **plus** Entitätsnamen, also `sensor.yapaia_go_speed`, und der
-  Gerätename hat sich in 0.6.7 auch noch geändert. Bestehende Installationen
-  behalten ihre einmal vergebenen IDs (die Registrierung benennt nichts um) —
-  deshalb sucht `apps/core/src/ha/dashboard.ts` die IDs zur Laufzeit, statt
-  sie vorauszusetzen.
+  **Die Entity-IDs oben gelten wörtlich:** jede Discovery-Config schickt ein
+  `object_id` mit (`mqtt/discovery.ts`). Ohne `object_id` bildet Home
+  Assistant die ID aus Geräte- **plus** Entitätsnamen (`sensor.yapaia_go_speed`).
+  Einmal vergebene IDs ändert die Registrierung nicht; deshalb sucht
+  `apps/core/src/ha/dashboard.ts` die IDs zur Laufzeit, statt sie
+  vorauszusetzen.
 - Damit sind in HA ohne YAML sofort Dashboards, Automationen („Wenn ETA < 30 min →
   Boiler an"), TTS-Ansagen über HA-Speaker etc. möglich.
-- **Eigenes Dashboard (0.6.9).** Das Add-on legt beim Start zwei Dateien unter
+- **Eigenes Dashboard.** Das Add-on legt beim Start zwei Dateien unter
   `<ha-config>/www/yapaia/` ab — also unter `/local/yapaia/`:
   `yapaia-map-card.js` (die Karte MIT Route und eigener Position; sie rahmt
   die Anzeigeseite `embed.html` des Add-ons, damit es nicht zwei Karten zu
@@ -87,27 +79,29 @@ Go" mit echten, bedienbaren Entitäten, Aktionen (`yapaia.go_*`) und
 Auslösern. Das Add-on bringt die Integration mit, legt sie nach
 `custom_components/yapaia` und meldet sich per Supervisor-Discovery an.
 
-Der frühere Weg über geschriebene Zustände (`POST /api/states`) und die
-Bedien-Helfer (`input_button.*`) ist entfallen — die Integration ersetzt
-beide. MQTT bleibt als zusätzlicher Weg (`mqtt_enabled`, Vorgabe aus).
+Entitäten und Aktionen kommen ausschließlich aus der Integration; MQTT bleibt
+als zusätzlicher Weg (`mqtt_enabled`, Vorgabe aus). Sprache (Deutsch/Englisch)
+und Design-Schema übernimmt Yapaia Go aus Home Assistant bzw. aus der
+Auswahl „Design" des Geräts „Yapaia Go" (Protokoll §8a/§8b,
+[`docs/design-schemata.md`](../../docs/design-schemata.md),
+[`docs/sprachen.md`](../../docs/sprachen.md)). Fertige Dashboards liegen in
+[`dashboards/`](../../dashboards/).
 
-## 1d. Position aus der Companion-App (0.7.1)
+## 1d. Position aus der Companion-App
 
 `GET`/`POST /api/v1/system/ha/trackers` listet die `device_tracker`, die Home
 Assistant kennt und die Koordinaten haben, und wählt einen aus. Die Auswahl
 steht in der Installationsprüfung (🩺) im Add-on selbst und **gilt sofort** —
 `HaTrackerSource` liest die Entity-ID bei jeder Abfrage neu, kein Neustart.
 
-Warum nicht in der Add-on-Konfiguration: dort steht ein Freitextfeld, in das
-eine Entity-ID gehört — eine Angabe, die man nicht weiß, sondern unter
-*Entwicklerwerkzeuge → Zustände* nachschlagen muss. Eine Einrichtung aus
-Textfeld und Ratespiel ist keine. Das Feld bleibt als Vorgabe erhalten; die
-Auswahl in der Oberfläche gewinnt (`ha/config.ts#resolveTrackerEntityId`, das
-auch die Zeichenkette `"null"` abfängt).
+Die Add-on-Option `ha_device_tracker` (Freitext, Entity-ID) bleibt als Vorgabe
+erhalten; die Auswahl in der Oberfläche gewinnt
+(`ha/config.ts#resolveTrackerEntityId`, das auch die Zeichenkette `"null"`
+abfängt). Mit genau einem Kandidaten wählt Yapaia ihn selbst.
 
 ## 2. REST beidseitig
 
-- **HA → Yapaia:** die komplette Core-REST-API (docs/03 §2), nutzbar via
+- **HA → Yapaia:** die komplette Core-REST-API ([`openapi.json`](openapi.json)), nutzbar via
   `rest_command`. Wichtigster Endpunkt: `POST /api/v1/navigation/destination`
   (Ziel setzen + optional Autostart) – für Automationen wie „Klick auf Karte im
   HA-Dashboard ⇒ Ziel im Navi".
@@ -119,8 +113,7 @@ auch die Zeichenkette `"null"` abfängt).
 
 ## 3. Auslieferung als HA-Add-on
 
-**Entscheidung (aktualisiert in `feat/gui-install-path`):** **dieses Monorepo
-ist selbst das Add-on-Repository.** Nutzer tragen unter *Einstellungen →
+**Dieses Repository ist selbst das Add-on-Repository.** Nutzer tragen unter *Einstellungen →
 Add-ons → Add-on Store → ⋮ → Repositories* die URL
 `https://github.com/Yapaia/yapaia` ein und bekommen „Yapaia Go"
 als installierbares Add-on angezeigt.
@@ -150,16 +143,14 @@ yapaia/                  # Monorepo-Wurzel
 ```
 
 Alles Übrige im Monorepo (`apps/`, `packages/`, `services/`, `docs/` …)
-ignoriert der Supervisor — er sieht nur Verzeichnisse mit `config.yaml`. Eine
-spätere Auslagerung in ein eigenständiges `yapaia-go-ha-addon`-Repo bleibt
-als Spiegel-Schritt möglich, ist für den GUI-Weg aber nicht mehr nötig
-(`yapaia_go/PACKAGING.md`).
+ignoriert der Supervisor — er sieht nur Verzeichnisse mit `config.yaml`. Details:
+`yapaia_go/PACKAGING.md`.
 
 Kernpunkte:
 - **Ingress:** `ingress: true` ⇒ UI erscheint in der HA-Seitenleiste, HA übernimmt
   Auth & Remote-Zugriff (Nabu Casa). Frontend muss unter beliebigem Pfad-Prefix
-  laufen (relative URLs, kein hartes `/`) – Anforderung an E01/E07!
-  WebSocket über Ingress funktioniert, muss aber explizit getestet werden (E08-T4).
+  laufen (relative URLs, kein hartes `/`). WebSocket funktioniert über
+  Ingress; ein Test in CI prüft die App unter einem Sub-Pfad.
 - **MQTT-Credentials automatisch:** `services: [mqtt:want]` ⇒ bashio liefert
   Host/User/Passwort, Core liest sie beim Start (nur relevant mit
   `mqtt_enabled`).
@@ -169,20 +160,23 @@ Kernpunkte:
 - **Ressourcen-Realität:** HAOS-VM braucht dann RAM für HA **und** Yapaia-Services.
   Empfehlung in DOCS.md: HAOS-VM ≥ 6 GB bei DE-Karten; wer knapp ist, nimmt die
   Standalone-Compose-Variante im eigenen LXC. Beide Wege dokumentieren.
-- Add-on-Optionen (config.yaml `options/schema`): Kartenregion, MQTT-Prefix,
-  Photon an/aus (RAM-Sparmodus mit reduzierter Suche), GPS-Quelle, Log-Level.
+- Add-on-Optionen (config.yaml `options/schema`): Kartenregion, GPS-Quelle
+  (`usb`, `network`, `rut50`, `companion_app`, `none`) samt Gerät, Suche
+  (Photon an/aus, Speicher), Routing-Speicher, Erscheinungsbild, Online-Dienste,
+  Bordsensoren, MQTT, Erweitert (Testfahrer, Protokollstufe). Beschriftungen:
+  `yapaia_go/translations/`.
 
 ## 4. Standalone-Variante (Proxmox LXC/VM, ohne HAOS-Add-on)
 
 `go/docker-compose.yml`: `core` + `valhalla` + `photon`. Einen
-`gpsd`-Dienst enthält die Compose-Datei derzeit nicht — gpsd läuft auf dem
+`gpsd`-Dienst enthält die Compose-Datei nicht — gpsd läuft auf dem
 Host (USB-Durchreichung an LXC dokumentieren).
 MQTT-Zugang manuell in Settings. Reverse-Proxy-Hinweise (optional TLS via Caddy).
-Diese Variante ist die **Referenz für Entwicklung und CI**.
+Diese Variante ist die Referenz für Entwicklung und CI.
 
-## 6. Add-on-Events (E09-T8)
+## 6. Add-on-Events
 
-Jedes Add-on mit dem Scope `events.publish` (docs/05 §2) landet automatisch
+Jedes Add-on mit dem Scope `events.publish` ([Add-on-Entwicklungsleitfaden](addon-dev-guide.md)) landet automatisch
 auch in MQTT: ein Bus-Event `addon/{id}/*` wird 1:1 unter
 `yapaia/addon/{id}/*` republiziert -- **kein YAML, keine Auto-Discovery
 nötig**, einfach das Topic in einer Automation abonnieren. Rate-Limit
@@ -194,8 +188,8 @@ wirkt sofort, ohne Core-Neustart.
 
 ### Worked Example: Track-Recorder Start/Stop
 
-Das Referenz-Add-on **Track-Recorder** (`com.yapaia.track-recorder`, docs/05
-§6.2) publiziert beim Start/Ende einer Aufzeichnung:
+Das Referenz-Add-on **Track-Recorder** (`com.yapaia.track-recorder`,
+`addons-examples/track-recorder`) publiziert beim Start/Ende einer Aufzeichnung:
 
 | MQTT-Topic | Payload |
 |---|---|
@@ -244,10 +238,3 @@ Jedes Add-on mit `events.publish` funktioniert nach demselben Muster --
 Topic-Name und Payload-Schema legt das jeweilige Add-on selbst fest (siehe
 dessen README/Doku); der Namensraum `yapaia/addon/{id}/*` und die
 Rate-/Größenlimits oben gelten für alle gleich.
-
-## 7. Wargame-Bezüge (Details docs/08)
-
-- W-06 MQTT-Broker down ⇒ Queue + Reconnect, App voll funktionsfähig ohne HA.
-- W-07 HA-Neustart ⇒ Discovery-Replay via `homeassistant/status`.
-- W-15 Ingress-Pfad bricht Assets ⇒ Pflichttest „App unter Sub-Pfad" in CI.
-- W-16 Add-on-Update löscht Karten ⇒ Daten in `/share`, Migrationstest.

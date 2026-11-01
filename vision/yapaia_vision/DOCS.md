@@ -66,8 +66,9 @@ eintragen.
 
 ## Bild
 
-- **Fernsehnorm:** PAL für Kameras aus Europa. Bei falscher Norm rollt das
-  Bild oder bleibt schwarz-weiß.
+- **Fernsehnorm:** PAL für Kameras aus Europa, NTSC z. B. für Kameras aus
+  Nordamerika (dazu die Auflösung auf `720x480` setzen). Bei falscher Norm
+  rollt das Bild oder bleibt schwarz-weiß.
 - **Halbbilder entflechten:** gegen Kammzacken bei Bewegung.
 - **Aufnahme immer an:** Das Bild ist sofort da. Sonst startet die Aufnahme,
   sobald jemand zusieht, und läuft den **Nachlauf** lang weiter.
@@ -79,8 +80,16 @@ eintragen.
 | `camera.yapaia_vision_kamera_1`, `_2` … | Je Kanal unter **Kanäle** eine Kamera (Standbild und Live-Bild als MJPEG) |
 | `select.yapaia_vision_kanal` | Der Kanal, der gerade live läuft (wenn sich Kanäle einen Grabber teilen) |
 | `binary_sensor.yapaia_vision_aufnahme` | Ob gerade aufgenommen wird |
+| `select.yapaia_vision_design` | Design-Schema der Seite (oder „Wie gesamt“) |
 | `sensor.yapaia_vision_geraet` | Der gefundene Grabber (Diagnose) |
 | `sensor.yapaia_vision_meldung` | Letzte Meldung des Add-ons, z. B. eine fehlende Firmware (Diagnose) |
+
+## Design und Sprache
+
+Die Seite des Add-ons übernimmt das Design-Schema, das du im Gerät **Yapaia
+Design** (für alle Module) oder mit `select.yapaia_vision_design` (nur für
+Vision) wählst. Texte erscheinen auf Deutsch oder Englisch, je nach Sprache von
+Home Assistant.
 
 ## Optionen
 

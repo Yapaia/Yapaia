@@ -46,11 +46,9 @@ substitutions:
   anzeigename: "Yapaia Navigationsanzeige"
 
   # ─── DIE ZEITZONE ─────────────────────────────────────────────────────────
-  # Wird gebraucht, nicht nur der Ordnung halber: Yapaia liefert die
-  # Ankunftszeit als ISO-8601 in UTC (`…Z`, der Core rechnet durchgaengig in
-  # UTC, W-22). Ohne richtige Zeitzone zeigt die Anzeige im Sommer zwei
-  # Stunden zu frueh — ohne jede Fehlermeldung, und das ist die schlimmste
-  # Sorte Fehler.
+  # Wird gebraucht: Yapaia liefert die Ankunftszeit als ISO-8601 in UTC (`…Z`).
+  # Ohne richtige Zeitzone zeigt die Anzeige im Sommer zwei Stunden zu früh,
+  # ohne Fehlermeldung.
   zeitzone: Europe/Berlin
 
   # ─── RUNDES ODER ECKIGES PANEL ────────────────────────────────────────────
@@ -84,10 +82,9 @@ substitutions:
 
   # Bis zu welchem Tempo die Wasserwaage erscheint (km/h, einschliesslich).
   #
-  # Gewuenscht: „setze den Trigger auf null KMH anstatt auf zwei KMH". Bei
-  # `0` erscheint die Waage also nur, wenn Yapaia Go genau 0 km/h meldet --
+  # Bei `0` erscheint die Waage nur, wenn Yapaia Go genau 0 km/h meldet --
   # beim Rollen bleibt die Navigation stehen. Wer GPS-Rauschen abfangen
-  # will, traegt wieder eine kleine Zahl wie `2` ein.
+  # will, trägt eine kleine Zahl wie `2` ein.
   wasserwaage_ab_kmh: "0"
 
   # Ab wann gilt „steht gerade"? In Grad.
@@ -143,16 +140,8 @@ substitutions:
   # Wandert die Blase zur ANGEHOBENEN Seite, stimmt es -- wie bei einer
   # echten Libelle. Wandert sie zur anderen, hier auf `-1` stellen.
   #
-  # ─── DIESE BEIDEN `1` SIND NACHGEPRUEFT ───────────────────────────────────
-  # Mit 0.17.1 am echten Fahrzeug bestaetigt („Die Vorzeichen passen"), mit
-  # dem Verfahren von oben und dem MPU6050 in der Einbaulage aus diesem
-  # Blatt. Das steht hier, weil es sonst nirgends stuende: eine `1` sieht wie
-  # eine unbesehene Vorgabe aus, und wer spaeter eine spiegelverkehrte Waage
-  # vermutet, koennte sie versuchsweise umdrehen -- und damit eine geprueft
-  # richtige Anzeige kaputtmachen.
-  #
-  # Wer den Sensor ANDERS einbaut, stellt sie weiterhin um. Die Bestaetigung
-  # gilt der Rechnung, nicht dem Schraubenloch.
+  # Die Vorgabe `1` ist am Fahrzeug geprüft (Verfahren von oben, MPU6050 in der
+  # Einbaulage aus diesem Blatt). Wer den Sensor anders einbaut, stellt sie um.
   neigung_lr_vorzeichen: "1"
   neigung_vh_vorzeichen: "1"
 
@@ -160,21 +149,11 @@ substitutions:
   # `true` zeigt STATT der Navigationsanzeige eine Liste aller Werte, die aus
   # Home Assistant kommen sollen -- und ob sie ankommen.
   #
-  # ─── WOFUER ───────────────────────────────────────────────────────────────
-  # Gemeldet, zum zweiten Mal: „Das Display vom esp zeigt immer noch kein Wert
-  # aus HA." Und die richtige Rueckfrage dazu: „Oder kann es sein dass die
-  # Werte, obwohl sie in ha sind, [nicht] beim esp ankommen?"
-  #
-  # Genau das liess sich bisher nicht nachsehen. Die Anzeige sagte „Kein Wert
-  # aus Home Assistant" und nannte EINE moegliche Ursache (den Entitaetsnamen)
-  # -- aber nicht, welche der zehn Entitaeten betroffen ist, und schon gar
-  # nicht, ob ueberhaupt eine ankommt.
+  # Die Liste hilft herauszufinden, ob die Werte überhaupt beim ESP ankommen,
+  # und welche der Entitäten fehlen.
   #
   # ─── SIE ERSCHEINT AUCH VON ALLEIN ────────────────────────────────────────
-  # Kommt GAR KEIN Wert an, zeigt die Anzeige diese Liste von sich aus, ohne
-  # dass hier etwas umgestellt werden muss. Das ist der Zustand, in dem die
-  # alte Meldung eine Sackgasse war: sie beschrieb das Problem und liess den
-  # Betreiber damit allein.
+  # Kommt gar kein Wert an, zeigt die Anzeige diese Liste von sich aus.
   #
   # Auf `true` gestellt zeigt sie die Liste IMMER -- zum Nachsehen, auch wenn
   # nur einzelne Werte fehlen. Danach wieder auf `false` und neu flashen.
@@ -214,21 +193,9 @@ logger:
 # Builder: er traegt ihn unmittelbar ein, hier steht ein Verweis auf
 # `secrets.yaml`. Der Grund steht unten.
 #
-# ─── WAS HIER VORHER STAND UND WARUM ES STOERTE ─────────────────────────────
-# Bis 0.13.1 standen hier zwei `!secret`-Verweise:
-#
-#     key:      !secret yapaia_display_api_key
-#     password: !secret yapaia_display_ota_password
-#
-# Das ist fuer eine von Hand gepflegte Konfiguration richtig. Fuer den
-# Device Builder ist es falsch: der erzeugt den Schluessel selbst und traegt
-# ihn unmittelbar ein, und er legt WEDER den einen noch den anderen Eintrag
-# in `secrets.yaml` an. Wer diese Datei also uebernahm, bekam zwei
-# Verweise auf Eintraege, die es nicht gab -- und musste sie von Hand
-# nachtragen, bevor ueberhaupt etwas uebersetzte.
-#
-# Abgeglichen mit einer laufenden Installation (Device Builder 1.14.9,
-# ESPHome 2026.9.0).
+# Der Device Builder erzeugt den Schlüssel selbst und legt keine Einträge in
+# `secrets.yaml` an; die Datei verweist deshalb nur auf einen einzigen Eintrag,
+# den Du dort ergänzt (siehe unten).
 api:
   encryption:
     # Der Schluessel steht in `secrets.yaml`, nicht hier.
@@ -238,10 +205,9 @@ api:
     # Quelltext: hier stuende er im Repository, waere auf jedem Geraet
     # derselbe und laege offen.
     #
-    # Der Name ist der des Betreibers -- bewusst NICHT `yapaia_...`, denn das
-    # Geraet heisst in seiner ESPHome-Installation `navi`, und `secrets.yaml`
-    # gehoert der Installation, nicht dieser Datei. Wer einen anderen Namen
-    # benutzt, aendert ihn hier.
+    # Der Name `navi__api_key` ist ein Beispiel -- `secrets.yaml` gehört der
+    # Installation, nicht dieser Datei. Wer einen anderen Namen benutzt,
+    # ändert ihn hier.
     #
     #   secrets.yaml:
     #     navi__api_key: "…"      # 32 Byte base64
@@ -332,22 +298,12 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
 
   # ─── ANKUNFTSZEIT ODER RESTZEIT ───────────────────────────────────────────
-  # Gewuenscht: „Bitte baue einen Schalter in das yaml ein um die eta zwischen
-  # der Ankunftszeit und der verbleibenden Restzeit umzuschalten."
+  # Schalter für die Anzeige der Ankunft: Uhrzeit oder verbleibende Restzeit.
+  # Beide Anzeigen lesen denselben Wert (`sensor.yapaia_eta`); Home Assistant
+  # zeigt ihn wegen `device_class: timestamp` als Countdown („in 13 Minuten"),
+  # das Display zeigt eine Uhrzeit. Mit diesem Schalter wird beides vergleichbar.
   #
-  # Vorgeschichte: „Auch die eta ist unterschiedlich zwischen den Anzeigen."
-  # Beide Anzeigen lesen DENSELBEN Wert -- es gibt im Kern nur eine Rechnung
-  # (`navigation/service.ts`, `buildState()`), und daraus entsteht
-  # `sensor.yapaia_eta`. Was sich unterscheidet, ist die DARSTELLUNG: der
-  # Sensor traegt `device_class: timestamp`, und Home Assistant zeigt so
-  # etwas als Countdown („in 13 Minuten"). Das Display zeigte eine Uhrzeit.
-  #
-  # Zwei verschiedene Groessen nebeneinander lassen sich nicht vergleichen,
-  # auch wenn sie denselben Augenblick meinen. Dieser Schalter macht sie
-  # vergleichbar.
-  #
-  # AUS ist die Uhrzeit -- das war es bisher, und ein Update soll niemandem
-  # ungefragt die Anzeige umstellen.
+  # AUS ist die Uhrzeit.
   - platform: template
     name: "Restzeit statt Ankunft"
     id: eta_als_restzeit
@@ -379,7 +335,7 @@ text_sensor:
     id: yapaia_kreisel
     entity_id: ${entity_praefix}_anweisung
     attribute: anweisung_kreisel
-  # Die Spuren vor dem Abbiegen (ab Yapaia Go 0.53.0), als Text der Liste,
+  # Die Spuren vor dem Abbiegen, als Text der Liste,
   # z. B. "[{'directions': 2, 'valid': 2, 'active': 2}, {'directions': 32}]".
   # Unten werden nur `directions` und `active` herausgelesen.
   - platform: homeassistant
@@ -394,7 +350,7 @@ text_sensor:
   - platform: homeassistant
     id: yapaia_ankunft
     entity_id: ${entity_praefix}_ankunft
-  # Sprache der Anzeige, "de" oder "en" (ab Yapaia Go 0.68.0). Kommt nichts an
+  # Sprache der Anzeige, "de" oder "en". Kommt nichts an
   # (oder etwas anderes als "en"), bleibt es Deutsch. Bewusst direkt der Zustand
   # und keine globale Variable: weniger Zustand, der auseinanderlaufen kann.
   # Englische Anzeigetexte nur in ASCII.
@@ -480,7 +436,7 @@ display:
       height: 240
     invert_colors: true
     # ─── WARUM 8 BIT UND NICHT DIE VOREINSTELLUNG ──────────────────────────
-    # Gemeldet vom Geraet, direkt nach dem Flashen:
+    # Mit der Voreinstellung meldet ESPHome beim Start:
     #
     #   [E][display:016]: Could not allocate buffer for display!
     #   [E][component:204]: display was marked as failed
@@ -540,18 +496,16 @@ display:
       it.fill(id(c_hintergrund));
 
       // ─── DER ROTE RING BEI ZU SCHNELL ─────────────────────────────────
-      // Gewuenscht: „Es langt wenn es überschritten wird einen roten Ring am
-      // Displayrand anzuzeigen. Der braucht nicht zu dick zu sein aber eben
-      // gut wahrnehmbar."
+      // Ein roter Ring am Displayrand, wenn man zu schnell ist. Er muss nicht
+      // dick sein, aber gut wahrnehmbar.
       //
       // Die Dicke ist eine Entscheidung und steht deshalb benannt da. Vier
       // Bildpunkte auf 240: schmal genug, um nichts wegzunehmen, breit
       // genug, um aus zwei Metern im Augenwinkel aufzufallen.
       //
       // ─── WARUM ER ZULETZT GEZEICHNET WIRD, NICHT ZUERST ───────────────
-      // Der erste Entwurf zeichnete ihn gleich nach dem Hintergrund -- eine
-      // Stelle, und damit gilt er in jeder Ansicht. Das hat die
-      // Pfeilerkennung zerlegt, und zwar lautlos:
+      // Gleich nach dem Hintergrund gezeichnet, würde er zwar in jeder Ansicht
+      // gelten, aber die Pfeilerkennung lautlos stören:
       //
       // Die Pruefung erkennt den Manoeverpfeil an seiner FORMENFOLGE, und
       // diese Folge wird eingefroren, sobald nach der ersten Form ein Text
@@ -615,15 +569,10 @@ display:
       };
 
       // ══ Diagnose: kommt ueberhaupt etwas an? ═══════════════════════════
-      // ─── DIE FRAGE, DIE SICH BISHER NICHT BEANTWORTEN LIESS ───────────
-      // Gemeldet: das Geraet zeigt „Kein Wert aus Home Assistant", waehrend
-      // in Home Assistant Werte stehen. Die Rueckfrage des Betreibers war
-      // die richtige: kommen sie ueberhaupt beim ESP an?
+      // Zeigt das Gerät „Kein Wert aus Home Assistant", obwohl in Home Assistant
+      // Werte stehen, ist die Frage: kommen sie überhaupt beim ESP an?
       //
-      // Die alte Meldung nannte EINE moegliche Ursache -- den Namen der
-      // Entitaet. Sie sagte aber nicht, WELCHE der zehn betroffen ist, und
-      // vor allem nicht, ob ueberhaupt eine ankommt. Das ist der
-      // Unterschied zwischen zwei sehr verschiedenen Lagen:
+      // Das sind zwei sehr verschiedene Lagen:
       //
       //   einzelne fehlen   ein Name stimmt nicht -- oben nachtragen.
       //   ALLE fehlen       das Geraet ist in Home Assistant gar nicht
@@ -632,8 +581,8 @@ display:
       //                     mit dem Geraet, die Zustaende schiebt die
       //                     ESPHome-Integration in Home Assistant.
       //
-      // Die zweite Lage ist von aussen nicht zu erraten und war bisher von
-      // der ersten nicht zu unterscheiden.
+      // Die zweite Lage ist von außen nicht zu erraten; deshalb zeigt die
+      // Liste, welche Entitäten ankommen.
       const int diag_da =
           (hat(id(yapaia_tempo))               ? 1 : 0) +
           (hat(id(yapaia_tempolimit))          ? 1 : 0) +
@@ -709,18 +658,10 @@ display:
       // Frage, und sie geht jeder Navigationsanzeige vor.
       //
       // ─── WANN SIE ERSCHEINT ───────────────────────────────────────────
-      // Zuerst stand hier NUR: „Tempo bekannt und unter der Schwelle". Das
-      // war zu eng und ist im Betrieb prompt aufgefallen -- gemeldet mit
-      // Foto: das Geraet zeigte die Fahrzustandsmeldung statt der Libelle.
+      // Es gibt zwei Wege hinein. Die Wasserwaage hängt an einem anderen Gerät
+      // als dem Tempo und darf nicht allein von Yapaias Tempowert abhängen.
       //
-      // Der Grund: `sensor.yapaia_speed` hatte gar keinen Wert. Damit fiel
-      // die Pruefung durch, obwohl die Neigungswerte anlagen. Die
-      // Wasserwaage haengt aber an einem GANZ ANDEREN Geraet -- sie von
-      // Yapaias Tempowert abhaengig zu machen war die falsche Kopplung.
-      //
-      // Jetzt zwei Wege hinein:
-      //
-      //   1. Tempo bekannt und unter der Schwelle. So gewuenscht, und das
+      //   1. Tempo bekannt und unter der Schwelle. Das
       //      gilt auch waehrend einer Navigation: wer an der Ampel haelt,
       //      sieht kurz die Libelle und beim Anfahren wieder die Route.
       //
@@ -728,10 +669,8 @@ display:
       //      „geparkt" die bei weitem wahrscheinlichste Lage -- und die
       //      Anzeige haette sonst ohnehin nichts Besseres zu zeigen.
       //
-      // Der Zusatz „nicht navigierend" im zweiten Weg ist der Schutz gegen
-      // den Fall, den die erste Fassung vermeiden wollte: faellt auf der
-      // Autobahn das GPS aus, laeuft die Navigation weiter, und dann bleibt
-      // die Route stehen.
+      // Der Zusatz „nicht navigierend" im zweiten Weg schützt davor, dass bei
+      // GPS-Ausfall auf der Autobahn die Route stehen bleibt.
       // ─── WARUM `(float) (...)` UND NICHT `...f` ───────────────────────
       // Eine Substitution wird als TEXT eingesetzt. Aus `2` wuerde mit
       // angehaengtem `f` die Zeichenfolge `2f` -- und das ist kein
@@ -746,29 +685,18 @@ display:
       const bool navigiert = zustand == "navigating";
 
       // ─── DER DRITTE WEG: EIN SCHALTER ─────────────────────────────────
-      // Gewuenscht: „Bitte fuege noch einen weiteren Schalter ein der
-      // zwischen der navigationsanzeige und der Waage umschaltet. Parallel
-      // zu der Geschwindigkeit."
+      // Ein Schalter schaltet zwischen Navigationsanzeige und Waage um.
       //
-      // Parallel heisst hier ODER: der Schalter nimmt der Geschwindigkeit
-      // nichts weg, er kommt daneben. Das ist wichtig fuer den genannten
-      // Zweck -- „diesen Schalter spaeter mit einem Signal vom
-      // Rueckwaertsgang koppeln": beim Rangieren steht das Fahrzeug nicht,
-      // es faehrt langsam rueckwaerts. Waere der Schalter ein Ersatz fuer
-      // die Tempobedingung, muesste man sich zwischen beidem entscheiden.
+      // Er gilt zusätzlich zur Geschwindigkeit (ODER): er nimmt ihr nichts weg.
+      // Das ist wichtig, wenn man ihn mit einem Signal vom Rückwärtsgang koppelt:
+      // beim Rangieren steht das Fahrzeug nicht, es fährt langsam rückwärts.
       const bool erzwungen = id(waage_erzwingen).state;
 
-      // ─── UND DER AUSSCHALTER FUER DIE AMPEL ───────────────────────────
-      // Ebenfalls aus der Rueckmeldung: „Vielleicht ist das besser als nur
-      // die Geschwindigkeit damit die Anzeige an einer Ampel nicht
-      // umschaltet."
-      //
-      // Der Einwand stimmt, und er laesst sich nicht durch eine hoehere
-      // Schwelle loesen: an einer roten Ampel steht das Fahrzeug wirklich.
-      // Wer die Waage nur beim Rangieren will, stellt
-      // `wasserwaage_bei_stillstand` auf `false` -- dann oeffnet allein der
-      // Schalter. Vorgabe bleibt `true`, damit sich fuer bestehende Geraete
-      // nichts aendert.
+      // ─── DER SCHALTER UND DIE AMPEL ───────────────────────────────────
+      // An einer roten Ampel steht das Fahrzeug wirklich; eine höhere Schwelle
+      // hilft nicht. Wer die Waage nur beim Rangieren will, stellt
+      // `wasserwaage_bei_stillstand` auf `false` -- dann öffnet allein der
+      // Schalter. Vorgabe ist `true`.
       const bool bei_stillstand = ${wasserwaage_bei_stillstand};
       const bool steht = bei_stillstand && hat(id(yapaia_tempo)) &&
                          id(yapaia_tempo).state <= (float) (${wasserwaage_ab_kmh});
@@ -811,14 +739,12 @@ display:
         const bool steht_gerade = fabsf(lr) <= gerade && fabsf(vh) <= gerade;
 
         // ═══ ZWEI DARSTELLUNGEN DERSELBEN LAGE ═════════════════════════
-        // Gewuenscht: „einen Schalter der zwischen zwei Anzeigen umschalten
-        // kann. Der Wasserwaage und einer die das Auto von der Seite und
-        // von hinten zeigt."
+        // Ein Schalter wechselt zwischen der Wasserwaage und einer Ansicht, die
+        // das Fahrzeug von der Seite und von hinten zeigt.
         //
         // ─── WARUM UNTEREINANDER UND NICHT NEBENEINANDER ────────────────
-        // Auf dem Vorbild (einer Dashboard-Karte) stehen die beiden
-        // Fahrzeuge nebeneinander. Dort ist Platz. Hier sind es 240 runde
-        // Bildpunkte: nebeneinander blieben je rund hundert, und an den
+        // Die beiden Fahrzeuge stehen untereinander: bei 240 runden Bildpunkten
+        // nebeneinander blieben je rund hundert, und an den
         // Raendern schneidet das Glas zusaetzlich ab. Untereinander bekommt
         // jede Ansicht die volle Breite an ihrer breitesten Stelle.
         if (id(waage_fahrzeug).state) {
@@ -986,24 +912,13 @@ display:
         if (zustand == "paused")    text = T("Pausiert", "Paused");
         if (zustand == "arrived")   text = T("Angekommen", "Arrived");
         if (zustand == "off_route") text = T("Abseits der Route", "Off route");
-        // ─── „KEINE VERBINDUNG" WAR FALSCH ────────────────────────────
-        // Hier stand dieses Wort. Gemeldet mit Foto: das Geraet zeigte es,
-        // waehrend es in ESPHome als „Geraet online" mit IP-Adresse
-        // dastand. Beides stimmte — die WLAN- und API-Verbindung war da,
-        // nur die ENTITAET lieferte keinen Wert.
+        // ─── WARUM NICHT „KEINE VERBINDUNG" ────────────────────────────
+        // WLAN- und API-Verbindung können stehen, während nur die ENTITÄT keinen
+        // Wert liefert. Der wahrscheinliche Grund ist dann der Name der Entität
+        // (siehe `entity_praefix` oben in den substitutions); die Meldung soll
+        // nicht zum Router oder zum WLAN schicken.
         //
-        // Der Satz schickte damit genau dorthin, wo nichts zu finden war:
-        // zum Router, zum WLAN, zur API. Der wahrscheinliche Grund liegt
-        // ganz woanders, naemlich beim Namen der Entitaet (siehe
-        // `entity_praefix` oben in den substitutions).
-        //
-        // Das ist dieselbe Fehlerklasse, die dieses Projekt seit Monaten
-        // verfolgt: eine Meldung, die einen Zustand beschreibt, den sie
-        // nicht hat — und die Suche in die falsche Richtung lenkt.
-        //
-        // Zwei Zeilen, weil eine nicht reicht: die erste sagt, WAS fehlt,
-        // die zweite, WO man nachsieht. Auf 240 runden Bildpunkten ist das
-        // die kuerzeste ehrliche Fassung.
+        // Zwei Zeilen: die erste sagt, WAS fehlt, die zweite, WO man nachsieht.
         // ─── „unknown" GEHOERT HIER DAZU ───────────────────────────────
         // Diese Pruefung kannte nur `empty()` und "unavailable". Home
         // Assistant schickt fuer einen Sensor ohne Wert aber die
@@ -1024,15 +939,9 @@ display:
         }
 
         // ─── OHNE ROUTE IST DAS TEMPO DAS WICHTIGSTE ──────────────────────
-        // Gemeldet ueber die Entwicklerwerkzeuge: bei `nav_state: idle`
-        // standen `speed` und `altitude` auf "unknown", obwohl der
-        // device_tracker im selben Augenblick eine Position fuehrte. Seit
-        // 0.13.1 holt der Kern beides aus dem GPS, sobald ein Fix da ist.
-        //
-        // Damit hat dieses Display auch OHNE Route etwas zu zeigen -- und
-        // zwar das, wofuer man im Fahrzeug auf einen Tacho sieht. Vorher
-        // stand hier auf einem fest verbauten Bildschirm dauerhaft nur
-        // „Keine Route".
+        // Auch ohne Route zeigt das Display das Tempo (der Kern liefert `speed`
+        // und `altitude` aus dem GPS, sobald ein Fix da ist) -- das, wofür man im
+        // Fahrzeug auf einen Tacho sieht.
         //
         // Der Zustandstext bleibt darunter stehen, klein und gedaempft: er
         // ist die Nebenauskunft, nicht die Hauptsache.
@@ -1046,9 +955,8 @@ display:
                     "%d", (int) (id(yapaia_tempo).state + 0.5f));
           it.print(cx, cy + 14, id(font_s), id(c_gedaempft), TextAlign::CENTER, "km/h");
           it.print(cx, cy + 36, id(font_s), id(c_gedaempft), TextAlign::CENTER, text);
-          // Auch OHNE Route kann man zu schnell sein -- seit 0.14.1 kennt
-          // Yapaia das Tempolimit an der aktuellen Stelle. Stuende der Ring
-          // nur in der Fahransicht, fehlte er ausgerechnet dort, wo man die
+          // Auch ohne Route kann man zu schnell sein; Yapaia kennt das Tempolimit
+          // an der aktuellen Stelle. Der Ring steht daher auch hier.
           // meiste Zeit faehrt.
           randwarnung();
           return;
@@ -1059,11 +967,9 @@ display:
       }
 
       // ══ Oben: KEIN Anweisungstext mehr ═══════════════════════════════
-      // Gewuenscht (von der Autobahn): „den Text brauch ich nicht, das Bild
-      // natuerlich schon, der koennte ein Stueck nach oben wandern und
-      // darunter die Entfernung. Mit dem Platz, der uebrig bleibt, die
-      // Spurpfeile wie im Cockpit Sport." Der Text war ohnehin nach rund
-      // 25 Zeichen abgeschnitten -- die Richtung stand meist im Rest.
+      // Oben steht kein Anweisungstext: das Manöverbild wandert nach oben,
+      // darunter die Entfernung, und der Platz geht an die Spurpfeile wie im
+      // Cockpit Sport.
 
       // ══ Mitte: der Manoeverpfeil ═══════════════════════════════════════
       // Gezeichnet, nicht als Symbolschrift geladen: so haengt die Anzeige
@@ -1084,9 +990,7 @@ display:
       const int py = cy - (r * 41) / 100;
       // Die Kantenlaenge kommt aus `r`, also aus der KLEINEREN Seite. Damit
       // passt der Pfeil in jedem Seitenverhaeltnis; eine zusaetzliche
-      // Begrenzung auf die Halbbreite stand hier zunaechst, konnte aber nie
-      // greifen -- der Prueflauf zeigte, dass sie sich entfernen laesst, ohne
-      // dass ein Fall anders ausgeht. Beiwerk, das Sicherheit nur vortaeuscht.
+      // Begrenzung auf die Halbbreite wäre wirkungslos.
       const int s = (r * 30) / 100;
       const int d = s / 3;
       auto C = id(c_pfeil);
@@ -1099,17 +1003,10 @@ display:
       // Bei `width < 0` ist `x + width < x`, die Schleife laeuft kein
       // einziges Mal. Kein Fehler, kein Protokoll, nur ein fehlendes Stueck.
       //
-      // ─── WAS DAS GEKOSTET HAT ───────────────────────────────────────────
-      // Die Pfeile bekommen ihren waagerechten Arm mit `seite * ...` -- bei
-      // einer LINKSabbiegung also negativ. Auf dem Geraet fehlte der Arm
-      // deshalb vollstaendig: das Dreieck stand abgesetzt neben einem
-      // einzelnen Balken, waehrend die Rechtsabbiegung einen sauberen Winkel
-      // zeigte. Gemeldet nach einer Probefahrt, mit Foto: „Links und rechts
-      // Pfeil auf dem Display sind unterschiedlich. Der rechts Pfeil ist
-      // besser, so sollte der linke auch aussehen."
-      //
-      // Betroffen waren VIER Pfeilarten (turn_left, slight_left, ramp_left,
-      // uturn_left) und der linke Kreisverkehr -- ueberall dieselbe Ursache.
+      // ─── LINKS UND RECHTS GLEICH ────────────────────────────────────────
+      // Die Pfeile bekommen ihren waagerechten Arm mit `seite * ...`, bei einer
+      // Linksabbiegung also negativ; betroffen sind turn_left, slight_left,
+      // ramp_left, uturn_left und der linke Kreisverkehr.
       //
       // Statt an jeder Stelle die Vorzeichen von Hand zu drehen, wird hier
       // einmal normalisiert: negative Breite heisst „nach links ab x", und
@@ -1132,15 +1029,10 @@ display:
         it.filled_triangle(ex - s / 2, py - s / 2, ex + s / 2, py - s / 2, ex, py + s / 4, C);
       } else if (enthaelt("roundabout")) {
         // ─── DER KREISEL: DER BOGEN, DEN MAN FAEHRT, UND DIE AUSFAHRT ──────
-        // Gemeldet: „wenn ich auf einen Kreisel zu fahre zeigt der ESP
-        // komische Symbole an. Besser wären sowas wie ein viertelkreis,
-        // Halbkreis etc. oder eine zusätzliche Nummerierung wann man den
-        // Kreisel wieder verlassen muss."
+        // Auf einen Kreisel zu zeigt das Display den Bogen, den man fährt, und die
+        // Nummer der Ausfahrt.
         //
-        // Bis 0.17.3 stand hier fuer JEDEN Kreisel dasselbe Bild -- Ring,
-        // Stiel und ein Pfeil oben rechts --, weil das Display nichts weiter
-        // wusste als „roundabout". Jetzt schickt der Kern im Attribut
-        // `roundabout` zwei Zahlen: die wievielte Ausfahrt und um wie viel
+        // Der Kern schickt im Attribut `roundabout` zwei Zahlen:
         // Grad sich die Fahrtrichtung dreht (`"2|90"`, rechts positiv; siehe
         // `apps/core/src/routing/kreisel.ts`).
         //
@@ -1219,11 +1111,8 @@ display:
         const int seite = enthaelt("right") ? 1 : -1;
         rechteck(cx - d / 2, py, d, s);
         // ─── DER ARM REICHT BIS AN DIE DREIECKSBASIS ──────────────────
-        // Vorher endete er `d/2` davor, und zwar nur auf der RECHTEN Seite:
-        // links verschob die Normalisierung die Kante zufaellig in die
-        // andere Richtung. Die beiden Pfeile waren damit auch nach dem
-        // eigentlichen Fehler noch nicht spiegelgleich -- rechts mit
-        // sichtbarer Luecke zur Spitze, links ohne.
+        // Der Arm endet genau an der Dreiecksbasis, links wie rechts, damit
+        // beide Pfeile spiegelgleich sind.
         //
         // `+ d/2` schliesst sie auf beiden Seiten: der Arm beginnt an der
         // ABGEWANDTEN Stielkante und endet genau auf `ex`.
@@ -1262,9 +1151,7 @@ display:
       // 64|128|1024 rechts, 256 wenden.
       //
       // ─── OHNE SPURDATEN AN EINER TEILUNG ─────────────────────────────────
-      // Gewuenscht: „manchmal braeuchte ich ein bisschen mehr Guidance,
-      // welche Spur ich tatsaechlich benutze" -- gerade wenn sich die
-      // Ausfahrt teilt. Spurdaten gibt es nur, wo sie in OpenStreetMap
+      // Spurdaten gibt es nur, wo sie in OpenStreetMap
       // eingetragen sind. Fehlen sie bei einer Teilung, Auffahrt oder
       // Ausfahrt, steht hier eine vereinfachte Zweierleiste: die Seite, auf
       // die es geht, hell.
@@ -1373,34 +1260,16 @@ display:
 
       const bool zu_schnell = id(yapaia_zu_schnell).state;
 
-      // ─── HIER STANDEN ZWEI ZAHLEN ZUM TEMPOLIMIT ──────────────────────
-      // Ein weisses Verkehrszeichen mit rotem Rand in der Mitte, daneben
-      // klein die Fahrzeuggrenze. Gewuenscht:
-      //
-      //   „Bitte entferne bei der Navigationsanzeige das speedlimit als
-      //    Zahl. Es langt wenn es überschritten wird einen roten Ring am
-      //    Displayrand anzuzeigen."
-      //
-      // Der Einwand ist gut. Beim Fahren liest niemand zwei Zahlen und
-      // vergleicht sie mit einer dritten -- man will WISSEN, ob es passt.
-      // Die Antwort darauf ist ein Ja oder Nein, und dafuer ist ein Ring
-      // die bessere Form als drei Ziffern.
-      //
-      // ─── WARUM AUCH DIE FAHRZEUGGRENZE WEG IST ────────────────────────
-      // Sie war die zweite Zahl. Ihre Aussage geht nicht verloren:
-      // `binary_sensor.yapaia_speeding` warnt seit 0.14.0 an der NIEDRIGEREN
-      // der beiden Grenzen -- dem Schild und dem, was dieses Fahrzeug darf.
-      // Der Ring traegt damit beides.
-      //
-      // Was verloren geht, ist die Auskunft „was darf ich hier eigentlich".
-      // Das ist der Preis, und er ist bewusst bezahlt: die Zahl stand auf
-      // einem 240 Punkte grossen Glas neben einer zweiten, und wer sie
-      // wirklich braucht, hat sie im Dashboard.
+      // ─── TEMPOLIMIT: NUR DER RING, KEINE ZAHL ─────────────────────────
+      // Beim Fahren liest niemand zwei Zahlen und vergleicht sie; man will
+      // wissen, ob es passt. Dafür ist ein roter Ring am Displayrand die
+      // bessere Form. `binary_sensor.yapaia_speeding` warnt an der niedrigeren
+      // der beiden Grenzen (Schild und Fahrzeug), der Ring trägt also beides.
+      // Die Limit-Zahl selbst steht im Dashboard.
       if (hat(id(yapaia_tempo))) {
         // ─── GROESSER UND MITTIG ────────────────────────────────────────
-        // Vorher stand das Tempo linksbuendig am Rand, klein, neben dem
-        // Schild. Ohne das Schild ist die Mitte frei -- und das Tempo ist
-        // die Zahl, die beim Fahren zaehlt.
+        // Das Tempo steht groß in der Mitte: es ist die Zahl, die beim Fahren
+        // zählt.
         it.printf(cx, uy, id(font_xl),
                   zu_schnell ? id(c_warnung) : id(c_text), TextAlign::CENTER,
                   "%d", (int) (id(yapaia_tempo).state + 0.5f));
@@ -1419,7 +1288,7 @@ display:
         // `false`: die Nummer des Tages im Jahr ist oben nicht gesetzt,
         // gerechnet wird aus dem Datum.
         t.recalc_timestamp_utc(false);
-        // Kleinere Schrift als vorher: das Tempo in der Mitte ist gewachsen,
+        // Kleinere Schrift: das Tempo in der Mitte ist groß,
         // und bei dreistelligem Tempo kaemen sich die beiden sonst in die
         // Quere. Die Ankunft ist die Nebenauskunft.
         if (id(eta_als_restzeit).state) {

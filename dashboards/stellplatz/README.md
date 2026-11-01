@@ -21,14 +21,14 @@ Karte `wlan-card.js`, alles im grafischen Editor änderbar.
   Das muss auf einem Gerät im WLAN des Wohnmobils geschehen; die Anmeldung gilt
   dann für alle Geräte dahinter, weil der Router für alle gemeinsam im
   Campingplatz-WLAN hängt.
-- Braucht das Router-Modul der Integration ab 0.4.0 (Aktionen
+- Braucht das Router-Modul der Integration (Aktionen
   `yapaia.router_wlan_suchen`, `…_verbinden`, `…_trennen`, Sensor
   `binary_sensor.yapaia_router_wlan_anmeldung`).
 
-## Offen
+## Hinweise
 
-- Gas-Sensoren und einige Reifen liefern derzeit keine Werte („Unbekannt“).
-- Wasser ist die Rohspannung des Drucksensors (V), noch nicht in Liter/Prozent umgerechnet.
+- Sensoren ohne Wert (etwa Gas oder einzelne Reifen, solange der Bluetooth-Sammler sie nicht empfängt) zeigt Home Assistant als „Unbekannt“.
+- Wasser ist die Rohspannung des Drucksensors (V). Prozent zeigt die Karte im Dashboard [Stellplatz Stil](../stellplatz-stil/), wenn die Spannungen für leer und voll eingetragen sind.
 
 ## Einspielen
 
@@ -40,4 +40,4 @@ python3 dashboards/deploy.py --dashboard stellplatz
 
 - `sensor.batterien_restlaufzeit` (Template-Helfer in HA): Restlaufzeit beider
   Batterien zusammen = 3 × (SOC Shunt 1 + SOC Shunt 2) Ah ÷ Entladestrom
-  (2 × 300 Ah). Beim Laden „Unbekannt“. Anzeige der drei Restlaufzeiten in HA auf Tage umgestellt (Entitätseinstellung, Anzeige z. B. „8 T, 13h“).
+  (2 × 300 Ah). Beim Laden „Unbekannt“. Die Anzeige lässt sich in den Entitätseinstellungen auf Tage stellen (z. B. „8 T, 13h“).

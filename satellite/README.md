@@ -21,7 +21,7 @@ Home-Assistant-Oberfläche.
   Boards mit dem Codec AC101 (Aufdruck z. B. „2957“) passen **nicht**.
 - Lautsprecher am Lautsprecher-Stecker (weiße 2-polige Buchse).
 - Micro-USB-Kabel (Daten, nicht nur Strom) und ein Netzteil.
-- Home Assistant mit dem Add-on **ESPHome Device Builder** und einer
+- Home Assistant mit dem Add-on **ESPHome Device Builder** (ESPHome 2025.5 oder neuer) und einer
   Sprachassistent-Pipeline (Einstellungen → Sprachassistenten).
 
 ## Einrichten
@@ -114,10 +114,11 @@ unter `substitutions:`:
 substitutions:
   name: yapaia-satellite
   friendly_name: Yapaia Satellite
-  speaker_output: LINE2   # LINE1 | LINE2 | BOTH
-  mic_input: LINE1        # LINE2 (Board) | LINE1 (Line-In) | DIFFERENCE
-  mic_pga_db: "18"        # Vorverstärkung im Codec, 0–24 dB in 3er-Schritten
+  speaker_output: BOTH    # LINE1 | LINE2 | BOTH (Standard)
+  mic_input: LINE2        # LINE2 (Board-Mikrofone, Standard) | LINE1 (Line-In) | DIFFERENCE
+  mic_pga_db: "24"        # Vorverstärkung im Codec, 0–24 dB in 3er-Schritten (Standard 24)
   mic_gain: "4"           # zusätzliche digitale Verstärkung
+  zuhoeren_absenkung_db: "40"  # Musik so viel leiser, solange der Assistent zuhört
   led_inverted: "true"
 ```
 

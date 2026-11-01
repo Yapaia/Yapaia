@@ -19,7 +19,7 @@ Gerät und Eingänge ins Protokoll und auf seine Seite (*Technik*).
 Der **EasyCAP002 „4CH USB DVR“** (Somagic SMI2021CBE, `1c88:0007`) hat
 keinen Kernel-Treiber. Vision bringt dafür `somagic-init`/`somagic-capture`
 von [easycap-somagic-linux](https://github.com/pimartos/easycap-somagic-linux)
-(GPL-2.0) mit (`yapaia/somagic.py`); die Firmware stellt der Nutzer aus dem
+(GPL-2.0) mit (`yapaia_vision/rootfs/opt/yapaia/yapaia/somagic.py`); die Firmware stellt der Nutzer aus dem
 Windows-Treiber bereit (siehe [`DOCS.md`](yapaia_vision/DOCS.md)).
 
 Bei den meisten 4-Kanal-Sticks läuft unter Linux nur ein Eingang zur selben

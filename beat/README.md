@@ -9,8 +9,11 @@ DAB+-Radio empfängt – autark, ohne Internet, ideal für den **Camper**.
 - 🔎 **Automatischer Suchlauf**, **Favoriten**, Suche nach **Name oder Frequenz**
 - 🖼️ **Senderlogos** (radio-browser.info mit lokalem Cache, eigene Uploads, generierte Logos)
 - 🚐 **Automatische Senderverfolgung**: RDS-AF/PI-Code, andere DAB-Kanäle, Wechsel UKW ↔ DAB+
-- 🔊 Wiedergabe über die **Audioausgabe von Home Assistant** und als **MP3-Stream**
+- 📡 **Zweiter RTL-SDR-Stick** (optional): Suchlauf und Senderverfolgung im Hintergrund, Senderwechsel ohne Pause
+- 🔊 Wiedergabe über die **Audioausgabe von Home Assistant**, als **MP3-Stream** oder auf **beliebigen Lautsprechern** (Sonos, Music Assistant …)
+- 🗣️ **Ansagen** anderer Yapaia-Module (z. B. Navigation) werden ins laufende Radio gemischt; **Sprachbefehle** per Assist
 - 🏠 **Integration mit Entitäten für Standard-Karten** + eigene **Radio-Karte** (Retro & Modern)
+- 🎨 **Design-Schemata** und Oberfläche auf **Deutsch und Englisch** (folgt Home Assistant)
 
 <p align="center"><img src="docs/images/dashboard.png" alt="Dashboard" width="900"></p>
 
@@ -90,6 +93,7 @@ beat/
       fm.py / dab.py              Empfang & Suchlauf (rtl_fm/redsea/rtl_power, welle-cli)
       radio.py                    Steuerung, Favoriten, Senderverfolgung
       logos.py                    Senderlogos
+      ansage.py / befehl.py       Ansagen einmischen, Sprachbefehle
       web.py                      REST-API, WebSocket, MP3-Stream
       protokoll.py                Anmeldung bei der Integration „Yapaia“
     rootfs/opt/yapaia/www/      Web-Oberfläche (Ingress)

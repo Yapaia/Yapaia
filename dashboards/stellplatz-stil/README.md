@@ -1,13 +1,13 @@
 # Dashboard „Stellplatz Stil“
 
 Das Stellplatz-Dashboard als **eine eigene Karte** (`custom:yapaia-stellplatz-card`)
-in drei Aufbauten (`stil`), je eine Ansicht. Farben, Schriften und Deko kommen
+in vier Aufbauten (`stil`), je eine Ansicht. Farben, Schriften und Deko kommen
 aus dem [Yapaia-Design-Schema](../../docs/design-schemata.md) (`design: auto`
 = Gesamt-Schema, oder eine Schema-ID):
 
 | Ansicht | `stil` | Aufbau |
 |---|---|---|
-| Kacheln | `retro` | Kacheln (Entwurf „Retro-Camper“) |
+| Kacheln | `retro` | Kacheln im Retro-Camper-Stil |
 | Magazin | `magazin` | Seitenspalte mit Ort/Wetter, große Zahlen, kurze Sätze |
 | Magazin mit Karten | `mix` | wie Magazin, mit gerahmten Karten |
 | Breitbild | `breit` | eine Zeile, sechs Spalten – für Stretch-Displays 1920 × 720 (z. B. Wisecoco 12,3"); schmaler bricht sie in drei Spalten um |
@@ -32,8 +32,7 @@ dazu Wetter (`weather.forecast_home`) und Sonne (`sun.sun`).
   `ort_entity` (Standard `sensor.yapaia_go_ort`: Yapaia Go bestimmt den Ort
   offline aus dem Suchindex; eine Geocoded Location der Companion-App mit
   Attribut `locality` geht auch). Fest
-  eintragen geht mit `ort`; ohne beides steht der Titel da. „Tag 3 auf dem Platz“ aus dem Entwurf
-  fehlt noch – dafür gibt es keinen Sensor.
+  eintragen geht mit `ort`; ohne beides steht der Titel da.
 - **Schriften** liefert die Integration lokal mit (`/yapaia_design/schriften/`).
 - Passt sich der Breite an: 1280 px (iPad quer) voll, darunter zwei Spalten,
   am Telefon eine.

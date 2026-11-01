@@ -214,7 +214,7 @@ class Design:
 
 
 def nachricht(d: Design, kennung: str) -> dict[str, Any]:
-    """Was ein Modul bekommt (POST /yapaia/v1/design, docs/integration-protokoll.md §9)."""
+    """Was ein Modul bekommt (POST /yapaia/v1/design, docs/integration-protokoll.md §8a)."""
     schema_id = d.fuer(kennung)
     schema = next((s for s in d.schemata if s["id"] == schema_id), None)
     return {

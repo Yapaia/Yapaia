@@ -13,6 +13,7 @@ Modulnamens.
 | `ansage.einmischen` | Beat | Ansagen werden ins laufende Radio gemischt (Musik leiser, Ansage, Musik zurück). |
 | `mobilfunk` | Router | Mobilfunkstatus: Land (`land_code`), Roaming, Anbieter, Signal als Entitäten `…yapaia_router_<schlüssel>`. |
 | `mobilfunk.sim_wechsel` | Router | SIM 1/2 umschalten per Aktion `yapaia.router_sim_waehlen` (`sim`); Ergebnis über die Ereignisse `sim_gewechselt` / `sim_wechsel_fehlgeschlagen`. |
+| `wlan.repeater` | Router | Router als Repeater an einem fremden WLAN: suchen, verbinden, trennen per `yapaia.router_wlan_suchen`, `…_wlan_verbinden` (`ssid`, optional `passwort`, `bssid`, `merken`), `…_wlan_trennen`; Anmeldung im Browser (Captive Portal) als Sensor `…_wlan_anmeldung`. |
 | `kamera` | Vision | Kameras als Entitäten `camera.yapaia_vision_kamera_<n>`; Kanal wählen per `yapaia.vision_kanal_waehlen` (`kanal`: Name oder Nummer). |
 | `sprache.eingabe` | Satellite | Mikrofon für den Home-Assistant-Sprachassistenten. |
 | `sprache.ausgabe` | Satellite | Lautsprecher als Mediaplayer (Ansagen per `tts.speak`). |
@@ -48,6 +49,16 @@ Modulnamens.
 - **Antwort** (mit `return_response`): `{"ok": true, "weg": "gemischt" |
   "lautsprecher"}` oder `{"ok": false, "error": "…"}`. Bei `ok: false` spricht
   der Aufrufer selbst (z. B. über den gewählten Lautsprecher).
+
+## `wlan.repeater`
+
+- **Aufruf:** `yapaia.router_wlan_suchen` (Antwort: Liste der WLANs der
+  Umgebung), `yapaia.router_wlan_verbinden` (`ssid` Pflicht; ohne `passwort`
+  gilt ein beim Router gespeichertes; `merken`, Standard an) und
+  `yapaia.router_wlan_trennen`.
+- **Zustände:** `…yapaia_router_internet` (Internet über WLAN, Mobilfunk, Kabel
+  oder Tethering), `…_wlan_signal`, `…_wlan_anmeldung` (`an`, wenn das WLAN
+  eine Anmeldung im Browser verlangt).
 
 ## `kamera`
 

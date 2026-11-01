@@ -5,9 +5,8 @@ someone a day already.
 
 This is the entry point for contributors. The numbered documents
 (`00-vision-scope` … `08-wargame`) are design records from the planning phase —
-excellent for understanding *why* a decision was made, but where they describe
-a future that has since arrived, **this document describes what actually
-ships**.
+useful for understanding *why* a decision was made; where they differ from
+this document, **this document describes what actually ships**.
 
 **Contents**
 
@@ -29,7 +28,7 @@ ships**.
 
 | | |
 |---|---|
-| Node | **22** (what CI runs; the toolchain assumes its built-in `WebSocket` and `fetch`) |
+| Node | **24** (what CI and the add-on image run; the toolchain assumes its built-in `WebSocket` and `fetch`) |
 | pnpm | **10.33.0** (pinned via `packageManager` — use Corepack) |
 | Docker | Only for the containerised services and the add-on image |
 
@@ -121,7 +120,7 @@ threading a call through the navigation code.
 
 | Module | Responsibility |
 |---|---|
-| `position/` | Source fusion: gpsd, browser, HA device_tracker, simulator. Dead reckoning, plausibility guard |
+| `position/` | Source fusion: gpsd, Teltonika router (Modbus), browser, HA device_tracker (Companion App), simulator. Dead reckoning, plausibility guard |
 | `routing/` | Valhalla client, vehicle-profile → routing-cost translation, polyline handling |
 | `navigation/` | Turn-by-turn state machine, map matching, instruction generation, rerouting |
 | `search/` | Photon client plus the offline `lite` index and its CLI builder |
@@ -138,7 +137,7 @@ threading a call through the navigation code.
 
 `map/` (MapLibre), `drive/` (drive mode, lock, resume), `routing/`, `search/`,
 `profiles/`, `favorites/`, `settings/`, `onboarding/`, `shell/` (layout,
-handedness, screen-awake), `theme/`, `addons/`, `embed/` (the page the Lovelace
+handedness, screen-awake), `theme/` + `design/` (design schemes), `i18n/` + `sprache/` (German/English), `addons/`, `embed/` (the page the Lovelace
 card frames), `pwa/`, `state/` + `store/` (Zustand).
 
 ### Key decisions
@@ -163,7 +162,7 @@ version:
 
 ### REST — `/api/v1/*`
 
-97 paths, generated into [`openapi.json`](openapi.json) from the Fastify routes
+About 100 paths, generated into [`openapi.json`](openapi.json) from the Fastify routes
 and the `@yapaia/shared` schemas. **The spec is CI-enforced**: change a route
 without regenerating and the `docs-freshness` job fails.
 
@@ -172,10 +171,10 @@ pnpm openapi:generate     # after any route change
 pnpm openapi:check        # what CI runs
 ```
 
-Largest groups by path: `addons` (21), `map` (13), `navigation` (8),
-`simulator` (5), then `position`, `profiles`, `online`, `ansage` and the
-Yapaia protocol `/yapaia/v1/*` (4 each); the rest are smaller groups plus the
-`/tiles/{region}` endpoint.
+Largest groups by path: `addons`, `map`, `navigation`, `simulator`, then
+`position`, `profiles`, `online`, `ansage` and the Yapaia protocol
+`/yapaia/v1/*`; the rest are smaller groups plus the `/tiles/{region}`
+endpoint.
 
 The one endpoint worth knowing if you integrate from outside:
 `POST /api/v1/navigation/destination` takes `{query | latlng, profile_id?,
@@ -248,7 +247,7 @@ Home Assistant root and silently misses the add-on. **Always** build URLs from
 fetch(`${import.meta.env.BASE_URL}api/v1/system/preflight`)
 ```
 
-This is wargame case W-15, and `apps/web/e2e/subpath.spec.ts` guards it.
+`apps/web/e2e/subpath.spec.ts` guards this.
 
 ### ESM: relative imports need `.js`
 
@@ -268,9 +267,8 @@ pnpm test > /tmp/out.log 2>&1; echo "EXIT=$?"
 ### Mutation-check every new assertion
 
 House rule, and it has repeatedly earned its keep. Break the code the test
-covers and confirm the test goes **red**. Two tests in a recent release passed
-without their feature being present at all — a green run does not prove a test
-works, only a red one does.
+covers and confirm the test goes **red**. A green run does not prove a test works, only a red one does:
+tests have passed without their feature being present at all.
 
 ---
 
@@ -278,8 +276,8 @@ works, only a red one does.
 
 | Suite | Command | What it covers |
 |---|---|---|
-| Unit | `npx vitest run` (from root) | ~3255 tests across apps, packages, add-on config, reference add-ons |
-| E2E | `pnpm e2e` | 167 Playwright tests: full user flows, offline guarantees, touch targets |
+| Unit | `npx vitest run` (from root) | Apps, packages, add-on config, reference add-ons |
+| E2E | `pnpm e2e` | Playwright tests: full user flows, offline guarantees, touch targets |
 | Security | `pnpm e2e:security` | Sandbox-escape vectors, all must be blocked *and* logged |
 | Performance | `pnpm perf` | Budgets on the N100 reference profile |
 | Golden routes | `pnpm golden-routes` | Routing correctness against known restrictions — needs a running core |
@@ -307,12 +305,12 @@ anything is decoration.
 
 ## CI/CD pipeline
 
-### On every pull request (`ci.yml` → `go-ci.yml`, `go-addon-image.yml`) — 15 jobs, all blocking
+### On every pull request (`ci.yml` → `go-ci.yml`, `go-addon-image.yml`) — all blocking
 
 | Job | Gate |
 |---|---|
 | **Quality Checks** | lint, typecheck, unit tests, build |
-| **E2E (Playwright)** | 167 browser tests |
+| **E2E (Playwright)** | Browser tests, sharded 4-way |
 | **Security Suite** | Sandbox escapes blocked and logged, plus a mutation proof |
 | **API-Security-Smoke** | Auth matrix and security headers against a real built core |
 | **Performance Budgets** | N100 profile budgets |
@@ -385,9 +383,11 @@ call is ineffective, it goes — not into a comment as decoration.
 without the feature because the fixture region was small enough to satisfy it
 anyway. "Set zoom to 6, then assert it moved" does not.
 
-**German and English.** Code comments, the changelog and the older docs are
-German. This guide, the manual and the README are English. Match the file you
-are editing rather than mixing within one.
+**German and English.** Code comments, the changelog and most docs are German.
+This guide and the manual are English. Match the file you are editing rather
+than mixing within one. Everything the user sees exists in German and English
+and follows the Home Assistant language (`texte.ts` files in `apps/web/src`;
+see `docs/sprachen.md` in the repository root).
 
 ---
 
