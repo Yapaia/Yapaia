@@ -23,20 +23,21 @@
 Modul erfüllt eine Aufgabe, funktioniert für sich allein und wird besser, je
 mehr Yapaia-Module zusammenarbeiten.
 
-| Modul | Was es ist | Ordner |
-|---|---|---|
-| **Yapaia Go** | Offline-Navigation fürs Wohnmobil (Add-on) | [`go/`](go/) |
-| **Yapaia Beat** | UKW- und DAB+-Radio mit RTL-SDR-Stick (Add-on) | [`beat/`](beat/) |
-| **Yapaia Vision** | Analoge Kameras (z. B. Rückfahrkamera) über einen USB-Video-Grabber (Add-on) | [`vision/`](vision/) |
-| **Yapaia Satellite** | Sprachsatellit auf dem ESP32 Audio Kit (ESPHome) | [`satellite/`](satellite/) |
-| **Yapaia Router** | Mobilfunk des GL.iNet-Routers (GL-X3000): Status, SIM-Umschaltung nach Land (Teil der Integration „Yapaia“) | [`router/`](router/) |
-| **Integration „Yapaia“** | Die Home-Assistant-Integration, bei der sich alle Module anmelden; kommt mit jedem Add-on mit | [`integration/`](integration/) |
-| **Dashboards** | Fertige Home-Assistant-Dashboards (Cockpit, Rangieren, Stellplatz) | [`dashboards/`](dashboards/) |
-| **Geräte** | ESPHome-Konfigurationen für Geräte im Wohnmobil (Heizung, Tür, Bluetooth-Sammler, Navigationsanzeige …) | [`devices/esphome/`](devices/esphome/) |
+| Modul | Was es kann | Stand | Doku |
+|---|---|---|---|
+| **Yapaia Go** | Offline-Navigation fürs Wohnmobil (Add-on): Routen nach Fahrzeugmaßen und -gewicht, Kartenansicht, Adresssuche, Sprachführung, Sprachbefehle (Deutsch/Englisch), Tempolimit-Warnung, Ziel und Ankunft als Home-Assistant-Entitäten; erweiterbar mit Add-ons | Add-on 0.68.0 | [`go/`](go/) · [Handbuch](go/docs/manual.md) · [Add-on](go/yapaia_go/DOCS.md) |
+| **Yapaia Beat** | UKW- und DAB+-Radio mit RTL-SDR-Stick (Add-on): Suchlauf, Favoriten, Senderlogos, automatische Senderverfolgung, Mediaplayer und Radio-Karte in Home Assistant, Ansagen ins laufende Radio | Add-on 1.19.1 | [`beat/`](beat/) · [Anleitung](beat/yapaia_beat/DOCS.md) |
+| **Yapaia Vision** | Analoge Kameras (z. B. Rückfahrkamera) über einen USB-Video-Grabber (Add-on), mit Kanalumschaltung | Add-on 0.4.1 | [`vision/`](vision/) · [Anleitung](vision/yapaia_vision/DOCS.md) |
+| **Yapaia Satellite** | Sprachsatellit auf dem ESP32 Audio Kit (ESPHome): Mikrofon, Lautsprecher, Aktivierungswort | – | [`satellite/`](satellite/) |
+| **Yapaia Router** | Mobilfunk des GL.iNet-Routers (GL-X3000): Status, SIM-Umschaltung von Hand oder nach Land, WLAN-Repeater mit Campingplatz-Anmeldung (Teil der Integration, kein Add-on) | mit Integration | [`router/`](router/) |
+| **Integration „Yapaia“** | Die Home-Assistant-Integration, bei der sich alle Module anmelden: Geräte, Entitäten, Aktionen, Auslöser, Design und Sprache; kommt mit jedem Add-on mit | 0.8.2 | [`integration/`](integration/) · [Protokoll](docs/integration-protokoll.md) |
+| **Design-Schemata** | Gemeinsames Aussehen (Farben, Schriften, Formen) für Add-ons, Karten und Dashboards; Auswahl über das Gerät „Yapaia Design“ | – | [Design-Schemata](docs/design-schemata.md) |
+| **Dashboards** | Fertige Dashboards: Cockpit Sport, Rangieren, Stellplatz, Stellplatz Stil – mit eigenen Karten (Navigation, Radio, Kamera, Nivellierung, Reifendruck, WLAN) | – | [`dashboards/`](dashboards/) |
+| **Geräte** | ESPHome-Konfigurationen für Geräte im Wohnmobil: Heizung, Tür, Schaltausgänge, Bluetooth-Sammler (Batterie, Gas, Reifendruck), Lenkradfernbedienung, Navigationsanzeige, Drehknopf M5 Dial | – | [`devices/esphome/`](devices/esphome/) |
 
-**Add-ons für Yapaia Go:** Go lässt sich mit Add-ons erweitern. Seit Go 0.56.0
-installiert es sie aus einem Add-on-Marktplatz – nur signierte Pakete, auf
-Wunsch mit Lizenz, auch kostenpflichtige
+**Add-ons für Yapaia Go:** Go lässt sich mit Add-ons erweitern, die es aus
+einem Add-on-Marktplatz installiert – nur signierte Pakete, auf Wunsch mit
+Lizenz, auch kostenpflichtige
 (Protokoll: [`go/docs/marktplatz.md`](go/docs/marktplatz.md), Anleitung für
 Add-on-Entwickler: [`go/docs/addon-dev-guide.md`](go/docs/addon-dev-guide.md)).
 
@@ -44,8 +45,8 @@ Add-on-Entwickler: [`go/docs/addon-dev-guide.md`](go/docs/addon-dev-guide.md)).
 
 Alle Add-ons kommen aus **einem** Add-on-Store:
 Home Assistant → Einstellungen → Add-ons → Add-on-Store → ⋮ → Repositories →
-`https://github.com/Yapaia/yapaia`. Danach jedes Modul einzeln installieren –
-nur die, die man braucht.
+`https://github.com/Yapaia/yapaia` (Add-on-Store „Yapaia“ mit Go, Beat und
+Vision). Danach jedes Modul einzeln installieren – nur die, die man braucht.
 
 Jedes Add-on bringt die Integration **„Yapaia“** mit. Nach dem ersten Start
 einmal Home Assistant neu starten; dann erscheint jedes Modul unter
@@ -72,7 +73,7 @@ Device Builder aufgespielt – Anleitung in [`satellite/`](satellite/).
    alles oder je Modul ein eigenes; Home Assistant selbst nur auf Wunsch
    ([Design-Schemata](docs/design-schemata.md)).
 5. **Deutsch und Englisch:** Yapaia folgt der Sprache von Home Assistant
-   (im Aufbau, [Sprachen](docs/sprachen.md)).
+   ([Sprachen](docs/sprachen.md)).
 
 ## Entwicklung
 
@@ -82,9 +83,7 @@ Device Builder aufgespielt – Anleitung in [`satellite/`](satellite/).
 - Versionen und Änderungslisten führt jedes Modul selbst
   ([`go/yapaia_go/CHANGELOG.md`](go/yapaia_go/CHANGELOG.md), [`beat/yapaia_beat/CHANGELOG.md`](beat/yapaia_beat/CHANGELOG.md),
   [`vision/yapaia_vision/CHANGELOG.md`](vision/yapaia_vision/CHANGELOG.md), [`router/CHANGELOG.md`](router/CHANGELOG.md)).
-  Release-Tags tragen das Modul im Namen, z. B. `go-v0.56.0`.
-- Die Geschichte der früheren Einzel-Repositories ist vollständig erhalten
-  (`git log -- go/`, `git log -- beat/`, `git log -- satellite/`, `git log -- router/`).
+  Release-Tags tragen das Modul im Namen, z. B. `go-v0.68.0`.
 
 ## Lizenz
 

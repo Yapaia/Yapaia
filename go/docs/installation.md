@@ -1,8 +1,7 @@
 # Installations-Guide
 
-Diese Anleitung ist für Leser geschrieben, die dieses Repository **noch nie
-gesehen haben**. Jeder Schritt nennt den genauen Befehl und was du danach auf
-dem Bildschirm erwarten kannst. Es gibt zwei unabhängige
+Diese Anleitung setzt kein Vorwissen voraus. Jeder Schritt nennt den genauen
+Befehl und was du danach auf dem Bildschirm erwarten kannst. Es gibt zwei unabhängige
 Installationswege — wähle **einen**:
 
 - **[A. Home-Assistant-Add-on](#a-home-assistant-add-on)** — wenn du bereits
@@ -13,29 +12,19 @@ Installationswege — wähle **einen**:
 
 Danach gilt für **beide** Wege:
 **[C. Kartenkacheln bauen](#c-kartenkacheln-bauen-pmtiles)** — ohne diesen
-Schritt gibt es keine Karte. Es gibt **keine** fertigen Kacheln zum
-Herunterladen; §C.1 erklärt, warum.
+Schritt gibt es keine Karte. Fertige Kacheln zum
+Herunterladen gibt es nicht; §C.1 erklärt, warum.
 
 Beide Wege enthalten außerdem einen eigenen Abschnitt zur
 **[USB-GPS-Durchreichung](#usb-gps-durchreichung)**.
-
-> **Hinweis zur Prüfbarkeit dieser Anleitung:** Dieses Dokument wurde in einer
-> Umgebung ohne Docker-Daemon, ohne freie VM und ohne Zugriff auf
-> `download.geofabrik.de`/GitHub-Releases/Overpass verfasst (die
-> Netzwerk-Sperren dort sind Teil dieser Entwicklungsumgebung, nicht des
-> Produkts). Jeder Befehl unten ist so geschrieben, wie er in einer normalen
-> Umgebung tatsächlich auszuführen wäre — er wurde hier aber **nicht selbst
-> gegen ein frisches System durchgespielt**. Ein zweiter, unabhängiger Leser
-> sollte diese Anleitung Schritt für Schritt gegen eine echte frische
-> Umgebung nachvollziehen und Abweichungen zurückmelden — genau dafür ist das
-> Testprotokoll am Ende dieses Dokuments gedacht.
 
 ---
 
 ## Voraussetzungen (beide Wege)
 
-- Ein x86_64- oder aarch64-Linux-Host ("Mini-PC", Referenz: N100-Klasse, 4+
-  GB RAM, siehe `docs/01-architecture.md` §4 für das Ressourcen-Budget).
+- Ein x86_64- oder aarch64-Linux-Host ("Mini-PC", Referenz: N100-Klasse). RAM:
+  für Yapaia allein reichen 4 GB bei kleiner Region; auf einer Home-Assistant-
+  Maschine sind 6 GB oder mehr sinnvoll (Tabelle im [README](../README.md#requirements)).
 - Für Weg A: eine laufende Home-Assistant-Installation (HAOS oder
   Supervised — **nicht** Home Assistant Core/Container, dem fehlt der
   Supervisor, der Add-ons überhaupt erst installieren kann).
@@ -69,16 +58,12 @@ Beide Wege enthalten außerdem einen eigenen Abschnitt zur
 
 Der vollständige, technische Referenztext für diesen Weg ist
 [`yapaia_go/DOCS.md`](../yapaia_go/DOCS.md) (Englisch, das
-ist der Text, den die Add-on-Store-Seite in HA tatsächlich anzeigt) — dieser
-Abschnitt hier ist die deutschsprachige Schritt-für-Schritt-Fassung
-zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
+ist der Text, den die Add-on-Store-Seite in HA anzeigt) — dieser
+Abschnitt hier ist die deutschsprachige Schritt-für-Schritt-Fassung.
 
-> **Dieses Repository ist selbst das Add-on-Repository.** In der Wurzel liegt
-> `repository.yaml`, das Add-on-Paket unter `go/yapaia_go/`. Der
-> HA-Supervisor durchsucht beim Eintragen einer Repository-URL alle
-> Unterordner nach einer `config.yaml` (Hintergrund: `yapaia_go/PACKAGING.md`,
-> `docs/04-home-assistant.md` §3). Schritt 1 unten ist deshalb der
-> GUI-Weg.
+> **Dieses Repository ist selbst das Add-on-Repository.** Beim Eintragen der
+> Repository-URL findet der Home-Assistant-Supervisor die Add-ons in den
+> Unterordnern selbst.
 
 1. **Repository in Home Assistant eintragen** (GUI, ohne SSH).
    **Einstellungen → Add-ons → Add-on Store → ⋮ (oben rechts) →
@@ -93,11 +78,7 @@ zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
    *Erwartetes Ergebnis:* ein neuer Store-Abschnitt „Yapaia" mit der
    Kachel **Yapaia Go** (daneben weitere Yapaia-Add-ons wie Yapaia Beat).
    *Erscheint nichts:* HA meldet ungültige Repositories mit einer eigenen
-   Fehlermeldung im selben Dialog. Bleibt der Abschnitt leer ohne Fehler, hat
-   der Supervisor das Repository zwar geladen, aber kein Add-on darin
-   gefunden — dann fehlt entweder `repository.yaml` in der Wurzel oder
-   `go/yapaia_go/config.yaml`. Beides prüft der CI-Job `addon-config-check`
-   (`yapaia_go/config.test.ts`) bei jedem PR mit.
+   Fehlermeldung im selben Dialog. Prüfe die URL und lade die Store-Seite neu.
 
 2. Add-on öffnen, **Installieren** klicken. Der Supervisor lädt dabei ein
    **fertiges Image** für deine Architektur (`ghcr.io/yapaia/yapaia-go-amd64`
@@ -108,15 +89,15 @@ zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
    *Bricht die Installation ab* (z. B. `403 denied` beim Image-Download oder
    `could not read Username for 'https://github.com'`): beide Fälle stehen mit
    Ursache und Lösung unter
-   [Troubleshooting I-01](troubleshooting.md#i-01--die-add-on-installation-bricht-ab).
+   [Troubleshooting: Die Add-on-Installation bricht ab](troubleshooting.md#i-01--die-add-on-installation-bricht-ab).
 3. **Konfiguration (optional):** Im Reiter **Konfiguration** muss vor dem
    ersten Start nichts gesetzt werden. Bleibt `region` leer, führt der
    Einrichtungsassistent in Yapaia durch die Auswahl der Karte. Alle Optionen
-   stehen in `yapaia_go/DOCS.md` §„Configuration options".
-4. Empfohlen bei knappem RAM auf einer geteilten HAOS-VM: die
-   RAM-Empfehlungstabelle in `yapaia_go/DOCS.md` §„RAM
-   recommendation" **vor** dem ersten Start lesen — Home Assistant selbst,
-   Mosquitto und alle anderen Add-ons teilen sich dieselbe VM.
+   stehen in `yapaia_go/DOCS.md` unter „Configuration options".
+4. Empfohlen bei knappem RAM auf einer geteilten HAOS-Maschine: die
+   RAM-Empfehlung in `yapaia_go/DOCS.md` („RAM recommendation") **vor** dem
+   ersten Start lesen — Home Assistant selbst, Mosquitto und alle anderen
+   Add-ons teilen sich dieselbe Maschine.
 5. Add-on **starten** (Schalter „Beim Booten starten" zusätzlich aktivieren,
    wenn das Add-on dauerhaft laufen soll). Im Log-Reiter sollte in dieser
    Reihenfolge erscheinen: Valhalla bereit (bzw. ohne Karte: wartet auf einen
@@ -127,8 +108,9 @@ zusätzlich zu jenem Dokument, nicht als Ersatz dafür.
 
 **Anbindung an Home Assistant:** Das Add-on bringt die Integration „Yapaia"
 mit. Nach dem ersten Start erscheint eine Benachrichtigung — Home Assistant
-einmal neu starten, dann unter *Einstellungen → Geräte & Dienste* „Yapaia Go
-gefunden" bestätigen. Kein Broker, keine Adresse, kein Token nötig. MQTT gibt
+einmal neu starten (*Einstellungen → System → Neu starten*), dann unter
+*Einstellungen → Geräte & Dienste* „Yapaia Go wurde gefunden. Einrichten?"
+bestätigen. Kein Broker, keine Adresse, kein Token nötig. MQTT gibt
 es zusätzlich (Option `mqtt_enabled`, Vorgabe aus). Details:
 [User Manual → Home Assistant](manual.md#home-assistant).
 
@@ -190,8 +172,7 @@ services/valhalla/build-tiles.sh data/pbf/li.osm.pbf
 ```
 
 Erwartung: `build-tiles.sh` baut den Routing-Graphen in einem temporären
-Verzeichnis und tauscht ihn danach **atomar** ein (kein Downtime, W-17 in
-`docs/08-wargame.md`); bei einem Liechtenstein-Extrakt dauert das insgesamt
+Verzeichnis und tauscht ihn danach **atomar** ein (ohne Ausfallzeit); bei einem Liechtenstein-Extrakt dauert das insgesamt
 etwa 15 Minuten (siehe `docs/data-update-runbook.md` für die Zeitangaben
 größerer Extrakte, z. B. Deutschland: 4–6 h, überwiegend Wartezeit). Details,
 Env-Overrides und der genaue Ablauf stehen im Skript-Header von
@@ -204,8 +185,7 @@ services/photon/download-index.sh liechtenstein
 ```
 
 (`services/photon/README.md` beschreibt Land-Codes, RAM-Tuning per
-`PHOTON_XMX`, und die `PHOTON_ENABLED=false`-Option für RAM-knappe Geräte,
-W-12.)
+`PHOTON_XMX` und die Option `PHOTON_ENABLED=false` für Geräte mit knappem RAM.)
 
 ### B.4 Stack starten
 
@@ -257,15 +237,14 @@ Fehlen dort noch Routing oder Suche, ist das vor §C normal. Öffne danach
 
 Alle Nutzdaten (Kartenregionen, Valhalla-Graph, Such-Index, Fahrzeugprofile/
 Favoriten-Datenbank) liegen unter `./data/` **außerhalb** der Container
-(siehe `docker-compose.yml`'s Volume-Mounts) — ein Image-Update rührt das
+(siehe die Volumes in `docker-compose.yml`) — ein Image-Update rührt das
 nicht an. Trotzdem vor jedem größeren Update ein Backup anlegen:
 
 ```bash
 tar czf "yapaia-backup-$(date +%Y%m%d).tar.gz" data/ .env
 ```
 
-(Siehe auch W-16 in [Troubleshooting](troubleshooting.md), falls nach einem
-Update dennoch Daten fehlen sollten.)
+(Fehlen nach einem Update dennoch Daten: [Troubleshooting](troubleshooting.md#w-16--nach-einem-update-fehlen-kartendaten-oder-einstellungen-).)
 
 Weiter mit [Erste Schritte](erste-schritte.md).
 
@@ -278,21 +257,12 @@ am ehesten überrascht — deshalb steht zuerst, warum es ihn überhaupt gibt.
 
 ### C.1 Warum es keinen Download gibt
 
-`docs/01-architecture.md`, ADR-003 legt fest: **„Offline-Karten = PMTiles
-(Protomaps-Builds von OSM)"**. Die Kacheln sind also ein **Erzeugnis** aus
-OpenStreetMap-Rohdaten, kein Fremd-Download.
-
-Der Regionen-Katalog verwies trotzdem lange auf
-`https://download.geofabrik.de/europe/<region>-latest.pmtiles`. Diese Adressen
-existieren nicht — sie waren offenbar entstanden, indem an der
-funktionierenden `.osm.pbf`-Adresse die Endung getauscht wurde. Geofabrik
-verteilt ausschließlich Rohdaten (`.osm.pbf`, `.shp.zip`). Wer den
-„Herunterladen"-Knopf drückte, bekam einen 404 und suchte den Fehler in seiner
-eigenen Installation.
-
-Deshalb gilt jetzt: Regionen ohne fertige Datei zeigen in der Oberfläche
-**„Wird gebaut"** statt eines Knopfes, der nicht funktionieren kann. Der Weg
-zu Kacheln ist dieser Abschnitt.
+Die Kacheln sind ein **Erzeugnis** aus OpenStreetMap-Rohdaten (PMTiles, gebaut
+mit planetiler), kein Fremd-Download: Geofabrik verteilt ausschließlich
+Rohdaten (`.osm.pbf`). **„Herunterladen"** in der Oberfläche holt deshalb nur
+diese Rohdaten; die Kacheln entstehen beim Bauen. Der Weg dorthin ist dieser
+Abschnitt — oder ein eigener Kartenserver mit fertigen Paketen
+([Eigene Karten, Routen und Suche](eigene-karten.md)).
 
 Dieselbe `.osm.pbf` erzeugt **drei** Dinge — die drei Skripte sind
 austauschbar in der Reihenfolge, brauchen aber alle dieselbe Eingabedatei:
@@ -301,7 +271,7 @@ austauschbar in der Reihenfolge, brauchen aber alle dieselbe Eingabedatei:
 |---|---|---|
 | Kartenkacheln (`.pmtiles`) | `services/tiles/build-pmtiles.sh` | die Karte, die man sieht |
 | Routing-Graph | `services/valhalla/build-tiles.sh` | Routen berechnen |
-| Lite-Suchindex | `services/valhalla/build-lite-index.sh` | Orts-, Straßen- und Sonderzielsuche ohne Photon (W-12) |
+| Lite-Suchindex | `services/valhalla/build-lite-index.sh` | Orts-, Straßen- und Sonderzielsuche ohne Photon |
 
 ### C.2 Was fehlt mir gerade? — die Prüfung in der App
 
@@ -336,15 +306,6 @@ das Gerät selbst, auch eine HAOS-VM mit 8 GB.
 sie direkt neu. Fertige Pakete vom eigenen Kartenserver heißen
 **„Installieren"** und brauchen keinen Bau.)
 
-> **Seit 0.59.0: erst laden, dann gemeinsam bauen.** Bis dahin baute
-> „Installieren" jede Karte sofort. Wer zwei Länder wollte, wartete auf zwei
-> Bauten nacheinander — und das Routing danach baute ohnehin noch einmal über
-> beide.
-
-> **Seit 0.16.0 gibt es nur noch eine Kartenliste.** Vorher standen
-> installierte und verfügbare Karten in zwei getrennten Abschnitten, und eine
-> Karte wanderte beim Installieren von der einen in die andere.
-
 Liechtenstein braucht Minuten, ein Bundesland wie Rheinland-Pfalz deutlich
 länger. Beim **ersten** Bau lädt das Add-on einmalig `planetiler.jar`
 (~100 MB) nach `/share/yapaia/tools/` — die bleibt dort über Updates hinweg.
@@ -353,9 +314,8 @@ Der Core lehnt den Start ab, wenn zu wenig Plattenplatz **oder** zu wenig
 freier Arbeitsspeicher da ist, und sagt in beiden Fällen, was zu tun ist. Auf
 einer 8-GB-VM heißt das meistens: Photon abschalten (§C.6).
 
-> **Warum nicht über `docker exec`?** Das Terminal-Add-on läuft im
-> „Protection Mode" und hat deshalb gar keinen `docker`-Befehl. Der Weg über
-> den Container war nie gangbar — deshalb macht der Core es jetzt selbst.
+> Ein Terminal-Add-on im „Protection Mode" hat keinen `docker`-Befehl; deshalb
+> baut der Core die Karten selbst.
 
 **Alternativ, im Add-on-Container** (nur wenn Protection Mode ausgeschaltet
 ist und `docker` zur Verfügung steht):
@@ -380,7 +340,7 @@ services/tiles/build-pmtiles.sh \
 
 Das Skript lädt die PBF, baut in ein **temporäres** Verzeichnis, prüft die
 PMTiles-Signatur der erzeugten Datei und tauscht sie erst dann atomar nach
-`<TILES_DIR>/<region>.pmtiles` (W-17). Schlägt irgendetwas davor fehl, bleibt
+`<TILES_DIR>/<region>.pmtiles`. Schlägt irgendetwas davor fehl, bleibt
 die bisherige Kartendatei unangetastet. Ein Neustart ist danach **nicht**
 nötig — der Core liest das Verzeichnis bei jeder Anfrage frisch; in der App
 genügt ein Reload.
@@ -388,7 +348,7 @@ genügt ein Reload.
 ### C.3a Routinggraph und Suchindex — auf dem Gerät, per Knopfdruck
 
 Für Routing und Suche braucht es zwei weitere Erzeugnisse aus **derselben**
-`.osm.pbf`. Beide werden **direkt auf dem Gerät gebaut**, und seit 0.16.0 mit
+`.osm.pbf`. Beide werden **direkt auf dem Gerät gebaut**, und mit
 **einem** Knopf: **⚙ → 🗺️ Karten verwalten** öffnen und auf
 **„Fehlendes bauen"** drücken.
 
@@ -400,34 +360,19 @@ Für Routing und Suche braucht es zwei weitere Erzeugnisse aus **derselben**
 Der Lauf zeigt, im wievielten Schritt er steht und woran er gerade arbeitet.
 Er zeigt **auch eine Restzeit** — aber nur, wenn es eine gibt: sie stammt aus
 der gemessenen Dauer des **letzten** Laufs derselben Schritte. Beim ersten Mal
-steht dort „Restzeit noch unbekannt", und das ist die ehrliche Auskunft. Eine
-Zahl, die aus nichts entsteht, sähe überprüfbar aus und wäre es nicht.
+steht dort „Restzeit noch unbekannt".
 
 Läuft ein Schritt zum ersten Mal, während andere schon gemessen sind, heißt es
-**„mindestens noch …"** statt „noch etwa …". Das ist keine Wortklauberei: eine
-Untergrenze fällt immer zu kurz aus, und wer sie für eine Schätzung hält,
-plant falsch.
-
-Bis 0.15.3 standen dafür zwei Knöpfe an **jeder** Karte („Routing bauen",
-„Suche bauen"). Die stellten die falsche Frage: welche Erzeugnisse es gibt,
-statt ob nach einer Installation alles wieder passt.
+**„mindestens noch …"** statt „noch etwa …" — eine Untergrenze fällt immer
+zu kurz aus.
 
 Es läuft immer nur **ein** schwerer Bau gleichzeitig — zwei davon nebeneinander
-sprengen den Speicher einer 8-GB-VM, auf der auch Home Assistant läuft.
+sprengen den Speicher einer 8-GB-Maschine, auf der auch Home Assistant läuft.
 
 > **Eine selbst abgelegte `.pmtiles`** (per Samba nach `/share/yapaia/tiles/`)
 > steht in keinem Katalog. Für sie gibt es keine OpenStreetMap-Quelle, also
 > lässt sich für sie weder Routing noch Suche bauen — der Lauf überspringt sie
 > und sagt es. Gezeichnet wird sie trotzdem.
-
-> **Korrektur (0.3.4).** Hier stand bis 0.3.3 das Gegenteil: beides lasse sich
-> „nicht auf dem Gerät bauen", der Routinggraph brauche einen Docker-Socket und
-> der Suchindex `osmium` plus einen Repository-Checkout. Für unsere *Skripte*
-> stimmte das — für die *Werkzeuge* nicht. Das Add-on setzt auf dem
-> Valhalla-Image auf, das die Bau-Werkzeuge ohnehin mitbringt; und `osmium-tool`
-> ist ein gewöhnliches Ubuntu-Paket, das nur niemand ins Image gelegt hatte.
-> Der Absatz hat Betreiber an einen zweiten Rechner geschickt, den es nie
-> gebraucht hätte.
 
 Die Skripte unter `services/` bleiben für die Entwicklung und für den Fall, dass
 jemand eine sehr große Region auf stärkerer Hardware vorbauen will:
@@ -470,9 +415,8 @@ TILES_DIR=/share/yapaia/tiles \
   services/tiles/build-pmtiles.sh https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
 ```
 
-Die Version ist **fest auf `v0.10.2` gepinnt**, nicht auf `latest`: ein Schritt,
-der Stunden läuft und dessen Ergebnis ausgeliefert wird, soll nicht davon
-abhängen, was gerade veröffentlicht wurde.
+Die Version ist **fest auf `v0.10.2` gepinnt**, damit der Bau nicht davon abhängt, was gerade
+veröffentlicht wurde.
 
 ### C.5 Ganzes Land (Deutschland) — nicht auf der HAOS-VM
 
@@ -503,8 +447,7 @@ HAOS-VM**:
 
 Photon will allein mehrere GB Heap. Auf einer geteilten 8-GB-VM ist der
 **Lite-Suchindex** die verlässlichere Wahl — er deckt dieselbe Ortssuche ab
-und braucht ein Vielfaches weniger Speicher (W-12,
-`docs/08-wargame.md`). In der Add-on-Konfiguration in der Gruppe **Suche**
+und braucht ein Vielfaches weniger Speicher. In der Add-on-Konfiguration in der Gruppe **Suche**
 den Schalter **„Adresssuche mit Photon"** ausschalten — in YAML:
 
 ```yaml
@@ -516,17 +459,6 @@ Die Installationsprüfung aus §C.2 meldet genau diese Empfehlung selbst,
 sobald sie wenig RAM **und** eingeschaltetes Photon vorfindet — und sie meldet
 die Suche als **in Ordnung**, sobald *einer* der beiden Wege da ist. Ein Gerät
 ohne Photon ist nicht suchunfähig.
-
-> **Was hier nicht nachgewiesen ist:** die Laufzeit- und RAM-Angaben in diesem
-> Abschnitt sind Größenordnungen aus planetilers eigener Dokumentation und den
-> Extraktgrößen. Der eigentliche planetiler-Lauf wurde in der
-> Entwicklungsumgebung **nie ausgeführt** (kein Docker-Daemon, kein Zugriff
-> auf ghcr.io/Geofabrik). Getestet ist alles darum herum — Argumentbehandlung,
-> Regionsableitung, Ausgabepfad, PMTiles-Signaturprüfung, atomarer Swap und
-> jeder Fehlerpfad (`services/tiles/build-pmtiles.test.ts`, das `docker` bzw.
-> `java` durch ein Stub-Programm ersetzt und die komplette Swap-/Fehlerlogik
-> real durchspielt). Wer diesen Abschnitt gegen echte Hardware fährt, sollte
-> Abweichungen über das Testprotokoll am Ende melden.
 
 Weiter mit [Erste Schritte](erste-schritte.md).
 
@@ -555,7 +487,7 @@ USB-Geräte durchreicht. Einzustellen ist nur die Quelle. Ablauf:
    Sekunde, danach alle 15 s ein erneuter Versuch, kein Absturz).
 5. In der App: **⚙ → 🩺 Installation prüfen** zeigt unter *Position*, ob
    `gpsd` einen Fix liefert (freie Sicht zum Himmel nötig, siehe
-   [Troubleshooting W-01](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung)).
+   [Troubleshooting: GPS-Signal verloren](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung)).
 
 Details: `yapaia_go/DOCS.md` §„USB-GPS passthrough".
 
@@ -626,28 +558,13 @@ die USB-Durchreichung ist nur für den Live-Betrieb im Fahrzeug nötig.
 
 ---
 
-## Testprotokoll (Vorlage für einen Testleser)
+## Prüfliste nach der Installation
 
-Dieser Abschnitt ist bewusst als ausfüllbares Protokoll gehalten — die
-Aufgabenstellung dieses Guides verlangt einen Nachweis, dass ein Leser ohne
-Repo-Vorwissen erfolgreich installiert. Bitte beim Durchspielen jeden Schritt
-mit Ergebnis (✅/❌ + Beobachtung) festhalten und zurückmelden:
-
-| # | Schritt | Erwartung | Ergebnis |
-|---|---|---|---|
-| 1 | `git clone` + `.env` kopieren | Repo liegt lokal, `.env` existiert | |
-| 2 | Kartenregion bauen (B.3) bzw. im Einrichtungsassistenten eine Region installieren (A) | Bau endet ohne Fehler | |
-| 3 | Stack/Add-on starten | `docker compose ps` zeigt alle Container „Up" bzw. Add-on-Log zeigt „Core lauscht" | |
-| 4 | `GET /api/v1/health` und `GET /api/v1/system/preflight` | `status: "ok"`; Prüfungen *Routing* und *Suche* `ok` | |
-| 5 | App im Browser öffnen | Karte rendert, Positionspunkt sichtbar (Simulator reicht) | |
-| 6 | (falls GPS vorhanden) USB-GPS-Abschnitt durchspielen | Prüfung *Position* meldet einen Fix | |
-| 7 | Eine Route berechnen ([Erste Schritte](erste-schritte.md)) | Route wird angezeigt | |
-
-**Ehrlicher Stand dieses Dokuments:** Diese Tabelle wurde in der
-Autorenumgebung **nicht** gegen eine echte frische VM ausgefüllt — es gab dort
-weder einen Docker-Daemon noch Netzwerkzugriff auf Geofabrik/GitHub-Releases,
-um das zu tun (Details siehe Kopf dieses Dokuments und der
-Orchestrator-Bericht dieser Aufgabe). Das Ausfüllen dieser Tabelle gegen eine
-echte, frische Umgebung ist der eigentliche Nachweis für Akzeptanzkriterium 1
-aus `tasks/E10-qualitaet-release.md` §E10-T5 und sollte von einem separaten
-Testleser nachgeholt werden, bevor dieses Dokument als „geprüft" gilt.
+| # | Schritt | Erwartung |
+|---|---|---|
+| 1 | Stack bzw. Add-on starten | `docker compose ps` zeigt alle Container „Up" bzw. das Add-on-Log zeigt „Core lauscht" |
+| 2 | Kartenregion bauen (B.3) bzw. im Einrichtungsassistenten installieren (A) | Bau endet ohne Fehler |
+| 3 | `GET /api/v1/health` und `GET /api/v1/system/preflight` | `status: "ok"`; Prüfungen *Routing* und *Suche* `ok` |
+| 4 | App im Browser öffnen | Karte rendert, Positionspunkt sichtbar (der Testfahrer reicht) |
+| 5 | (falls GPS vorhanden) USB-GPS-Abschnitt durchspielen | Prüfung *Position* meldet einen Fix |
+| 6 | Eine Route berechnen ([Erste Schritte](erste-schritte.md)) | Route wird angezeigt |

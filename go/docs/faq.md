@@ -11,8 +11,7 @@ eine Kartenregion einmal heruntergeladen und der Routing-Graph gebaut wurde.
 Internet wird nur für den Download bzw. das Update von Kartenregionen
 gebraucht (siehe [Installations-Guide](installation.md) und das
 [Runbook](data-update-runbook.md)) sowie für den Add-on-Marktplatz (ohne
-Internet zeigt der Store den zuletzt geladenen Katalog, siehe W-13 in
-`docs/08-wargame.md`). Zusätzlich lassen sich **Online-Dienste** einschalten
+Internet zeigt der Store den zuletzt geladenen Katalog). Zusätzlich lassen sich **Online-Dienste** einschalten
 (Vorgabe aus): Baustellen und Sperrungen der Autobahn GmbH, Infos zu einem
 angetippten Ort, Spritpreise über Tankerkönig. Die Navigation selbst bleibt
 davon unabhängig. Details: [Manual](manual.md#optional-online-services).
@@ -41,42 +40,41 @@ Höhenbeschränkung) verlassen?**
 Nein — das ist eine bewusst offen kommunizierte Grenze, kein Software-Bug.
 Nicht jede reale Unterführung/Brücke ist in OpenStreetMap mit einer
 Maßangabe getaggt. Details und was zu tun ist:
-[Troubleshooting W-08](troubleshooting.md#w-08--route-führt-an-einer-zu-engenniedrigen-stelle-vorbei-).
+[Troubleshooting: Route führt an einer zu engen/niedrigen Stelle vorbei](troubleshooting.md#w-08--route-führt-an-einer-zu-engenniedrigen-stelle-vorbei-).
 
 **Was passiert, wenn während der Fahrt das GPS-Signal kurz weg ist (Tunnel,
 Parkhaus)?**
 Die App fährt bis zu 30 Sekunden per Koppelnavigation mit der letzten
 bekannten Geschwindigkeit entlang der Route weiter, Sprachansagen laufen
 normal weiter (wichtig für Tunnelabfahrten). Details:
-[Troubleshooting W-01](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung).
+[Troubleshooting: GPS-Signal verloren](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung).
 
 **Was passiert, wenn der Browser-Tab abstürzt oder das Kiosk-Gerät während
 der Fahrt neu startet?**
 Nichts Schlimmes — der eigentliche Navigationszustand lebt im Core-Server,
 nicht im Browser. Nach dem Neuladen ist die laufende Navigation innerhalb
 weniger Sekunden automatisch wieder da. Details:
-[Troubleshooting W-19](troubleshooting.md#w-19--navigation-scheint-nach-tab-crashneustart-weg-zu-sein).
+[Troubleshooting: Navigation scheint nach Tab-Crash/Neustart weg zu sein](troubleshooting.md#w-19--navigation-scheint-nach-tab-crashneustart-weg-zu-sein).
 
 **Kann ich mehrere Geräte gleichzeitig nutzen (z. B. Tablet im Cockpit +
 Handy zum Planen)?**
-Ja, alle verbundenen Clients sehen denselben Navigationszustand (WebSocket-
-Broadcast) — der Core ist die alleinige Quelle der Wahrheit. Bei
-gleichzeitigen widersprüchlichen Aktionen gewinnt die zuletzt ausgeführte,
-mit sichtbarem Hinweis, welcher Client sie ausgelöst hat (siehe W-21 in
-`docs/08-wargame.md`; kein Locking in v1, bewusst einfach gehalten).
+Ja, alle verbundenen Geräte sehen denselben Navigationszustand — der Core
+(der Yapaia-Dienst) ist die alleinige Quelle der Wahrheit. Bei gleichzeitigen
+widersprüchlichen Aktionen gilt die zuletzt ausgeführte.
 
 **Ein Vorbehalt, wenn die Position aus dem Browser kommt:** alle Clients
 melden an denselben Endpunkt, und es gewinnt der zuletzt eingetroffene Fix.
 Im selben Fahrzeug ist das folgenlos — zwei Geräte melden dieselbe Position.
 Steht ein Gerät aber woanders (das Telefon zu Hause, ein Browser-Tab in der
 Wohnung), springt die angezeigte Position zwischen beiden Orten hin und her.
-Wer mehrere Geräte nutzt, ist mit einem USB-Empfänger oder der Companion-App
-als Quelle besser bedient (offener Punkt B-03 in `docs/backlog.md`).
+Wer mehrere Geräte nutzt, ist mit einem USB-Empfänger, dem Router-GPS oder der
+Companion-App als Quelle besser bedient.
 
 **Wie installiere/entferne ich ein Add-on sicher?**
-Unter **⚙ → 🧩 Add-on-Store**. Seit 0.56.0 kommen Add-ons aus dem
-**Yapaia-Marktplatz**: unter „Marktplatz" die Adresse (`https://…`) und, für
-gekaufte Add-ons, den Konto-Token eintragen und „Verbinden" tippen. Go
+Unter **⚙ → 🧩 Add-on-Store**. Add-ons kommen aus dem
+**Yapaia-Marktplatz** (`https://addons.yapaia.cloud`): „Registry aktualisieren"
+lädt den Katalog; für gekaufte Add-ons unter „Marktplatz" die Adresse
+(`https://…`) und den Konto-Token eintragen und „Verbinden" tippen. Go
 installiert nur Pakete, die der Marktplatz signiert hat — im Katalog mit
 „✓ Geprüft" gekennzeichnet, sonst „Unsigniert". Vor dem Installieren zeigt Go
 die angefragten Berechtigungen; bitte wirklich lesen. Kostenpflichtige
@@ -92,17 +90,18 @@ Pakete sind nicht signiert und werden nur angenommen, wenn im Abschnitt
 „Marktplatz" der **Entwicklermodus** eingeschaltet ist. Der Entwicklermodus
 ist für eigene Add-ons und Tests gedacht — sonst ausgeschaltet lassen.
 Details: [Manual → Add-ons](manual.md#add-ons),
-[Troubleshooting W-10](troubleshooting.md#w-10--add-on-verhält-sich-verdächtig-)
+[Troubleshooting: Add-on verhält sich verdächtig](troubleshooting.md#w-10--add-on-verhält-sich-verdächtig-)
 und für Add-on-Autoren der
 [Add-on-Entwicklungsleitfaden](addon-dev-guide.md).
 
 **Überlebt ein Update meine Kartendaten und Einstellungen?**
 Ja — alle Nutzdaten liegen bewusst außerhalb des jeweiligen Containers
-(HA-Add-on: `/share/yapaia`; Compose: eigenes Docker-Volume unter `./data`)
+(HA-Add-on: `/share/yapaia`; Compose: der Ordner `./data` neben der
+`docker-compose.yml`)
 und werden von einem Image-Update nicht angefasst; SQLite-Migrationen legen
 zusätzlich automatisch eine Sicherungsdatei an. Vor größeren Updates trotzdem
 ein Backup anlegen (siehe [Installations-Guide → B.5](installation.md#b5-backup-vor-einem-update)).
-Sollte trotzdem etwas fehlen: [Troubleshooting W-16](troubleshooting.md#w-16--nach-einem-update-fehlen-kartendaten-oder-einstellungen-).
+Sollte trotzdem etwas fehlen: [Troubleshooting: Nach einem Update fehlen Kartendaten oder Einstellungen](troubleshooting.md#w-16--nach-einem-update-fehlen-kartendaten-oder-einstellungen-).
 
 **Wo finde ich die REST-API-Referenz für eigene Skripte/Add-ons?**
 `docs/03-api-spec.md` für den erzählenden Überblick, und
@@ -136,14 +135,23 @@ Go", mit Entitäten, Aktionen und Auslösern). MQTT gibt es zusätzlich
 Öffne `/local/yapaia/dashboard.txt` im Browser und lies den **Kopf der
 Datei**. Dort steht, was Yapaia beim Erzeugen vorgefunden hat. Die häufigste
 Ursache: „Yapaia Go" ist in der Integration „Yapaia" noch nicht eingerichtet
-(Einstellungen → Geräte & Dienste → „Yapaia Go gefunden" bestätigen).
+(Einstellungen → Geräte & Dienste → „Yapaia Go wurde gefunden. Einrichten?"
+bestätigen).
 
 **Wie viel RAM brauche ich mindestens?**
-Kommt stark auf Kartengröße und ob Photon-Suche aktiv ist an — die konkrete
-Tabelle steht in `docs/01-architecture.md` §4 und, für den HA-Add-on-Fall
-speziell (geteilte VM mit HA selbst), in
-`yapaia_go/DOCS.md` §„RAM recommendation". Bei knappem RAM: Photon
+Kommt stark auf Kartengröße und ob Photon-Suche aktiv ist an — für ein Land
+etwa 2,4–2,9 GB für Yapaia allein, auf einer geteilten Home-Assistant-Maschine
+sind 6 GB oder mehr sinnvoll (Tabelle: [README](../README.md#requirements)). Bei knappem RAM: Photon
 deaktivieren (Add-on: Gruppe „Suche" → „Adresssuche mit Photon" aus;
 Compose: `PHOTON_ENABLED=false`) —
 Suche fällt automatisch auf einen deutlich schlankeren Offline-Index zurück
-([Troubleshooting W-12](troubleshooting.md#w-12--suche-reagiert-nicht-mehrvereinfachte-suche)).
+([Troubleshooting: Suche reagiert nicht mehr / vereinfachte Suche](troubleshooting.md#w-12--suche-reagiert-nicht-mehrvereinfachte-suche)).
+
+**Gibt es Sprachbefehle?**
+Ja, auf Deutsch und Englisch: 🎤 in der App oder Home Assistant Assist
+(„Yapaia, fahre mich nach …"). Die Befehle werden offline verstanden, ohne KI.
+Details: [Manual → Voice commands](manual.md#voice-commands).
+
+**In welcher Sprache läuft Yapaia Go?**
+Als Add-on folgt sie der Sprache von Home Assistant (Deutsch, sonst Englisch);
+ohne Home Assistant wählst du sie im Einrichtungsassistenten. Die Sprache der Kartenbeschriftung ist eine eigene Wahl unter **⚙ → 🎨 Karte & Darstellung → Sprache der Labels**.

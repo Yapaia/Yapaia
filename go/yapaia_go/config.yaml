@@ -1,24 +1,17 @@
-# Home Assistant Add-on configuration for Yapaia Go (E08-T4, docs/04 §3).
+# Home Assistant Add-on configuration for Yapaia Go.
 #
 # Schema reference: https://developers.home-assistant.io/docs/add-ons/configuration
-# Linted (nightly, continue-on-error) via frenck/action-addon-linter -- see
-# .github/workflows/nightly.yml job `addon-lint`. Per-PR CI instead runs an
-# in-repo, deterministic structural check
-# (yapaia_go/config.test.ts) so a flaky/unavailable third-party
-# Action can never block a merge -- see yapaia_go/PACKAGING.md "CI strategy".
+# CI runs a structural check of this file (yapaia_go/config.test.ts); the
+# add-on linter runs nightly (.github/workflows/nightly.yml).
 
 name: "Yapaia Go"
 description: "Offline-fähige Wohnmobil-Navigation (Karten, Routing, GPS, Home-Assistant-Integration) als HA-Add-on."
 slug: "yapaia_go"
 version: "0.68.0"
 # ─── MINDESTVERSION VON HOME ASSISTANT ──────────────────────────────────────
-# Seit 0.8.4 sind die selten angefassten Optionen in aufklappbaren Gruppen
-# zusammengefasst. Verschachtelte Konfiguration gibt es in Home Assistant aber
-# erst ab 2025.10 (maximal zwei Ebenen). Auf einer aelteren Installation wuerde
-# die Konfigurationsseite die Gruppen nicht zeichnen -- und wer sie nicht sieht,
-# kann Photon, das Routing-Budget und die HA-Kanaele nicht mehr einstellen.
-#
-# Lieber der Supervisor sagt „zu alt" als eine Seite, auf der die Haelfte fehlt.
+# Die Optionen sind in aufklappbaren Gruppen verschachtelt. Verschachtelte
+# Konfiguration gibt es in Home Assistant erst ab 2025.10 (maximal zwei Ebenen);
+# auf älteren Installationen würden die Gruppen nicht gezeichnet.
 homeassistant: "2025.10.0"
 url: "https://github.com/Yapaia/yapaia"
 # Fertiges Image aus .github/workflows/images.yml -- der Supervisor zieht
@@ -33,14 +26,11 @@ arch:
   - amd64
   - aarch64
 
-# NOT SET, because both would only repeat the Supervisor default and
-# `frenck/action-addon-linter` rejects redundant keys (nightly, E10-T4):
+# Not set, because both would only repeat the Supervisor default (the add-on
+# linter rejects redundant keys):
 #   startup: application  -- this is the user-facing product, not a
 #                            background service other add-ons depend on.
-#   boot: auto            -- starts with HAOS; operators can still
-#                            stop/disable it manually like any add-on.
-# Both defaults are exactly what we want; spelling them out added no
-# behaviour, only a lint failure.
+#   boot: auto            -- starts with HAOS; can still be stopped manually.
 
 # We ship our OWN s6-overlay (rootfs/etc/s6-overlay/, see Dockerfile) instead
 # of basing on Home Assistant's own base images (which already bundle
@@ -48,23 +38,17 @@ arch:
 # inject a second init/PID-1 on top of ours.
 init: false
 
-# Ingress (docs/04 §3): the add-on UI appears in the HA sidebar, and HA
-# terminates auth + remote access (Nabu Casa) for it -- no separate
-# port-forwarding/reverse-proxy needed. The INTERNAL container port the Core
-# listens on is the Supervisor default (8099) and is never published to the
-# host network directly (that's the whole point of Ingress) -- so
-# `ingress_port` is deliberately NOT set here: it would only restate the
-# default and the add-on linter rejects that (nightly, E10-T4).
+# Ingress: the add-on UI appears in the HA sidebar, and HA terminates auth +
+# remote access (Nabu Casa) for it. The internal container port is the
+# Supervisor default (8099), so `ingress_port` is deliberately not set.
 ingress: true
 panel_icon: "mdi:map-marker-path"
 panel_title: "Yapaia Go"
 
-# Ingress-only by default (docs/04 §3: "ports: {} (ingress-only)"). Direct
-# (non-Ingress) HTTP access is an OPT-IN an operator can add locally by
-# uncommenting the block below in a fork/override -- documented in
-# DOCS.md "Direct (non-Ingress) access" rather than shipped enabled, since
-# publishing the port also means the `API_AUTH_TOKEN` bearer-auth path (not
-# the Ingress-bypass, see apps/core/src/auth/) becomes the operative one.
+# Ingress-only by default. Direct (non-Ingress) HTTP access is an opt-in that
+# can be added locally by uncommenting the block below -- see DOCS.md
+# "Direct (non-Ingress) access". Publishing the port means the
+# `API_AUTH_TOKEN` bearer-auth path becomes the operative one.
 #
 # ports:
 #   8080/tcp: 8080
@@ -72,103 +56,42 @@ panel_title: "Yapaia Go"
 #   8080/tcp: "Optional direct HTTP access (bypasses Ingress). Set an API_AUTH_TOKEN if you enable this."
 ports: {}
 
-# W-16: map/routing/search data lives under /share/yapaia/ (host-persistent,
-# survives add-on updates/reinstalls) -- never inside the container's
-# writable layer. `share:rw` mounts HAOS's shared /share into the container.
+# Map/routing/search data lives under /share/yapaia/ (host-persistent,
+# survives add-on updates/reinstalls), never inside the container's writable
+# layer. `share:rw` mounts HAOS's shared /share into the container.
 map:
   - share:rw
-  # ─── WOFUER SCHREIBZUGRIFF AUF DIE HA-KONFIGURATION ───────────────────────
-  # Ausschliesslich, um die Lovelace-Karte (`lovelace/yapaia-map-card.js`) beim
-  # Start nach `www/yapaia/` zu legen. Home Assistant liefert alles unter `www/`
-  # als `/local/...` aus -- das ist der EINZIGE Pfad, unter dem eine
-  # Dashboard-Ressource dauerhaft gueltig bleibt. Ueber Ingress ginge es nicht:
-  # dessen Pfad enthaelt ein wechselndes Token.
-  #
-  # Ohne diesen Zugriff muesste die Datei von Hand kopiert werden -- also per
-  # SSH oder Datei-Editor. Der Betreiber hat ausdruecklich gesagt, dass er alles
-  # aus der Oberflaeche heraus machen moechte und nicht ueber SSH.
-  #
-  # Geschrieben wird NUR diese eine Datei in genau diesem Unterordner; das
-  # Init-Skript fasst nichts anderes an.
+  # Schreibzugriff auf die HA-Konfiguration: ausschließlich, um die
+  # Lovelace-Karte (`lovelace/yapaia-map-card.js`) beim Start nach `www/yapaia/`
+  # zu legen. Home Assistant liefert alles unter `www/` als `/local/...` aus --
+  # der einzige Pfad, unter dem eine Dashboard-Ressource dauerhaft gültig bleibt
+  # (der Ingress-Pfad enthält ein wechselndes Token). Geschrieben wird nur diese
+  # eine Datei in genau diesem Unterordner.
   - homeassistant_config:rw
 
-# bashio::services mqtt ... needs this so the Supervisor grants access to the
-# Mosquitto add-on's broker credentials (docs/04 §3 "MQTT-Credentials
-# automatisch"). `need` (not `want`): without MQTT the HA integration has no
-# purpose here, but the Core itself still runs standalone-safe if the
-# Supervisor were to unwire it after install (see AcceptanceCriteria "App
-# bleibt ohne Broker voll funktional", E08-T1).
+# Grants access to the Mosquitto add-on's broker credentials (needed for
+# `bashio::services mqtt`). `want`, not `need`: MQTT is optional, the add-on
+# runs fully without a broker.
 services:
-  # `want`, NICHT `need` -- der Weg zu Home Assistant ist die Integration
-  # „Yapaia", MQTT nur ein zusaetzlicher. `need` hiesse „ohne das hier
-  # ergibt dieses Add-on keinen Sinn"; das stimmt nicht, und wer
-  # `mqtt_enabled` ausschaltet, soll nicht trotzdem einen Broker vorhalten
-  # muessen. Die Zugangsdaten kommen bei einem vorhandenen Broker unveraendert
-  # automatisch (docs/04 §3 „MQTT-Credentials automatisch").
   - mqtt:want
 
-# ─── USB-GPS: SICHTBAR IST NICHT GEOEFFNET ──────────────────────────────────
-# `usb: true` reicht den rohen USB-Bus herein, `udev: true` die udev-Ereignisse.
-# Damit ERSCHEINT der Empfaenger unter /dev/serial/by-id/ -- die
-# Installationspruefung listete ihn, `find-gps-device.sh` waehlte ihn aus, und
-# das Protokoll meldete „benutze /dev/serial/by-id/usb-u-blox_AG_-…".
-#
-# OEFFNEN durfte der Container ihn trotzdem nicht. gpsd sagte es, sobald es
-# gefragt wurde (0.8.9 hat es gefragt):
-#
-#   gpsd:ERROR: SER: device open of /dev/serial/by-id/usb-u-blox_AG_-… failed:
-#                    Operation not permitted(1) - retrying read-only
-#   gpsd:ERROR: initial GPS device … open failed
-#   gpsd:ERROR: can't run with neither control socket nor devices open
-#
-# Danach beendete sich gpsd, s6 startete den Dienst neu, die Geraetesuche lief
-# erneut und meldete wieder Erfolg -- im Sekundentakt, und nirgends stand, dass
-# etwas fehlschlug.
-#
-# Der Schluessel dafuer heisst `uart`. Er bildet die seriellen Geraete des
-# Wirts in den Container ab, MIT den Rechten, sie zu oeffnen. Zum Vergleich:
-# das ESPHome-Add-on, das ueber USB-Seriell flasht, deklariert `uart: true`
-# und gar kein `usb`.
+# ─── USB-GPS ────────────────────────────────────────────────────────────────
+# `uart` bildet die seriellen Geräte des Hosts im Container ab, mit dem Recht,
+# sie zu öffnen (ohne meldet gpsd „Operation not permitted"). `udev` liefert
+# die Ereignisse, an denen ein später eingestecktes Gerät auffällt, `usb` den
+# rohen USB-Bus. Das sind Fähigkeiten für den Supervisor, keine Beschriftungen;
+# die Option, die man sieht, ist `gps_source` mit dem Wert `usb`.
+# Siehe DOCS.md, Abschnitt "USB-GPS".
 uart: true
 
-# ─── „USB" UND `usb` SIND ZWEI VERSCHIEDENE DINGE ───────────────────────────
-# Vorgeschlagen wurde: „Du kannst usb: true vielleicht umlabeln. In der Konfig
-# steht ‚GPS über usb' und intern verwendest du dann die Uart. Dem User ist es
-# egal ob das usb oder uart heisst. Aber er steckt seinen gps Empfaenger ueber
-# den usb Port ein."
-#
-# Genau so ist es schon -- die drei Schluessel hier sind KEINE Beschriftung.
-# Niemand bekommt sie zu sehen:
-#
-#   * Was der Betreiber liest, ist die Option `gps_source` mit dem Wert
-#     `usb`, beschrieben als „ein GPS-Empfaenger am USB-Anschluss"
-#     (translations/de.yaml). Das bleibt so, und es ist richtig: er steckt das
-#     Geraet in den USB-Anschluss.
-#   * `uart`, `usb` und `udev` sind Faehigkeiten, die der Supervisor dem
-#     Container gibt. Sie stehen in keiner Oberflaeche.
-#
-# Sie umzubenennen ginge also nicht -- die Namen gehoeren Home Assistant, nicht
-# uns. Und es waere auch nicht noetig: die Beschriftung sagt bereits USB.
-#
-# Was sie einzeln tun (0.8.10 hat das auf die harte Tour geklaert):
-#   `uart`  erlaubt, das serielle Geraet zu OEFFNEN. Ohne ihn scheiterte gpsd
-#           mit „Operation not permitted", obwohl das Geraet sichtbar war.
-#   `udev`  liefert die Ereignisse, an denen ein SPAETER eingestecktes Geraet
-#           ueberhaupt auffaellt.
-#   `usb`   bildet den rohen USB-Bus ab.
-#
-# `usb` bleibt stehen. ESPHome kommt ohne aus, es waere hier vermutlich
-# entbehrlich -- aber „vermutlich" ist der falsche Grund, einem laufenden
-# Empfaenger eine Berechtigung wegzunehmen. Der Gewinn waere null (der
-# Schluessel kostet nichts und ist nicht zu sehen), das Risiko ein GPS, das
-# nach einem Update nicht mehr geht. Siehe DOCS.md, Abschnitt "USB-GPS".
+# (`usb` bleibt stehen: ein laufender Empfänger soll nach einem Update nicht
+# eine Berechtigung verlieren.)
 usb: true
 udev: true
 
-# Yapaia -> HA REST calls (HA-TTS output channel, notifications; E08-T3,
-# docs/04 §2) go through the Supervisor's proxied Core API
-# (http://supervisor/core/api + SUPERVISOR_TOKEN) instead of a manually
-# configured long-lived token when running as an add-on.
+# Yapaia -> HA REST calls (HA-TTS output channel, notifications) go through
+# the Supervisor's proxied Core API (http://supervisor/core/api +
+# SUPERVISOR_TOKEN) instead of a manually configured long-lived token.
 hassio_api: true
 # Anmeldung bei der zentralen Integration „Yapaia" (Supervisor-Discovery,
 # docs/integration-protokoll.md Abschnitt 4).
@@ -177,121 +100,55 @@ discovery:
 homeassistant_api: true
 
 # SECURITY POSTURE -- deliberately left at the Supervisor defaults, which are
-# already the hardened ones, and therefore NOT spelled out (the add-on linter
-# rejects keys that only restate a default; nightly, E10-T4):
-#   full_access: false  -- no elevated container privileges. usb+udev above
-#                          already grant GPS device access; `true` would
-#                          disable Docker's device allow-list entirely.
+# already the hardened ones, and therefore not spelled out:
+#   full_access: false  -- no elevated container privileges.
 #   apparmor:    true   -- AppArmor confinement stays ON.
 #   stdin:       false  -- no stdin channel into the container.
 # Any future change here is a widening of privileges and must be argued for
 # explicitly by ADDING the key with a comment saying why.
 
-# `gps_source` -- WOHER die Position kommt. Fuenf Werte, und der Reihe nach:
+# ─── GPS-QUELLE ─────────────────────────────────────────────────────────────
+# `gps_source`: usb (GPS-Empfänger am USB-Port, gpsd), network (gpsd auf einem
+# anderen Gerät), rut50 (Teltonika-Router über Modbus TCP), companion_app
+# (Home-Assistant-Companion-App auf Telefon/Tablet/Autoradio), none (Position
+# aus dem Browser).
 #
-#   usb           fest eingebauter GPS-Empfaenger am USB-Port (gpsd)
-#   network       gpsd auf einem anderen Geraet im Netz
-#   rut50         GPS-Empfaenger eines Teltonika-Routers (RUT50) ueber Modbus TCP
-#   companion_app Home-Assistant-Companion-App auf Telefon/Tablet/Autoradio
-#   none          kein eigener Empfaenger -- die Position kommt aus dem Browser
+# `rut50_host`: „host" oder „host:port", leer = 192.168.1.1:502. Im Router muss
+# unter Services -> Modbus -> Modbus TCP Server der Server laufen; Yapaia liest
+# die GPS-Register ab Adresse 143. Andere Teltonika-Router mit GPS und RutOS
+# (RUTX50, RUTM50, RUT955 …) haben dieselbe Registerkarte.
 #
-# `rut50_host` (seit 0.58.0): unter welcher Adresse der Router erreichbar ist,
-# „host" oder „host:port". Leer = Werkseinstellung 192.168.1.1:502. Im Router
-# muss unter Services -> Modbus -> Modbus TCP Server der Server laufen; Yapaia
-# liest die GPS-Register ab Adresse 143 (apps/core/src/position/modbus/).
-# Benannt nach dem GERAET, nicht nach dem Weg -- wer die Option einstellt,
-# sucht „RUT50", nicht „Modbus". Andere Teltonika-Router mit GPS und RutOS
-# (RUTX50, RUTM50, RUT955 …) haben dieselbe Registerkarte und gehen ebenso.
+# `companion_app` genügt für sich allein: gibt es genau einen `device_tracker`
+# mit Koordinaten, wählt Yapaia ihn selbst. Bei mehreren wird keiner geraten;
+# die Installationsprüfung listet sie, und man trägt den gewünschten in
+# `ha_device_tracker` ein (z. B. `device_tracker.mein_telefon`). Das ist der
+# Weg, wenn der Browser den GPS-Sensor nicht freigibt (ohne HTTPS nie),
+# siehe docs/gps-endgeraete.md.
 #
-# `ha_tracker` hiess dieser Wert bis 0.8.2. Umbenannt wurde er, weil er den
-# WEG beschrieb (eine device_tracker-Entitaet) und nicht die Sache: wer die
-# Option einstellt, sucht das Wort „Companion App". Bis 0.8.7 stand der alte
-# Wert zusaetzlich in dieser Liste, damit ein Update keine bestehende
-# Installation still ohne Positionsquelle laesst -- bezahlt mit ZWEI Knoepfen
-# in der Konfigurationsseite, die dasselbe bedeuten.
+# `region: ""` (leer) ist ein gültiger Zustand: der Core startet dann in den
+# Einrichtungsassistenten.
 #
-# Seit 0.8.8 ist er weg. Der Betreiber hat geklaert, dass es keine fremden
-# Installationen gibt, auf die Ruecksicht zu nehmen waere. Wer den alten Wert
-# gespeichert hat, waehlt einmal `companion_app`.
-#
-# NICHT betroffen: `Position.source` heisst weiterhin `ha_tracker`. Das ist
-# Uebertragungsformat (nav/state, MQTT, HA-Entitaeten), keine Konfiguration.
-#
-# Der Wert fehlte bis 0.3.0 in dieser Liste. Die Quelle GAB es (0.3.0 hat
-# sie gebaut), aber einschalten liess sie sich nur ueber das freie Textfeld
-# `ha_device_tracker` darunter -- und dafuer musste man erst wissen, dass es
-# eine Entity-ID gibt, und sie dann in Home Assistant unter
-# Entwicklerwerkzeuge -> Zustaende abschreiben. In der Konfiguration stand an
-# der Stelle, an der man nachsieht, nur „usb". Eine Funktion, die man nicht
-# findet, ist keine.
-#
-# `companion_app` genuegt fuer sich allein: gibt es genau EINEN
-# `device_tracker` mit Koordinaten -- der Normalfall --, waehlt Yapaia ihn
-# selbst. Gibt es mehrere, wird bewusst KEINER geraten (der zweite koennte
-# das Telefon einer anderen Person sein); dann nennt die Installationspruefung
-# sie beim Namen und man traegt den gewuenschten unten ein.
-#
-# `ha_device_tracker` (B-05): Entity-ID, z. B. `device_tracker.mein_telefon`.
-# Leer = automatisch (siehe oben). Nur noetig, wenn es mehrere gibt.
-#
-# Der Weg fuer Telefon/Tablet/Autoradio, wenn der Browser den GPS-Sensor gar
-# nicht freigibt -- ohne HTTPS tut er das nie, und Home Assistant laeuft in
-# vielen Installationen ueber einfaches HTTP (docs/gps-endgeraete.md). Die
-# Companion App meldet an Home Assistant statt an den Browser und liefert auch
-# bei gesperrtem Bildschirm weiter.
-#
-# Welche Entitaeten in Frage kommen, sagt die Installationspruefung (🩺):
-# sie listet alle gefundenen `device_tracker.*` MIT Koordinaten auf. Einer
-# ohne Koordinaten (nur „home"/„not home" per WLAN) taugt nicht als
-# Positionsquelle und wird deshalb gar nicht erst angeboten. (Dieser Satz
-# stand hier schon in 0.3.0 und war da noch eine Zusage ohne Deckung -- die
-# Pruefung listete nichts. `apps/core/src/system/preflight.ts` tut es seit
-# 0.3.1 wirklich, und `preflight.test.ts` haelt es fest.)
-#
-# Options (docs/04 §3 "Kartenregion, MQTT-Prefix, Photon an/aus, GPS-Quelle,
-# Log-Level" + memory tuning). `region: ""` (empty) is a VALID, EXPECTED
-# state: the Core starts into onboarding (E08-T5 builds the wizard UI; T4
-# only guarantees no crash -- see rootfs .../init-yapaia-config/run.sh and
-# DOCS.md "Plausibilität: kein Crash ohne Region").
 # ─── DER WEG ZU HOME ASSISTANT ──────────────────────────────────────────────
-#
-# Die Integration „Yapaia" (Gerät „Yapaia Go", docs/integration-protokoll.md):
-# das Add-on bringt sie mit und meldet sich per Supervisor-Discovery an.
-#
-# `mqtt_enabled` -- ZUSAETZLICH ein MQTT-Broker (Mosquitto-Add-on), fuer alle,
-#   die die Fahrtdaten auch dort haben wollen. Aus als Vorgabe: ohne Broker
-#   fehlt nichts.
+# Die Integration „Yapaia" (Gerät „Yapaia Go", docs/integration-protokoll.md)
+# bringt das Add-on mit und meldet sich per Supervisor-Discovery an.
+# `mqtt_enabled` ergänzt einen MQTT-Broker (Mosquitto-Add-on); aus als Vorgabe.
 options:
   region: ""
-  # Voreinstellung `none` statt `usb`: ein USB-GPS-Empfaenger ist Zubehoer,
-  # das die wenigsten haben. Mit `usb` meldete die Installationspruefung bei
-  # jeder frischen Installation „gpsd ist eingeschaltet, antwortet aber nicht
-  # unter 127.0.0.1:2947" -- eine Warnung ueber ein Geraet, das nie da war.
-  # Wer einen Empfaenger hat, stellt hier `usb` ein; das ist die Reihenfolge,
-  # in der man es merkt. (Bestehende Installationen behalten ihre eigene
-  # Einstellung -- Vorgaben gelten nur fuer neue.)
+  # Vorgabe `none` statt `usb`: ein USB-GPS-Empfänger ist Zubehör. Mit `usb`
+  # würde die Installationsprüfung bei jeder frischen Installation vor einem
+  # nicht vorhandenen gpsd warnen. Bestehende Installationen behalten ihre
+  # Einstellung.
   gps_source: "none"
-  # `gps_device` -- WELCHER USB-Anschluss der GPS-Empfaenger ist.
-  #
-  # Leer lassen ist der Normalfall: Yapaia sucht sich das Geraet selbst.
-  # Eintragen muss man nur, wenn die Installationspruefung oder das
-  # Add-on-Protokoll ausdruecklich danach fragt -- naemlich dann, wenn mehrere
-  # serielle Geraete angesteckt sind und keines sich von selbst als
-  # GNSS-Empfaenger zu erkennen gibt.
-  #
-  # Das ist auf einem Home-Assistant-Rechner nicht selten: ein Zigbee-
-  # Koordinator (SkyConnect, Sonoff, ConBee) oder ein Z-Wave-Stick meldet sich
-  # unter genau denselben Namen wie ein GPS-Empfaenger. Bis 0.8.1 nahm Yapaia
-  # einfach das erste und schrieb beim Erkennen darauf -- auf ein Geraet, das
-  # einem anderen Add-on gehoert.
-  #
-  # Bitte den stabilen Pfad nehmen, nicht /dev/ttyACM0:
+  # `gps_device`: welcher USB-Anschluss der GPS-Empfänger ist. Leer lassen ist
+  # der Normalfall; eintragen nur, wenn mehrere serielle Geräte angesteckt sind
+  # (z. B. ein Zigbee- oder Z-Wave-Stick) und keines sich als GNSS-Empfänger
+  # zu erkennen gibt. Den stabilen Pfad nehmen, nicht /dev/ttyACM0:
   #
   #   /dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_7_-_GPS_GNSS_Receiver-if00
   #
   # Die Nummer in `ttyACM0` verschiebt sich, sobald ein anderer USB-Stick
-  # dazukommt oder wegfaellt; der `by-id`-Pfad bleibt. Welche Pfade es auf
-  # Ihrem Geraet gibt, zeigt die Installationspruefung in Yapaia an.
+  # dazukommt; der `by-id`-Pfad bleibt. Welche Pfade es gibt, zeigt die
+  # Installationsprüfung in Yapaia.
   gps_device: ""
   rut50_host: ""
   ha_device_tracker: ""
@@ -300,39 +157,19 @@ options:
     photon_xmx_mb: 1024
   routing:
     valhalla_memory_mb: 2048
-  # `display.theme` -- Hell, Dunkel oder automatisch.
-  #
-  # Das ist eine VORGABE, keine Festlegung: sie gilt fuer Geraete, die in
-  # Yapaia noch nichts gewaehlt haben. Wer dort unter „Design" etwas auswaehlt,
-  # ueberschreibt sie fuer sein Geraet -- ein Tablet in der Sonne und ein
-  # Telefon nachts brauchen nicht dasselbe.
-  #
-  # Die beiden automatischen Betriebsarten sind NICHT dasselbe:
-  #   system  folgt dem Geraet (dessen Hell/Dunkel-Einstellung)
-  #   sun     folgt dem Sonnenstand an der eigenen Position -- fuer ein
-  #           Fahrzeug meist das Bessere: dunkel wird es, wenn es draussen
-  #           dunkel wird, unabhaengig davon, wie das Tablet eingestellt ist.
+  # `display.theme`: Vorgabe für Geräte, die in Yapaia noch nichts gewählt
+  # haben; wer dort unter „Design" etwas auswählt, überschreibt sie.
+  #   system  folgt der Hell/Dunkel-Einstellung des Geräts
+  #   sun     folgt dem Sonnenstand an der eigenen Position
   display:
     theme: "light"
   # ─── ONLINE-DIENSTE ─────────────────────────────────────────────────────
-  # Yapaia ist eine OFFLINE-Navigation. Alles Bisherige -- Karten, Routing,
-  # Suche, Ansagen -- funktioniert ohne jede Internetverbindung, und das ist
-  # der Sinn der Sache: auf einem Stellplatz im Funkloch nuetzt die schoenste
-  # Online-Karte nichts.
-  #
-  # Die Dienste hier sind eine ERGAENZUNG und darum AUS als Vorgabe. Wer sie
-  # einschaltet, entscheidet damit, dass Yapaia bei bestehender Verbindung
-  # fremde Server anfragen darf:
-  #
-  #   * Autobahn GmbH des Bundes -- Baustellen, Sperrungen, Warnungen,
-  #     Rastanlagen und LKW-Parkplaetze. Ohne Schluessel, ohne Anmeldung.
-  #
-  # Was dabei hinausgeht: die Anfrage selbst. KEINE Position, KEINE Route,
-  # KEINE Kennung des Geraets. Was hereinkommt, wird nur angezeigt -- es
-  # aendert keine Route, solange nichts anderes hier steht.
-  #
-  # Faellt die Verbindung aus, faellt nur das weg. Die Navigation merkt es
-  # nicht.
+  # Yapaia navigiert vollständig offline. Die Online-Dienste sind eine
+  # Ergänzung und aus als Vorgabe. Eingeschaltet darf Yapaia bei bestehender
+  # Verbindung die Autobahn GmbH des Bundes (Baustellen, Sperrungen, Warnungen,
+  # Rastanlagen, LKW-Parkplätze; ohne Schlüssel) abfragen. Hinaus geht nur die
+  # Anfrage selbst, keine Position, keine Route, keine Gerätekennung. Ohne
+  # Verbindung fällt nur das weg.
   online:
     enabled: false
     tankerkoenig_api_key: ""
@@ -349,42 +186,20 @@ options:
     mqtt_enabled: false
     mqtt_prefix: "yapaia"
   advanced:
-    # `gps_simulator` -- den eingebauten Testfahrer freischalten.
-    #
-    # AUS als Vorgabe, und das ist der wichtige Teil: der Simulator kann
-    # beliebige Positionen einspeisen und verdraengt dabei den echten
-    # Empfaenger. Auf einem fahrenden Fahrzeug darf das nicht aus Versehen
-    # gehen -- deshalb bleibt er verschlossen, bis jemand ihn ausdruecklich
-    # aufschliesst.
-    #
-    # Bis 0.5.7 gab es diesen Schalter nicht, und der Simulator war damit im
-    # Add-on UEBERHAUPT nicht erreichbar: der Core laeuft hier mit
-    # NODE_ENV=production, und dort antworten alle Simulator-Routen mit 403,
-    # solange ENABLE_SIMULATOR nicht gesetzt ist. Die Funktion war gebaut,
-    # getestet -- und hinter einer Tuer ohne Klinke.
-    #
-    # Wieder einschalten: Einstellungen -> Add-ons -> Yapaia Go ->
-    # Konfiguration, Haken setzen, Add-on neu starten. Kein SSH noetig.
+    # `gps_simulator`: schaltet den eingebauten Testfahrer frei. Aus als
+    # Vorgabe: der Simulator speist beliebige Positionen ein und verdrängt den
+    # echten Empfänger, das darf in einem fahrenden Fahrzeug nicht aus Versehen
+    # passieren. Der Core läuft mit NODE_ENV=production; ohne dieses Flag
+    # antworten die Simulator-Routen mit 403.
     gps_simulator: false
     log_level: "info"
 
 # ─── GLIEDERUNG ────────────────────────────────────────────────────────────
-# Was man wirklich einstellt, steht OFFEN da; der Rest liegt in aufklappbaren
-# Bloecken. Genau die Form, die das Add-on „Terminal & SSH" benutzt (dort der
-# Block „Server"): ein verschachtelter Schluessel im Schema wird von Home
-# Assistant als eigener, zusammenklappbarer Abschnitt gezeichnet.
-#
-# Die Alternative -- alles flach, die Gruppe nur im Namen -- stand bis 0.8.3
-# hier und war ein Kompromiss: zwoelf Felder untereinander, die Gliederung nur
-# als Text im Etikett. Aufgeklappt wird jetzt nur, was man selten anfasst.
-#
-# Die Gruppenschluessel sind ENGLISCH wie alle anderen Schluessel auch
-# (`photon_enabled`, `log_level`); was der Betreiber liest, steht in
-# `translations/` und ist deutsch.
-#
-# ACHTUNG BEIM UMSTIEG: die Schluessel liegen damit an einer anderen Stelle in
-# der gespeicherten Konfiguration. `init-yapaia-config.sh` liest deshalb BEIDE
-# Formen -- erst die neue, dann die alte (siehe `config_mit_rueckfall` dort).
+# Was man wirklich einstellt, steht offen da; der Rest liegt in aufklappbaren
+# Blöcken (verschachtelte Schlüssel zeichnet Home Assistant als eigenen,
+# zusammenklappbaren Abschnitt). Die Schlüssel sind englisch; was man liest,
+# steht in `translations/`. `init-yapaia-config.sh` liest die verschachtelte
+# Form und fällt auf die flache zurück (`config_mit_rueckfall`).
 schema:
   region: "str?"
   gps_source: "list(usb|network|rut50|companion_app|none)"

@@ -8,7 +8,7 @@ Neigung), darunter Licht Dinette (OUT2) und Aufbautür.
 
 **`custom:yapaia-nivellierung-card`** (`nivellierung-card.js`): Seiten- und
 Heckansicht, Libelle und wie viele Millimeter man an welcher Seite anheben
-muss. Werte kommen vom Heizungs-ESP (`sensor.heizung_neigung_vorne_hinten`,
+muss. Werte kommen von einem Neigungssensor am ESP „heizung“ (`sensor.heizung_neigung_vorne_hinten`,
 `sensor.heizung_neigung_links_rechts`). Im grafischen Editor einstellbar:
 Sensoren (Grad, optional mm), Vorzeichen umkehren, Radstand, Spurweite,
 Toleranz und wie stark die Grafik die Neigung überhöht.
@@ -28,8 +28,9 @@ Im Editor: Kamera, Seitenverhältnis, Bild spiegeln, Platzhaltertext.
 
 ## Kamera
 
-- Die Rückfahrkamera kommt von Yapaia Vision (`camera.yapaia_vision_kamera_1`,
-  hier NTSC 720x480, daher 3:2).
+- Die Rückfahrkamera kommt von Yapaia Vision (`camera.yapaia_vision_kamera_1`).
+  Das Seitenverhältnis der Karte (`aspect_ratio`) passt man an die Norm der
+  Kamera an, z. B. `3:2` bei NTSC 720 × 480.
 
 ## Einspielen
 

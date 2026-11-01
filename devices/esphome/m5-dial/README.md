@@ -41,6 +41,10 @@ Steht eine Abbiegung kurz bevor (Vorgabe: 300 m), springt die Anzeige von selbst
 auf die Navigation — außer man hat in den letzten 10 Sekunden am Knopf gedreht
 oder gedrückt. Der rote Ring für „zu schnell" erscheint in **jeder** Ansicht.
 
+In Home Assistant erscheinen drei Schalter: **Waage als Fahrzeug**, **Restzeit
+statt Ankunft** (wie die Auswahl in den Ansichten Waage und Navi) und
+**Warnton bei zu schnell** (ein kurzer Ton über den Summer, aus als Vorgabe).
+
 Unten am Rand zeigen kleine Punkte, in welcher Ansicht man ist (auf Navi und
 Waage nur kurz nach dem Umschalten).
 
@@ -67,8 +71,8 @@ Waage nur kurz nach dem Umschalten).
 - **`licht1_name` … `licht8_name`** – „Ausgang 3" sagt im Dunkeln niemandem
   etwas, „Vorzelt" schon.
 - **`reifen_warn_bar`** – unter diesem Druck wird ein Reifen rot.
-- **Entitäten** – sie folgen den Namen der vorhandenen ESPHome-Geräte
-  (`heizung`, `smartwomo`, `btcollector`, `door`). Wer ein Gerät in Home
+- **Entitäten** – die Vorgaben passen zu den ESPHome-Geräten aus diesem
+  Repository (`heizung`, `smartwomo`, `btcollector`, `door`). Wer ein Gerät in Home
   Assistant umbenannt hat: *Entwicklerwerkzeuge → Zustände* zeigt die echten
   Namen.
 - Die Werte der **Wasserwaage** (Radstand, Spurweite, Vorzeichen) sind dieselben

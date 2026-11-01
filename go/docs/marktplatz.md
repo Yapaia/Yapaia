@@ -181,7 +181,7 @@ zusätzlich als Sicherheitsereignis (`addon.signature`, `addon.revoked`,
 | Teil | Lizenz | Warum |
 |---|---|---|
 | Yapaia (Repo, außer den folgenden Ausnahmen) | GPL-3.0-or-later | Open-Source-Kern |
-| `@yapaia/addon-sdk`, `packages/shared/src/marketplace` | Apache-2.0 | werden in Add-ons gebündelt; erlaubt Closed-Source-Add-ons (siehe `DRITTLIZENZEN.md` in der Monorepo-Wurzel) |
+| `@yapaia/addon-sdk`, `packages/shared/src/marketplace` | Apache-2.0 | werden in Add-ons gebündelt; erlaubt Closed-Source-Add-ons (siehe `DRITTLIZENZEN.md` im Hauptordner des Repositorys) |
 | Beispiel-Add-ons `addons-examples/poi-campsites`, `addons-examples/track-recorder` | Apache-2.0 | Vorlagen zum Weiterverwenden, auch in Closed-Source-Add-ons |
 | Marktplatz-Server | proprietär | privates Repo |
 | Add-ons | Sache des Herausgebers | z. B. proprietär |
@@ -192,7 +192,7 @@ GPL-Kerns.
 
 > **`core_api`** bezieht sich auf die Version der Add-on-API (`@yapaia/core`,
 > per Changesets versioniert), nicht auf die Add-on-Version von Yapaia Go in
-> Home Assistant (z. B. 0.56.0). Bis zum ersten Release steht die API auf
-> 0.0.x; Add-ons verwenden bis dahin `"*"` (eine Range wie `"^0.1"` passt
-> nicht auf 0.0.x; unterstützt sind exakte Versionen, `^`, `~` und x-Ranges,
-> siehe `packages/shared/src/semver.ts`).
+> Home Assistant. Die API steht derzeit auf 0.0.x; Add-ons verwenden daher
+> `"*"` (eine Range wie `"^0.1"` passt nicht auf 0.0.x; unterstützt sind
+> exakte Versionen, `^`, `~` und x-Ranges, siehe
+> `packages/shared/src/semver.ts`).

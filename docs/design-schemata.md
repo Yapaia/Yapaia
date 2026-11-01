@@ -1,7 +1,7 @@
 # Design-Schemata
 
 Ein gemeinsames Aussehen für alle Yapaia-Oberflächen: Add-ons (Go, Beat,
-Vision), Dashboards und Karten, später die ESPHome-Displays. Ein **Schema**
+Vision), Dashboards und Karten. Ein **Schema**
 legt Farben, Schriften, Formen und etwas Deko fest – **nicht den Aufbau**
 einer Seite. Die Go-Karte im Schema „Retro“ hat Retro-Farben, -Schrift und
 -Knöpfe, aber keine Streifen quer über die Karte.
@@ -50,14 +50,13 @@ Die Integration liefert unter `/yapaia_design/` aus:
   | Karte | folgt bei `auto` |
   |---|---|
   | Cockpit Sport | Modul Go (`select.yapaia_go_design`) |
-  | Beat-Karte | Modul Beat; Schemata mit `deko.holz` → Holzgehäuse, sonst modern in Schemafarben; altes `style: retro/modern` gilt als feste Wahl |
+  | Beat-Karte | Modul Beat; Schemata mit `deko.holz` → Holzgehäuse, sonst modern in Schemafarben |
   | WLAN | Modul Router |
   | Stellplatz Stil, Rangieren (Kamera, Nivellierung, Reifen) | Gesamt-Schema |
 - **Add-on-Oberflächen** bekommen das geltende Schema über ihre Verbindung zur
   Integration (`POST /yapaia/v1/design`, [Protokoll §8a](integration-protokoll.md#8a-design)),
   merken es sich und reichen es an ihre Seite weiter (`GET api/design`, bei Go
-  `GET /api/v1/design`); die setzt nur die CSS-Variablen auf `:root`. Beat und
-  Vision ab 1.18.0 bzw. 0.3.0, Go ab 0.66.0. Go rechnet die Tailwind-Paletten
+  `GET /api/v1/design`); die setzt nur die CSS-Variablen auf `:root`. Go rechnet die Tailwind-Paletten
   aus dem Schema (`slate` = von der hellsten zur dunkelsten Schemafarbe,
   `blue` = Akzent) und lässt das Schema hell/dunkel bestimmen; der Kartenstil
   folgt weiter dem Tag/Nacht-Thema von Go.
@@ -92,14 +91,14 @@ Oberfläche nur, wenn das Schema sie anbietet (`deko` in `schemata.json`).
 
 ## Die Schemata
 
-| ID | Name | Herkunft |
+| ID | Name | Charakter |
 |---|---|---|
-| `sport` | Sport | Dashboard Cockpit Sport |
-| `retro` | Retro | Stellplatz Stil „Retro“ (Standard) |
-| `magazin` | Magazin | Stellplatz Stil „Magazin“ |
-| `mix` | Mix | Stellplatz Stil „Mix“ |
-| `beat-modern` | Beat Modern | Oberfläche von Yapaia Beat |
-| `beat-retro` | Beat Retro | Beat-Karte „Retro“ (Holz & LCD) |
+| `sport` | Sport | dunkles Infotainment, Kupfer als Akzent, Systemschrift |
+| `retro` | Retro | Retro-Camper: Sahne, Rost, Senf, schräge Streifen, weiche Serifenschrift (Standard) |
+| `magazin` | Magazin | Outdoor-Magazin: Waldgrün, Höhenlinien, große Serifenschrift |
+| `mix` | Mix | Retro-Farben im ruhigen Magazin-Aufbau |
+| `beat-modern` | Beat Modern | Nachtblau, Orange und Gelb, Systemschrift |
+| `beat-retro` | Beat Retro | Holzgehäuse, grünes LCD, Orange |
 
 ## Ein neues Schema anlegen
 
@@ -119,8 +118,8 @@ Kein Code nötig:
    erzeugten Dateien aktuell sind.
 5. Kontrast prüfen: Text auf `grund` und `flaeche` mindestens 4,5 : 1,
    `akzent_text` auf `akzent` ebenso.
-6. In der Tabelle oben eintragen, Integration-Version und CHANGELOG des
-   bringenden Add-ons hochziehen (die Integration kommt mit den Add-ons).
+6. In der Tabelle oben eintragen; Integration-Version und CHANGELOG des
+   mitbringenden Add-ons hochziehen (die Integration kommt mit den Add-ons).
 
 ### Felder einer Schema-Datei
 
@@ -144,10 +143,6 @@ Kein Code nötig:
 (`grund`, `text`, `leuchten`). Eine neue Deko-Art braucht Code in den
 Oberflächen, die sie zeichnen sollen – unbekannte Einträge werden ignoriert.
 
-## Stufen
+## Noch nicht
 
-1. ✅ Format, Schemata, Generator, HA-Themes, Doku, CI-Prüfung
-2. ✅ Auswahl in der Integration (gesamt, je Modul, HA-Design)
-3. ✅ Karten: Cockpit Sport, Stellplatz Stil, Rangieren, WLAN, Beat-Karte
-4. ✅ Add-on-Oberflächen: Beat, Vision, Go (Go: Tailwind-Paletten `slate`/`blue`/`flaeche` auf Variablen, Stufen berechnet in `apps/web/src/design/palette.ts`; hell/dunkel vom Schema)
-5. ESPHome-Displays: der Generator gibt zusätzlich Farben/Schriften für ESPHome aus
+ESPHome-Displays folgen dem Design noch nicht.

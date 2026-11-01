@@ -1,47 +1,31 @@
 # Troubleshooting
 
-Dieses Dokument beantwortet die Frage „Was tue ich, wenn …?" für **alle**
-sicherheitsrelevanten (🔴) und funktionskritischen (🟠) Szenarien aus der
-Wargame-Analyse (`docs/08-wargame.md`). Für jeden Fall: **Symptom** (was du
-siehst) → **Ursache** (warum das passiert) → **Lösung** (was du tust).
-
-**Herkunft & Aktualität:** Diese Seite ist die nutzerorientierte Übersetzung
-von `docs/08-wargame.md` — dort steht die technische Analyse (Auslöser,
-Erkennung, vorbereitete Lösung, Testabdeckung) für Entwickler, hier steht
-die Handlungsanweisung für Anwender. `scripts/wargame-coverage.mjs --check`
-läuft in CI und stellt sicher, dass **jeder** 🔴/🟠-Fall aus der Wargame-Liste
-hier einen eigenen Abschnitt hat — leitet die Pflichtliste bei jedem Lauf
-frisch aus `docs/08-wargame.md` ab, keine hartkodierte Liste. Fällt ein
-neuer Fall dort hinein oder wird ein 🟡 zu 🟠 hochgestuft, schlägt die
-Prüfung an, bis hier ein Abschnitt ergänzt wurde.
-
-**Nicht hier behandelt:** die 🟡-Komfortfälle (W-04, W-07, W-13, W-17, W-20,
-W-21, W-23) sind unangenehm, aber nicht sicherheits- oder
-funktionskritisch — Details dazu direkt in `docs/08-wargame.md`.
+Was tun, wenn …? Für jeden Fall: **Symptom** (was du siehst) → **Ursache**
+(warum das passiert) → **Lösung** (was du tust). Probleme bei der Installation
+des Add-ons stehen am Ende unter [Die Add-on-Installation bricht ab](#i-01--die-add-on-installation-bricht-ab).
 
 ## Inhalt
 
-| W-ID | Schweregrad | Kurztitel |
-|---|---|---|
-| [W-01](#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung) | 🟠 | GPS-Signal verloren |
-| [W-02](#w-02--positionsmarker-springt-kurz-unrealistisch) | 🟠 | GPS-Sprung / Drift |
-| [W-03](#w-03--standortzugriff-nicht-möglich) | 🟠 | Geolocation blockiert |
-| [W-05](#w-05--app-berechnet-nach-einer-abzweigung-automatisch-neu) | 🟠 | Falschabbiegung / Umleitung |
-| [W-06](#w-06--ha-entitäten-werden-nicht-verfügbar) | 🟠 | MQTT-Broker nicht erreichbar |
-| [W-08](#w-08--route-führt-an-einer-zu-engenniedrigen-stelle-vorbei-) | 🔴 | OSM-Maßdaten unvollständig |
-| [W-09](#w-09--meldung-ziel-liegt-außerhalb-der-installierten-karte) | 🟠 | Ziel außerhalb Kartenregion |
-| [W-10](#w-10--add-on-verhält-sich-verdächtig-) | 🔴 | Bösartiges Add-on |
-| [W-11](#w-11--add-on-ist-nach-einem-update-deaktiviert) | 🟠 | Core-Update bricht Add-on-API |
-| [W-12](#w-12--suche-reagiert-nicht-mehrvereinfachte-suche) | 🟠 | Photon sprengt RAM-Budget |
-| [W-14](#w-14--app-ruckelt-während-ein-add-on-aktiv-ist) | 🟠 | Add-on überlastet den Mini-PC |
-| [W-15](#w-15--app-funktioniert-direkt-aber-nicht-über-ha-ingress) | 🟠 | Ingress-Sub-Pfad bricht Frontend |
-| [W-16](#w-16--nach-einem-update-fehlen-kartendaten-oder-einstellungen-) | 🔴 | Update zerstört Daten |
-| [W-18](#w-18--region-download-wird-sofort-mit-speicherplatz-fehler-abgelehnt) | 🟠 | Disk voll |
-| [W-19](#w-19--navigation-scheint-nach-tab-crashneustart-weg-zu-sein) | 🟠 | Tab-Crash / Kiosk-Neustart |
-| [W-22](#w-22--anzeige-der-ankunftszeit-wirkt-falsch) | 🟠 | ETA falsch (Zeitzone/DST) |
+| Problem | Schweregrad |
+|---|---|
+| [GPS-Signal verloren](#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung) | 🟠 |
+| [Positionsmarker springt](#w-02--positionsmarker-springt-kurz-unrealistisch) | 🟠 |
+| [„Standortzugriff nicht möglich"](#w-03--standortzugriff-nicht-möglich) | 🟠 |
+| [Automatische Neuberechnung nach einer Abzweigung](#w-05--app-berechnet-nach-einer-abzweigung-automatisch-neu) | 🟠 |
+| [Home-Assistant-Entitäten „nicht verfügbar"](#w-06--ha-entitäten-werden-nicht-verfügbar) | 🟠 |
+| [Route führt an einer zu engen/niedrigen Stelle vorbei](#w-08--route-führt-an-einer-zu-engenniedrigen-stelle-vorbei-) | 🔴 |
+| [„Ziel liegt außerhalb der installierten Karte"](#w-09--meldung-ziel-liegt-außerhalb-der-installierten-karte) | 🟠 |
+| [Add-on verhält sich verdächtig](#w-10--add-on-verhält-sich-verdächtig-) | 🔴 |
+| [Add-on ist nach einem Update deaktiviert](#w-11--add-on-ist-nach-einem-update-deaktiviert) | 🟠 |
+| [Suche reagiert nicht mehr](#w-12--suche-reagiert-nicht-mehrvereinfachte-suche) | 🟠 |
+| [App ruckelt, während ein Add-on aktiv ist](#w-14--app-ruckelt-während-ein-add-on-aktiv-ist) | 🟠 |
+| [Funktioniert direkt, aber nicht über Home Assistant](#w-15--app-funktioniert-direkt-aber-nicht-über-ha-ingress) | 🟠 |
+| [Nach einem Update fehlen Daten](#w-16--nach-einem-update-fehlen-kartendaten-oder-einstellungen-) | 🔴 |
+| [Region-Download wegen Speicherplatz abgelehnt](#w-18--region-download-wird-sofort-mit-speicherplatz-fehler-abgelehnt) | 🟠 |
+| [Navigation nach Tab-Absturz/Neustart weg](#w-19--navigation-scheint-nach-tab-crashneustart-weg-zu-sein) | 🟠 |
+| [Ankunftszeit wirkt falsch](#w-22--anzeige-der-ankunftszeit-wirkt-falsch) | 🟠 |
 
 ---
-
 ## W-01 — GPS-Signal verloren (Tunnel, Parkhaus, Abschattung)
 
 **Symptom:** Der Positionspunkt wird grau, ein Banner „GPS-Signal verloren"
@@ -132,10 +116,11 @@ erwartet wird.
 
 **Lösung:** Kein Eingriff nötig — das Rerouting läuft automatisch und ist
 in der Regel in unter 3 Sekunden abgeschlossen, mit sofort neuen
-Anweisungen. Wird derselbe Punkt **dreimal in 5 Minuten** umfahren (z. B.
-weil eine Baustelle den einzigen erlaubten Weg blockiert), bietet die App
-„Abschnitt dauerhaft meiden?" an — bestätigen, um die Stelle künftig
-vorsorglich zu umfahren.
+Anweisungen. Weicht die Fahrt **dreimal in 5 Minuten** an derselben Stelle (im Umkreis
+von 200 m) ab — z. B. weil eine Baustelle den einzigen erlaubten Weg
+blockiert —, rechnet die App dort nicht noch einmal automatisch neu, statt
+dieselbe Route immer wieder zu berechnen. Plane in dem Fall die Route neu
+(z. B. mit einem Zwischenziel).
 
 ---
 
@@ -179,15 +164,13 @@ verschwiegen.
 1. **Immer selbst auf Beschilderung, Schranken und Höhenwarner achten** —
    besonders auf kleinen Straßen, wo Maßangaben in OpenStreetMap oft fehlen.
    Verlasse dich dort nicht blind auf die Route.
-2. Die Hinweise zur Nutzung bei der Ersteinrichtung und den Warnhinweis bei
-   Profilen über 2,7 m Höhe lesen — sie beschreiben genau diesen Fall.
+2. Den Warnhinweis bei Fahrzeugprofilen über 2,7 m Höhe lesen — er
+   beschreibt genau diesen Fall.
 3. Bekannte, fehlende Beschränkungen kannst du selbst in OpenStreetMap
    nachtragen (`maxheight`, `maxweight`, `maxwidth`-Tags auf
    openstreetmap.org) — das kommt allen Nutzern der Karte zugute, nicht nur
    dir.
-4. Ein kuratiertes Community-Gefahrstellen-Add-on (bekannte
-   Problemstellen als Layer) ist als Erweiterung vorgesehen.
-5. **Grundsatz:** Eigene Ortskenntnis und tatsächlich vorhandene
+4. **Grundsatz:** Eigene Ortskenntnis und tatsächlich vorhandene
    Beschilderung haben immer Vorrang vor der Routenempfehlung.
 
 ---
@@ -226,9 +209,9 @@ API-Aufrufe).
    Reiter „Updates" → Installierte Add-ons → „Deaktivieren"**. Der
    Kill-Switch wirkt sofort.
 2. Jeder verbotene Versuch (fremde API-Aufrufe, DOM-Zugriff, undeklarierte
-   Hosts) wird automatisch geblockt **und** protokolliert. Eine eigene Ansicht
-   dafür gibt es in der Oberfläche noch nicht; abrufbar ist das Protokoll
-   über `GET /api/v1/security/events`.
+   Hosts) wird automatisch geblockt **und** protokolliert. In der Oberfläche
+   gibt es dafür keine eigene Ansicht; abrufbar ist das Protokoll über
+   `GET /api/v1/security/events`.
 3. Für die Zukunft: nur signierte Add-ons aus dem Marktplatz installieren
    (im Katalog „✓ Geprüft"), den **Entwicklermodus** ausgeschaltet lassen und
    beim Installieren die angezeigten Berechtigungen tatsächlich lesen, bevor
@@ -315,10 +298,9 @@ angefragt und landen dadurch am falschen Ingress-Sub-Pfad
    starten.
 2. Danach den Ingress-Link erneut öffnen; bei Bedarf den Browser-Cache der
    Seite leeren (`Strg`+`Shift`+`R` bzw. `Cmd`+`Shift`+`R`).
-3. Bleibt das Problem bestehen: Add-on-Version prüfen. Dieser Fehlerfall
-   ist über einen eigenen End-to-End-Pflichttest (Flow 9) seit dem ersten
-   Kartenrelease abgesichert — ein Wiederauftreten ist ein Regressions-Bug
-   und sollte gemeldet werden, nicht als „normal" hingenommen werden.
+3. Bleibt das Problem bestehen: Add-on-Version prüfen und das Problem
+   melden (mit Version und Browser) — es ist ein Fehler, kein
+   Normalzustand.
 
 ---
 
@@ -340,15 +322,13 @@ hin.
    anlegen (siehe `docs/installation.md` → Abschnitt „Backup vor einem
    Update").
 2. Im Datenverzeichnis nach automatisch angelegten Sicherungsdateien
-   suchen (Muster `*.bak` / `*.sqlite.bak`, angelegt unmittelbar vor jeder
+   suchen (Endung `.bak`, angelegt unmittelbar vor jeder
    Schema-Migration) und bei Bedarf zurückspielen.
 3. Kartendaten (Tiles/Valhalla-Graph) liegen in einem separaten
    Unterverzeichnis und werden von App-Updates nie verändert — dort ist ein
    Verlust besonders unerwartet und sollte gesondert gemeldet werden.
 4. **Nicht** einfach neu installieren, ohne vorher das bestehende
-   Datenverzeichnis zu sichern. Diesen Fall bitte als Fehler melden — er
-   ist eines der Release-Gate-Kriterien vor jedem Versions-Tag
-   (`docs/07-testing-qa.md` §7).
+   Datenverzeichnis zu sichern. Diesen Fall bitte als Fehler melden.
 
 ---
 
@@ -411,19 +391,11 @@ bleibt davon unabhängig **immer** korrekt, auch wenn die absolute Uhrzeit
 kurzzeitig irritierend wirkt. Bleibt die Anzeige trotz korrekt eingestellter
 Geräte-Zeitzone dauerhaft falsch: bitte als Fehler melden.
 
----
 
 ## I-01 — Die Add-on-Installation bricht ab
 
-Kein Wargame-Fall, sondern konkrete Fehlermeldungen aus dem
-Supervisor-Protokoll, die beim Einrichten auftreten können.
-
-> **Heutiger Stand:** Das Add-on wird nicht mehr auf dem Gerät gebaut. Der
-> Supervisor lädt das fertige Image `ghcr.io/yapaia/yapaia-go-<arch>:<version>`,
-> das für jede Version in CI gebaut wird. Die Abschnitte zu Fehlern **beim Bauen**
-> (`BUILD_FROM`, apt-Lock, `CACHED`) stammen aus der Zeit, als das Add-on noch
-> auf dem Gerät gebaut wurde; sie stehen hier für alle, die das Image selbst
-> bauen.
+Der Supervisor lädt das fertige Image `ghcr.io/yapaia/yapaia-go-<arch>:<version>`;
+auf dem Gerät wird nichts gebaut.
 
 ### „403 denied" beim Herunterladen des Images
 
@@ -441,228 +413,6 @@ gebaut wird.
 suchen**, dann erneut installieren. Bleibt der Fehler bei einer Version
 bestehen, bitte als Fehler melden (mit Version und Architektur).
 
-### „base name (${BUILD_FROM}) should not be blank"
-
-```
-ERROR: failed to build: failed to solve:
-base name (${BUILD_FROM}) should not be blank
-```
-
-**Ursache (behoben):** Docker kennt **zwei getrennte ARG-Gültigkeitsbereiche**.
-Alles vor dem ersten `FROM` ist *global* und steht jeder `FROM`-Zeile zur
-Verfügung; alles danach gehört zu genau der Stufe, in der es steht. Ein `ARG`,
-das in einer `FROM`-Zeile verwendet wird, muss also **global** deklariert sein.
-
-`ARG BUILD_FROM` stand unmittelbar vor der letzten `FROM`-Zeile — aber nach
-zwei vorherigen Build-Stufen, damit im Gültigkeitsbereich von niemandem. Der
-Supervisor übergab `--build-arg BUILD_FROM=…` völlig korrekt; der Wert kam nur
-nie an, und `FROM ${BUILD_FROM}` expandierte zu nichts.
-
-**Lösung:** `ARG BUILD_FROM` steht jetzt vor dem ersten `FROM`, mit dem
-Valhalla-Basisimage als Default. Der Default macht den Dockerfile zusätzlich
-eigenständig baubar und überlebt die vom Supervisor angekündigte Abkündigung
-von `build.yaml` (die Warnung *„uses build.yaml which is deprecated"* im Log
-ist genau das — eine Warnung, kein Fehler; solange `build.yaml` gelesen wird,
-gewinnt dessen `build_from`).
-
-**Reihenfolge der Befunde:** Dieser Fehler steckte seit E08-T4 im Dockerfile
-und wurde erst sichtbar, nachdem die beiden Fehler davor behoben waren — vorher
-kam der Supervisor gar nicht bis zum Bauen. Drei Schichten, jede von der
-darüberliegenden verdeckt.
-
-### „Could not open lock file /var/lib/apt/lists/lock — Permission denied"
-
-```
-#15 [stage-2 2/17] RUN apt-get update && apt-get install ...
-E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
-E: Unable to lock directory /var/lib/apt/lists/
-```
-
-**Ursache (behoben):** Docker führt jedes `RUN` als den zuletzt gesetzten
-`USER` aus, und dieser wird von `FROM` mit übernommen. Das
-Valhalla-Basisimage setzt einen **nicht-privilegierten** Benutzer — der Bau
-durfte deshalb nicht in `/var/lib` schreiben. Kein Netz-, kein Paketproblem.
-
-**Lösung:** `USER root` direkt nach dem `FROM` der letzten Stufe. Das gilt
-auch zur Laufzeit, und zwar beabsichtigt: das Add-on bringt sein eigenes
-s6-overlay als PID 1 mit (`ENTRYPOINT ["/init"]`), und das braucht root.
-Abgesichert wird der Container über AppArmor und den Verzicht auf
-`full_access` (siehe `config.yaml`, Abschnitt „SECURITY POSTURE"), nicht über
-einen unprivilegierten Benutzer.
-
-### Installiert, startet aber nicht: „unable to spawn ./run"
-
-```
-s6-supervise valhalla: warning: unable to spawn ./run
-                       (waiting 60 seconds): No such file or directory
-/etc/yapaia/init-yapaia-config.sh: line 44: bashio::log.info: command not found
-```
-
-**Ursache (behoben):** „No such file or directory" beim Starten einer
-vorhandenen, ausführbaren Datei heißt fast immer: der **Interpreter aus dem
-Shebang** fehlt — nicht die Datei selbst.
-
-Die Dienstskripte begannen mit `#!/usr/bin/with-contenv bash`. Diesen Pfad
-legen nur die **offiziellen HA-Basisimages** an. Dieses Add-on baut auf dem
-Valhalla-Image und installiert s6-overlay v3 selbst — und das bringt das
-Werkzeug unter `/command/with-contenv` mit. Im Release-Archiv v3.1.6.2 ist
-`./command/with-contenv` enthalten; ein `usr/bin/with-contenv` kommt darin
-überhaupt nicht vor.
-
-Die zweite Meldung ist dieselbe Wurzel an anderer Stelle: das `up`-Skript des
-Oneshots rief `bash /etc/yapaia/init-yapaia-config.sh` auf und umging damit
-den Shebang des Skripts. Unter nacktem `bash` sind bashio-Funktionen nicht
-definiert.
-
-**Lösung:** alle Shebangs auf `/command/with-contenv`; Skripte, die
-`bashio::`-Funktionen benutzen, bekommen `bashio` statt `bash` als
-Interpreter; das `up`-Skript ruft das init-Skript ohne expliziten Interpreter
-auf, sodass dessen Shebang gilt. Zusätzlich prüft der Bau jetzt selbst, dass
-`/command/with-contenv` und `/usr/bin/bashio` wirklich existieren — vorher
-legte `ln -sf` auch einen ins Leere zeigenden Symlink an, der Bau blieb grün
-und der Fehler kam erst beim Start.
-
-### Update installiert, aber die Oberfläche ist die alte
-
-Der Supervisor zeigt die neue Version, das Add-on startet — und trotzdem
-fehlen Knöpfe oder Texte aus dem Release. Im Build-Log steht:
-
-```
-#10 [core-build 5/8] RUN set -eux; curl ... tar.gz/main
-#10 CACHED
-```
-
-**Ursache (behoben):** Docker bildet den Cache-Schlüssel einer `RUN`-Zeile
-aus ihrem **Befehlstext**, nicht aus dem, was der Befehl herunterlädt. Der
-Quelltext wird von `tar.gz/main` geholt — einem beweglichen Zeiger, dessen
-Text sich nie ändert. Der Schritt lief deshalb genau einmal und wurde danach
-bei jedem Bau aus dem Cache genommen.
-
-Das sah nicht wie ein Fehler aus, sondern wie ein erfolgreiches Update: der
-Supervisor liest `version:` aus dem **Git-Klon**, nicht aus dem Image, und
-zeigte brav die neue Nummer an, während das Image den Quelltext von Stunden
-zuvor enthielt.
-
-**Lösung:** Der Fetch-Schritt liest jetzt `BUILD_VERSION` (übergibt der
-Supervisor aus `config.yaml`). Der Cache-Schlüssel ändert sich damit bei
-jedem Versions-Bump, und der Quelltext wird neu geholt.
-
-**Folge für die Entwicklung:** jede Änderung braucht einen Versions-Bump in
-`config.yaml`. Ohne ihn behält der Bau den alten Quelltext. `config.test.ts`
-prüft die Verdrahtung, nicht den Bump — den muss man selbst machen.
-
-**Wenn du in dieser Lage steckst:** auf die nächste Version aktualisieren.
-Ein „Rebuild" allein hilft nicht, weil er denselben Cache trifft.
-
-### Add-on-Protokoll voll mit „log.sh: line 107: info: unbound variable"
-
-```
-/usr/lib/bashio/log.sh: line 107: info: unbound variable
-```
-…hunderte Male, und sonst fast nichts.
-
-**Ursache (behoben):** bashio liest seinen Log-Level **direkt aus der
-Umgebungsvariable `LOG_LEVEL`** und erwartet dort eine **Zahl** (1–8):
-
-```bash
-# lib/bashio.sh:31
-declare __BASHIO_LOG_LEVEL=${LOG_LEVEL:-${__BASHIO_DEFAULT_LOG_LEVEL}}
-
-# lib/log.sh:107  -- arithmetischer Vergleich
-if [[ "${level}" -gt "${__BASHIO_LOG_LEVEL}" ]]; then
-```
-
-Das Init-Skript exportierte aber `LOG_LEVEL=info` — einen **Namen** — in die
-**geteilte** Container-Umgebung. Alles unter
-`/run/s6/container_environment/` landet in jedem `with-contenv`-Skript, also
-auch in bashio. Der `-gt`-Vergleich wertete `info` arithmetisch aus und brach
-unter `set -u` bei **jedem** Log-Aufruf ab.
-
-Folge: keiner der s6-Dienste konnte mehr protokollieren, und das Add-on-Log
-war als Diagnosemittel wertlos — genau dann, wenn man es braucht.
-
-**Lösung:** Die geteilte Variable heißt jetzt `YAPAIA_LOG_LEVEL`. Der Core
-braucht weiterhin `LOG_LEVEL` (pino); das setzt `core/run` lokal für genau
-diesen einen Prozess.
-
-### Kachelbau schlägt fehl, aber im Protokoll steht nichts
-
-**Ursache (behoben):** Der Core las die Ausgabe des Bau-Prozesses, um daraus
-die Statuszeile zu gewinnen — und verwarf sie danach. Die Fehlermeldung
-verwies auf „ausführliche Ausgabe im Add-on-Protokoll", wo nie etwas ankam.
-
-**Lösung:** Jede Ausgabezeile wird jetzt mit dem Präfix
-`[Kachelbau <region>]` ins Add-on-Protokoll gespiegelt, und die **letzte**
-Zeile steht zusätzlich in der Fehlermeldung selbst. Danach suchen:
-
-```
-[Kachelbau liechtenstein]
-```
-
-### Kachelbau bricht ab mit „docker nicht im PATH gefunden"
-
-```
-Fehler: Der Kachelbau ist mit Code 1 fehlgeschlagen. Zuletzt: „- die
-.pmtiles auf einem anderen Rechner bauen und nach /share/yapaia/tiles/
-kopieren".
-```
-
-**Ursache (behoben, ab 0.1.7):** `build-pmtiles.sh` kann planetiler auf zwei
-Wegen starten — als Docker-Container oder direkt als `java -jar`. Der
-Add-on-Wrapper `yapaia-build-pmtiles` setzt korrekt `PLANETILER_JAR`, weil es
-im Container keinen Docker-Socket gibt. Die Prüfung `command -v docker` stand
-im Skript aber **vor** der Auswertung von `PLANETILER_JAR` und lief
-unabhängig davon. Der JAR-Modus war damit unerreichbar: der Knopf „Kacheln
-bauen" scheiterte immer, und ausgerechnet mit dem Rat, die Kacheln „auf einem
-anderen Rechner" zu bauen — also mit einem Verweis aus der Oberfläche heraus,
-die den Bau gerade erst möglich machen sollte.
-
-Unbemerkt blieb es, weil die Tests des Skripts in **jedem** Fall ein
-`docker`-Stub in den PATH legten. Der eine Fall ohne Docker, aber mit JAR und
-JRE — im Add-on der Normalfall — kam darin nicht vor. Er ist jetzt als
-eigener Test drin.
-
-**Lösung:** Auf 0.1.7 aktualisieren und „Kacheln bauen" erneut drücken. Beim
-ersten Lauf wird `planetiler.jar` (~100 MB) einmalig nach
-`/share/yapaia/tools/` geladen; das steht als erste Zeile im Protokoll.
-
-**Gleich mit behoben:** Das Arbeitsverzeichnis des Baus lag unter `/tmp`,
-also in der beschreibbaren Schicht des Containers — während die
-Platz-Vorprüfung des Core `/share` misst. Bei einer kleinen Region fällt das
-nicht auf; bei Rheinland-Pfalz (~350 MB PBF) hätte die Vorprüfung grünes
-Licht gegeben und der Lauf wäre Stunden später am Platz gescheitert, auf
-einem anderen Dateisystem als dem geprüften. Der Bau arbeitet jetzt unter
-`/share/yapaia/tmp`.
-
-### Kachelbau bricht ab mit „lake_centerline.shp.zip does not exist"
-
-```
-java.lang.IllegalArgumentException: data/sources/lake_centerline.shp.zip
-does not exist. Run with --download to fetch it
-```
-
-**Ursache (behoben, ab 0.1.8):** Die Karte entsteht nicht allein aus dem
-OSM-Extrakt der Region. Das OpenMapTiles-Profil, das planetiler hier benutzt,
-braucht zusätzlich drei **nicht regionsspezifische** Quellen —
-Seen-Mittellinien, Wasserflächen und Natural-Earth-Basisdaten für die kleinen
-Zoomstufen. Der Aufruf nannte `--download` nicht und war damit von Anfang an
-unvollständig: er hätte in **keiner** Umgebung durchlaufen können, auch nicht
-über Docker.
-
-Unbemerkt blieb es, weil planetiler in den Tests durch ein Stub ersetzt ist,
-das eine PMTiles-Datei schreibt und sich um fehlende Quellen nicht schert —
-der Aufruf war nie gegen ein echtes planetiler gelaufen. Ein Test prüft jetzt
-die Argumente selbst.
-
-**Lösung:** Auf 0.1.8 aktualisieren.
-
-**Was du dabei erwarten solltest:** Der **erste** Bau lädt diese gemeinsamen
-Basisdaten einmalig nach `/share/yapaia/planetiler-sources/`. Das sind mehrere
-hundert MB — er dauert also spürbar länger als der eigentliche Bau von
-Liechtenstein, und das ist kein Hänger. Jede weitere Region benutzt danach
-dieselben Dateien und lädt nichts mehr nach. Die genauen Größen stehen im
-Protokoll.
-
 ### „could not read Username for 'https://github.com'"
 
 ```
@@ -670,23 +420,28 @@ Can't clone https://github.com/Yapaia/yapaia repository:
 fatal: could not read Username for 'https://github.com': No such device or address
 ```
 
-**Ursache:** Der Supervisor klont **anonym**, ohne Zugangsdaten. Diese Meldung
-heißt fast immer, dass das Repository zu diesem Zeitpunkt **privat** war (oder
-die URL einen Tippfehler hatte). Git fragt dann nach einem Benutzernamen, und
-im Supervisor-Container gibt es kein Terminal, das antworten könnte — daher
-„No such device or address".
+**Ursache:** Der Supervisor klont **anonym**, ohne Zugangsdaten. Die Meldung
+heißt fast immer, dass die Repository-Adresse falsch ist oder das Repository
+nicht öffentlich erreichbar ist (bei einem Fork etwa privat).
 
-**Lösung:** Das Repository muss öffentlich sein. Prüfen lässt sich das ohne
-Home Assistant, in einem privaten Browserfenster: die Repository-Seite muss
-sich ohne Anmeldung öffnen lassen.
+**Lösung:** Adresse prüfen und das Repository öffentlich machen. Ob es ohne
+Anmeldung erreichbar ist, zeigt ein privates Browserfenster.
+
+### Kachelbau schlägt fehl
+
+**Wo steht der Grund?** Jede Ausgabezeile des Baus steht im Add-on-Protokoll
+mit dem Präfix `[Kachelbau <region>]`, z. B. `[Kachelbau liechtenstein]`;
+die letzte Zeile steht zusätzlich in der Fehlermeldung.
+
+**Der erste Bau dauert lange:** Beim ersten Lauf lädt das Add-on einmalig
+`planetiler.jar` (~100 MB) nach `/share/yapaia/tools/` und gemeinsame
+Basisdaten (mehrere hundert MB) nach `/share/yapaia/planetiler-sources/`.
+Das ist kein Hänger; jede weitere Region nutzt dieselben Dateien.
 
 ---
 
 ## Weitere Hilfe
 
-Keine passende Lösung gefunden? Prüfe zusätzlich die
-[FAQ](faq.md) und den
-[Installations-Guide](installation.md). Scheitert schon die **Installation**
-des Add-ons, siehe [I-01](#i-01--die-add-on-installation-bricht-ab). Für Entwickler-/
-Add-on-spezifische Fragen siehe den
-[Add-on-Entwicklungsleitfaden](addon-dev-guide.md).
+Keine passende Lösung gefunden? Prüfe zusätzlich die [FAQ](faq.md) und den
+[Installations-Guide](installation.md). Für Add-on-spezifische Fragen siehe
+den [Add-on-Entwicklungsleitfaden](addon-dev-guide.md).

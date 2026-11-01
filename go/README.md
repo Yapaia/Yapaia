@@ -42,8 +42,11 @@ that the app makes **zero foreign network requests** while navigating.
 | 🚐 **Routes for your actual vehicle** | Height, width, length and weight go into every route. A 3.20 m camper is not sent under a 3.00 m bridge. |
 | 📴 **Fully offline** | Vector maps (PMTiles), routing (Valhalla) and address search (Photon) run locally. No SIM card, no roaming, no account. |
 | 🗺️ **Turn-by-turn navigation** | Spoken instructions, automatic rerouting, ETA, speed limits, and a speed warning when you exceed one. |
-| 📍 **Any position source** | Your browser's GPS, a USB GPS receiver, or the **Home Assistant Companion App** on your phone — which keeps reporting with the screen locked. |
+| 📍 **Any position source** | Your browser's GPS, a USB GPS receiver, a Teltonika router's GPS (RUT50), or the **Home Assistant Companion App** on your phone — which keeps reporting with the screen locked. |
 | 🏠 **Deep Home Assistant integration** | Position, ETA, remaining distance and the next instruction become HA entities. Automate on them: *"ETA under 30 minutes → switch on the boiler."* |
+| 🎙️ **Voice commands** | "Fahre mich nach …" / "Take me to …" — in German and English, in the app or through Home Assistant Assist. |
+| 🌐 **German and English** | The interface, spoken announcements and add-on options follow the language of Home Assistant. |
+| 🎨 **Design schemes** | Colours, fonts and shapes can be switched together with the other Yapaia modules ([Design schemes](../docs/design-schemata.md)). |
 | 🔆 **Screen stays awake** | No more tapping the tablet at every junction to keep the display on. |
 | 👋 **Built for a moving vehicle** | 64 px touch targets, mirrored controls for left- or right-hand drive, and settings that lock themselves above 10 km/h. |
 | 🧩 **Extensible** | A sandboxed add-on system with its own SDK and a marketplace of signed add-ons. |
@@ -85,7 +88,8 @@ Being straight about this saves you an evening:
    language and units, the notes on use, your map region, your vehicle's
    dimensions and where the position comes from.
 5. Restart Home Assistant once when the notification asks you to, then
-   confirm **"Yapaia Go discovered"** under *Settings → Devices & Services*.
+   confirm **Yapaia Go** under *Settings → Devices & Services* (Home Assistant
+   shows "Yapaia Go was found. Set it up?").
 
 Home Assistant downloads a ready-made image for your machine; nothing is
 built on your device. The full walkthrough — every decision the wizard asks
@@ -114,8 +118,8 @@ both Valhalla's and Photon's footprint scale with the size of the region.
 Disk: budget roughly 10 GB for one region, more if you install several.
 CPU: x86-64 or ARM64; an N100-class mini-PC is the reference machine.
 
-Measured on the reference machine (N100, Germany + Switzerland + Liechtenstein,
-2026-10): with Photon **off** (lite search) the whole add-on uses about
+Measured on the reference machine (N100, Germany + Switzerland + Liechtenstein):
+with Photon **off** (lite search) the whole add-on uses about
 **330 MB** (Valhalla ~300 MB resident, Core ~110 MB). Building the map data on
 the device needs far more than running it — see the installation guide.
 
@@ -157,12 +161,12 @@ the licence: [`NAME-UND-LOGO.md`](../NAME-UND-LOGO.md).
 | 💻 **Contributing code** | [**Developer Guide**](docs/developers.md) — architecture, interfaces, CI/CD |
 | 🧩 **Writing an add-on** | [Add-on Development Guide](docs/addon-dev-guide.md) (German) · [`@yapaia/addon-sdk`](packages/addon-sdk) |
 | 🏠 **Home Assistant details** | [HA Integration](docs/04-home-assistant.md) (German) |
+| 🎨 **Look and language** | [Design schemes](../docs/design-schemata.md) · [Languages](../docs/sprachen.md) (both German) |
 | 📋 **What changed** | [Add-on Changelog](yapaia_go/CHANGELOG.md) (German, shown in HA before an update) |
 
-Design records from the planning phase live in `docs/00-` … `docs/08-` and in
-`tasks/`. They document *why* decisions were made and are kept for that reason;
-where they describe a future that has since arrived, the current behaviour is
-what the Developer Guide and the Manual say.
+Design records for developers live in `docs/00-` … `docs/08-`. Where they and
+the Manual differ, the Manual and the Developer Guide describe the current
+behaviour.
 
 ## Technology
 
@@ -177,11 +181,10 @@ Architecture, module boundaries and the reasoning behind these choices:
 
 ## Project status
 
-Yapaia Go is at **0.56.0** and in active use. The CI pipeline runs unit
-tests, browser tests, a sandbox-escape security suite, performance budgets, a
-dependency and licence gate, and a routing safety gate on every pull request
-— all of them blocking. What is still open is tracked in
-[`docs/backlog.md`](docs/backlog.md).
+Yapaia Go is in active use; the [Changelog](yapaia_go/CHANGELOG.md) lists every
+version. The CI pipeline runs unit tests, browser tests, a sandbox-escape
+security suite, performance budgets, a dependency and licence gate, and a
+routing safety gate on every pull request — all of them blocking.
 
 ## Contributing
 

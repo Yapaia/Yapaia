@@ -9,11 +9,9 @@ Land** beim Grenzübertritt. Alles läuft lokal über die Schnittstelle des Rout
 Der Code liegt in der gemeinsamen Integration:
 [`integration/custom_components/yapaia/router/`](../integration/custom_components/yapaia/router/).
 
-> **Status:** am GL-X3000 (Firmware 4.x) im Einsatz: Anmeldung, Statuswerte und
-> der Umschaltbefehl (`modem.set_slot_config` mit `current_sim` als Text, wie
-> ihn die Router-Oberfläche schickt) sind dort geprüft. GL.iNet hat den
-> Befehl nicht dokumentiert. Für andere Modelle probiert die Integration
-> weitere bekannte Wege und lernt den, der wirkt (unten).
+> **Hinweis:** Getestet ist der GL-X3000 mit Firmware 4.x. GL.iNet dokumentiert
+> den SIM-Umschaltbefehl nicht; bei anderen Modellen probiert die Integration
+> mehrere bekannte Wege und merkt sich den, der wirkt (siehe unten).
 
 ## Einrichten
 
@@ -21,16 +19,11 @@ Die Integration „Yapaia“ kommt mit jedem Yapaia-Add-on – Go, Beat oder Vis
 (Add-on starten, Home Assistant einmal neu starten). Dann:
 
 *Einstellungen → Geräte & Dienste → Integration hinzufügen → **Yapaia** →
-„GL.iNet-Router“*
+„GL.iNet-Router (Mobilfunk, SIM-Umschaltung)“*
 
 - Adresse: `192.168.8.1` (oder die IP des Routers)
 - Benutzername: `root`
 - Passwort: das Admin-Passwort der Router-Oberfläche
-
-Wer vorher die eigenständige Integration **„GL.iNet Cellular“** benutzt hat:
-diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
-`Apfelsafft/Yapaia-Router` entfernen). Die Entitäten heißen jetzt
-`…yapaia_router_…` (siehe unten).
 
 ## Entitäten
 
@@ -41,7 +34,7 @@ diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
 | `sensor.yapaia_router_land` | Land des eingebuchten Netzes (Attribute `land_code`, `mcc`) |
 | `binary_sensor.yapaia_router_roaming` | Roaming ja/nein |
 | `sensor.yapaia_router_aktive_sim`, `…_anbieter`, `…_netztyp`, `…_baender` | aktive SIM, Netzbetreiber, LTE/5G, Frequenzbänder |
-| `sensor.yapaia_router_signalbalken`, `…_rsrp`, `…_rsrq`, `…_sinr`, `…_rssi` | Signal (RSSI zunächst deaktiviert) |
+| `sensor.yapaia_router_signalbalken`, `…_rsrp`, `…_rsrq`, `…_sinr`, `…_rssi` | Signal (RSSI standardmäßig deaktiviert) |
 | `sensor.yapaia_router_datenverbrauch` | Datenzähler des Routers |
 | `sensor.yapaia_router_internet` | **Internet über** WLAN / Mobilfunk / Kabel / Tethering, mit den WLAN-Daten als Attribute |
 | `sensor.yapaia_router_wlan_signal` | Signal des WLANs, mit dem der Router verbunden ist (dBm) |
@@ -49,6 +42,7 @@ diese unter *Geräte & Dienste* löschen (und eine HACS-Quelle
 | `binary_sensor.yapaia_router_verbunden` | Mobilfunkverbindung |
 | `sensor.yapaia_router_umschaltung` | Stand der SIM-Umschaltung (Diagnose) |
 | `sensor.yapaia_router_modem` | Modem des Routers (Diagnose) |
+| `select.yapaia_router_design` | Design-Schema der Router-Karte (oder „Wie gesamt“, siehe [Design-Schemata](../docs/design-schemata.md)) |
 | `button.yapaia_router_neu_verbinden`, `…_neustart` | neu verbinden, Router-Neustart (deaktiviert) |
 
 **Aktionen:** `yapaia.router_sim_waehlen` (`sim: 1|2`), `…_neu_verbinden`,
@@ -60,6 +54,9 @@ gespeichertes), `…_wlan_trennen` und
 
 **Auslöser** (im Automationen-Editor beim Gerät „Yapaia Router“):
 *Land gewechselt*, *SIM gewechselt*, *SIM-Wechsel fehlgeschlagen*.
+
+Texte und Karte erscheinen auf Deutsch oder Englisch, je nach Sprache von Home
+Assistant ([Sprachen](../docs/sprachen.md)).
 
 ## WLAN (Campingplatz)
 

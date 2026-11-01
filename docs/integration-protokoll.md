@@ -4,8 +4,8 @@ Wie sich Yapaia-Module bei der zentralen Home-Assistant-Integration **„Yapaia�
 anmelden, beschreiben, was sie anbieten, und miteinander sprechen.
 
 > **Status: Version 1, umgesetzt** – Integration `integration/custom_components/yapaia`,
-> Yapaia Beat ab 1.14.0, Yapaia Go ab 0.44.0, Yapaia Vision von Anfang an; der
-> Yapaia Router läuft in der Integration selbst. Änderungen nur nach Abschnitt 10.
+> Yapaia Beat, Yapaia Go und Yapaia Vision; der Yapaia Router läuft in der
+> Integration selbst. Änderungen nur nach Abschnitt 10.
 
 ## 1. Ziele
 
@@ -19,8 +19,7 @@ anmelden, beschreiben, was sie anbieten, und miteinander sprechen.
    Entitäten; die Integration baut sie daraus. Nur Sonderfälle (z. B. Beats
    Mediaplayer) bekommen eigenen Code.
 4. **Echte Entitäten statt geschriebener Zustände.** Mit Gerät, umbenennbar,
-   bedienbar, nach einem HA-Neustart sofort wieder da. (Früher schrieb Go über
-   `POST /api/states` – ohne Gerät, ohne Befehle, nach einem Neustart kurz weg.)
+   bedienbar, nach einem HA-Neustart sofort wieder da.
 
 ### Namen
 
@@ -112,7 +111,7 @@ Beim Start meldet sich jedes Add-on beim Supervisor (`POST /discovery`):
     "port": 8080,
     "token": "…zufällig, 32 Byte, base64…",
     "protokoll": 1,
-    "version": "0.43.0"
+    "version": "0.68.0"
   }
 }
 ```
@@ -139,7 +138,7 @@ gekürzt und zeigt die Möglichkeiten; die echte Beschreibung von Go steht in
   "modul": "go",
   "instanz": "7f3c9a2e",
   "name": "Yapaia Go",
-  "version": "0.43.0",
+  "version": "0.68.0",
   "hersteller": "Yapaia",
   "konfiguration_url": "/hassio/ingress/yapaia_go",
   "faehigkeiten": ["navigation"],
@@ -196,7 +195,7 @@ gekürzt und zeigt die Möglichkeiten; die echte Beschreibung von Go steht in
 | Feld | Bedeutung |
 |---|---|
 | `schluessel` | Dauerhafte Kennung im Modul. **Nie umbenennen** – daraus wird die Unique-ID `yapaia_<modul>_<instanz>_<schluessel>`; Umbenennen erzeugt in HA eine neue Entität. |
-| `plattform` | `sensor`, `binary_sensor`, `switch`, `select`, `number`, `button`, `text`, `device_tracker`, `camera`, `image`, `event` – oder `spezial` (unten). |
+| `plattform` | `sensor`, `binary_sensor`, `switch`, `select`, `number`, `button`, `text`, `device_tracker`, `camera` – oder `spezial` (unten). |
 | `name` | Anzeigename je Sprache; die Integration nimmt die HA-Sprache, sonst `en`, sonst den ersten. |
 | `geraeteklasse`, `einheit`, `zustandsklasse`, `symbol` | wie in Home Assistant. |
 | `symbol_aus` | Zustandsschlüssel, dessen Wert das Symbol ersetzt (z. B. der Pfeil der nächsten Abbiegung); ohne Wert gilt `symbol`. |
@@ -220,7 +219,7 @@ Zustand sagt, ob die Kamera gerade aufnimmt.
 `spezial` steht für Entitäten, die sich nicht allgemein beschreiben lassen
 (Beats Mediaplayer mit Senderliste, Logos und Lautsprecher-Weiterleitung). Die
 Integration hat dafür modulspezifischen Code; das Feld `spezial` nennt ihn,
-z. B. `"spezial": "beat.player"`. Kennt die Integration ihn nicht (zu alt),
+z. B. `"spezial": "beat"`. Kennt die Integration ihn nicht (zu alt),
 lässt sie die Entität weg und meldet das im Protokoll – der Rest läuft.
 
 ### Aktionen
@@ -358,8 +357,8 @@ Code:
   `/config/custom_components/yapaia/` ab, **wenn sie fehlt oder älter ist** als
   die mitgebrachte (Vergleich über `manifest.json` → `version`). Zwei Add-ons
   mit derselben Version tun also nichts doppelt; das neuere gewinnt.
-- Danach meldet das Add-on in HA eine **Reparatur** „Yapaia-Integration
-  aktualisiert – Home Assistant neu starten“ mit Knopf.
+- Danach zeigt das Add-on in HA eine Benachrichtigung, dass Home Assistant
+  einmal neu gestartet werden muss.
 - Eine Installation über HACS ist derzeit nicht vorgesehen.
 
 ## 10. Versionen und Verträglichkeit
@@ -371,25 +370,23 @@ Code:
   Die Integration unterstützt dann die alte und die neue Version mindestens
   eine Add-on-Generation lang.
 - Ein Modul mit einer Protokollversion, die die Integration nicht kennt, wird
-  nicht eingerichtet, sondern als Reparatur gemeldet („Integration zu alt“).
+  nicht eingerichtet; Home Assistant meldet beim Eintrag, dass die Integration
+  zu aktualisieren ist.
 
-## 11. Was sich für die Module geändert hat
+## 11. Die Module im Protokoll
 
-| | Vorher | Mit dem Protokoll |
-|---|---|---|
-| **Beat** | eigene Integration `yapaia_beat` | Gerät „Yapaia Beat“ in `yapaia`; Mediaplayer als `spezial: beat.player`; Einstellungen/Sensoren allgemein beschrieben. Die alte Integration wird beim Umstieg ersetzt. |
-| **Go** | Zustände per `POST /api/states` (oder MQTT), Bedienen über Helfer | Gerät „Yapaia Go“ mit echten, bedienbaren Entitäten, Aktionen (`ziel_setzen` …) und Auslösern (`ziel_erreicht`, `zu_schnell` …). MQTT bleibt als Option; der States-Weg und die Helfer entfallen. |
-| **Router** | eigene Integration `glinet_cellular` | Gerät „Yapaia Router“ in `yapaia`. Der Router spricht kein Protokoll; die Integration spricht es lokal für ihn (Beschreibung, Werte, Aktionen) und fragt ihn per JSON-RPC ab. Eingerichtet über *Integration hinzufügen → Yapaia → GL.iNet-Router*. |
-| **Vision** | – (neu) | Gerät „Yapaia Vision“ in `yapaia` mit Kameras, Kanalwahl und Diagnose-Sensoren. |
-| **Satellite** | ESPHome-Gerät | bleibt ESPHome; die Integration erkennt jeden Satelliten an der Projektkennung `yapaia.satellite` und meldet ihn als Instanz und Partner (Abschnitt 3). Beliebig viele. |
+| | Umsetzung |
+|---|---|
+| **Beat** | Gerät „Yapaia Beat“; Mediaplayer als `spezial: beat`; Einstellungen und Sensoren allgemein beschrieben. |
+| **Go** | Gerät „Yapaia Go“ mit bedienbaren Entitäten, Aktionen (`ziel_setzen` …) und Auslösern (`ziel_erreicht`, `zu_schnell` …). MQTT bleibt als zusätzliche Option. |
+| **Router** | Gerät „Yapaia Router“. Der Router spricht kein Protokoll; die Integration spricht es lokal für ihn (Beschreibung, Werte, Aktionen) und fragt ihn per JSON-RPC ab. Eingerichtet über *Integration hinzufügen → Yapaia → GL.iNet-Router*. |
+| **Vision** | Gerät „Yapaia Vision“ mit Kameras, Kanalwahl und Diagnose-Sensoren. |
+| **Satellite** | ESPHome-Gerät; die Integration erkennt jeden Satelliten an der Projektkennung `yapaia.satellite` und meldet ihn als Instanz und Partner (Abschnitt 3). Beliebig viele. |
 
-## 12. Entscheidungen
+## 12. Festlegungen
 
-1. **Entity-IDs:** Neue, saubere IDs nach dem Muster
-   `<plattform>.yapaia_<modul>[_<name>]_<schluessel>`, z. B.
-   `sensor.yapaia_go_ankunft`. Yapaia Go schreibt sein erzeugtes Dashboard
-   selbst darauf um. *(entschieden)*
+1. **Entity-IDs** folgen dem Muster `<plattform>.yapaia_<modul>[_<name>]_<schluessel>`,
+   z. B. `sensor.yapaia_go_ankunft`.
 2. **Ein Konfigurationseintrag je Instanz**, alle unter der Integration
-   „Yapaia“; jede Instanz einzeln entfernbar. *(entschieden)*
-3. **Mehrere Instanzen je Modul** sind von Anfang an vorgesehen (Abschnitt 3).
-   *(entschieden)*
+   „Yapaia“; jede Instanz einzeln entfernbar.
+3. **Mehrere Instanzen je Modul** sind vorgesehen (Abschnitt 3).

@@ -1,9 +1,7 @@
 ---
 # Add-on configuration labels. Without this file Home Assistant shows the raw
-# keys. The structure mirrors the schema in `config.yaml`: since 0.8.4 the
-# rarely-touched options are nested in groups, which Home Assistant draws as
-# collapsible blocks — so here, too, the group name comes first and its
-# options sit underneath. See `de.yaml` for the full reasoning.
+# keys. The structure mirrors the schema in `config.yaml`: the group name (a
+# collapsible block) comes first, its options underneath.
 configuration:
   region:
     name: Region

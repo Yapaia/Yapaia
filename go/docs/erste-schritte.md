@@ -1,16 +1,13 @@
 # Erste Schritte
 
-> Eine vollständige Beschreibung aller Funktionen — auch der neueren wie
-> Zwischenziele, Bildschirm-Wachhalten, das fertige HA-Dashboard und die
-> Companion-App als Positionsquelle — steht im
+> Eine vollständige Beschreibung aller Funktionen steht im
 > [User Manual](manual.md) (englisch). Diese Seite hier ist der schnelle
 > Durchlauf für die erste Fahrt.
 
 Diese Anleitung setzt eine erfolgreich abgeschlossene Installation voraus
 (siehe [Installations-Guide](installation.md)) und führt einmal komplett
 durch: Fahrzeugprofil anlegen → Ziel suchen → Route berechnen → Navigation
-starten. Die Screenshots/UI-Beschreibungen orientieren sich am
-Grundlayout aus `docs/06-ui-ux-guidelines.md` §1.
+starten.
 
 ## 1. App öffnen
 
@@ -18,16 +15,18 @@ Grundlayout aus `docs/06-ui-ux-guidelines.md` §1.
 - **Compose/Proxmox-LXC:** `http://<Host-IP>:8080/` im Browser.
 
 Du landest im **Explore-Modus**: eine Karte, oben eine Suchleiste, unten ein
-einziehbares Favoriten-Panel. Läuft noch kein GPS, zeigt der Positionspunkt
+einziehbares Favoriten-Panel. Beim allerersten Öffnen führt dich ein
+Einrichtungsassistent durch Sprache und Einheiten, Hinweise zur Nutzung,
+Kartenregion, Fahrzeugprofil und GPS-Quelle. Läuft noch kein GPS, zeigt der Positionspunkt
 entweder gar nichts oder eine „ungenau"-Kennzeichnung — das ist normal ohne
 angeschlossenen Empfänger (siehe unten, „Ohne echtes GPS testen").
 
 ## 2. Fahrzeugprofil anlegen
 
-Ohne Profil nutzt die App ein generisches PKW-Profil — für ein Wohnmobil
-solltest du zuerst ein eigenes Profil mit den echten Maßen anlegen, **bevor**
-du die erste Route berechnest, damit Höhen-/Gewichts-/Breitenbeschränkungen
-von Anfang an greifen.
+Die App startet mit einem Platzhalterprofil „Camper" (3,0 m hoch, 2,2 m breit,
+6,5 m lang, 3,5 t) — diese Werte sind geraten. Lege zuerst ein eigenes Profil
+mit den echten Maßen an (oder ändere dieses), **bevor** du die erste Route
+berechnest, damit Höhen-/Gewichts-/Breitenbeschränkungen von Anfang an greifen.
 
 1. **⚙ → 🚐 Fahrzeuge** öffnen.
 2. **„+ Neues Profil"** wählen, Werte eintragen:
@@ -38,13 +37,16 @@ von Anfang an greifen.
      ETA-Berechnung, nicht das Routing selbst.
    - **Vermeiden**: Autobahnen / Mautstraßen / Fähren / unbefestigte
      Straßen — je nach Vorliebe an- oder abwählen.
+   - Optional: **Spritsorte** (für Spritpreise in der Tankstellensuche),
+     **Tempo-100-Zulassung** (nur ankreuzen, wenn sie in den Fahrzeugpapieren
+     steht) und **Gefahrengut**.
 3. Speichern, dann das neue Profil **aktivieren** (falls es nicht automatisch
    das aktive wird — nur ein Profil ist gleichzeitig aktiv). Welches Fahrzeug
    für eine Route gilt, lässt sich auch direkt in der Routenansicht umstellen.
 
 **Wichtig:** Lies bei einer Profil-Höhe über 2,7 m den eingeblendeten
 Warnhinweis zu unvollständigen Kartendaten (siehe
-[Troubleshooting W-08](troubleshooting.md#w-08--route-führt-an-einer-zu-engenniedrigen-stelle-vorbei-)) —
+[Troubleshooting: Route führt an einer zu engen/niedrigen Stelle vorbei](troubleshooting.md#w-08--route-führt-an-einer-zu-engenniedrigen-stelle-vorbei-)) —
 er erklärt eine echte, physische Grenze der Kartendaten, keine
 Software-Unsicherheit.
 
@@ -57,11 +59,12 @@ Software-Unsicherheit.
 
 ## 4. Route berechnen
 
-1. Auf „Route berechnen" (bzw. direkt auf das gewählte Suchergebnis) tippen.
+1. Auf **„Route hierhin"** tippen.
 2. Die App berechnet die Route **mit dem aktiven Fahrzeugprofil** — die
-   Route respektiert die eingetragenen Maße (getestet u. a. gegen bekannte
-   Unterführungen, siehe `docs/07-testing-qa.md` §3b „Maßrestriktionen").
-3. Bei mehreren Alternativen: die erste vorgeschlagene ist die empfohlene.
+   Route respektiert die eingetragenen Maße.
+3. Bei mehreren Alternativen: die erste vorgeschlagene ist die empfohlene; die
+   anderen sind grau eingezeichnet und lassen sich antippen. Mit **Schnellste**,
+   **Kürzeste** und **Ausgewogen** wählst du, wonach optimiert wird.
 4. Prüfe die Routenübersicht (Distanz, Dauer, ggf. Warnhinweise zu
    unvollständigen Kartendaten) **bevor** du losfährst.
 
@@ -73,10 +76,10 @@ Software-Unsicherheit.
 2. Sprachansagen beginnen automatisch (Browser-TTS bzw. HA-Media-Player, je
    nach Einstellung).
 3. Während der Fahrt: die App reroutet automatisch bei Abweichungen
-   (< 3 s, siehe [Troubleshooting W-05](troubleshooting.md#w-05--app-berechnet-nach-einer-abzweigung-automatisch-neu)),
-   pausiert bei GPS-Verlust automatisch per Koppelnavigation
-   ([W-01](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung))
-   und meldet sich mit „Angekommen", sobald das Ziel erreicht ist.
+   (in der Regel binnen 3 s, siehe [Troubleshooting](troubleshooting.md#w-05--app-berechnet-nach-einer-abzweigung-automatisch-neu)),
+   schätzt bei GPS-Verlust die Position per Koppelnavigation
+   ([Troubleshooting](troubleshooting.md#w-01--gps-signal-verloren-tunnel-parkhaus-abschattung))
+   und beendet die Navigation, sobald das Ziel erreicht ist.
 4. Pausieren oder beenden: auf die Leiste mit der Ankunftszeit unten tippen —
    dort öffnet sich das Fahrtmenü mit **⏸ Pause** und **⏹ Stopp**.
 
@@ -112,9 +115,8 @@ mit GPX-Dateien und absichtlichen Falschabbiegungen für einen Rerouting-Test.
 
 ## 8. Was diese Seite nicht behandelt
 
-Seit 0.6.9 sind einige Dinge dazugekommen, die den ersten Durchlauf nicht
-betreffen, aber im Alltag zählen. Alle ausführlich im
-[User Manual](manual.md):
+Einiges betrifft den ersten Durchlauf nicht, zählt aber im Alltag. Alles
+ausführlich im [User Manual](manual.md):
 
 - **Zwischenziele** — mehrere Stationen in selbst gewählter Reihenfolge,
   auch während der Fahrt anhängbar.
@@ -133,6 +135,12 @@ betreffen, aber im Alltag zählen. Alle ausführlich im
 - **Add-ons** — Erweiterungen aus dem Yapaia-Marktplatz unter
   **⚙ → 🧩 Add-on-Store**.
 - **Links- oder rechtsgelenkt** — die Bedienknöpfe lassen sich spiegeln.
+- **Sprachbefehle** — „Fahre mich nach …" auf Deutsch oder Englisch, in der
+  App (🎤) oder über Home Assistant Assist.
+- **Design und Sprache** — hell/dunkel/Sonne unter **⚙ → 🎨 Karte &
+  Darstellung**; die Sprache folgt Home Assistant, das Aussehen kann mit den
+  [Design-Schemata](../../docs/design-schemata.md) mit den anderen
+  Yapaia-Modulen abgestimmt werden.
 
 ## Weiter
 

@@ -96,7 +96,7 @@ Assistant VM should have 6 GB or more in total.
 
 If that is more than you have, in order of how much they buy you:
 
-1. **Turn off `photon_enabled`** in the add-on options, under **Search**. This removes the single
+1. **Turn off `photon_enabled`** ("Adresssuche mit Photon") in the add-on options, under **Search**. This removes the single
    biggest consumer. Search still works through a built-in lightweight index —
    you keep place names and street names, you lose house numbers.
 2. **Lower `photon_xmx_mb`** instead (same group), if you would rather keep full search with
@@ -104,10 +104,12 @@ If that is more than you have, in order of how much they buy you:
 3. **Install a smaller region** — one state instead of a whole country. Both
    routing and search shrink with it.
 
-The catalogue offers 49 European countries, including every neighbour of
-Germany. Entries are marked by build effort: a large one (France, Italy, Spain,
-Great Britain, Poland, Germany) should not be built on the Home Assistant VM —
-build it on a desktop and drop the finished file in.
+The catalogue offers 49 regions in Europe (countries, plus Rheinland-Pfalz),
+including every neighbour of Germany. Large ones (for example Germany, France,
+Italy, Spain, Great Britain, Poland) are marked as such and should not be built
+on the Home Assistant machine — install a ready-made package from your own
+[map server](#maps-and-regions), or build on a stronger computer and copy the
+result over ([Own maps](eigene-karten.md), German).
 
 ---
 
@@ -118,12 +120,12 @@ are permanent — everything can be changed later in settings.
 
 | Step | What it asks | Notes |
 |---|---|---|
-| **Language and units** | German or English; metric or imperial | Affects the interface and spoken distances |
-| **Notes on use** | That you have read the safety notes | Cannot be skipped — see below |
-| **Map region** | Which part of the world to download | See [Maps and regions](#maps-and-regions) |
-| **Vehicle profile** | Your camper's dimensions | **Take your time here** — see below |
-| **Position** | Where GPS comes from | See [Where your position comes from](#where-your-position-comes-from) |
-| **MQTT** | An optional MQTT broker | As a Home Assistant add-on nothing to enter; the connection to Home Assistant runs through the integration — see [Home Assistant](#home-assistant) |
+| **Sprache & Einheiten** | German or English; metric or imperial | Affects the interface and spoken distances. As a Home Assistant add-on the language follows Home Assistant |
+| **Haftungsausschluss** | That you have read the notes on use | Cannot be skipped — see below |
+| **Kartenregion** | Which part of the world to download | See [Maps and regions](#maps-and-regions) |
+| **Fahrzeugprofil** | Your camper's dimensions | **Take your time here** — see below |
+| **GPS-Quelle** | Where GPS comes from | See [Where your position comes from](#where-your-position-comes-from) |
+| **MQTT (optional)** | An optional MQTT broker | As a Home Assistant add-on nothing to enter; the connection to Home Assistant runs through the integration — see [Home Assistant](#home-assistant) |
 
 The notes on use are worth actually reading: they say that map data on height
 and weight limits is incomplete, that every indication is advisory, and that
@@ -155,7 +157,10 @@ Enter the dimensions of your camper:
 | **Average speed** | 40 – 130 km/h | Affects the ETA only, never the route |
 
 You can also choose what to **avoid**: motorways, tolls, ferries, unpaved
-roads. And you can keep several profiles — one for the camper, one for the car
+roads. Three more fields matter for the details: **Spritsorte** (fuel type — the
+fuel station search shows prices for it), **Tempo-100-Zulassung** (tick it only
+if your vehicle papers say so: above 3.5 t it decides whether the speed warning
+uses 80 or 100 km/h on the motorway) and **Gefahrengut** (hazardous goods). And you can keep several profiles — one for the camper, one for the car
 you tow — but only one is active at a time.
 
 ### Measure, do not look it up
@@ -180,8 +185,10 @@ No offline navigation system can solve this, because the information simply is
 not in the data. **Watch the road signs.** Yapaia routes you; it does not drive
 for you.
 
-Yapaia also asks you to confirm your dimensions periodically, so a profile from
-two campers ago does not quietly stay in charge.
+A new installation starts with a placeholder profile named "Camper" (3.0 m high,
+2.2 m wide, 6.5 m long, 3.5 t). Those values are a guess: until you confirm
+them, a banner asks "Stimmen die Maße deines Fahrzeugs?" — answer it with
+**Maße stimmen** or **Maße ändern**.
 
 ---
 
@@ -196,9 +203,9 @@ to drop a destination pin — useful for a place with no address at all: a car
 park in the middle of nowhere, a spot someone showed you on their map.
 
 A *short* tap deliberately does nothing here. A swipe that lands a couple of
-pixels off is a click as far as the browser is concerned, so plain taps used to
-replace the destination while you were simply panning around looking for
-something. If you tap by habit, Yapaia says so rather than sitting silent.
+pixels off is a click as far as the browser is concerned, and would replace the
+destination while you are simply panning around. If you tap by habit, Yapaia
+tells you to press and hold instead.
 
 ### Road signs and lanes
 
@@ -217,14 +224,15 @@ Both depend on the map data: signs and lane markings (`turn:lanes`) are well
 covered on German motorways but often missing on smaller roads. Where there is
 no data, nothing is shown — rather than a guess.
 
-### "Not down that road"
+### Avoiding a stretch of road
 
 Long-press (or right-click) **on the route line itself** and Yapaia will avoid
 that stretch and recalculate. This is for the case a map cannot know about: the
 road you can see is flooded, blocked by roadworks, or simply looks far too
 narrow for your camper once you are looking at it.
 
-The avoidance lasts for the current trip only.
+The avoidance lasts for the current trip only; the routing panel lists it under
+**Temporäre Vermeidungen**, where you can remove it again.
 
 ### Alternative routes
 
@@ -377,9 +385,8 @@ silently.
 
 A GPS receiver does not measure a compass direction. It measures positions and
 works out which way you are heading from the *movement* between them. Stand
-still and that movement is pure noise, so the derived direction is a random
-number — a receiver lying motionless on a windowsill reported 170°, then 40°,
-then 187°, while "moving" at three centimetres per second.
+still and that movement is pure noise, so the derived direction would be a
+random number.
 
 Below **3.6 km/h** Yapaia therefore reports no direction at all, and the map
 simply keeps its current orientation. It starts turning again when you actually
@@ -403,9 +410,10 @@ Once you are moving faster than 10 km/h, the settings, the layout editor, the
 profile editor and the full search field lock behind an overlay. Pause the
 navigation or stop to change something.
 
-This is deliberate. The threshold is configurable if it does not suit you, but
-consider leaving it: the co-driver can always use their own device, which is
-not the one moving at 80 km/h in the driver's line of sight.
+This is deliberate: the co-driver can use their own device, which is not the
+one moving at 80 km/h in the driver's line of sight. If the co-driver uses the
+locked device itself, **Ich bin Beifahrer** on the overlay lifts the lock after
+five seconds.
 
 ### Pausing and resuming
 
@@ -422,15 +430,19 @@ the engine, not in the browser.
 
 ## Where your position comes from
 
-Yapaia accepts a position from four sources. You choose in the add-on options
-under `gps_source`.
+Yapaia accepts a position from five sources. You choose in the add-on options
+under `gps_source` (label "Quelle").
 
 | Source | Setting | Best for |
 |---|---|---|
 | **Browser** | `none` | Quick testing. **Only works over HTTPS** |
-| **USB GPS receiver** | `usb` / `network` | The most accurate option; needs hardware |
+| **USB GPS receiver** | `usb` | The most accurate option; needs hardware |
+| **Teltonika router (RUT50)** | `rut50` | A motorhome that already has a router with GPS |
 | **HA Companion App** | `companion_app` | A phone you already carry |
 | **Simulator** | `gps_simulator` (group **Advanced**) | Trying the app without moving |
+
+If several sources deliver at once, the order is: USB receiver, router,
+browser, Companion App, simulator.
 
 ### Using a USB GPS receiver
 
@@ -447,6 +459,14 @@ none of them and says so, rather than writing to a radio stick that belongs to
 another add-on. You then name the right one under `gps_device` — the health
 check lists the available paths, so you never need a terminal.
 
+### Using a Teltonika router
+
+If your router (RUT50 and other RutOS models with GPS) has a GNSS receiver,
+Yapaia reads it over Modbus TCP: switch on GPS and the **Modbus TCP Server** in
+the router, set `gps_source: rut50` and, if the router is not at `192.168.1.1`,
+its address under `rut50_host`. The step-by-step version is in the add-on
+documentation (`yapaia_go/DOCS.md`).
+
 ### Why the browser often will not work
 
 Browsers only release GPS over a secure connection. If your Home Assistant runs
@@ -462,8 +482,7 @@ The Companion App reports your position to Home Assistant rather than to the
 browser, and it keeps reporting with the screen locked and the phone in your
 pocket.
 
-1. Set `gps_source: companion_app` in the add-on options. (It was called
-   `ha_tracker` up to 0.8.2, and that value was removed in 0.8.8.)
+1. Set `gps_source: companion_app` in the add-on options.
 2. Open Yapaia Go → **⚙ → 🩺 Installation prüfen**.
 3. Below the check list is a drop-down of the `device_tracker` entities your
    Home Assistant actually knows. Pick your phone.
@@ -500,7 +519,8 @@ it: *"ETA under 30 minutes → turn on the boiler."*
 
 The add-on brings the integration **"Yapaia"** along. After the first start,
 restart Home Assistant once (a notification says so); then *Settings →
-Devices & Services* shows **"Yapaia Go discovered"** — confirm, done.
+Devices & Services* offers **Yapaia Go** ("Yapaia Go was found. Set it up?") —
+confirm, done.
 
 You get a device **"Yapaia Go"** whose entities can be renamed, keep history
 and survive Home Assistant restarts.
@@ -509,14 +529,16 @@ and survive Home Assistant restarts.
 
 Next instruction and its distance, arrival time, remaining distance,
 destination, navigation state, speed, speed limit (sign and vehicle), a
-"speeding" flag, altitude and the vehicle's position on the map.
+"speeding" flag, altitude, the vehicle's position on the map, the place and
+address where it is, and the language Yapaia Go uses.
 
 ### Operating Yapaia from Home Assistant
 
-- **Buttons:** pause, resume, stop. **Select:** vehicle profile. **Text field:**
-  "Ziel eingeben" — type a destination, Yapaia routes and starts.
+- **Buttons:** pause, resume, stop. **Selects:** vehicle profile and design
+  scheme. **Text field:** "Ziel eingeben" — type a destination, Yapaia routes
+  and starts.
 - **Actions** for automations and scripts: `yapaia.go_ziel_setzen`,
-  `yapaia.go_navigation_pausieren` / `…_fortsetzen` / `…_beenden`,
+  `yapaia.go_zwischenziel_einfuegen`, `yapaia.go_navigation_pausieren` / `…_fortsetzen` / `…_beenden`,
   `yapaia.go_profil_waehlen`, `yapaia.go_befehl` (a spoken-style sentence; the
   answer comes back).
 - **Triggers:** *Ziel erreicht*, *Zu schnell*, *GPS verloren*,
@@ -546,6 +568,10 @@ downloads `.yaml` files instead of showing them.
 generated it — which entities exist, which do not, and why. If your dashboard
 is full of "entity not found", the answer is in there.
 
+More ready-made dashboards for the other Yapaia modules (Cockpit Sport,
+Rangieren, Stellplatz) are in the repository folder
+[`dashboards/`](../../dashboards/README.md) (German).
+
 ---
 
 ## Making it yours
@@ -557,24 +583,35 @@ is full of "entity not found", the answer is in there.
 settings. It decides which lower quarter your position sits in while driving:
 lower left for LHD, lower right for RHD (the default).
 
-**Day and night.** The interface and the map switch together. Under **Design**
-there are four modes:
+**Day and night.** The interface and the map switch together. Under
+**⚙ → Karte & Darstellung → Design** there are four modes:
 
 | Mode | What it follows |
 |---|---|
-| **Light** / **Dark** | nothing — it stays as you set it |
+| **Hell** / **Dunkel** (light / dark) | nothing — it stays as you set it |
 | **System** | the device's own light/dark setting (the iOS Control Centre switch) |
-| **Sun** | sunrise and sunset at your position, or the clock if there is no position yet |
+| **Sonne** (sun) | sunrise and sunset at your position, or the clock if there is no position yet |
 
-In a vehicle **Sun** is usually the better one: it goes dark when it actually
+In a vehicle **Sonne** is usually the better one: it goes dark when it actually
 gets dark outside, whatever the tablet is set to. The dark map is not the light
 one inverted — it has its own palette so that roads stay distinguishable at
 night.
 
 If you run Yapaia as a Home Assistant add-on, the add-on option
-**Appearance → Theme** sets what a device starts with. It is a default, not an
+`display.theme` (**Erscheinungsbild → Design**) sets what a device starts with. It is a default, not an
 override: once you pick a mode here, that device keeps it. So the dashboard
 tablet can follow the sun while your phone stays light.
+
+**Design schemes.** Colours, fonts and shapes of Yapaia Go can follow a scheme
+shared with the other Yapaia modules. You choose it in Home Assistant, on the
+device "Yapaia Design" (one scheme for everything) or with the "Design"
+selection of the device "Yapaia Go" ([Design schemes](../../docs/design-schemata.md),
+German).
+
+**Language.** Yapaia Go speaks German or English. As an add-on it follows the
+language of Home Assistant; without Home Assistant you choose it in the setup
+wizard. The language of the map labels is a separate choice under
+**⚙ → Karte & Darstellung → Sprache der Labels**.
 
 **On a phone.** Below 480 px of width, drive mode rearranges itself: the trip
 data becomes a bar across the bottom, and everything else stacks above it —
@@ -596,11 +633,11 @@ screen" gives it its own icon and no browser chrome.
 ### Voice commands
 
 Tap 🎤 (next to the search field, or in the button column while driving) and
-speak or type a command in German, for example:
+speak or type a command in German or English, for example:
 
 | Say | What happens |
 |---|---|
-| „Fahre mich zur Ziolkowskistraße nach Magdeburg" | Searches, plans the route with your active vehicle, shows it — and starts only after „Ja" / „Los" |
+| „Fahre mich zum Marktplatz in Magdeburg" / "Take me to the market square in Magdeburg" | Searches, plans the route with your active vehicle, shows it — and starts only after „Ja" / „Los" (or "yes") |
 | „Wo ist die nächste Tankstelle?" | Nearest one ahead on the route (otherwise nearby); „die zweite" picks the next |
 | „Finde den nächsten Aldi" | Same, but by name or brand — any shop, chain or place in the offline search within 25 km |
 | „Stoppe die Navigation" / „Pause" / „Weiter" | Controls navigation |
@@ -608,7 +645,8 @@ speak or type a command in German, for example:
 | „Lies die Verkehrsmeldungen vor" | The next roadworks/closure ahead (needs online services) |
 | „Ansagen aus" / „Ansagen an" | Turn-by-turn announcements |
 
-The answer is read aloud. Commands are understood offline, without any AI.
+The answer comes in the language Yapaia Go uses and is read aloud. Commands
+are understood offline, without any AI.
 Browsers only allow the microphone on **HTTPS** pages; over plain
 `http://…:8123` the voice window is a text field.
 
@@ -701,7 +739,7 @@ Home Assistant add-on. Add-ons run in a sandbox and only get the permissions
 you confirm when installing them. Everything happens under
 **⚙ → 🧩 Add-on-Store**.
 
-**The marketplace (since 0.56.0).** Add-ons come from the official Yapaia
+**The marketplace.** Add-ons come from the official Yapaia
 marketplace, `https://addons.yapaia.cloud`. Free add-ons need no setup:
 **Registry aktualisieren** loads the catalog. If you have bought add-ons,
 enter that address and the **Konto-Token** from your marketplace account

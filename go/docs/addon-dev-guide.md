@@ -62,7 +62,7 @@ poi-overlay/
 ```
 
 `core_api` ist eine Semver-**Range**, die bei der Installation gegen die laufende
-Core-Version geprüft wird (Wargame W-11, `apps/core/src/addons/installService.ts`).
+Core-Version geprüft wird (`apps/core/src/addons/installService.ts`).
 Gemeint ist die Version von `@yapaia/core` (`apps/core/package.json`, derzeit
 0.0.x), **nicht** die Add-on-Version von Yapaia Go in Home Assistant. Bis zum
 ersten Release der Add-on-API deshalb `"*"` verwenden — eine Range wie `"^0.1"`
@@ -112,15 +112,14 @@ erlaubt keine fremden Hosts (`default-src 'self'`, `connect-src 'none'`).
 Ein vollständiges Beispiel mit Build-Skript ist
 `addons-examples/poi-campsites/`.
 
-> ⚠️ **Bundle-Format: IIFE, nicht ESM** (entdeckt beim Bau von
-> `addons-examples/poi-campsites`/`track-recorder`, E09-T5). Das Bundle darf
+> ⚠️ **Bundle-Format: IIFE, nicht ESM** Das Bundle darf
 > **nicht** als `<script type="module" src="...">` eingebunden werden: das
 > Add-on-Iframe ist `sandbox="allow-scripts"` **ohne** `allow-same-origin` und
 > läuft damit mit einer OPAKEN Origin (`"null"`). Ein Modul-Script-Load
 > unterliegt IMMER einer CORS-Prüfung (anders als ein klassisches Script) –
 > eine opake Origin kann diese Prüfung nie bestehen, selbst bei einer
 > Same-Path-Ressource. Ergebnis: `Access to script at '...' from origin
-> 'null' has been blocked by CORS policy`, das Add-on lädt nie. Bündelt den
+> 'null' has been blocked by CORS policy`, das Add-on lädt nie. Bündle den
 > Bundler-Output stattdessen als **IIFE** (esbuild: `format: 'iife'`) und
 > bindet ihn als klassisches Script ein: `<script src="./bundle.js"></script>`
 > (kein `type="module"`). Ein IIFE-Bundle hat ohnehin keine offenen
@@ -132,9 +131,7 @@ Ein vollständiges Beispiel mit Build-Skript ist
 > ersten Aufruf Code per `new Function(...)` (AJV). Das Add-on-Iframe hat
 > **kein** `'unsafe-eval'` in seiner CSP
 > (`apps/core/src/addons/ui-host.ts#buildAddonCsp`), ein solcher Aufruf
-> scheitert dort mit `blocked by CSP`. Bis E10-T4 passierte das schon beim
-> bloßen Import des Pakets (damals auch in `@yapaia/addon-sdk`s `version.ts`);
-> seitdem kompilieren die Validatoren erst beim ersten Aufruf, ein Import allein
+> scheitert dort mit `blocked by CSP`. Die Validatoren kompilieren erst beim ersten Aufruf, ein Import allein
 > ist unkritisch. `import type { ... }`-Importe (typ-only, kein Laufzeit-Code)
 > sind ohnehin unproblematisch.
 
@@ -248,7 +245,7 @@ Struktureller Typ: `AddonManifest` in `packages/shared/src/types.ts`, geprüft v
 | `id` | `string` | ✅ | Reverse-DNS-artige ID (`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`). Wird 1:1 zum Verzeichnisnamen `data/addons/{id}/` – keine `/`, `\`, `..`. |
 | `name` | `string` | ✅ | Anzeigename. |
 | `version` | `string` | ✅ | Exakte Semver-Version des Add-ons, z. B. `"1.2.0"`. |
-| `core_api` | `string` | ✅ | Semver-**Range**, die die kompatible Version von `@yapaia/core` beschreibt (derzeit 0.0.x, daher `"*"`). Unterstützt: exakte Versionen, `^`, `~`, x-Ranges (`1.2.x`, `*`) – **keine** Vergleichsoperatoren (`>=`), Bindestrich- oder `\|\|`-Ranges (`packages/shared/src/semver.ts`). Geprüft bei Install (W-11); unabhängig davon prüft das SDK beim Verbinden die Major-Version (§7). |
+| `core_api` | `string` | ✅ | Semver-**Range**, die die kompatible Version von `@yapaia/core` beschreibt (derzeit 0.0.x, daher `"*"`). Unterstützt: exakte Versionen, `^`, `~`, x-Ranges (`1.2.x`, `*`) – **keine** Vergleichsoperatoren (`>=`), Bindestrich- oder `\|\|`-Ranges (`packages/shared/src/semver.ts`). Geprüft bei der Installation; unabhängig davon prüft das SDK beim Verbinden die Major-Version (§7). |
 | `author` | `string` | ✅ | Autor/Herausgeber. |
 | `license` | `string` | ✅ | Lizenz-Kennung des Add-ons (SPDX, z. B. `"MIT"` oder `"Apache-2.0"`). |
 | `description` | `string` | ✅ | Kurzbeschreibung. |
@@ -278,10 +275,10 @@ serverseitige Quelle der Wahrheit: `protocol.ts#METHOD_SCOPES` (UI) und
 | `nav.read` | `nav.state()` (beide), `nav.subscribe()` (nur Service) | UI + Service |
 | `nav.control` | `nav.control.start/stop/pause/resume/destination()` | **nur Service** – kein UI-Bridge-Äquivalent |
 | `route.read` | `route.read()` (Routen berechnen), `route.get()` (Route lesen) | **nur Service** |
-| `route.propose` | `route.propose()` – schlägt eine Route vor, **aktiviert nie** etwas ohne Nutzerbestätigung (Wargame W-10) | **nur UI** |
+| `route.propose` | `route.propose()` – schlägt eine Route vor, **aktiviert nie** etwas ohne Nutzerbestätigung | **nur UI** |
 | `map.layer.write` | `map.addLayer/addMarkers/removeLayer()` | **nur UI** – es gibt keine Karte in einem Headless-Prozess |
 | `widget.register` | `widgets.register/update()` | **nur UI** |
-| `events.publish` | `events.publish()` unter dem eigenen `addon/{id}/*`-Namensraum -- zusätzlich als `yapaia/addon/{id}/*` via MQTT (Rate-Limit 5 msg/s pro Add-on, Payload ≤ 16 KB, pro Add-on über die Store-Detailseite abschaltbar; E09-T8) | UI + Service |
+| `events.publish` | `events.publish()` unter dem eigenen `addon/{id}/*`-Namensraum -- zusätzlich als `yapaia/addon/{id}/*` via MQTT (Rate-Limit 5 msg/s pro Add-on, Payload ≤ 16 KB, pro Add-on über die Store-Detailseite abschaltbar) | UI + Service |
 | `storage.own` | `storage.get/set()` (beide), `storage.delete()` (**nur Service** – die UI-Bridge kennt kein Delete) | UI + Service |
 | `net.fetch:<host>` | `fetch(url)` gegen genau diesen Host über den Core-Egress-Proxy | **nur Service** |
 | `ha.notify` | `notify.send(message, title?)` – Benachrichtigung über den HA-Kanal | **nur Service** |
@@ -443,7 +440,7 @@ Aufruf unabhängig noch einmal (§0).
 
 ## 8a. Veröffentlichen, Signatur und Lizenz
 
-Seit Go 0.56.0 installiert Go nur signierte Pakete, außer im
+Go installiert nur signierte Pakete, außer im
 **Entwicklermodus** (Add-on-Store → Marktplatz). Zum Entwickeln und für das
 Testrezept oben den Entwicklermodus einschalten.
 
@@ -473,8 +470,8 @@ dürfen in Closed-Source-Add-ons gebündelt werden (siehe `DRITTLIZENZEN.md`).
 
 ## 9. Bekannte Lücken (ehrlich dokumentiert)
 
-- `storage.delete()` existiert nur auf dem Service-Transport – die E09-T2-Host-Bridge
-  bietet aktuell nur `storage.get`/`storage.set`.
+- `storage.delete()` existiert nur auf dem Service-Transport – die Host-Bridge
+  bietet nur `storage.get`/`storage.set`.
 - `nav.subscribe()` (Live-Push von `NavState`) existiert nur auf dem
   Service-Transport (WS-Topic `nav/state`) – die Host-Bridge hat keinen
   entsprechenden Event-Kanal; ein UI-Add-on muss `nav.state()` pollen.
@@ -490,21 +487,18 @@ dürfen in Closed-Source-Add-ons gebündelt werden (siehe `DRITTLIZENZEN.md`).
   des normalen `ui.entry`-Iframes (z. B. ein umschaltbares Panel innerhalb
   derselben `index.html`) – siehe `addons-examples/poi-campsites/src/main.ts`s
   Kategorie-Filter-Panel als Beispiel.
-- **Kein Klick-Callback für Karten-Marker** (entdeckt bei E09-T5, dem
-  POI-Overlay-Referenz-Add-on): die SDK-Illustration in
-  [05-addon-system.md §3](05-addon-system.md#3-add-on-sdk-yapaiaaddon-sdk) deutet
-  `addon.map.addMarkers('campsites', markers); // inkl. Klick-Callbacks` an,
-  aber der tatsächliche Host-Code (`apps/web/src/addons/mapLayers.ts`) rendert
+- **Kein Klick-Callback für Karten-Marker** (Referenz-Add-on:
+  `addons-examples/poi-campsites`): Der Host-Code (`apps/web/src/addons/mapLayers.ts`) rendert
   `addMarkers()`/`addLayer()`-Output als reine, NICHT-interaktive
   MapLibre-Circle-Layer – es gibt keinen Event-Kanal, der einen Klick auf
   einen echten Karten-Marker zurück ins Add-on-Iframe meldet. Ein Add-on, das
-  auf POI-Klicks reagieren soll, braucht aktuell eine EIGENE, klickbare
+  auf POI-Klicks reagieren soll, braucht eine EIGENE, klickbare
   Repräsentation innerhalb seines eigenen Iframes (siehe
   `addons-examples/poi-campsites/src/main.ts`, das den echten Karten-Layer
   weiter per SDK pusht, aber die Klick-Interaktion über eine zusätzliche Liste
   im eigenen Iframe löst).
 - **`position.subscribe()`-Payload-Form unterscheidet sich je Transport**
-  (entdeckt bei E09-T5, dem Track-Recorder-Referenz-Add-on): Auf dem
+  (Referenz-Add-on: `addons-examples/track-recorder`): Auf dem
   SERVICE-Transport ist das an den Callback übergebene Objekt tatsächlich die
   VOLLE `Position`-Form aus `@yapaia/shared` (`lat`, **`lon`** – nicht
   `lng` –, `alt`, `speed`, `heading`, `accuracy`, `source`, `fix`, `ts`), weil
@@ -520,7 +514,7 @@ dürfen in Closed-Source-Add-ons gebündelt werden (siehe `DRITTLIZENZEN.md`).
   siehe `addons-examples/track-recorder/src/service.ts`s
   `ServiceTransportPositionFix`-Typ für ein dokumentiertes Beispiel.
 
-## 10. Siehe auch (E10-T5)
+## 10. Siehe auch
 
 - **REST-API-Referenz (maschinenlesbar):** [`docs/openapi.json`](openapi.json)
   — OpenAPI 3.1, generiert aus den tatsächlich registrierten Fastify-Routen
@@ -528,14 +522,14 @@ dürfen in Closed-Source-Add-ons gebündelt werden (siehe `DRITTLIZENZEN.md`).
   CI-Gate (`pnpm openapi:check`, Job `docs-freshness` in
   `.github/workflows/go-ci.yml`) hält das Dokument aktuell.
 - **Core-API-Versionierung & Breaking Changes:** ein `major`-Bump von
-  `@yapaia/core` oder `@yapaia/addon-sdk` (Wargame W-11 — der Fall, in dem
-  euer Add-on nach einem Core-Update deaktiviert statt geladen wird) braucht
+  `@yapaia/core` oder `@yapaia/addon-sdk` (der Fall, in dem
+  dein Add-on nach einem Core-Update deaktiviert statt geladen wird) braucht
   einen erzwungenen `## Breaking Change`-Abschnitt im zugehörigen Changeset
   und erscheint dadurch explizit im [`CHANGELOG.md`](../CHANGELOG.md) —
   siehe `.changeset/README.md` und `scripts/changeset-breaking-check.mjs`.
-- **Troubleshooting aus Nutzersicht** (falls ihr ein Add-on gegen eine
+- **Troubleshooting aus Nutzersicht** (falls du ein Add-on gegen eine
   laufende Installation testet): [`docs/troubleshooting.md`](troubleshooting.md),
-  insbesondere [W-10](troubleshooting.md#w-10--add-on-verhält-sich-verdächtig-)
+  insbesondere [Add-on verhält sich verdächtig](troubleshooting.md#w-10--add-on-verhält-sich-verdächtig-)
   (Sandbox/Kill-Switch) und
-  [W-11](troubleshooting.md#w-11--add-on-ist-nach-einem-update-deaktiviert)
+  [Add-on ist nach einem Update deaktiviert](troubleshooting.md#w-11--add-on-ist-nach-einem-update-deaktiviert)
   (Core-Update-Kompatibilität).

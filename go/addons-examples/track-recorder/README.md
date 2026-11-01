@@ -60,7 +60,7 @@ schlanke Events -- `started` beim Aufnahme-Start, `stopped` beim Ende (inkl.
 5 msg/s, Payload ≤ 16 KB, siehe `apps/core/src/mqtt/bridge.ts`) -- damit kann
 z. B. eine Home-Assistant-Automation auf "Aufzeichnung gestartet/beendet"
 reagieren (Worked Example: [`docs/04-home-assistant.md`
-§6](../../docs/04-home-assistant.md#6-add-on-events-e09-t8)).
+§6](../../docs/04-home-assistant.md#6-add-on-events)).
 
 Das ist bewusst NICHT dasselbe wie der UI<->Service-Kanal oben: die UI dieses
 Add-ons liest ihren Status weiterhin ausschließlich über `storage.own`

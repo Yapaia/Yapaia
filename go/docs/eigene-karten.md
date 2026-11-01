@@ -1,6 +1,6 @@
 # Eigene Karten, Routen und Suche
 
-Diese Seite beantwortet eine Frage: **Wir haben selbst gebaute Kartendaten
+Diese Seite beantwortet eine Frage: **Du hast selbst gebaute Kartendaten
 (oder Bekannte haben welche) — was muss vorliegen, damit Yapaia Go sie für
 Karte, Routing und Suche nutzen kann, und wie kommen sie aufs Gerät?**
 
@@ -21,8 +21,8 @@ keines ersetzt ein anderes:
 | **Suche** (Orte, Straßen, Sonderziele) | Yapaias **Lite-Suchindex** (SQLite) — oder ein **Photon-Index** | `/share/yapaia/lite-search/` bzw. `/share/yapaia/photon/photon_data/` |
 
 **Alle drei werden aus derselben Quelle gebaut: einem OpenStreetMap-Extrakt
-(`.osm.pbf`).** Das ist die wichtigste Erkenntnis für den Austausch mit
-Bekannten: Das Nützlichste, was sie euch geben können, ist entweder
+(`.osm.pbf`).** Für den Austausch mit Bekannten heißt das: Das Nützlichste, was
+sie dir geben können, ist entweder
 
 - genau diese **`.osm.pbf`** (dann baut Yapaia alles selbst), oder
 - fertige Dateien **in genau den Formaten aus der Tabelle**.
@@ -33,12 +33,11 @@ Karten aus anderen Navi-Apps (OsmAnd, Organic Maps, Garmin, Navit …) haben
 
 ---
 
-## 2. Was bei euch schon vorliegt
+## 2. Was das Add-on schon mitbringt
 
-Das Add-on bringt die Werkzeuge für alle drei Erzeugnisse bereits mit. Auf
-eurer Installation ist dafür nichts nachzurüsten:
+Das Add-on bringt die Werkzeuge für alle drei Erzeugnisse bereits mit. Du musst dafür nichts nachrüsten:
 
-| Voraussetzung | Stand bei euch |
+| Voraussetzung | Stand |
 |---|---|
 | Datenablage, die Updates überlebt | `/share/yapaia/` — das Add-on legt die Ordner beim Start selbst an |
 | Kachelbau (planetiler) | im Add-on; beim ersten Bau lädt es einmalig `planetiler.jar` (~100 MB) nach `/share/yapaia/tools/` |
@@ -55,7 +54,7 @@ legt nur die fertige Datei ab (§5). Details und Zahlen:
 
 ---
 
-## 3. Passen die Dateien eurer Bekannten?
+## 3. Passen fremde Dateien?
 
 | Was sie haben | Nutzbar? | Was zu tun ist |
 |---|---|---|
@@ -132,8 +131,8 @@ setzen — siehe [installation.md §C.4](installation.md#c4-im-add-on-container-
 
 > **Wichtig:** Eine selbst abgelegte Karte steht in keinem Katalog. Yapaia weiß
 > deshalb nicht, aus welcher `.osm.pbf` sie stammt, und **„Fehlendes bauen"
-> überspringt sie** (und sagt es). Routing und Suche für diese Region braucht
-> ihr dann ebenfalls als fertige Dateien — §5.2 und §5.3.
+> überspringt sie** (und sagt es). Routing und Suche für diese Region brauchst
+> du dann ebenfalls als fertige Dateien — §5.2 und §5.3.
 
 ### 5.2 Routing (Valhalla-Graph)
 
@@ -162,10 +161,9 @@ Das Ergebnis liegt danach in `data/valhalla/tiles/`: ein Ordner
   `build-tiles.sh` schreibt sie genau so. Ein Graph, den jemand anders mit
   einem eigenen Aufbau gebaut hat, trägt oft andere Pfade — dann startet
   Valhalla nicht. Die Pfade lassen sich mit dem File editor anpassen.
-- **Die Valhalla-Version muss zusammenpassen.** Das Add-on nutzt seit 0.63.0
-  das Image `ghcr.io/valhalla/valhalla-scripted:3.9.1` (vorher gis-ops mit
-  Valhalla 3.5.1). Ältere Graphen liest es weiter; ein Graph aus einer
-  NEUEREN Valhalla-Version wird unter Umständen nicht gelesen. Mit
+- **Die Valhalla-Version muss zusammenpassen.** Das Add-on nutzt Valhalla
+  3.9.1 (`ghcr.io/valhalla/valhalla-scripted:3.9.1`). Ein Graph aus einer
+  neueren Valhalla-Version wird unter Umständen nicht gelesen. Mit
   `build-tiles.sh` gebaut, passt es.
 - **„Fehlendes bauen" kann den Graphen ersetzen.** Fehlt ihm eine installierte
   Karte (ein von Hand abgelegter Graph nennt keine), wird er aus den
@@ -213,9 +211,9 @@ lieber beim Lite-Index bleiben —
 2. **Add-on-Protokoll** (Einstellungen → Add-ons → Yapaia Go → Protokoll):
    - `Skipping .pmtiles file with an invalid region name` → Dateiname prüfen (§5.1).
    - `Skipping unreadable or invalid .pmtiles file` → Datei beschädigt oder kein PMTiles.
-   - `valhalla: no …/valhalla.json yet` → `valhalla.json` fehlt im Graph-Ordner (§5.2).
-3. Eine kurze Probe: ein Ziel in der neuen Region per langem Druck auf die
-   Karte setzen und „Route hierhin" wählen.
+   - Routing startet nicht → prüfen, ob `valhalla.json` im Graph-Ordner liegt (§5.2).
+3. Eine kurze Probe: ein Ziel in der neuen Region auf der Karte wählen und
+   „Route hierhin" tippen.
 
 ---
 
@@ -226,10 +224,9 @@ lieber beim Lite-Index bleiben —
   Skripte in diesem Repository.
 - Die Speicher- und Zeitangaben sind Größenordnungen (siehe
   [installation.md §C.5](installation.md#c5-ganzes-land-deutschland--nicht-auf-der-haos-vm)),
-  keine Messungen auf eurer Hardware.
-- Eine einzelne fertige `.pmtiles`-Datei per **Download-Adresse** eintragen,
-  statt sie per Samba abzulegen, ist im Kern vorbereitet
-  (`custom-sources.json`), aber noch nicht in der Oberfläche erreichbar. Fertige
+  keine Messungen auf deiner Hardware.
+- Eine einzelne `.pmtiles`-Datei per Download-Adresse einzutragen statt sie
+  per Samba abzulegen, ist in der Oberfläche nicht möglich. Fertige
   Komplettpakete gibt es über einen eigenen Kartenserver (§4).
 
 Verwandt: [Runbook: Kartendaten aktualisieren](data-update-runbook.md) — der

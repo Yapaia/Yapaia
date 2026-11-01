@@ -11,8 +11,7 @@ Enter nimmt den ersten Vorschlag.
 
 ## Braucht
 
-- **Yapaia Go** – ab 0.48.0 trägt ein gewähltes Ziel den Namen des
-  Suchtreffers, ältere Fassungen navigieren ohne Namen.
+- **Yapaia Go** (Add-on und Integration).
 - Die Kartenkachel von Yapaia Go als Ressource `/local/yapaia/yapaia-map-card.js`
   (liegt in [`go/yapaia_go/lovelace/`](../../go/yapaia_go/lovelace/)).
 - Optional **Yapaia Beat** (Radio) und **Yapaia Satellite** (Mikrofon).
@@ -20,23 +19,21 @@ Enter nimmt den ersten Vorschlag.
 
 ## Spuren vor dem Abbiegen
 
-Ab 500 m vor einer Abbiegung zeigt die Anweisung darunter die Fahrspuren,
-die richtige hell (ab Yapaia Go 0.53.0, wo die Karte Spurpfeile kennt).
+Ab 1500 m vor einer Abbiegung zeigt die Anweisung darunter die Fahrspuren,
+die beste hell.
 
 ## Ankunft antippen: die Route
 
 Ein Tipp auf die Ankunft öffnet die Halte: alle noch offenen Zwischenziele
-und das Ziel, jeweils mit Restkilometern und Ankunftszeit (ab Yapaia Go
-0.52.0, ältere Fassungen zeigen nur das Ziel). Die Zeile „Ziel: …“ unter der
-Anweisung gibt es dafür nicht mehr.
+und das Ziel, jeweils mit Restkilometern und Ankunftszeit.
 
 ## Ältere Browser
 
-Die Karte kommt ohne Container-Einheiten (`cqw`, `@container`) aus: Das
-Autoradio (Eonon UX6K Pro Max) hat eine WebView, die sie nicht kennt. Die
+Die Karte kommt ohne Container-Einheiten (`cqw`, `@container`) aus: Manche
+Android-Autoradios haben eine WebView, die sie nicht kennt. Die
 Maße setzt die Karte selbst per JavaScript nach der gemessenen Breite.
 Verschieben und Größe ändern laufen über `transform` und Touch-Events,
-weil die WebView (Chrome 101) `translate`/`scale` nicht kennt.
+weil ältere WebViews (z. B. Chrome 101) `translate`/`scale` nicht kennen.
 
 ## Einrichten
 
@@ -73,7 +70,7 @@ Umschalten. Das Mikrofon daneben schaltet das Mikrofon des Satelliten stumm.
   Campingplatz, Supermarkt, Entsorgung, Frischwasser, Gasflaschen, Toilette.
   Eine Kategorie zeigt die nächsten, während der Fahrt voraus auf der Route.
   Ein Eintrag zeigt den Ort markiert auf der Karte, die anderen daneben
-  (ab Yapaia Go 0.50.0). Das Fenster wird dann zu einer schmalen Leiste, damit
+  Das Fenster wird dann zu einer schmalen Leiste, damit
   die Karte frei bleibt: ◀ ▶ blättert, die Liste holt alle zurück, und
   **+ Zwischenziel** fügt den Ort ein. Ohne Navigation heißt der Knopf
   „Hinfahren“, dann wird der Ort das Ziel.
@@ -104,17 +101,14 @@ Der Knopf mit den vier Pfeilen in der oberen Leiste startet das Anpassen:
 - Jedes Objekt (Leisten, Radio, Favoriten, Anweisung, Kompass, Tempolimit,
   Suche, Ankunft) hat einen Rahmen: ziehen verschiebt, der Punkt unten rechts
   ändert die Größe.
-- Ab Yapaia Go 0.49.0 erscheint in der Karte ein Fadenkreuz: dort sitzt die
-  eigene Position. Auch die Verkehrsliste der Karte lässt sich dann
-  verschieben. Das gilt nur für die Karte im Dashboard, nicht für Yapaia Go
+- In der Karte erscheint ein Fadenkreuz: dort sitzt die eigene Position.
+  Auch die Verkehrsliste der Karte lässt sich verschieben. Das gilt nur für die Karte im Dashboard, nicht für Yapaia Go
   selbst.
 - **Zurücksetzen** stellt den gewählten Bildschirm wieder auf den Standard.
 
 Gespeichert wird je Gerät (im Browser), wie in Yapaia Go. Die Verschiebungen
 wachsen mit der Breite mit: Auf- und Zuklappen der Seitenleiste von Home
-Assistant lässt alles an seinem Platz. Ältere Anordnungen (in Pixeln) werden
-beim ersten Öffnen einmal umgerechnet. Lagen sie nach dem Umklappen schief,
-einmal nachrücken.
+Assistant lässt alles an seinem Platz.
 
 Mit `demo: true` an der Karte zeigt sie Beispielwerte einer Navigation.
 
