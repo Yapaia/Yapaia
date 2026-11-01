@@ -103,6 +103,11 @@ export const T = texte(
       'sie über die Standortfreigabe der Seite (ADR-007: gpsd > Browser > ' +
       'Companion App > Simulator). Achtung: der Browser gibt den Standort nur über ' +
       'HTTPS frei.',
+    gpsdNetRemedy:
+      'Als Quelle ist „network" gewählt: Yapaia fragt den gpsd auf einem anderen Gerät ab. ' +
+      'Prüfen Sie in der Add-on-Konfiguration „Adresse des gpsd" (z. B. 192.168.8.20 oder ' +
+      '192.168.8.20:2947), dass das Gerät läuft und dass sein gpsd Verbindungen aus dem Netz ' +
+      'annimmt (Start mit -G). Nach einer Änderung das Add-on neu starten.',
     rutOk:
       'Position vom GPS des RUT50-Routers, Modbus TCP unter {host}:{port} erreichbar. ' +
       'Ob der Router gerade Satelliten empfängt, zeigt die Liste der Positionsquellen.',
@@ -315,6 +320,11 @@ export const T = texte(
       'through the page’s location permission (ADR-007: gpsd > browser > ' +
       'Companion app > simulator). Note: the browser only shares the location over ' +
       'HTTPS.',
+    gpsdNetRemedy:
+      'The source is "network": Yapaia queries the gpsd on another device. ' +
+      'Check "gpsd address" in the add-on configuration (e.g. 192.168.8.20 or ' +
+      '192.168.8.20:2947), that the device is running and that its gpsd accepts ' +
+      'connections from the network (started with -G). Restart the add-on after a change.',
     rutOk:
       'Position from the GPS of the RUT50 router, Modbus TCP reachable at {host}:{port}. ' +
       'Whether the router currently receives satellites is shown in the list of position sources.',

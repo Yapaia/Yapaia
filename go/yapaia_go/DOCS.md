@@ -151,6 +151,17 @@ Source priority is `gpsd > browser > Companion App > simulator`: the app reports
 at intervals, so it is the source that *exists* when the browser gives none —
 not a replacement for a live browser fix.
 
+## Position from gpsd on another device
+
+If the GPS receiver hangs on another machine that runs gpsd (a Raspberry Pi,
+a router), set `gps_source: network` and put that machine's address into
+`gpsd_host` (`192.168.8.20` or `192.168.8.20:2947`; default port `2947`).
+Restart the add-on. The Core then connects straight to that gpsd; the add-on's
+own gpsd is not started. The remote gpsd must listen on the network, not only
+on localhost — start it with `-G` (on Debian/Raspberry Pi OS:
+`GPSD_OPTIONS="-G"` in `/etc/default/gpsd`, and the socket unit must listen on
+`0.0.0.0`). The health check (**⚙ → 🩺**) shows whether it answers.
+
 ## Position from a Teltonika router (RUT50)
 
 Many motorhomes already carry an LTE router with a GNSS receiver and a roof
@@ -183,9 +194,10 @@ often stays open at the top. This needs **Home Assistant 2025.10 or newer**.
 | Group | Option | Type | Default | Meaning |
 |---|---|---|---|---|
 | (open) | `region` | string (optional) | *(empty)* | Which map region to use, e.g. `germany`. Empty = the setup wizard inside Yapaia lets you choose one. Regions are downloaded and built inside Yapaia (**⚙ → 🗺️ Karten verwalten**), not here. |
-|  | `gps_source` | `usb` \| `network` \| `rut50` \| `companion_app` \| `none` | `none` | Where the position comes from. `usb` starts gpsd for a receiver on a USB port; `rut50` reads the GPS of a Teltonika router over Modbus TCP; `companion_app` reads a Home Assistant `device_tracker` fed by the Companion App; `none` leaves the browser as the source. Browser positions are accepted at **every** value. |
+|  | `gps_source` | `usb` \| `network` \| `rut50` \| `companion_app` \| `none` | `none` | Where the position comes from. `usb` starts gpsd for a receiver on a USB port; `network` reads a gpsd on another device (see `gpsd_host`); `rut50` reads the GPS of a Teltonika router over Modbus TCP; `companion_app` reads a Home Assistant `device_tracker` fed by the Companion App; `none` leaves the browser as the source. Browser positions are accepted at **every** value. |
 |  | `gps_device` | string (optional) | *(empty)* | Which serial device is the GPS receiver, e.g. `/dev/serial/by-id/usb-u-blox_AG_…-if00` — **with** the leading slash. Only needed when several serial devices are present and none identifies itself as a GNSS receiver — see "Which device gets used" above. |
 |  | `rut50_host` | string (optional) | *(empty)* | Only with `gps_source: rut50`: the router's address, `host` or `host:port`. Empty = `192.168.1.1:502`. |
+|  | `gpsd_host` | string (optional) | *(empty)* | Only with `gps_source: network`: the remote gpsd's address, `host` or `host:port`. Without a port, `2947`. |
 |  | `ha_device_tracker` | string (optional) | *(empty)* | Which `device_tracker` entity to read, e.g. `device_tracker.my_phone`. Only needed with `gps_source: companion_app` **and** more than one candidate. |
 | `search` | `photon_enabled` | bool | `true` | Full address search via Photon, including house numbers. `false` = RAM-saver: falls back to the built-in lightweight index (places and streets, no house numbers). |
 |  | `photon_xmx_mb` | int 256–4096 | `1024` | Photon memory cap (JVM `-Xmx`). See the RAM table above. |

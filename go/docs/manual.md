@@ -430,18 +430,19 @@ the engine, not in the browser.
 
 ## Where your position comes from
 
-Yapaia accepts a position from five sources. You choose in the add-on options
+Yapaia accepts a position from six sources. You choose in the add-on options
 under `gps_source` (label "Quelle").
 
 | Source | Setting | Best for |
 |---|---|---|
 | **Browser** | `none` | Quick testing. **Only works over HTTPS** |
 | **USB GPS receiver** | `usb` | The most accurate option; needs hardware |
+| **gpsd on another device** | `network` | A receiver already attached to another computer on the network |
 | **Teltonika router (RUT50)** | `rut50` | A motorhome that already has a router with GPS |
 | **HA Companion App** | `companion_app` | A phone you already carry |
 | **Simulator** | `gps_simulator` (group **Advanced**) | Trying the app without moving |
 
-If several sources deliver at once, the order is: USB receiver, router,
+If several sources deliver at once, the order is: gpsd (USB or network), router,
 browser, Companion App, simulator.
 
 ### Using a USB GPS receiver
@@ -458,6 +459,14 @@ the same device names. If Yapaia cannot tell which one is the GPS, it touches
 none of them and says so, rather than writing to a radio stick that belongs to
 another add-on. You then name the right one under `gps_device` — the health
 check lists the available paths, so you never need a terminal.
+
+### Using gpsd on another device
+
+If a GPS receiver already runs under gpsd on another machine on the network
+(a Raspberry Pi, a router with gpsd), set `gps_source: network` and its address
+under `gpsd_host` — `host` or `host:port`, port 2947 if omitted. That gpsd must
+accept network connections (start it with `-G`). The add-on's own gpsd stays
+off; the health check says whether the remote gpsd answers.
 
 ### Using a Teltonika router
 

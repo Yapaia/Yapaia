@@ -116,6 +116,12 @@ RUT50_HOST="$(bashio::config 'rut50_host')"
 if [ "${RUT50_HOST}" = "null" ]; then
   RUT50_HOST=""
 fi
+# Adresse des entfernten gpsd fuer `gps_source: network`: „host" oder
+# „host:port", Port-Vorgabe 2947. Dieselbe "null"-Falle wie oben.
+GPSD_REMOTE="$(bashio::config 'gpsd_host')"
+if [ "${GPSD_REMOTE}" = "null" ]; then
+  GPSD_REMOTE=""
+fi
 # B-05. `str?` liefert bei leerer Option den String "null"; das ist KEINE
 # Entity-ID und muss zu leer werden, sonst startet der Core eine Quelle, die
 # eine Entitaet namens "null" sucht.
@@ -293,7 +299,7 @@ export_env "PHOTON_XMX_MB" "${PHOTON_XMX_MB}"
 export_env "PHOTON_DATA_DIR" "${DATA_ROOT}/photon/photon_data"
 
 # ---- GPS source (docs/04 §3 "GPS-Quelle") ----
-# `usb` / `network` -> gpsd; `companion_app` -> Companion App; `none` -> Browser.
+# `usb` -> gpsd im Container; `network` -> entfernter gpsd (`gpsd_host`); `companion_app` -> Companion App; `none` -> Browser.
 # Der Core liest `GPS_SOURCE` selbst (apps/core/src/index.ts): bei
 # `companion_app` darf die HA-Quelle sich ihre Entitaet selbst suchen, statt eine
 # abgeschriebene Entity-ID zu verlangen.
@@ -317,10 +323,41 @@ export_env "THEME_MODE" "${THEME_MODE:-}"
 # Vorgabe laufen frueher oder spaeter auseinander, und das faellt dann als
 # „die Pruefung zeigt nichts" auf.
 export_env "GPS_STATUS_DATEI" "${GPS_STATUS_DATEI:-/run/yapaia/gps-status}"
-if [ "${GPS_SOURCE}" = "usb" ] || [ "${GPS_SOURCE}" = "network" ]; then
+if [ "${GPS_SOURCE}" = "usb" ]; then
+  # gpsd laeuft im Container (gpsd/run) und lauscht nur auf 127.0.0.1.
   export_env "GPSD_ENABLED" "true"
   export_env "GPSD_HOST" "127.0.0.1"
   export_env "GPSD_PORT" "2947"
+elif [ "${GPS_SOURCE}" = "network" ]; then
+  # gpsd auf einem anderen Geraet: der Core verbindet sich direkt dorthin,
+  # der gpsd im Container bleibt aus (gpsd/run startet ihn nur bei `usb`).
+  # „host:port" nur dann teilen, wenn genau ein Doppelpunkt drinsteht -- eine
+  # IPv6-Adresse ohne Port bleibt so ganz.
+  GPSD_REMOTE_HOST="${GPSD_REMOTE}"
+  GPSD_REMOTE_PORT="2947"
+  case "${GPSD_REMOTE}" in
+    *:*:*) ;;
+    *:*)
+      GPSD_REMOTE_HOST="${GPSD_REMOTE%:*}"
+      GPSD_REMOTE_PORT="${GPSD_REMOTE##*:}"
+      ;;
+  esac
+  case "${GPSD_REMOTE_PORT}" in
+    '' | *[!0-9]*)
+      bashio::log.warning "init-yapaia-config: gpsd_host='${GPSD_REMOTE}' hat keinen gueltigen Port -- nehme 2947."
+      GPSD_REMOTE_PORT="2947"
+      ;;
+  esac
+  if [ -z "${GPSD_REMOTE_HOST}" ]; then
+    bashio::log.warning "init-yapaia-config: gps_source=network, aber gpsd_host ist leer -- bitte die Adresse des gpsd eintragen (z. B. 192.168.8.20 oder 192.168.8.20:2947)."
+  else
+    bashio::log.info "init-yapaia-config: gps_source=network -- der Core liest die Position vom gpsd unter ${GPSD_REMOTE_HOST}:${GPSD_REMOTE_PORT}."
+  fi
+  # Auch leer exportieren: dann zeigt die Installationspruefung, dass die
+  # Adresse fehlt, statt still einen leeren 127.0.0.1 abzufragen.
+  export_env "GPSD_ENABLED" "true"
+  export_env "GPSD_HOST" "${GPSD_REMOTE_HOST}"
+  export_env "GPSD_PORT" "${GPSD_REMOTE_PORT}"
 else
   # Auch `companion_app` und `rut50` landen hier -- gpsd auf einer Installation ohne
   # USB-Empfaenger zu starten, erzeugt nur eine Warnung ueber ein Geraet, das

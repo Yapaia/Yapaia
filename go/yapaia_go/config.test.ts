@@ -927,6 +927,7 @@ describe('init-yapaia-config.sh — die GPS-Quelle, ausgeführt', () => {
       gps_source: 'none',
       gps_device: '',
       rut50_host: '',
+      gpsd_host: '',
       ha_device_tracker: '',
       'search.photon_enabled': 'false',
       'search.photon_xmx_mb': '1024',
@@ -1128,6 +1129,40 @@ describe('init-yapaia-config.sh — die GPS-Quelle, ausgeführt', () => {
 
   it('macht aus bashios "null" eine leere Router-Adresse (= Werkseinstellung)', () => {
     expect(runInit({ gps_source: 'rut50', rut50_host: 'null' }).RUT50_HOST).toBe('');
+  });
+
+  it('zeigt den Core bei "usb" auf den gpsd im Container', () => {
+    const env = runInit({ gps_source: 'usb' });
+    expect(env.GPSD_ENABLED).toBe('true');
+    expect(env.GPSD_HOST).toBe('127.0.0.1');
+    expect(env.GPSD_PORT).toBe('2947');
+  });
+
+  it('zeigt den Core bei "network" auf den entfernten gpsd aus gpsd_host', () => {
+    const env = runInit({ gps_source: 'network', gpsd_host: '192.168.8.20:3000' });
+    expect(env.GPSD_ENABLED).toBe('true');
+    expect(env.GPSD_HOST).toBe('192.168.8.20');
+    expect(env.GPSD_PORT).toBe('3000');
+  });
+
+  it('nimmt bei "network" ohne Port 2947 und lässt eine IPv6-Adresse ganz', () => {
+    const ohnePort = runInit({ gps_source: 'network', gpsd_host: 'gps-box.local' });
+    expect(ohnePort.GPSD_HOST).toBe('gps-box.local');
+    expect(ohnePort.GPSD_PORT).toBe('2947');
+    expect(runInit({ gps_source: 'network', gpsd_host: 'fd00::20' }).GPSD_HOST).toBe('fd00::20');
+  });
+
+  it('fragt bei "network" ohne Adresse NICHT still 127.0.0.1 ab', () => {
+    const env = runInit({ gps_source: 'network', gpsd_host: 'null' });
+    expect(env.GPSD_ENABLED).toBe('true');
+    expect(env.GPSD_HOST).toBe('');
+  });
+
+  it('startet den gpsd im Container nur bei "usb"', () => {
+    // Bei `network` liefert ein anderes Geraet; ein lokaler gpsd waere nur
+    // ein Dienst, der ins Leere sucht.
+    const run = readFileSync(join(ADDON_DIR, 'rootfs/etc/s6-overlay/s6-rc.d/gpsd/run'), 'utf-8');
+    expect(run).toMatch(/if \[ "\$\{GPS_SOURCE\}" != "usb" \]; then[\s\S]*?exec sleep infinity/);
   });
 
   it('schaltet gpsd bei "none" aus', () => {
@@ -1681,7 +1716,7 @@ describe('die Add-on-Konfiguration ist gegliedert und beschriftet', () => {
     advanced: ['gps_simulator', 'log_level'],
   };
   /** Was OFFEN stehenbleibt -- das, was man wirklich einstellt. */
-  const OFFEN = ['region', 'gps_source', 'gps_device', 'rut50_host', 'ha_device_tracker'];
+  const OFFEN = ['region', 'gps_source', 'gps_device', 'rut50_host', 'gpsd_host', 'ha_device_tracker'];
 
   function ladeUebersetzung(sprache: string): Record<string, unknown> {
     const pfad = join(ADDON_DIR, 'translations', `${sprache}.yaml`);
