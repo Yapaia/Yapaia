@@ -7,7 +7,7 @@
 name: "Yapaia Go"
 description: "Offline-fähige Wohnmobil-Navigation (Karten, Routing, GPS, Home-Assistant-Integration) als HA-Add-on."
 slug: "yapaia_go"
-version: "0.68.1"
+version: "0.69.0"
 # ─── MINDESTVERSION VON HOME ASSISTANT ──────────────────────────────────────
 # Die Optionen sind in aufklappbaren Gruppen verschachtelt. Verschachtelte
 # Konfiguration gibt es in Home Assistant erst ab 2025.10 (maximal zwei Ebenen);

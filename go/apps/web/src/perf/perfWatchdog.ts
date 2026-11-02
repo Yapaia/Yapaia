@@ -13,6 +13,26 @@ import { FpsMeter } from './fpsMeter';
 import { useDegradationStore } from './degrade';
 
 const FPS_SAMPLE_INTERVAL_MS = 500; // Update degradation level every 500ms
+/** Alle 5 s meldet die Karte Bildrate und Stufe an den Kern (perf/client). */
+export const MELDE_INTERVALL_MS = 5_000;
+
+function meldeAnKern(fps: number, bewegt: boolean): void {
+  if (typeof fetch !== 'function' || typeof window === 'undefined') return;
+  const geraet = new URLSearchParams(window.location.search).get('geraet') ?? '';
+  void fetch(`${import.meta.env.BASE_URL}api/v1/perf/client`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      geraet,
+      // ohne Kamerabewegung misst der FpsMeter nichts -- dann keine Zahl
+      fps: bewegt ? fps : null,
+      stufe: useDegradationStore.getState().level,
+      bewegt,
+      ua: navigator.userAgent,
+    }),
+    keepalive: true,
+  }).catch(() => undefined);
+}
 
 export function startPerfWatchdog(map: MapLibreMap): () => void {
   const fpsMeter = new FpsMeter(5000); // 5-second rolling window
@@ -21,12 +41,17 @@ export function startPerfWatchdog(map: MapLibreMap): () => void {
   useDegradationStore.getState().restoreSettings();
 
   // Track camera movement
+  let bewegt = false;
+  let bewegtSeitMeldung = false;
   const handleMoveStart = () => {
     fpsMeter.setMoving(true);
+    bewegt = true;
+    bewegtSeitMeldung = true;
   };
 
   const handleMoveEnd = () => {
     fpsMeter.setMoving(false);
+    bewegt = false;
   };
 
   map.on('movestart', handleMoveStart);
@@ -34,6 +59,7 @@ export function startPerfWatchdog(map: MapLibreMap): () => void {
 
   // Start the frame recording loop
   let lastFpsSampleTime = Date.now();
+  let letzteMeldung = Date.now();
   let rafId: number | null = null;
 
   const raf = (timestamp: DOMHighResTimeStamp) => {
@@ -55,6 +81,12 @@ export function startPerfWatchdog(map: MapLibreMap): () => void {
       }
 
       lastFpsSampleTime = now;
+
+      if (now - letzteMeldung >= MELDE_INTERVALL_MS) {
+        meldeAnKern(fps, bewegt || bewegtSeitMeldung);
+        bewegtSeitMeldung = bewegt;
+        letzteMeldung = now;
+      }
     }
 
     rafId = requestAnimationFrame(raf);

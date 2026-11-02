@@ -169,6 +169,10 @@ export const ROUTE_DOCS: Record<string, RouteDoc> = {
     summary: 'Der Browser bestätigt eine Ansage, die er übernommen hat (Bus-Thema ansage/browser)',
     tags: ['Navigation'],
   },
+  'POST /api/v1/perf/client': {
+    summary: 'Eine Karte meldet ihre Bildrate und Stufe des Leistungswächters (Bus-Thema perf/client)',
+    tags: ['System'],
+  },
   'POST /api/v1/ansage/test': {
     summary: 'Testansage über Yapaia Beat; Ergebnis und Grund in Klartext',
     tags: ['Navigation'],
