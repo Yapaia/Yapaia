@@ -69,6 +69,7 @@ import { AUTOMATION_ID, sprachsteuerungEinrichten } from './ha/sprachBruecke.js'
 import { wsBefehlErgebnis } from './ha/wsBefehl.js';
 import { BrowserKanal } from './ha/browserKanal.js';
 import { registriereSprache, sprachDeps, type BrowserAnsage } from './sprache/kern.js';
+import { registriereClientPerf } from './system/clientPerf.js';
 import { resolveDestinationAndRoute } from './navigation/destinationResolver.js';
 import { BordDienst, bordKonfigurationAusUmgebung } from './bord/dienst.js';
 import { leseSonderziele } from './map/sonderziele/ausIndex.js';
@@ -1132,6 +1133,8 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
     ki: sprachKi,
   });
   registriereSprache(fastify, sprachdialog, ansageZiel, browserAnsage, browserKanal);
+  // Karten melden ihre Bildrate (z. B. vom Autoradio) -- nur durchgereicht
+  registriereClientPerf(fastify, (m) => eventBus.publish('perf/client', m));
 
   // ─── … UND UEBER HOME ASSISTANT ASSIST ──────────────────────────────────
   // Satelliten und der Assist-Knopf der HA-App -- ohne HTTPS. Eine

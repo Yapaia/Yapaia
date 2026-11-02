@@ -3427,6 +3427,29 @@
         }
       }
     },
+    "/api/v1/perf/client": {
+      "post": {
+        "summary": "Eine Karte meldet ihre Bildrate und Stufe des Leistungswächters (Bus-Thema perf/client)",
+        "tags": [
+          "System"
+        ],
+        "responses": {
+          "200": {
+            "description": "Erfolgreiche Antwort (Schema noch nicht kuratiert -- siehe apps/core/src/openapi/paths.ts)"
+          },
+          "default": {
+            "description": "Fehler",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sprache/ha": {
       "get": {
         "summary": "Stand der Home-Assistant-Assist-Anbindung und wählbare KI-Agenten (conversation.*)",

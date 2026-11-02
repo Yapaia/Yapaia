@@ -10,6 +10,15 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.69.0
+
+- **Bildrate der Karte wird gemeldet:** Jede Karte schickt alle 5 Sekunden
+  ihre Bildrate und die Stufe des Leistungswächters an Go (Bus-Thema
+  `perf/client`, `POST /api/v1/perf/client`). So lässt sich auch auf einem
+  Autoradio ohne Entwicklerwerkzeuge messen, wie flüssig die Karte läuft.
+  Mit `?geraet=<name>` in der Adresse ist das Gerät erkennbar. Gespeichert
+  wird nichts.
+
 ## 0.68.1
 
 - **GPS von einem gpsd im Netz funktioniert:** Mit `gps_source: network` und
