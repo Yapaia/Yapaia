@@ -2,8 +2,8 @@
  * Unit tests for degradation logic (E01-T6)
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useDegradationStore } from './degrade';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { useDegradationStore, overrideAusUrl, istLeicht } from './degrade';
 
 // Mock the dependent stores
 vi.mock('../state/styleStore', () => ({
@@ -323,6 +323,79 @@ describe('useDegradationStore', () => {
     it("ausdruecklich 'niedrig' schaltet weiterhin auf 2D", () => {
       useDegradationStore.getState().setOverride('low');
       expect(ansicht.setMode).toHaveBeenCalledWith('2d-north');
+    });
+  });
+
+  describe('Darstellung Leicht und URL-Parameter', () => {
+    // Die Tests laufen in Node: window mit Speicher und Adresse nachbilden.
+    let speicher: Record<string, string>;
+    let suche: string;
+    beforeEach(() => {
+      speicher = {};
+      suche = '';
+      vi.stubGlobal('window', {
+        localStorage: {
+          getItem: (k: string) => speicher[k] ?? null,
+          setItem: (k: string, v: string) => {
+            speicher[k] = v;
+          },
+          clear: () => {
+            speicher = {};
+          },
+        },
+        get location() {
+          return { search: suche };
+        },
+      });
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("'leicht' = Stufe 3, Pixeldichte 1, Neigung 0, 2D-Norden nicht erzwungen", () => {
+      ansicht.setMode.mockClear();
+      useDegradationStore.getState().setOverride('leicht');
+      const st = useDegradationStore.getState();
+      expect(st.level).toBe(3);
+      expect(st.poiCap).toBe('off');
+      expect(st.labelScaleCap).toBe('1.0');
+      expect(st.pixelRatioCap).toBe(1);
+      expect(ansicht.setNeigungsGrenze).toHaveBeenLastCalledWith(0);
+      expect(ansicht.setMode).not.toHaveBeenCalled();
+      expect(istLeicht()).toBe(true);
+      expect(speicher['yapaia.qualityOverride']).toBe('leicht');
+    });
+
+    it("zurueck auf 'auto' loest die Leicht-Grenze und das Springen", () => {
+      useDegradationStore.getState().setOverride('leicht');
+      useDegradationStore.getState().setOverride('auto');
+      expect(istLeicht()).toBe(false);
+      expect(ansicht.setNeigungsGrenze).toHaveBeenLastCalledWith(40);
+    });
+
+    it('Wächter ändert den Leicht-Modus nicht', () => {
+      useDegradationStore.getState().setOverride('leicht');
+      for (let i = 0; i <= 140; i++) useDegradationStore.getState().updateFps(60, 1_000_000 + i * 500);
+      expect(useDegradationStore.getState().level).toBe(3);
+    });
+
+    it('überschreibt den gespeicherten Wert aus der URL, ohne zu speichern', () => {
+      speicher['yapaia.qualityOverride'] = 'high';
+      suche = '?darstellung=leicht';
+      useDegradationStore.getState().restoreSettings();
+      expect(useDegradationStore.getState().override).toBe('leicht');
+      expect(useDegradationStore.getState().level).toBe(3);
+      expect(speicher['yapaia.qualityOverride']).toBe('high');
+    });
+
+    it('liest ?darstellung= auto|details|sparsam|leicht, sonst null', () => {
+      expect(overrideAusUrl('?darstellung=auto')).toBe('auto');
+      expect(overrideAusUrl('?darstellung=details')).toBe('high');
+      expect(overrideAusUrl('?darstellung=Sparsam')).toBe('low');
+      expect(overrideAusUrl('?darstellung=leicht&x=1')).toBe('leicht');
+      expect(overrideAusUrl('?darstellung=quatsch')).toBeNull();
+      expect(overrideAusUrl('?darstellung=constructor')).toBeNull();
+      expect(overrideAusUrl('')).toBeNull();
     });
   });
 });

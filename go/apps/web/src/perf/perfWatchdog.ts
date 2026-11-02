@@ -27,6 +27,7 @@ function meldeAnKern(fps: number, bewegt: boolean): void {
       // ohne Kamerabewegung misst der FpsMeter nichts -- dann keine Zahl
       fps: bewegt ? fps : null,
       stufe: useDegradationStore.getState().level,
+      modus: useDegradationStore.getState().override,
       bewegt,
       ua: navigator.userAgent,
     }),
