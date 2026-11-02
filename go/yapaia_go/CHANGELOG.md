@@ -10,6 +10,21 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.70.0
+
+- **Kartendarstellung wählbar:** In den Karten-Einstellungen (Abschnitt
+  „Darstellung“) gibt es jetzt **Automatisch** (wie bisher), **Details**
+  (immer alles), **Sparsam** (weniger Details) und neu **Leicht** für
+  schwache Geräte wie ein Android-Autoradio: Zusätzlich zu „Sparsam“ ist die
+  Karte flach (keine Neigung, Kurs oben bleibt) und springt bei jeder
+  Positionsmeldung, statt zu gleiten – zwischen zwei Meldungen rendert sie
+  nichts, das Gerät bleibt bedienbar. Die Wahl gilt je Gerät.
+- **Per Adresse vorgeben:** `?darstellung=auto|details|sparsam|leicht` an der
+  Karten-Adresse (z. B. in einer Dashboard-Karte) überschreibt die Wahl für
+  diese Seite, ohne sie zu speichern.
+- Die Bildraten-Meldung (`perf/client`) enthält jetzt auch den gewählten
+  Modus (`modus`).
+
 ## 0.69.0
 
 - **Bildrate der Karte wird gemeldet:** Jede Karte schickt alle 5 Sekunden

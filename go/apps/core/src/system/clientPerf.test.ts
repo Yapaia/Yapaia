@@ -4,10 +4,12 @@ import { pruefeMeldung, registriereClientPerf, type ClientPerfMeldung } from './
 
 describe('clientPerf', () => {
   it('prüft und rundet eine Meldung', () => {
-    expect(pruefeMeldung({ geraet: 'radio', fps: 23.456, stufe: 1, bewegt: true, ua: 'x' })).toEqual({
-      geraet: 'radio', fps: 23.5, stufe: 1, bewegt: true, ua: 'x',
+    expect(pruefeMeldung({ geraet: 'radio', fps: 23.456, stufe: 1, modus: 'leicht', bewegt: true, ua: 'x' })).toEqual({
+      geraet: 'radio', fps: 23.5, stufe: 1, modus: 'leicht', bewegt: true, ua: 'x',
     });
     expect(pruefeMeldung({ stufe: 0, fps: 'viel' })?.fps).toBeNull();
+    expect(pruefeMeldung({ stufe: 0, modus: 'quatsch' })?.modus).toBe('');
+    expect(pruefeMeldung({ stufe: 0 })?.modus).toBe('');
     expect(pruefeMeldung({ stufe: 7 })).toBeNull();
     expect(pruefeMeldung(null)).toBeNull();
   });

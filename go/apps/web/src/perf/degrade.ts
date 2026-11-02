@@ -16,7 +16,10 @@
  * Upgrade (more degradation) at < 25 fps over 10 s
  * Downgrade (less degradation) at > 45 fps over 60 s
  * Hysteresis: min 30 s between level changes (no flicker)
- * Override: "high" (0), "auto" (watchdog), "low" (3), persists to localStorage
+ * Override: "high" (0), "auto" (watchdog), "low" (3), "leicht" (3 plus: Kamera
+ * springt, Neigung 0, Pixeldichte 1), persists to localStorage.
+ * URL-Parameter `?darstellung=auto|details|sparsam|leicht` gilt nur fuer diese
+ * Seite und wird nicht gespeichert.
  */
 
 import { create } from 'zustand';
@@ -24,7 +27,7 @@ import { setNeigungsGrenze, useViewModeStore } from '../map/viewMode';
 import type { StyleLabelScale, StylePoiDensity } from '../map/styleClient';
 
 export type DegradationLevel = 0 | 1 | 2 | 3;
-export type QualityOverride = 'high' | 'auto' | 'low';
+export type QualityOverride = 'high' | 'auto' | 'low' | 'leicht';
 
 const STORAGE_KEY_OVERRIDE = 'yapaia.qualityOverride';
 
@@ -77,6 +80,31 @@ interface DegradationState {
   restoreSettings: () => void;
 }
 
+/** URL-Wert -> Override (Deutsch, wie in der Oberflaeche). */
+const URL_DARSTELLUNG: Record<string, QualityOverride> = {
+  auto: 'auto',
+  details: 'high',
+  sparsam: 'low',
+  leicht: 'leicht',
+};
+
+/**
+ * `?darstellung=...` der aktuellen Seite, oder `null` (fehlt/unbekannt).
+ * Erlaubt einer Dashboard-Karte, die Darstellung pro Geraet vorzugeben.
+ */
+export function overrideAusUrl(search?: string): QualityOverride | null {
+  const s = search ?? (typeof window === 'undefined' ? '' : window.location.search);
+  const wert = new URLSearchParams(s).get('darstellung')?.trim().toLowerCase();
+  return wert && Object.prototype.hasOwnProperty.call(URL_DARSTELLUNG, wert)
+    ? URL_DARSTELLUNG[wert]
+    : null;
+}
+
+/** Stufe, auf der ein fester Override die Karte haelt. */
+function stufeFuerOverride(o: QualityOverride): DegradationLevel | null {
+  return o === 'high' ? 0 : o === 'low' || o === 'leicht' ? 3 : null;
+}
+
 function persistOverride(override: QualityOverride): void {
   if (typeof window === 'undefined') return;
   try {
@@ -90,7 +118,7 @@ function readPersistedOverride(): QualityOverride {
   if (typeof window === 'undefined') return 'auto';
   try {
     const val = window.localStorage.getItem(STORAGE_KEY_OVERRIDE);
-    return (val === 'high' || val === 'low' ? val : 'auto') as QualityOverride;
+    return (val === 'high' || val === 'low' || val === 'leicht' ? val : 'auto') as QualityOverride;
   } catch {
     return 'auto';
   }
@@ -133,6 +161,13 @@ function capsForLevel(level: DegradationLevel): {
 
 /** So flach wird 3D bei Stufe 3 (statt 55°): weniger Kacheln bis zum Horizont. */
 export const NEIGUNG_STUFE_3 = 40;
+/** Im Modus Leicht gar keine Neigung. */
+export const NEIGUNG_LEICHT = 0;
+
+/** Ist der Modus Leicht gewaehlt? (Kamera springt statt zu animieren.) */
+export function istLeicht(): boolean {
+  return useDegradationStore.getState().override === 'leicht';
+}
 
 /**
  * Apply a degradation level: publish the transient render-quality caps (read
@@ -143,12 +178,14 @@ function applyDegradationLevel(
   level: DegradationLevel,
   set: (partial: Partial<DegradationState>) => void,
   ansichtErzwingen = false,
+  leicht = false,
 ): void {
   const { poiCap, labelScaleCap, pixelRatioCap } = capsForLevel(level);
   set({ poiCap, labelScaleCap, pixelRatioCap });
   // Statt auf 2D zu schalten: 3D bleibt 3D, nur flacher -- voruebergehend,
   // die gespeicherte Ansicht bleibt unberuehrt.
-  setNeigungsGrenze(level === 3 ? NEIGUNG_STUFE_3 : null);
+  // Leicht: flach (Neigung 0, Kurs-oben-Drehung bleibt).
+  setNeigungsGrenze(leicht ? NEIGUNG_LEICHT : level === 3 ? NEIGUNG_STUFE_3 : null);
 
   // ─── DIE ANSICHT GEHOERT DEM MENSCHEN ─────────────────────────────────────
   // Gemeldet von der Autobahn (iPad im Cockpit Sport): „die Karte verliert
@@ -198,10 +235,13 @@ export const useDegradationStore = create<DegradationState>((set, get) => ({
     persistOverride(override);
 
     // Immediately apply the override level
-    const newLevel: DegradationLevel =
-      override === 'high' ? 0 : override === 'low' ? 3 : get().level;
-    if (override !== 'auto') {
-      applyDegradationLevel(newLevel, set, override === 'low');
+    const fest = stufeFuerOverride(override);
+    const newLevel: DegradationLevel = fest ?? get().level;
+    if (override === 'auto') {
+      // zurueck zum Waechter: Neigung 0 aus Leicht wieder loesen
+      applyDegradationLevel(newLevel, set);
+    } else {
+      applyDegradationLevel(newLevel, set, override === 'low', override === 'leicht');
       set({ level: newLevel, _lastLevelChangeTime: Date.now() });
     }
   },
@@ -210,10 +250,7 @@ export const useDegradationStore = create<DegradationState>((set, get) => ({
     const { override, level, _lastLevelChangeTime, _fpsHistory } = get();
 
     // If override is 'high' or 'low', ignore fps updates
-    if (override === 'high') {
-      return;
-    }
-    if (override === 'low') {
+    if (override !== 'auto') {
       return;
     }
 
@@ -284,14 +321,13 @@ export const useDegradationStore = create<DegradationState>((set, get) => ({
   },
 
   restoreSettings: () => {
-    const override = readPersistedOverride();
+    // URL-Parameter schlaegt den gespeicherten Wert -- ohne ihn zu speichern.
+    const override = overrideAusUrl() ?? readPersistedOverride();
     set({ override });
-    if (override === 'high') {
-      set({ level: 0 });
-      applyDegradationLevel(0, set);
-    } else if (override === 'low') {
-      set({ level: 3 });
-      applyDegradationLevel(3, set, true);
+    const fest = stufeFuerOverride(override);
+    if (fest !== null) {
+      set({ level: fest });
+      applyDegradationLevel(fest, set, override === 'low', override === 'leicht');
     }
     // 'auto': keep current level (0 by default)
   },

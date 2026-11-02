@@ -17,6 +17,7 @@ import { autoZoomFor, shouldApplyZoom } from './autoZoom.js';
 import { useNavStore } from '../drive/navStore.js';
 import { isDriveActive } from '../drive/driveActive.js';
 import { useViewModeStore, BEARING_TOLERANCE_DEG } from './viewMode.js';
+import { istLeicht } from '../perf/degrade.js';
 import { anglesMatch } from './angles.js';
 import { useZentrierenStore } from './zentrieren.js';
 
@@ -304,7 +305,11 @@ export function updateFollowMePosition(): void {
   // Siehe `followAnimationMs`: die Bewegung dauert ungefaehr so lange wie der
   // Abstand zur vorigen Meldung, damit sie ankommt, wenn die naechste kommt.
   const jetzt = Date.now();
-  const dauer = followAnimationMs(lastFollowAtMs === null ? null : jetzt - lastFollowAtMs);
+  // Modus Leicht: immer springen -- zwischen zwei GPS-Meldungen rendert die
+  // Karte dann nichts (schwaches Autoradio).
+  const dauer = istLeicht()
+    ? null
+    : followAnimationMs(lastFollowAtMs === null ? null : jetzt - lastFollowAtMs);
   lastFollowAtMs = jetzt;
 
   // ─── EINE KAMERAFAHRT, NICHT ZWEI ─────────────────────────────────────────

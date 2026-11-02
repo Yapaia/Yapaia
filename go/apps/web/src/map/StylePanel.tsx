@@ -33,6 +33,18 @@ import { bottomInsetPx } from '../shell/mapControlLayout.js';
 import { useSchmal } from '../shell/useSchmal.js';
 import { useNavStore } from '../drive/navStore.js';
 import { isDriveActive } from '../drive/driveActive.js';
+import { useDegradationStore, overrideAusUrl, type QualityOverride } from '../perf/degrade.js';
+
+const DARSTELLUNG_OPTIONS: Array<{
+  value: QualityOverride;
+  label: 'darstellungAuto' | 'darstellungDetails' | 'darstellungSparsam' | 'darstellungLeicht';
+  hilfe: 'darstellungAutoHilfe' | 'darstellungDetailsHilfe' | 'darstellungSparsamHilfe' | 'darstellungLeichtHilfe';
+}> = [
+  { value: 'auto', label: 'darstellungAuto', hilfe: 'darstellungAutoHilfe' },
+  { value: 'high', label: 'darstellungDetails', hilfe: 'darstellungDetailsHilfe' },
+  { value: 'low', label: 'darstellungSparsam', hilfe: 'darstellungSparsamHilfe' },
+  { value: 'leicht', label: 'darstellungLeicht', hilfe: 'darstellungLeichtHilfe' },
+];
 
 const LANG_OPTIONS: Array<{ value: StyleLang; label: 'langOriginal' | null; text?: string }> = [
   { value: 'name', label: 'langOriginal' },
@@ -167,6 +179,8 @@ export default function StylePanel({
   const setLang = useStyleStore((state) => state.setLang);
   const setLabelScale = useStyleStore((state) => state.setLabelScale);
   const setPoi = useStyleStore((state) => state.setPoi);
+  const darstellung = useDegradationStore((state) => state.override);
+  const setDarstellung = useDegradationStore((state) => state.setOverride);
   const reopenOnboardingWizard = useOnboardingStore((state) => state.reopen);
 
   useEffect(() => {
@@ -284,6 +298,37 @@ export default function StylePanel({
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {t('zurueckHinweis')}
                   </p>
+                </div>
+
+                <div>
+                  <h3 className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {t('darstellung')}
+                  </h3>
+                  <div className="flex gap-1 flex-wrap">
+                    {DARSTELLUNG_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setDarstellung(opt.value)}
+                        aria-pressed={opt.value === darstellung}
+                        data-testid={`darstellung-option-${opt.value}`}
+                        className={`px-2 py-1 rounded-md border text-xs ${
+                          opt.value === darstellung
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/40 font-semibold'
+                            : 'border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {t(opt.label)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t(DARSTELLUNG_OPTIONS.find((o) => o.value === darstellung)?.hilfe ?? 'darstellungAutoHilfe')}
+                  </p>
+                  {overrideAusUrl() !== null && (
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {t('darstellungUrl')}
+                    </p>
+                  )}
                 </div>
 
                 <div>
