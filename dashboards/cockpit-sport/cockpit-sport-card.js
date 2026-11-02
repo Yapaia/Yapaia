@@ -2202,7 +2202,9 @@ class YapaiaCockpitSportCard extends HTMLElement {
         + zeile('SINR', this._z(E.sinr) !== null ? `${this._z(E.sinr)} dB` : null);
     }
     html += '</dl>';
-    if (n.quelle === 'mobil' && this._hass.states[E.sim]) {
+    // Auch ohne Internet (z. B. SIM ohne Empfang, Roaming aus) bleiben die
+    // Knöpfe da -- gerade dann will man auf die andere SIM wechseln.
+    if (n.quelle !== 'wlan' && n.quelle !== 'kabel' && this._hass.states[E.sim]) {
       const gewaehlt = this._z(E.sim);
       const stand = this._z(E.umschaltung) || '';
       const laeuft = /^umschalten|läuft|wechsel/i.test(stand);
