@@ -132,7 +132,7 @@ Platz leer.
    **`ota:` braucht nichts.** Der Device Builder vergibt kein OTA-Passwort,
    und OTA ist bereits durch den API-Schlüssel geschützt.
 2. **Zeitzone und Pins** oben in `substitutions` eintragen.
-3. **Digitale Wasserwaage** (optional). Bei 0 km/h wechselt die Anzeige auf
+3. **Digitale Wasserwaage** (optional). Bis 3 km/h wechselt die Anzeige auf
    eine runde Libelle — beim Parken die einzige Frage, die zählt. Dafür
    braucht es zwei Neigungssensoren in Grad (etwa ein MPU6050). Alles dazu
    steht in `substitutions`:
@@ -141,7 +141,7 @@ Platz leer.
    | --- | --- |
    | `entity_neigung_lr` | Entität für links/rechts |
    | `entity_neigung_vh` | Entität für vorne/hinten |
-   | `wasserwaage_ab_kmh` | Bis zu welchem Tempo sie erscheint (Vorgabe 0; gegen GPS-Rauschen z. B. 2) |
+   | `wasserwaage_ab_kmh` | Bis zu welchem Tempo sie erscheint (Vorgabe 3, zum Rangieren; 0 = nur bei Stillstand) |
    | `wasserwaage_gerade_grad` | Ab wann „steht gerade" (Vorgabe 0,5°) |
    | `wasserwaage_bereich_grad` | Vollausschlag am Rand (Vorgabe 5°) |
    | `neigung_lr_vorzeichen` | `1` oder `-1` |

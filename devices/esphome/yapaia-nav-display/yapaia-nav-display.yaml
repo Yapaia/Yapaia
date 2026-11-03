@@ -84,8 +84,9 @@ substitutions:
   #
   # Bei `0` erscheint die Waage nur, wenn Yapaia Go genau 0 km/h meldet --
   # beim Rollen bleibt die Navigation stehen. Wer GPS-Rauschen abfangen
-  # will, trägt eine kleine Zahl wie `2` ein.
-  wasserwaage_ab_kmh: "0"
+  # will, trägt eine kleine Zahl ein -- hier `3`: bis 3 km/h (Rangieren auf
+  # dem Stellplatz) zeigt das Display schon die Waage.
+  wasserwaage_ab_kmh: "3"
 
   # Ab wann gilt „steht gerade"? In Grad.
   #
