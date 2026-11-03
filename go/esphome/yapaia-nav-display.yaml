@@ -84,8 +84,9 @@ substitutions:
   #
   # Bei `0` erscheint die Waage nur, wenn Yapaia Go genau 0 km/h meldet --
   # beim Rollen bleibt die Navigation stehen. Wer GPS-Rauschen abfangen
-  # will, trägt eine kleine Zahl wie `2` ein.
-  wasserwaage_ab_kmh: "0"
+  # will, trägt eine kleine Zahl ein -- hier `3`: bis 3 km/h (Rangieren auf
+  # dem Stellplatz) zeigt das Display schon die Waage.
+  wasserwaage_ab_kmh: "3"
 
   # Ab wann gilt „steht gerade"? In Grad.
   #
@@ -987,7 +988,8 @@ display:
         return art.find(teil) != std::string::npos;
       };
 
-      const int py = cy - (r * 41) / 100;
+      // Etwas hoeher als frueher (41 %): mehr Platz fuer die Spurleiste.
+      const int py = cy - (r * 50) / 100;
       // Die Kantenlaenge kommt aus `r`, also aus der KLEINEREN Seite. Damit
       // passt der Pfeil in jedem Seitenverhaeltnis; eine zusaetzliche
       // Begrenzung auf die Halbbreite wäre wirkungslos.
@@ -1131,7 +1133,7 @@ display:
       // Unter 1000 m in Metern, darueber in Kilometern. Auf 10 m gerundet:
       // "483 m" taeuscht eine Genauigkeit vor, die GPS nicht hat, und die
       // letzte Ziffer flackerte im Sekundentakt.
-      const int dy_ = cy + (r * 12) / 100;
+      const int dy_ = cy + (r * 6) / 100;
       if (hat(id(yapaia_manoever_entfernung))) {
         const float m = id(yapaia_manoever_entfernung).state;
         if (m >= 1000.0f) {
@@ -1194,12 +1196,22 @@ display:
         }
       }
       if (sp_n > 0) {
-        const int ly = cy + (r * 44) / 100;   // Mitte der Leiste
-        const int sw = 26, sh = 24, sg = 4;   // Feldbreite, -hoehe, Abstand
+        const int ly = cy + (r * 45) / 100;   // Mitte der Leiste
+        // Gewuenscht: die Spuren etwas groesser. Bei wenigen Spuren 34 px
+        // breit; bei vielen schrumpfen die Felder bis auf die alten 26 px,
+        // bevor hinten eine Spur wegfaellt.
+        int sw = 34, sh = 32;                 // Feldbreite, -hoehe
+        const int sg = 4;                     // Abstand
         int n = sp_n;
+        auto passt = [&](int nn, int w, int h) {
+          return nn * w + (nn - 1) * sg <= 2 * halbbreite(ly + h / 2) - 8;
+        };
+        while (sw > 26 && !passt(n, sw, sh)) { sw--; sh = (sw * 12) / 13; }
         // Passt die Leiste nicht ins Rund, faellt hinten etwas weg -- lieber
         // das, als dass die erste Spur im Rand verschwindet.
-        while (n > 1 && n * sw + (n - 1) * sg > 2 * halbbreite(ly + sh / 2) - 8) n--;
+        while (n > 1 && !passt(n, sw, sh)) n--;
+        // Die Pfeile sind fuer 26 px gezeichnet und wachsen mit dem Feld.
+        auto q = [&](int v) { return (v * sw) / 26; };
         const int x0 = cx - (n * sw + (n - 1) * sg) / 2;
         // Ein Strich, drei Bildpunkte dick.
         auto strich = [&](int x1, int y1, int x2, int y2, Color c) {
@@ -1210,7 +1222,7 @@ display:
         };
         for (int k = 0; k < n; k++) {
           const int fx = x0 + k * (sw + sg);
-          const int x = fx + sw / 2, y = ly + 1;   // Knick der Pfeile
+          const int x = fx + sw / 2, y = ly + q(1);   // Knick der Pfeile
           const int m = sp_maske[k];
           const int aktiv = sp_an[k];
           if (aktiv) it.filled_rectangle(fx, ly - sh / 2, sw, sh, id(c_text));
@@ -1223,33 +1235,33 @@ display:
             return (!trifft || (aktiv & bits)) ? id(c_hintergrund) : id(c_gedaempft);
           };
           Color c = aktiv ? id(c_hintergrund) : id(c_gedaempft);
-          strich(x, y + 9, x, y, c);   // Stiel
+          strich(x, y + q(9), x, y, c);   // Stiel
           c = farbe(1 | 2);
           if (m & (1 | 2)) {
-            strich(x, y, x, y - 5, c);
-            it.filled_triangle(x - 5, y - 5, x + 5, y - 5, x, y - 10, c);
+            strich(x, y, x, y - q(5), c);
+            it.filled_triangle(x - q(5), y - q(5), x + q(5), y - q(5), x, y - q(10), c);
           }
           for (int seite = -1; seite <= 1; seite += 2) {
             const int leicht = seite < 0 ? 16 : 32;
             const int scharf = seite < 0 ? (4 | 8 | 512) : (64 | 128 | 1024);
             c = farbe(leicht);
             if (m & leicht) {
-              strich(x, y, x + seite * 5, y - 5, c);
-              it.filled_triangle(x + seite * 9, y - 10, x + seite * 2, y - 8, x + seite * 8, y - 3, c);
+              strich(x, y, x + seite * q(5), y - q(5), c);
+              it.filled_triangle(x + seite * q(9), y - q(10), x + seite * q(2), y - q(8), x + seite * q(8), y - q(3), c);
             }
             c = farbe(scharf);
             if (m & scharf) {
-              strich(x, y, x, y - 4, c);
-              strich(x, y - 4, x + seite * 6, y - 4, c);
-              it.filled_triangle(x + seite * 6, y - 9, x + seite * 6, y + 1, x + seite * 11, y - 4, c);
+              strich(x, y, x, y - q(4), c);
+              strich(x, y - q(4), x + seite * q(6), y - q(4), c);
+              it.filled_triangle(x + seite * q(6), y - q(9), x + seite * q(6), y + q(1), x + seite * q(11), y - q(4), c);
             }
           }
           c = farbe(256);
           if (m & 256) {
-            strich(x, y, x, y - 8, c);
-            strich(x, y - 8, x - 7, y - 8, c);
-            strich(x - 7, y - 8, x - 7, y - 2, c);
-            it.filled_triangle(x - 11, y - 3, x - 3, y - 3, x - 7, y + 2, c);
+            strich(x, y, x, y - q(8), c);
+            strich(x, y - q(8), x - q(7), y - q(8), c);
+            strich(x - q(7), y - q(8), x - q(7), y - q(2), c);
+            it.filled_triangle(x - q(11), y - q(3), x - q(3), y - q(3), x - q(7), y + q(2), c);
           }
         }
       }
