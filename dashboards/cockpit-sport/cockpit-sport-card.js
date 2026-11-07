@@ -562,10 +562,15 @@ const STIL = `
   .tv.orte-offen .eta { visibility: hidden; }
   .preis { flex: none; border-radius: 999px; padding: calc(var(--u) * 0.15) calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.1);
     font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .preis.frisch { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; }
-  .preis.aelter { background: rgba(245, 158, 11, 0.25); color: #fcd34d; }
-  .preis.alt { background: rgba(148, 163, 184, 0.25); color: #cbd5e1; }
-  .preis.zu { background: rgba(148, 163, 184, 0.2); color: #94a3b8; text-decoration: line-through; }
+  /* Schrift in Textfarbe des Schemas, die Frische zeigt der Rand: fest
+     verdrahtetes Hellgruen auf Gruen war im hellen Schema unlesbar. Ohne
+     color-mix() (Autoradio-WebView), daher Grund ueber --y-text-rgb. */
+  .preis { color: var(--y-text, #e5e7eb); background: rgba(var(--y-text-rgb, 229, 231, 235), 0.08);
+    border: calc(var(--u) * 0.15) solid var(--y-rand, #94a3b8); }
+  .preis.frisch { border-color: var(--y-ok, #10b981); }
+  .preis.aelter { border-color: var(--y-warnung, #f59e0b); }
+  .preis.alt { border-color: var(--y-text-gedaempft, #94a3b8); }
+  .preis.zu { color: var(--y-text-gedaempft, #94a3b8); border-color: var(--y-text-gedaempft, #94a3b8); text-decoration: line-through; }
   .orte .los { flex: none; background: #7c3aed; color: #fff; border-radius: calc(var(--u) * 0.4);
     padding: calc(var(--u) * 0.3) calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.1); font-weight: 600; }
 
