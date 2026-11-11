@@ -34,6 +34,7 @@ mehr Yapaia-Module zusammenarbeiten.
 | **Design-Schemata** | Gemeinsames Aussehen (Farben, Schriften, Formen) für Add-ons, Karten und Dashboards; Auswahl über das Gerät „Yapaia Design“ | – | [Design-Schemata](docs/design-schemata.md) |
 | **Dashboards** | Fertige Dashboards: Cockpit Sport, Rangieren, Stellplatz, Stellplatz Stil – mit eigenen Karten (Navigation, Radio, Kamera, Nivellierung, Reifendruck, WLAN) | – | [`dashboards/`](dashboards/) |
 | **Geräte** | ESPHome-Konfigurationen für Geräte im Wohnmobil: Heizung, Tür, Schaltausgänge, Bluetooth-Sammler (Batterie, Gas, Reifendruck), Lenkradfernbedienung, Navigationsanzeige, Drehknopf M5 Dial | – | [`devices/esphome/`](devices/esphome/) |
+| **Wasserstand** | Kapazitiver Füllstandssensor für den Wassertank: Leiterplatten-Sonde am Touch-Eingang eines ESP32-S3 (Entwurf) | – | [`devices/waterlevel/`](devices/waterlevel/) |
 
 **Add-ons für Yapaia Go:** Go lässt sich mit Add-ons erweitern, die es aus
 einem Add-on-Marktplatz installiert – nur signierte Pakete, auf Wunsch mit
