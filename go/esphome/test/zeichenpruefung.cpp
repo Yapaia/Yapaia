@@ -26,7 +26,7 @@ namespace sensor { struct Sensor {
   bool has_state() const { return has; }
 }; }
 namespace text_sensor { struct TextSensor { std::string state; }; }
-namespace binary_sensor { struct BinarySensor { bool state = false; }; }
+namespace binary_sensor { struct BinarySensor { bool state = false; bool vorhanden = false; bool has_state() const { return vorhanden; } }; }
 // `switch` ist in C++ ein Schluesselwort; ESPHome nennt den Namensraum
 // deshalb `switch_`. Fuer diese Pruefung zaehlt nur `.state`.
 namespace switch_ { struct Switch { bool state = false; }; }
@@ -205,6 +205,9 @@ static switch_::Switch *waage_erzwingen = &s_erzwingen, *waage_fahrzeug = &s_fah
                        *eta_als_restzeit = &s_restzeit;
 static RealTimeClock *ha_zeit = &s_uhr;
 static binary_sensor::BinarySensor *yapaia_zu_schnell = &s_schnell;
+// Tempomat (Candapter): ohne Zustand = kein Candapter, Anzeige wie bisher.
+static binary_sensor::BinarySensor s_tm_ein, s_tm_regelt;
+static binary_sensor::BinarySensor *tempomat_ein=&s_tm_ein, *tempomat_regelt=&s_tm_regelt;
 static text_sensor::TextSensor *yapaia_anweisung = &s_anweisung,
                                *yapaia_manoever_art = &s_art,
                                *yapaia_fahrzustand = &s_zustand,
@@ -390,7 +393,7 @@ int main() {
     // Stillstand mitten in der Navigation. Mit der Automatik waere hier die
     // Waage erschienen; ohne sie laeuft die Navigation weiter.
     genau("Stillstand an der Ampel: die Navigation bleibt", ampel, 240,240,
-          {"300 m", "0", "16:32"});
+          {"300 m", "0"});
 
     // Und die Gegenprobe: der Schalter oeffnet sie sehr wohl. Ohne diesen
     // Fall waere die Abschaltung auch dann gruen, wenn die Waage GAR NICHT
@@ -623,8 +626,8 @@ int main() {
   // dann die untere Zeile. Die RESTSTRECKE fehlt bewusst -- auf 240 runden
   // Bildpunkten ist kein Platz fuer ein fuenftes Feld, und sie ist von den
   // fuenf das entbehrlichste.
-  genau("volle Fahrt, MESZ", sommer, 240,240,
-        {"1.2 km","87","16:32"});
+  genau("volle Fahrt", sommer, 240,240,
+        {"1.2 km","87"});
 
   // ─── HIER STANDEN FUENF FAELLE ZUM TEMPOLIMIT-SCHILD ────────────────────
   // Ein weisses Verkehrszeichen mit dem Limit, daneben klein die
@@ -646,22 +649,19 @@ int main() {
   // als Zahl erscheint.
   Fall schwer = sommer; schwer.limit_fz = 60; schwer.limit_fz_da = true;
   genau("Fahrzeuggrenze vorhanden: trotzdem keine Zahl", schwer, 240,240,
-        {"1.2 km","87","16:32"});
+        {"1.2 km","87"});
 
   Fall autobahn = sommer;
   autobahn.limit_da = false;
   autobahn.limit_fz = 80; autobahn.limit_fz_da = true;
   autobahn.tempo = 130;
   genau("unbegrenzte Autobahn: nur das eigene Tempo", autobahn, 240,240,
-        {"1.2 km","130","16:32"});
+        {"1.2 km","130"});
 
-  Fall winter = sommer; winter.ankunft = "2026-01-15T14:32:00.000Z";
-  genau("dieselbe Fahrt, MEZ", winter, 240,240,
-        {"1.2 km","87","15:32"});
 
   Fall meter = sommer; meter.mdist = 483;
   genau("Meter, auf 10 gerundet", meter, 240,240,
-        {"480 m","87","16:32"});
+        {"480 m","87"});
 
   // ─── DER ROTE RING STATT DER ZAHL ───────────────────────────────────────
   // Er ist keine Schrift, also sieht ihn `genau` nicht. Geprueft wird die
@@ -717,13 +717,13 @@ int main() {
   // kein Tempo, kein Tempolimit-Schild, keine Reststrecke.
   Fall leer{"x","navigating","turn_left","unknown","unknown",
             0,0,0,0,false,false,false,false,false};
-  genau("nichts bekannt: nichts erfinden", leer, 240,240, {"--","--:--"});
+  genau("nichts bekannt: nichts erfinden", leer, 240,240, {"--"});
 
   // Kein Tempolimit in der Karte -> gar kein Schild. Ein Schild mit "0"
   // waere die Behauptung, hier gelte Tempo 0.
   Fall ohneLimit = sommer; ohneLimit.limit_da = false;
   genau("kein Tempolimit: kein Schild", ohneLimit, 240,240,
-        {"1.2 km","87","16:32"});
+        {"1.2 km","87"});
 
   // ─── DIE SPURLEISTE ─────────────────────────────────────────────────────
   // Der Anweisungstext oben ist weg (gewuenscht), dafuer steht unter der
@@ -793,7 +793,7 @@ int main() {
   // dann bleibt die Route stehen.
   Fall tempo_weg = parkt; tempo_weg.tempo_da = false;
   genau("Tempo unbekannt, aber navigierend: KEINE Wasserwaage", tempo_weg, 240,240,
-        {"1.2 km","16:32"});
+        {"1.2 km"});
 
   // ─── DER GEMELDETE FALL ─────────────────────────────────────────────────
   // Mit Foto: das Geraet zeigte „Kein Wert aus Home Assistant", obwohl die
@@ -826,7 +826,7 @@ int main() {
   // Die Gegenprobe zur Schwelle: knapp darueber laeuft die Navigation weiter.
   Fall rollt = parkt; rollt.tempo = 5.0f;
   genau("ueber der Schwelle: Navigation", rollt, 240,240,
-        {"1.2 km","5","16:32"});
+        {"1.2 km","5"});
 
   Fall ruhe = sommer; ruhe.zustand = "idle";
   genau("idle mit Tempo: Tacho gross, Lage klein", ruhe, 240,240,
@@ -926,82 +926,8 @@ int main() {
         240,240,
         {"L/R +1.5\u00b0", "V/H -0.5\u00b0"});
 
-  // ─── ANKUNFTSZEIT ODER RESTZEIT ─────────────────────────────────────────
-  // Gewuenscht: „Bitte baue einen Schalter in das yaml ein um die eta
-  // zwischen der Ankunftszeit und der verbleibenden Restzeit umzuschalten."
-  //
-  // Die Restzeit wird auf dem Geraet aus DERSELBEN Ankunftszeit gerechnet
-  // (`eta - jetzt`). Deshalb steht in jedem dieser Faelle ein `jetzt` --
-  // ohne das „wann" daneben ist eine Differenz nicht aufzuschreiben.
-  printf("\n── Ankunftszeit oder Restzeit ──\n");
-  {
-    // `sommer` kommt um 14:32:00 UTC an. Alle Faelle unten setzen nur die
-    // Uhrzeit davor unterschiedlich.
-    Fall rest = sommer;
-    rest.restzeit = true;
-    rest.anweisung = "Links";   // kuerzer, damit die Liste lesbar bleibt
-    rest.art = "straight";      // ein Pfeil ohne eigene Texte
-
-    // ─── DIE GEGENPROBE ZUERST ────────────────────────────────────────────
-    // Ohne Schalter bleibt es bei der Uhrzeit. Ein Update darf niemandem
-    // ungefragt die Anzeige umstellen -- und ohne diesen Fall waere nicht
-    // zu unterscheiden, ob der Schalter wirkt oder ob immer die Restzeit
-    // erscheint.
-    Fall uhr = rest; uhr.restzeit = false;
-    uhr.jetzt = "2026-09-15T14:00:00";
-    erwarte("Schalter aus: die Uhrzeit wie bisher", uhr, 320, 240, {"16:32"});
-
-    // 14:00 UTC -> 32 Minuten bis 14:32 UTC.
-    rest.jetzt = "2026-09-15T14:00:00";
-    erwarte("Schalter an: 32 Minuten statt 16:32", rest, 320, 240, {"32 min"});
-
-    // ─── DASSELBE ZIEL, ANDERE ZEITZONE, GLEICHE RESTZEIT ────────────────
-    // Die Uhrzeit haengt an `Europe/Berlin`, die Restzeit an gar keiner
-    // Zeitzone -- eine Differenz zweier Zeitstempel ist ueberall gleich.
-    // Waere die Restzeit versehentlich aus der ORTSZEIT gerechnet, stuende
-    // hier eine um zwei Stunden verschobene Zahl.
-    Fall winter = rest;
-    winter.ankunft = "2026-01-15T14:32:00.000Z";
-    winter.jetzt   = "2026-01-15T14:00:00";
-    erwarte("im Winter dieselben 32 Minuten", winter, 320, 240, {"32 min"});
-
-    // ─── DER FALL, DER DAS RUNDEN VOM ABSCHNEIDEN TRENNT ─────────────────
-    // 32 Minuten und 35 Sekunden. Gerundet sind das 33, abgeschnitten 32.
-    // Ohne diesen Fall waere `(rest_s + 30) / 60` durch `rest_s / 60` zu
-    // ersetzen, ohne dass ein Test es merkt -- alle uebrigen Faelle liegen
-    // auf glatten Minuten, und dort sind beide gleich.
-    //
-    // Gerundet ist richtig: eine Restzeit, die 59 Sekunden vor der Ankunft
-    // „0 min" sagt, ist um eine ganze Minute zu optimistisch.
-    Fall krumm = rest; krumm.jetzt = "2026-09-15T13:59:25";
-    erwarte("32:35 wird zu 33 min, nicht 32", krumm, 320, 240, {"33 min"});
-
-    // Ueber eine Stunde: als h:mm, weil „95 min" niemand im Kopf umrechnet.
-    Fall lange = rest; lange.jetzt = "2026-09-15T12:57:00";
-    erwarte("ueber eine Stunde: 1:35 h", lange, 320, 240, {"1:35 h"});
-
-    // Genau die Grenze. 60 Minuten sind „1:00 h" und nicht „60 min" --
-    // sonst haette die Anzeige zwei Schreibweisen fuer denselben Wert.
-    Fall grenze = rest; grenze.jetzt = "2026-09-15T13:32:00";
-    erwarte("genau eine Stunde: 1:00 h", grenze, 320, 240, {"1:00 h"});
-
-    // ─── DIE BEIDEN RAENDER, AN DENEN ES UNSINNIG WIRD ───────────────────
-    // Unter einer halben Minute: „0 min" saehe aus wie „angekommen".
-    Fall gleich = rest; gleich.jetzt = "2026-09-15T14:31:45";
-    erwarte("kurz davor: „gleich\" statt „0 min\"", gleich, 320, 240, {"gleich"});
-
-    // Und die Ankunft liegt ZURUECK -- es dauert laenger als gedacht. Eine
-    // negative Zahl waere schlicht falsch herum; „-3 min" liest sich wie
-    // drei Minuten frueher.
-    Fall drueber = rest; drueber.jetzt = "2026-09-15T14:35:00";
-    erwarte("Ankunft schon vorbei: kein Minuszeichen", drueber, 320, 240, {"gleich"});
-
-    // Und wenn gar keine Ankunft ankommt, bleibt es bei „--:--" -- in BEIDEN
-    // Modi. Der Schalter darf aus „weiss ich nicht" keine Zahl machen.
-    Fall ohne_eta = rest; ohne_eta.ankunft = "unknown";
-    erwarte("ohne Ankunftszeit: --:-- auch als Restzeit", ohne_eta, 320, 240,
-            {"--:--"});
-  }
+  // Die Ankunft/Restzeit unten rechts gibt es nicht mehr: dort steht seit
+  // November 2026 der Tempomat-Kreis (Candapter).
 
   // ─── DIE BEIDEN SCHALTER ────────────────────────────────────────────────
   // Gewuenscht: einer, der zwischen Libelle und Fahrzeugansicht umschaltet,
@@ -1069,7 +995,7 @@ int main() {
   // ein Schalter, der nichts aendert, weil ohnehin immer die Waage kaeme,
   // waere keiner.
   genau("8 km/h ohne Schalter: Navigation", faehrt, 240,240,
-        {"300 m", "8", "16:32"});
+        {"300 m", "8"});
 
   Fall rangiert = faehrt; rangiert.erzwingen = true;
   genau("8 km/h MIT Schalter: trotzdem die Waage", rangiert, 240,240,
