@@ -147,9 +147,10 @@ substitutions:
   # Wandert die Blase zur ANGEHOBENEN Seite, stimmt es -- wie bei einer
   # echten Libelle. Wandert sie zur anderen, hier auf `-1` stellen.
   #
-  # Die Vorgabe `1` ist am Fahrzeug geprüft (Verfahren von oben, MPU6050 in der
-  # Einbaulage aus diesem Blatt). Wer den Sensor anders einbaut, stellt sie um.
-  neigung_lr_vorzeichen: "1"
+  # Links/rechts am 2026-11-15 im Wohnmobil umgedreht (rechts tief, die Blase
+  # lief nach rechts statt zur hohen linken Seite) -- Einbaulage des MPU6050
+  # im Fahrzeug. Vorne/hinten unveraendert.
+  neigung_lr_vorzeichen: "-1"
   neigung_vh_vorzeichen: "1"
 
   # ─── DIE DIAGNOSE-ANZEIGE ─────────────────────────────────────────────────

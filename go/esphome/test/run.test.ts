@@ -178,22 +178,29 @@ describe('die Wasserwaage laesst sich an EINER Stelle einstellen', () => {
     // von VORNE/HINTEN das gesuchte `-1` -- und die Pruefung war zufrieden.
     //
     // Ein Test, der zwei Dinge zugleich prueft, prueft am Ende eines.
+    // Die Vorgabe ist je Achse verschieden (links/rechts ist seit 2026-11-15
+    // im Wohnmobil `-1`). Geprueft wird deshalb: der JEWEILS ANDERE Wert kommt an,
+    // und mit der Vorgabe steht genau die Vorgabe da.
+    const zeileVon = (text: string, achse: string) =>
+      lambdaRumpf(text).split('\n').find((z) => z.includes(`const float ${achse} =`));
     for (const achse of ['lr', 'vh'] as const) {
+      const treffer = yaml().match(new RegExp(`neigung_${achse}_vorzeichen: "(-?1)"`));
+      expect(treffer, `${achse}: keine Vorgabe gefunden`).not.toBeNull();
+      const vorgabe = treffer![1];
+      const anders = vorgabe === '1' ? '-1' : '1';
       const geaendert = yaml().replace(
-        `neigung_${achse}_vorzeichen: "1"`,
-        `neigung_${achse}_vorzeichen: "-1"`,
+        `neigung_${achse}_vorzeichen: "${vorgabe}"`,
+        `neigung_${achse}_vorzeichen: "${anders}"`,
       );
       expect(geaendert, `${achse}: die Ersetzung selbst hat nicht gegriffen`).not.toBe(yaml());
 
-      const zeile = lambdaRumpf(geaendert)
-        .split('\n')
-        .find((z) => z.includes(`const float ${achse} =`));
+      const zeile = zeileVon(geaendert, achse);
       expect(zeile, `${achse}: die Zeile gibt es nicht mehr`).toBeDefined();
-      expect(zeile, `${achse}: das Vorzeichen kommt nicht an`).toContain('(float) (-1)');
-    }
+      expect(zeile, `${achse}: das Vorzeichen kommt nicht an`).toContain(`(float) (${anders})`);
 
-    // Die Gegenprobe: mit der Vorgabe steht dort kein Minus.
-    expect(lambdaRumpf(yaml())).not.toContain('(float) (-1)');
+      // Die Gegenprobe: mit der Vorgabe steht dort die Vorgabe.
+      expect(zeileVon(yaml(), achse), `${achse}: die Vorgabe kommt nicht an`).toContain(`(float) (${vorgabe})`);
+    }
   });
 
   it('keine Zahl der Wasserwaage steht doppelt im Quelltext', () => {

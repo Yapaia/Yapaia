@@ -237,9 +237,15 @@ function lauf(ueberschreiben, defines, ueberschrift) {
   }
 }
 
+// Die Faelle in zeichenpruefung.cpp rechnen die Neigung mit dem Vorzeichen `1`
+// (Sensor in der Einbaulage des Blatts). Die ausgelieferte Datei hat fuer
+// links/rechts `-1` (Einbaulage im Wohnmobil, 2026-11-15) -- dass das
+// Vorzeichen ankommt, prueft run.test.ts. Hier deshalb fest `1`.
+const NEIGUNG = { neigung_lr_vorzeichen: '1', neigung_vh_vorzeichen: '1' };
+
 function main() {
-  // Erster Lauf: die Konfiguration, wie sie ausgeliefert wird.
-  lauf({}, [], 'Zeichenroutine');
+  // Erster Lauf: die Konfiguration, wie sie ausgeliefert wird (bis auf die Vorzeichen).
+  lauf({ ...NEIGUNG }, [], 'Zeichenroutine');
 
   // ─── ZWEITER LAUF: DIE ERZWUNGENE DIAGNOSE ────────────────────────────────
   // `diagnose: "true"` ist eine Substitution und wird VOR dem Uebersetzen
@@ -248,7 +254,7 @@ function main() {
   // der, den ein Betreiber einschaltet, wenn ohnehin schon etwas nicht
   // stimmt.
   console.log('\n══ Zweiter Lauf: diagnose = true ══\n');
-  lauf({ diagnose: 'true' }, ['-DDIAGNOSE_ERZWUNGEN'], 'Zeichenroutine (Diagnose)');
+  lauf({ ...NEIGUNG, diagnose: 'true' }, ['-DDIAGNOSE_ERZWUNGEN'], 'Zeichenroutine (Diagnose)');
 
   // ─── DRITTER LAUF: OHNE DIE TEMPO-AUTOMATIK ───────────────────────────────
   // `wasserwaage_bei_stillstand: "false"` laesst die Waage nur noch ueber den
@@ -261,7 +267,7 @@ function main() {
   // schlicht nichts.
   console.log('\n══ Dritter Lauf: wasserwaage_bei_stillstand = false ══\n');
   lauf(
-    { wasserwaage_bei_stillstand: 'false' },
+    { ...NEIGUNG, wasserwaage_bei_stillstand: 'false' },
     ['-DNUR_SCHALTER'],
     'Zeichenroutine (nur Schalter)',
   );
