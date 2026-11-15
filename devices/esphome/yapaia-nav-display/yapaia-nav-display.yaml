@@ -372,17 +372,22 @@ light:
     id: backlight
     restore_mode: ALWAYS_ON
 
+# Abgestimmt auf das Kombiinstrument des Ducato: dort leuchtet alles rot,
+# die Anzeige sitzt mitten im Drehzahlmesser. Schrift deshalb im selben Rot
+# (nicht weiss), Gedaempftes dunkler rot. Weil Rot damit „normal“ ist, warnt
+# die Anzeige in Bernstein -- wie die gelbe Schrift im Display des Tachos.
+# Der Pfeil bleibt blau (Abbiegefarbe), „gut“ gruen wie die Kontrollleuchten.
 color:
   - id: c_hintergrund
     hex: "0B0F14"
   - id: c_text
-    hex: "F2F5F7"
+    hex: "FF3A24"
   - id: c_gedaempft
-    hex: "8A949E"
+    hex: "A3281A"
   - id: c_pfeil
     hex: "4EA1FF"
   - id: c_warnung
-    hex: "FF4D4D"
+    hex: "FFC000"
   - id: c_gut
     hex: "3DDC84"
   - id: c_schild
