@@ -27,7 +27,7 @@ enum class TextAlign { TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER,
 namespace sensor { struct Sensor { bool has = true; float state = 0;
   bool has_state() const { return has; } }; }
 namespace text_sensor { struct TextSensor { std::string state; }; }
-namespace binary_sensor { struct BinarySensor { bool state = false; }; }
+namespace binary_sensor { struct BinarySensor { bool state = false; bool vorhanden = false; bool has_state() const { return vorhanden; } }; }
 namespace switch_ { struct Switch { bool state = false; }; }
 
 struct ESPTime {
@@ -126,6 +126,9 @@ static switch_::Switch *waage_erzwingen=&s_erzwingen,*waage_fahrzeug=&s_fahrzeug
   *eta_als_restzeit=&s_restzeit;
 static RealTimeClock *ha_zeit=&s_uhr;
 static binary_sensor::BinarySensor *yapaia_zu_schnell=&s_schnell;
+// Tempomat (Candapter): ohne Zustand = kein Candapter, Anzeige wie bisher.
+static binary_sensor::BinarySensor s_tm_ein, s_tm_regelt;
+static binary_sensor::BinarySensor *tempomat_ein=&s_tm_ein, *tempomat_regelt=&s_tm_regelt;
 static text_sensor::TextSensor *yapaia_anweisung=&s_anweisung,*yapaia_manoever_art=&s_art,
   *yapaia_fahrzustand=&s_zustand,*yapaia_ankunft=&s_ankunft,*yapaia_kreisel=&s_kreisel,*yapaia_spuren=&s_spuren,*yapaia_sprache=&s_sprache;
 

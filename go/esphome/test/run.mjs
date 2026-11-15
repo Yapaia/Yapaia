@@ -92,7 +92,7 @@ export const ZEIGER_IDS = new Set([
   'font_xl', 'font_l', 'font_m', 'font_s',
   'yapaia_tempo', 'yapaia_tempolimit', 'yapaia_tempolimit_fahrzeug',
   'yapaia_manoever_entfernung',
-  'yapaia_reststrecke', 'yapaia_zu_schnell', 'yapaia_anweisung',
+  'yapaia_reststrecke', 'yapaia_zu_schnell', 'tempomat_ein', 'tempomat_regelt', 'yapaia_anweisung',
   'yapaia_manoever_art', 'yapaia_fahrzustand', 'yapaia_ankunft',
   // Der Kreisel: Ausfahrt und Drehung als ein Text.
   'yapaia_kreisel',

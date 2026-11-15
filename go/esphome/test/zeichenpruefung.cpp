@@ -26,7 +26,7 @@ namespace sensor { struct Sensor {
   bool has_state() const { return has; }
 }; }
 namespace text_sensor { struct TextSensor { std::string state; }; }
-namespace binary_sensor { struct BinarySensor { bool state = false; }; }
+namespace binary_sensor { struct BinarySensor { bool state = false; bool vorhanden = false; bool has_state() const { return vorhanden; } }; }
 // `switch` ist in C++ ein Schluesselwort; ESPHome nennt den Namensraum
 // deshalb `switch_`. Fuer diese Pruefung zaehlt nur `.state`.
 namespace switch_ { struct Switch { bool state = false; }; }
@@ -205,6 +205,9 @@ static switch_::Switch *waage_erzwingen = &s_erzwingen, *waage_fahrzeug = &s_fah
                        *eta_als_restzeit = &s_restzeit;
 static RealTimeClock *ha_zeit = &s_uhr;
 static binary_sensor::BinarySensor *yapaia_zu_schnell = &s_schnell;
+// Tempomat (Candapter): ohne Zustand = kein Candapter, Anzeige wie bisher.
+static binary_sensor::BinarySensor s_tm_ein, s_tm_regelt;
+static binary_sensor::BinarySensor *tempomat_ein=&s_tm_ein, *tempomat_regelt=&s_tm_regelt;
 static text_sensor::TextSensor *yapaia_anweisung = &s_anweisung,
                                *yapaia_manoever_art = &s_art,
                                *yapaia_fahrzustand = &s_zustand,

@@ -69,6 +69,13 @@ substitutions:
   entity_praefix: sensor.yapaia_go
   entity_praefix_binaer: binary_sensor.yapaia_go
 
+  # ─── TEMPOMAT (aus dem CAN-Adapter „Candapter“) ───────────────────────────
+  # Ist der Tempomat ein, steht unten rechts statt der Ankunft ein gruener
+  # Kreis: offen = ein, gefuellt = er regelt. Gibt es die Entitaeten nicht
+  # (kein Candapter), bleibt alles wie bisher.
+  tempomat_ein_entity: binary_sensor.candapter_sniffer_fund_tempomat_ein
+  tempomat_regelt_entity: binary_sensor.candapter_sniffer_fund_tempomat_regelt
+
   # ─── DIE DIGITALE WASSERWAAGE ─────────────────────────────────────────────
   # Beim Parken wechselt die Anzeige auf eine runde Libelle: steht das
   # Wohnmobil gerade? Alles, was dafuer einzustellen ist, steht HIER -- die
@@ -316,6 +323,12 @@ binary_sensor:
   - platform: homeassistant
     id: yapaia_zu_schnell
     entity_id: ${entity_praefix_binaer}_zu_schnell
+  - platform: homeassistant
+    id: tempomat_ein
+    entity_id: ${tempomat_ein_entity}
+  - platform: homeassistant
+    id: tempomat_regelt
+    entity_id: ${tempomat_regelt_entity}
 
 text_sensor:
   # Der Anweisungstext, bereits auf Deutsch formuliert ("Links abbiegen auf B27").
@@ -1285,6 +1298,24 @@ display:
         it.printf(cx, uy, id(font_xl),
                   zu_schnell ? id(c_warnung) : id(c_text), TextAlign::CENTER,
                   "%d", (int) (id(yapaia_tempo).state + 0.5f));
+      }
+
+      // ─── TEMPOMAT STATT ANKUNFT ─────────────────────────────────────────
+      // Ist der Tempomat ein, steht hier ein gruener Kreis statt der Ankunft:
+      // offen = eingeschaltet, gefuellt = er regelt. Ohne Tempomat (oder ohne
+      // Candapter, dann hat der Sensor keinen Zustand) bleibt die Ankunft.
+      const bool tm_ein = id(tempomat_ein).has_state() && id(tempomat_ein).state;
+      if (tm_ein) {
+        const int kr = 9;
+        const int kx = cx + hb - 2 - kr;
+        if (id(tempomat_regelt).has_state() && id(tempomat_regelt).state) {
+          it.filled_circle(kx, uy, kr, id(c_gut));
+        } else {
+          it.circle(kx, uy, kr, id(c_gut));
+          it.circle(kx, uy, kr - 1, id(c_gut));
+        }
+        randwarnung();
+        return;
       }
 
       // Yapaia liefert die Ankunft als ISO 8601 in UTC. Hier wird sie
