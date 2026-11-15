@@ -164,7 +164,7 @@ struct Display {
 using namespace esphome;
 
 // ─── Die Objekte, die `id(...)` im echten Lambda liefert ────────────────────
-static BaseFont f_xl{46}, f_l{34}, f_m{19}, f_s{14};
+static BaseFont f_xxl{56}, f_xl{46}, f_l{34}, f_m{19}, f_s{14};
 static Color k_hintergrund{0x10,0x14,0x18}, k_text{0xF2,0xF5,0xF7},
              k_gedaempft{0x8A,0x94,0x9E}, k_pfeil{0x4E,0xA1,0xFF},
              k_warnung{0xFF,0x4D,0x4D}, k_gut{0x3D,0xDC,0x84}, k_schild{255,255,255};
@@ -172,7 +172,7 @@ static sensor::Sensor s_tempo, s_limit, s_limit_fz, s_mdist, s_rest;
 // Die digitale Wasserwaage: Neigung links/rechts und vorne/hinten.
 static sensor::Sensor s_lr, s_vh;
 static binary_sensor::BinarySensor s_schnell;
-static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel, s_spuren, s_sprache;
+static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel, s_spuren, s_sprache, s_sonne;
 // Die beiden Schalter: Waage erzwingen, und Fahrzeug statt Libelle.
 static switch_::Switch s_erzwingen, s_fahrzeug;
 // Und der dritte: Restzeit statt Ankunftszeit.
@@ -189,12 +189,18 @@ static RealTimeClock s_uhr;
 // OBJEKT abbildete — damit `id(x).state` übersetzt. Genau dadurch übersetzte
 // auch `hilfsfunktion(id(x))`, was auf dem Gerät scheitert. Eine Prüfung, die
 // eine Annahme nachbaut statt der Wirklichkeit, prüft die Annahme.
-static BaseFont *font_xl = &f_xl, *font_l = &f_l, *font_m = &f_m, *font_s = &f_s;
+static BaseFont *font_xxl = &f_xxl, *font_xl = &f_xl, *font_l = &f_l, *font_m = &f_m, *font_s = &f_s;
 
 // Farben kommen aus `color:` und sind WERTE (`cg.variable`), keine Zeiger.
 static Color &c_hintergrund = k_hintergrund, &c_text = k_text,
              &c_gedaempft = k_gedaempft, &c_pfeil = k_pfeil,
              &c_warnung = k_warnung, &c_gut = k_gut, &c_schild = k_schild;
+// Tag-/Nacht-Farben: die Zeichenroutine kopiert sie je Bild nach c_text usw.
+// Tagfarben = die bisherigen Werte, damit alle Faelle unten unveraendert gelten.
+static Color k_text_tag{0xF2,0xF5,0xF7}, k_gedaempft_tag = k_gedaempft, k_warnung_tag{0xFF,0x4D,0x4D},
+             k_text_nacht{0xFF,0x3A,0x24}, k_gedaempft_nacht{0xA3,0x28,0x1A}, k_warnung_nacht{0xFF,0xC0,0x00};
+static Color &c_text_tag = k_text_tag, &c_gedaempft_tag = k_gedaempft_tag, &c_warnung_tag = k_warnung_tag,
+             &c_text_nacht = k_text_nacht, &c_gedaempft_nacht = k_gedaempft_nacht, &c_warnung_nacht = k_warnung_nacht;
 
 static sensor::Sensor *yapaia_tempo = &s_tempo, *yapaia_tempolimit = &s_limit,
                       *yapaia_tempolimit_fahrzeug = &s_limit_fz,
@@ -215,7 +221,8 @@ static text_sensor::TextSensor *yapaia_anweisung = &s_anweisung,
                                *yapaia_kreisel = &s_kreisel,
                                *yapaia_spuren = &s_spuren,
                                // Sprache von Go ("de"/"en"): Texte der Anzeige
-                               *yapaia_sprache = &s_sprache;
+                               *yapaia_sprache = &s_sprache,
+                               *sonne = &s_sonne;
 
 static void zeichne(Display &it) {
 #include "lambda_body.inc"  // wird von run.mjs erzeugt

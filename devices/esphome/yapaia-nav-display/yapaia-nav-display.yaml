@@ -350,6 +350,14 @@ text_sensor:
   # (oder etwas anderes als "en"), bleibt es Deutsch. Bewusst direkt der Zustand
   # und keine globale Variable: weniger Zustand, der auseinanderlaufen kann.
   # Englische Anzeigetexte nur in ASCII.
+  # Tag oder Nacht fuer die Farben: `above_horizon` / `below_horizon`.
+  # Kommt nichts an, bleibt es bei den Tagfarben.
+  - platform: homeassistant
+    id: sonne
+    entity_id: sun.sun
+    on_value:
+      then:
+        - component.update: anzeige
   - platform: homeassistant
     id: yapaia_sprache
     entity_id: ${entity_praefix}_sprache
@@ -372,6 +380,13 @@ light:
     id: backlight
     restore_mode: ALWAYS_ON
 
+# TAG UND NACHT: Nachts (Sonne unter dem Horizont, `sun.sun`) ist die
+# Schrift rot wie das Kombiinstrument des Ducato -- die Anzeige sitzt mitten
+# im Drehzahlmesser --, Gedaempftes dunkler rot, und gewarnt wird in
+# Bernstein (wie die gelbe Schrift im Tacho-Display), weil Rot dann „normal“
+# ist. Tagsueber ist weisse Schrift besser lesbar, gewarnt wird rot.
+# `c_text`, `c_gedaempft` und `c_warnung` setzt die Zeichenroutine bei jedem
+# Bild aus den Tag-/Nacht-Farben; der Pfeil bleibt immer blau, „gut“ gruen.
 color:
   - id: c_hintergrund
     hex: "0B0F14"
@@ -379,10 +394,22 @@ color:
     hex: "F2F5F7"
   - id: c_gedaempft
     hex: "8A949E"
-  - id: c_pfeil
-    hex: "4EA1FF"
   - id: c_warnung
     hex: "FF4D4D"
+  - id: c_text_tag
+    hex: "F2F5F7"
+  - id: c_gedaempft_tag
+    hex: "8A949E"
+  - id: c_warnung_tag
+    hex: "FF4D4D"
+  - id: c_text_nacht
+    hex: "FF3A24"
+  - id: c_gedaempft_nacht
+    hex: "A3281A"
+  - id: c_warnung_nacht
+    hex: "FFC000"
+  - id: c_pfeil
+    hex: "4EA1FF"
   - id: c_gut
     hex: "3DDC84"
   - id: c_schild
@@ -397,6 +424,11 @@ color:
 # Kleiner als auf einem eckigen Panel: 240 runde Bildpunkte sind wenig, und
 # jede Schriftgroesse kostet auf dem C3 zusaetzlich Arbeitsspeicher.
 font:
+  # Nur fuer die Entfernung zum Manoever: wenige Zeichen, darum klein im Flash.
+  - file: "gfonts://Roboto@700"
+    id: font_xxl
+    size: 50
+    glyphs: "0123456789.,- kmM"
   - file: "gfonts://Roboto@700"
     id: font_xl
     size: 40
@@ -481,6 +513,12 @@ display:
       // 8 Bildpunkte Rand: die Fassung des Moduls verdeckt den aeussersten
       // Ring, und Buchstaben genau auf der Kante sind schlecht zu lesen.
       const int r = (rund ? std::min(B, H) / 2 : std::min(B, H) / 2) - 8;
+
+      // Tag/Nacht-Farben fuer dieses Bild (siehe `color:`).
+      const bool nacht = id(sonne).state == "below_horizon";
+      id(c_text) = nacht ? id(c_text_nacht) : id(c_text_tag);
+      id(c_gedaempft) = nacht ? id(c_gedaempft_nacht) : id(c_gedaempft_tag);
+      id(c_warnung) = nacht ? id(c_warnung_nacht) : id(c_warnung_tag);
 
       auto halbbreite = [&](int y) -> int {
         if (!rund) return B / 2 - 6;
@@ -983,8 +1021,9 @@ display:
         return art.find(teil) != std::string::npos;
       };
 
-      // Etwas hoeher als frueher (41 %): mehr Platz fuer die Spurleiste.
-      const int py = cy - (r * 50) / 100;
+      // Weiter oben (frueher 41 %, dann 50 %): Platz fuer die groessere
+      // Entfernung darunter und die Spurleiste.
+      const int py = cy - (r * 58) / 100;
       // Die Kantenlaenge kommt aus `r`, also aus der KLEINEREN Seite. Damit
       // passt der Pfeil in jedem Seitenverhaeltnis; eine zusaetzliche
       // Begrenzung auf die Halbbreite wäre wirkungslos.
@@ -1128,17 +1167,18 @@ display:
       // Unter 1000 m in Metern, darueber in Kilometern. Auf 10 m gerundet:
       // "483 m" taeuscht eine Genauigkeit vor, die GPS nicht hat, und die
       // letzte Ziffer flackerte im Sekundentakt.
-      const int dy_ = cy + (r * 6) / 100;
+      // Etwas hoeher als frueher (+6 %) und in der groesseren Schrift.
+      const int dy_ = cy - (r * 1) / 100;
       if (hat(id(yapaia_manoever_entfernung))) {
         const float m = id(yapaia_manoever_entfernung).state;
         if (m >= 1000.0f) {
-          it.printf(cx, dy_, id(font_xl), id(c_text), TextAlign::CENTER, "%.1f km", m / 1000.0f);
+          it.printf(cx, dy_, id(font_xxl), id(c_text), TextAlign::CENTER, "%.1f km", m / 1000.0f);
         } else {
-          it.printf(cx, dy_, id(font_xl), id(c_text), TextAlign::CENTER,
+          it.printf(cx, dy_, id(font_xxl), id(c_text), TextAlign::CENTER,
                     "%d m", ((int) (m / 10.0f + 0.5f)) * 10);
         }
       } else {
-        it.print(cx, dy_, id(font_xl), id(c_gedaempft), TextAlign::CENTER, "--");
+        it.print(cx, dy_, id(font_xxl), id(c_gedaempft), TextAlign::CENTER, "--");
       }
 
       // ══ Darunter: die Spuren ═══════════════════════════════════════════
