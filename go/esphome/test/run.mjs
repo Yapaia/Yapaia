@@ -89,7 +89,7 @@ export function substitutionen(text) {
  * Komponenten einen Zeiger (`cg.new_Pvariable`). Deshalb zwei Listen.
  */
 export const ZEIGER_IDS = new Set([
-  'font_xl', 'font_l', 'font_m', 'font_s',
+  'font_xxl', 'font_xl', 'font_l', 'font_m', 'font_s',
   'yapaia_tempo', 'yapaia_tempolimit', 'yapaia_tempolimit_fahrzeug',
   'yapaia_manoever_entfernung',
   'yapaia_reststrecke', 'yapaia_zu_schnell', 'tempomat_ein', 'tempomat_regelt', 'yapaia_anweisung',
@@ -105,11 +105,15 @@ export const ZEIGER_IDS = new Set([
   'eta_als_restzeit', 'ha_zeit',
   // Die Sprache der Anzeige ("de" / "en").
   'yapaia_sprache',
+  // Tag oder Nacht fuer die Farben (sun.sun).
+  'sonne',
 ]);
 
 export const WERT_IDS = new Set([
   'c_hintergrund', 'c_text', 'c_gedaempft', 'c_pfeil', 'c_warnung', 'c_gut',
   'c_schild',
+  'c_text_tag', 'c_gedaempft_tag', 'c_warnung_tag',
+  'c_text_nacht', 'c_gedaempft_nacht', 'c_warnung_nacht',
 ]);
 
 /**

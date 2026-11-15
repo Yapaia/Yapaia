@@ -108,17 +108,19 @@ struct Display {
 } // namespace esphome
 using namespace esphome;
 
-static BaseFont f_xl{46}, f_l{34}, f_m{19}, f_s{14};
+static BaseFont f_xxl{56}, f_xl{46}, f_l{34}, f_m{19}, f_s{14};
 static Color k_h{0,0,0}, k_t{255,255,255}, k_g{128,128,128}, k_p{0,0,255},
              k_w{255,0,0}, k_gut{0,255,0}, k_s{255,255,255};
 static sensor::Sensor s_tempo, s_limit, s_limit_fz, s_mdist, s_rest, s_lr, s_vh;
 static binary_sensor::BinarySensor s_schnell;
-static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel, s_spuren, s_sprache;
+static text_sensor::TextSensor s_anweisung, s_art, s_zustand, s_ankunft, s_kreisel, s_spuren, s_sprache, s_sonne;
 static switch_::Switch s_erzwingen, s_fahrzeug, s_restzeit;
 static RealTimeClock s_uhr;
-static BaseFont *font_xl=&f_xl,*font_l=&f_l,*font_m=&f_m,*font_s=&f_s;
+static BaseFont *font_xxl=&f_xxl,*font_xl=&f_xl,*font_l=&f_l,*font_m=&f_m,*font_s=&f_s;
 static Color &c_hintergrund=k_h,&c_text=k_t,&c_gedaempft=k_g,&c_pfeil=k_p,
              &c_warnung=k_w,&c_gut=k_gut,&c_schild=k_s;
+static Color k_t_tag=k_t,k_g_tag=k_g,k_w_tag=k_w,k_t_n{255,58,36},k_g_n{163,40,26},k_w_n{255,192,0};
+static Color &c_text_tag=k_t_tag,&c_gedaempft_tag=k_g_tag,&c_warnung_tag=k_w_tag,&c_text_nacht=k_t_n,&c_gedaempft_nacht=k_g_n,&c_warnung_nacht=k_w_n;
 static sensor::Sensor *yapaia_tempo=&s_tempo,*yapaia_tempolimit=&s_limit,
   *yapaia_tempolimit_fahrzeug=&s_limit_fz,*yapaia_manoever_entfernung=&s_mdist,
   *yapaia_reststrecke=&s_rest,*neigung_lr=&s_lr,*neigung_vh=&s_vh;
@@ -130,7 +132,7 @@ static binary_sensor::BinarySensor *yapaia_zu_schnell=&s_schnell;
 static binary_sensor::BinarySensor s_tm_ein, s_tm_regelt;
 static binary_sensor::BinarySensor *tempomat_ein=&s_tm_ein, *tempomat_regelt=&s_tm_regelt;
 static text_sensor::TextSensor *yapaia_anweisung=&s_anweisung,*yapaia_manoever_art=&s_art,
-  *yapaia_fahrzustand=&s_zustand,*yapaia_ankunft=&s_ankunft,*yapaia_kreisel=&s_kreisel,*yapaia_spuren=&s_spuren,*yapaia_sprache=&s_sprache;
+  *yapaia_fahrzustand=&s_zustand,*yapaia_ankunft=&s_ankunft,*yapaia_kreisel=&s_kreisel,*yapaia_spuren=&s_spuren,*yapaia_sprache=&s_sprache,*sonne=&s_sonne;
 
 static void zeichne(Display &it) {
 #include "lambda_body.inc"

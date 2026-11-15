@@ -86,7 +86,8 @@ Im Einzelnen:
 | Kreisel | Attribut `anweisung_kreisel` von `sensor.yapaia_go_anweisung` (`"2\|90"` = 2. Ausfahrt, 90° nach rechts) | der Bogen, den man fährt (Viertel = rechts, Hälfte = geradeaus, drei Viertel = links), der Pfeil in Richtung der Ausfahrt und ihre Nummer in der Mitte |
 | Entfernung zum Manöver | `sensor.yapaia_go_anweisung_entfernung` | unter 1 km in Metern, auf 10 m gerundet |
 | Spuren | Attribut `anweisung_spuren` von `sensor.yapaia_go_anweisung` | ab 1500 m vor dem Manöver, die beste Spur hell; ohne Spurdaten an Teilung/Auf-/Ausfahrt eine vereinfachte Zweierleiste. Der Anweisungstext wird nicht gezeigt. |
-| Tempo | `sensor.yapaia_go_tempo` | bernsteinfarben, wenn `binary_sensor.yapaia_go_zu_schnell` an ist (die normale Schrift ist rot wie das Kombiinstrument) |
+| Tempo | `sensor.yapaia_go_tempo` | in Warnfarbe, wenn `binary_sensor.yapaia_go_zu_schnell` an ist (tags rot, nachts Bernstein) |
+| Tag/Nacht | `sun.sun` | tags weiße Schrift, nachts rot wie das Ducato-Kombiinstrument |
 | Tempolimit | `sensor.yapaia_go_tempolimit` | als rundes Schild — **nur**, wenn die Karte eines kennt |
 | Tempomat | `binary_sensor.candapter_sniffer_fund_tempomat_ein` / `…_regelt` (CAN-Adapter, Repo Yapaia/Candapter) | grüner Kreis unten rechts: offen = ein, gefüllt = regelt; aus oder ohne Adapter = leer. Bis November 2026 stand hier die Ankunftszeit |
 | Fahrzustand | `sensor.yapaia_go_zustand` | ohne Route steht da, warum, statt eines Pfeils ins Nichts |
@@ -207,8 +208,8 @@ während WLAN, API und das übrige Programm weiterlaufen:
 
 Die Konfiguration nutzt deshalb **`8BIT`**. `GRAYSCALE` hat dieselbe
 Puffergröße, kostet aber die Farbe — und die Tempo-Warnung soll farbig sein.
-256 Farben genügen dieser Anzeige: dunkler Grund, roter und gedämpft roter Text
-(passend zum Ducato-Kombiinstrument), ein blauer Pfeil, Bernstein und grün.
+256 Farben genügen dieser Anzeige: dunkler Grund, Text tags weiß und nachts rot
+(passend zum Ducato-Kombiinstrument), ein blauer Pfeil, Warnfarbe und grün.
 
 `go/esphome/test/puffer.test.ts` rechnet die Größe bei jedem Testlauf nach und
 schlägt an, wenn sie über 64 KB steigt.
