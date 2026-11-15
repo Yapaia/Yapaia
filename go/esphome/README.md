@@ -2,7 +2,7 @@
 
 `yapaia-nav-display.yaml` macht aus dem runden 1,28-Zoll-Modul ein
 Navigationsinstrument fürs Armaturenbrett: nächstes Manöver mit Pfeil und
-Entfernung, Tempo gegen Tempolimit, Ankunftszeit.
+Entfernung, Tempo gegen Tempolimit, Tempomat.
 
 ## Das Board — und warum das wichtig ist
 
@@ -65,7 +65,7 @@ Die Anzeigetexte sind zweisprachig (Deutsch/Englisch) und folgen der Sprache aus
      │       └────┘            │
      │        1,2 km           │     ← Entfernung, groß
      │   [↑][↑] ↗  ↗           │     ← Spuren ab 1500 m, die beste hell
-      ╲      98     16:32     ╱      ← Tempo · Ankunft
+      ╲      98        ●      ╱      ← Tempo · Tempomat
         ╰───────────────────╯
 ```
 
@@ -88,16 +88,10 @@ Im Einzelnen:
 | Spuren | Attribut `anweisung_spuren` von `sensor.yapaia_go_anweisung` | ab 1500 m vor dem Manöver, die beste Spur hell; ohne Spurdaten an Teilung/Auf-/Ausfahrt eine vereinfachte Zweierleiste. Der Anweisungstext wird nicht gezeigt. |
 | Tempo | `sensor.yapaia_go_tempo` | rot, wenn `binary_sensor.yapaia_go_zu_schnell` an ist |
 | Tempolimit | `sensor.yapaia_go_tempolimit` | als rundes Schild — **nur**, wenn die Karte eines kennt |
-| Ankunftszeit | `sensor.yapaia_go_ankunft` | aus UTC in Ihre Zeitzone **gerechnet** |
+| Tempomat | `binary_sensor.candapter_sniffer_fund_tempomat_ein` / `…_regelt` (CAN-Adapter, Repo Yapaia/Candapter) | grüner Kreis unten rechts: offen = ein, gefüllt = regelt; aus oder ohne Adapter = leer. Bis November 2026 stand hier die Ankunftszeit |
 | Fahrzustand | `sensor.yapaia_go_zustand` | ohne Route steht da, warum, statt eines Pfeils ins Nichts |
 
-Zwei Besonderheiten:
-
-**Die Ankunftszeit wird gerechnet, nicht abgeschnitten.** Yapaia liefert sie
-als ISO 8601 in UTC (`…Z`). Die
-Zeichen 12–16 herauszuschneiden wäre kürzer und im Sommer **zwei Stunden
-falsch** — ohne jede Fehlermeldung. Deshalb steht die Zeitzone oben in den
-`substitutions` und muss stimmen.
+Eine Besonderheit:
 
 **Ein unbekannter Wert wird nicht angezeigt.** Home Assistant schickt für
 „weiß ich nicht" `NaN`. Ungeprüft gedruckt stünde da `nan` oder
@@ -302,10 +296,10 @@ Yapaia die Entitäten noch nicht. Prüfen Sie, ob das Add-on läuft und unter
 *Einstellungen → Geräte & Dienste* das Gerät „Yapaia Go" in der Integration
 „Yapaia" eingerichtet ist („Yapaia Go gefunden" bestätigen).
 
-### Die Waage: zwei Ansichten und drei Schalter
+### Die Waage: zwei Ansichten und zwei Schalter
 
 Beim Parken wechselt die Anzeige auf eine Wasserwaage. Dafür gibt es zwei
-Darstellungen und drei Schalter — alle erscheinen in Home Assistant als
+Darstellungen und zwei Schalter — alle erscheinen in Home Assistant als
 gewöhnliche Schalter und lassen sich damit auch aus einer **Automatisierung**
 heraus stellen.
 
@@ -313,29 +307,6 @@ heraus stellen.
 |---|---|
 | **Waage als Fahrzeug** | schaltet zwischen der **Libelle** (Blase im Kreis) und der **Fahrzeugansicht** (von der Seite und von hinten, mit Millimetern) um |
 | **Waage erzwingen** | öffnet die Waage **unabhängig vom Tempo** |
-| **Restzeit statt Ankunft** | zeigt unten rechts die **verbleibende Fahrzeit** (`32 min`, `1:35 h`, `gleich`) statt der **Ankunftszeit** (`16:32`) |
-
-#### „Restzeit statt Ankunft"
-
-Gedacht für den Vergleich mit dem Dashboard: Home Assistant zeigt
-`sensor.yapaia_go_ankunft` als Countdown an („in 13 Minuten"), weil der Sensor ein
-Zeitstempel ist, das Display normalerweise eine Uhrzeit. Mit dem Schalter zeigen
-beide dieselbe Größe.
-
-Die Restzeit wird dabei **auf dem Gerät aus derselben Ankunftszeit gerechnet**
-(`eta − jetzt`) und nicht als eigener Sensor geholt. Das hat drei Gründe:
-
-- Es gibt in Home Assistant gar keinen solchen Sensor — nur die Ankunftszeit
-  (`sensor.yapaia_go_ankunft`) und den Restweg (`sensor.yapaia_go_restweg`).
-- Zwei getrennt aktualisierte Sensoren stünden zwangsläufig irgendwann
-  verschieden. Abgeleitet ist ein Widerspruch unmöglich.
-- Das Display hat eine eigene Uhr (aus Home Assistant), die Anzeige läuft also
-  auch zwischen zwei Meldungen weiter.
-
-Angezeigt wird auf volle Minuten gerundet — die Ankunftszeit verschiebt sich bei jeder
-Meldung um ein paar Sekunden, und sekundengenau würde die letzte Ziffer
-dauernd zappeln. Dasselbe Argument wie bei der auf zehn Meter gerundeten
-Entfernung zur nächsten Abbiegung.
 
 #### Die Fahrzeugansicht
 

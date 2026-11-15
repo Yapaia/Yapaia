@@ -1,7 +1,7 @@
 # ─── Yapaia Go auf dem ESP32-2424S012 ───────────────────────────────────────
 #
 # Ein Navigationsinstrument fuer das Armaturenbrett: naechstes Manoever mit
-# Pfeil und Entfernung, Tempo gegen Tempolimit, Ankunftszeit.
+# Pfeil und Entfernung, Tempo gegen Tempolimit, Tempomat (Candapter).
 #
 # Gebaut fuer das **ESP32-2424S012** — das runde 1,28-Zoll-Modul mit 240x240
 # Bildpunkten. Wichtig, weil oft anders angenommen: darauf sitzt ein
@@ -46,9 +46,8 @@ substitutions:
   anzeigename: "Yapaia Navigationsanzeige"
 
   # ─── DIE ZEITZONE ─────────────────────────────────────────────────────────
-  # Wird gebraucht: Yapaia liefert die Ankunftszeit als ISO-8601 in UTC (`…Z`).
-  # Ohne richtige Zeitzone zeigt die Anzeige im Sommer zwei Stunden zu früh,
-  # ohne Fehlermeldung.
+  # Fuer die Uhr des Geraets (die Ankunftszeit zeigt die Anzeige seit dem
+  # Tempomat-Kreis nicht mehr; die Uhr bleibt fuer kuenftige Anzeigen).
   zeitzone: Europe/Berlin
 
   # ─── RUNDES ODER ECKIGES PANEL ────────────────────────────────────────────
@@ -70,9 +69,9 @@ substitutions:
   entity_praefix_binaer: binary_sensor.yapaia_go
 
   # ─── TEMPOMAT (aus dem CAN-Adapter „Candapter“) ───────────────────────────
-  # Ist der Tempomat ein, steht unten rechts statt der Ankunft ein gruener
-  # Kreis: offen = ein, gefuellt = er regelt. Gibt es die Entitaeten nicht
-  # (kein Candapter), bleibt alles wie bisher.
+  # Unten rechts steht ein gruener Kreis, solange der Tempomat ein ist:
+  # offen = ein, gefuellt = er regelt. Gibt es die Entitaeten nicht (kein
+  # Candapter), bleibt die Stelle leer.
   tempomat_ein_entity: binary_sensor.candapter_sniffer_fund_tempomat_ein
   tempomat_regelt_entity: binary_sensor.candapter_sniffer_fund_tempomat_regelt
 
@@ -305,19 +304,6 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
-  # ─── ANKUNFTSZEIT ODER RESTZEIT ───────────────────────────────────────────
-  # Schalter für die Anzeige der Ankunft: Uhrzeit oder verbleibende Restzeit.
-  # Beide Anzeigen lesen denselben Wert (`sensor.yapaia_eta`); Home Assistant
-  # zeigt ihn wegen `device_class: timestamp` als Countdown („in 13 Minuten"),
-  # das Display zeigt eine Uhrzeit. Mit diesem Schalter wird beides vergleichbar.
-  #
-  # AUS ist die Uhrzeit.
-  - platform: template
-    name: "Restzeit statt Ankunft"
-    id: eta_als_restzeit
-    icon: mdi:timer-sand
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
 
 binary_sensor:
   - platform: homeassistant
@@ -360,10 +346,6 @@ text_sensor:
   - platform: homeassistant
     id: yapaia_fahrzustand
     entity_id: ${entity_praefix}_zustand
-  # ISO 8601 in UTC. Wird unten umgerechnet, nicht abgeschnitten.
-  - platform: homeassistant
-    id: yapaia_ankunft
-    entity_id: ${entity_praefix}_ankunft
   # Sprache der Anzeige, "de" oder "en". Kommt nichts an
   # (oder etwas anderes als "en"), bleibt es Deutsch. Bewusst direkt der Zustand
   # und keine globale Variable: weniger Zustand, der auseinanderlaufen kann.
@@ -1279,7 +1261,7 @@ display:
         }
       }
 
-      // ══ Unten: Tempo und Ankunft ═══════════════════════════════════════
+      // ══ Unten: Tempo und Tempomat ══════════════════════════════════════
       const int uy = cy + (r * 68) / 100;
       const int hb = halbbreite(uy);
 
@@ -1300,89 +1282,21 @@ display:
                   "%d", (int) (id(yapaia_tempo).state + 0.5f));
       }
 
-      // ─── TEMPOMAT STATT ANKUNFT ─────────────────────────────────────────
-      // Ist der Tempomat ein, steht hier ein gruener Kreis statt der Ankunft:
-      // offen = eingeschaltet, gefuellt = er regelt. Ohne Tempomat (oder ohne
-      // Candapter, dann hat der Sensor keinen Zustand) bleibt die Ankunft.
-      const bool tm_ein = id(tempomat_ein).has_state() && id(tempomat_ein).state;
-      if (tm_ein) {
-        const int kr = 9;
-        const int kx = cx + hb - 2 - kr;
+      // ─── TEMPOMAT UNTEN RECHTS ──────────────────────────────────────────
+      // Hier stand frueher die Ankunft/Restzeit; jetzt der Tempomat aus dem
+      // CAN-Adapter: offener gruener Kreis = ein, gefuellter = er regelt.
+      // Aus (oder kein Candapter, dann hat der Sensor keinen Zustand) = leer.
+      if (id(tempomat_ein).has_state() && id(tempomat_ein).state) {
+        // So gross wie die Ziffern des Tempos daneben (font_xl, 40 px), damit
+        // man ihn beim Fahren mit einem Blick erkennt; der offene Ring ist
+        // drei Pixel stark.
+        const int kr = 16;
+        const int kx = cx + hb - 4 - kr;
         if (id(tempomat_regelt).has_state() && id(tempomat_regelt).state) {
           it.filled_circle(kx, uy, kr, id(c_gut));
         } else {
-          it.circle(kx, uy, kr, id(c_gut));
-          it.circle(kx, uy, kr - 1, id(c_gut));
+          for (int d = 0; d < 3; d++) it.circle(kx, uy, kr - d, id(c_gut));
         }
-        randwarnung();
-        return;
-      }
-
-      // Yapaia liefert die Ankunft als ISO 8601 in UTC. Hier wird sie
-      // GERECHNET, nicht abgeschnitten: `14:32Z` ist in Deutschland 16:32,
-      // im Winter 15:32. Ein `substr(11, 5)` waere kuerzer und im Sommer
-      // zwei Stunden falsch.
-      const std::string iso = id(yapaia_ankunft).state;
-      int Y, Mo, D, h, mi, se;
-      if (sscanf(iso.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &Y, &Mo, &D, &h, &mi, &se) == 6) {
-        esphome::ESPTime t{};
-        t.year = Y; t.month = Mo; t.day_of_month = D;
-        t.hour = h; t.minute = mi; t.second = se;
-        // `false`: die Nummer des Tages im Jahr ist oben nicht gesetzt,
-        // gerechnet wird aus dem Datum.
-        t.recalc_timestamp_utc(false);
-        // Kleinere Schrift: das Tempo in der Mitte ist groß,
-        // und bei dreistelligem Tempo kaemen sich die beiden sonst in die
-        // Quere. Die Ankunft ist die Nebenauskunft.
-        if (id(eta_als_restzeit).state) {
-          // ─── DIE RESTZEIT WIRD HIER GERECHNET, NICHT GEHOLT ───────────
-          // Home Assistant hat gar keinen Sensor dafuer -- es gibt
-          // `sensor.yapaia_eta` (Zeitstempel) und
-          // `sensor.yapaia_distance_remaining`, sonst nichts. Einen dritten
-          // anzulegen waere der naheliegende Weg und der schlechtere:
-          //
-          //  1. Er braeuchte ein Add-on-Update. Aus DERSELBEN Ankunftszeit
-          //     gerechnet, wirkt dieser Schalter mit jedem Yapaia, das
-          //     `eta` liefert -- also mit jedem.
-          //
-          //  2. Er koennte der Uhrzeit WIDERSPRECHEN. Zwei Sensoren, die
-          //     getrennt aktualisiert werden, stehen zwangslaeufig mal
-          //     verschieden -- und genau darum geht es hier ja gerade.
-          //     Abgeleitet ist ein Widerspruch unmoeglich.
-          //
-          //  3. Er stuende still zwischen zwei Meldungen. Der ESP hat eine
-          //     eigene Uhr (aus Home Assistant), also laeuft die Anzeige
-          //     weiter, auch wenn gerade nichts ankommt.
-          const int32_t rest_s = (int32_t) (t.timestamp - id(ha_zeit).now().timestamp);
-          if (rest_s < 30) {
-            // Unter einer halben Minute. „0 min" sieht aus wie „angekommen",
-            // und eine negative Zahl -- die Ankunft liegt zurueck, weil es
-            // laenger dauert als gedacht -- waere schlicht falsch herum.
-            it.print(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT, T("gleich", "soon"));
-          } else {
-            // Auf Minuten gerundet, und zwar mit Absicht: `eta` ist ein
-            // Zeitpunkt, der sich bei jeder Meldung um ein paar Sekunden
-            // verschiebt. Sekundengenau gezeigt zappelte die letzte Ziffer
-            // dauernd -- derselbe Grund, aus dem die Entfernung auf zehn
-            // Meter gerundet wird.
-            const int min = (rest_s + 30) / 60;
-            if (min < 60) {
-              it.printf(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT,
-                        "%d min", min);
-            } else {
-              it.printf(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT,
-                        "%d:%02d h", min / 60, min % 60);
-            }
-          }
-        } else {
-          auto lokal = esphome::ESPTime::from_epoch_local(t.timestamp);
-          it.printf(cx + hb - 2, uy, id(font_s), id(c_gut), TextAlign::CENTER_RIGHT,
-                    "%02d:%02d", lokal.hour, lokal.minute);
-        }
-      } else {
-        // "unknown", "unavailable" oder leer -- dann steht hier nichts
-        // Erfundenes.
-        it.print(cx + hb - 2, uy, id(font_s), id(c_gedaempft), TextAlign::CENTER_RIGHT, "--:--");
       }
 
       // Ganz zum Schluss, damit er ueber allem liegt und die Pfeilerkennung
