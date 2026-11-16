@@ -59,6 +59,9 @@ class MainActivity : Activity() {
     private var sitzung: CameraCaptureSession? = null
     private var bilderZaehler = 0
     private var fehlerText: String? = null
+    /** Suchlauf: so viele Auflösungen noch probieren (0 = aus). */
+    private var suchlauf = 0
+    private var schlechteSekunden = 0
 
     private val einstellungen by lazy { getSharedPreferences("wahl", MODE_PRIVATE) }
 
@@ -89,6 +92,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.argb(160, 0, 0, 0))
             addView(knopf(R.string.knopf_kamera) { naechsteKamera() })
             addView(knopf(R.string.knopf_aufloesung) { naechsteGroesse() })
+            addView(knopf(R.string.knopf_suchlauf) { suchlaufStarten() })
             addView(knopf(R.string.knopf_info) {
                 infoRahmen.visibility = if (infoRahmen.visibility == View.VISIBLE) View.GONE else View.VISIBLE
             })
@@ -160,7 +164,7 @@ class MainActivity : Activity() {
         val id = kameras[kameraNr]
         groessen = vorschauGroessen(id)
         val gemerkt = einstellungen.getString("groesse_$id", null)
-        groesseNr = groessen.indexOfFirst { it.toString() == gemerkt }.let { if (it >= 0) it else 0 }
+        groesseNr = groessen.indexOfFirst { it.toString() == gemerkt }.let { if (it >= 0) it else standardGroesse() }
         if (bild.isAvailable) oeffnen() else bild.surfaceTextureListener = texturHorcher
     }
 
@@ -259,21 +263,55 @@ class MainActivity : Activity() {
         oeffnen()
     }
 
+    /**
+     * Ohne gemerkte Wahl: Videonormen zuerst (Cinch-Kameras liefern meist
+     * 720×480 NTSC oder 720×576 PAL), die größte Größe meldet das Radio
+     * zwar, öffnet sie aber nicht (Fehler DEVICE).
+     */
+    private fun standardGroesse(): Int {
+        for (wunsch in listOf("720x480", "720x576", "640x480")) {
+            val i = groessen.indexOfFirst { it.toString() == wunsch }
+            if (i >= 0) return i
+        }
+        return 0
+    }
+
+    private fun suchlaufStarten() {
+        if (groessen.isEmpty()) return
+        suchlauf = groessen.size
+        schlechteSekunden = 0
+        naechsteGroesse()
+    }
+
     /** Jede Sekunde: Bilder pro Sekunde zählen und prüfen, ob das Bild schwarz ist. */
     private val messen = object : Runnable {
         override fun run() {
-            if (fehlerText == null && kameras.isNotEmpty()) {
+            var gut = false
+            if (kameras.isNotEmpty()) {
                 val id = kameras[kameraNr]
                 val richtung = richtung(id)
                 val groesse = groessen.getOrNull(groesseNr)?.let(::text) ?: "?"
                 val fps = bilderZaehler
                 bilderZaehler = 0
-                status.text = when {
+                val text = when {
+                    fehlerText != null -> fehlerText + " · " + groesse
                     fps == 0 -> getString(R.string.status_kein_bild, id, richtung, groesse)
                     istSchwarz() -> getString(R.string.status_schwarz, id, richtung, groesse, fps)
-                    else -> getString(R.string.status_bild, id, richtung, groesse, fps)
+                    else -> { gut = true; getString(R.string.status_bild, id, richtung, groesse, fps) }
+                }
+                status.text = if (suchlauf > 0) getString(R.string.status_suchlauf, suchlauf, text) else text
+            }
+            if (suchlauf > 0) {
+                if (gut) {
+                    suchlauf = 0
+                } else if (++schlechteSekunden >= 3) {
+                    schlechteSekunden = 0
+                    suchlauf--
+                    if (suchlauf > 0) naechsteGroesse()
                 }
             }
+            // naechsteGroesse() hat messen schon neu eingeplant – nur einmal laufen
+            ui.removeCallbacks(this)
             ui.postDelayed(this, 1000)
         }
     }

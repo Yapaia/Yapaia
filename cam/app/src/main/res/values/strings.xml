@@ -3,6 +3,7 @@
     <string name="app_name">Yapaia Cam</string>
     <string name="knopf_kamera">Camera</string>
     <string name="knopf_aufloesung">Resolution</string>
+    <string name="knopf_suchlauf">Auto search</string>
     <string name="knopf_info">Info</string>
     <string name="keine_kamera">No camera found.</string>
     <string name="keine_berechtigung">Camera permission missing – please allow it.</string>
@@ -14,6 +15,7 @@
     <string name="status_bild">Camera %1$s (%2$s) · %3$s · %4$d fps</string>
     <string name="status_schwarz">Camera %1$s (%2$s) · %3$s · %4$d fps · picture is black</string>
     <string name="status_kein_bild">Camera %1$s (%2$s) · %3$s · no frames</string>
+    <string name="status_suchlauf">Searching (%1$d left): %2$s</string>
     <string name="status_oeffne">Opening camera %1$s …</string>
     <string name="fehler_oeffnen">Camera %1$s: error %2$s</string>
     <string name="fehler_getrennt">Camera %1$s was disconnected</string>

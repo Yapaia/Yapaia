@@ -1,5 +1,13 @@
 # Changelog – Yapaia Cam
 
+## 0.1.1
+
+- Startet mit 720×480 (bzw. 720×576/640×480) statt der größten gemeldeten
+  Größe – die öffnet das Radio nicht (Fehler DEVICE).
+- Neuer Knopf „Suchlauf“: probiert alle Auflösungen durch (je 3 s), bis ein
+  Bild kommt.
+- Fehlermeldung nennt die Auflösung.
+
 ## 0.1.0
 
 - Erste Fassung: zeigt die Kameras des Autoradios (Camera2) im Vollbild.
