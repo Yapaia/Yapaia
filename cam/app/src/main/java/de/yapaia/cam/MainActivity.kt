@@ -29,8 +29,10 @@ import android.widget.ScrollView
 import android.widget.TextView
 
 /**
- * Yapaia Cam – zeigt die Kameras des Autoradios (Camera2) und hilft beim
- * Herausfinden, mit welcher Kamera und Auflösung ein Bild kommt.
+ * Yapaia – Vorschau: zeigt die Kameras des Autoradios (Camera2) und hilft beim
+ * Herausfinden, mit welcher Kamera und Auflösung ein Bild kommt. Die Streams
+ * für Home Assistant liefert [YapaiaDienst]; solange die Vorschau offen ist,
+ * pausiert er.
  *
  * Bedienung: „Kamera“ schaltet zur nächsten Kamera, „Auflösung“ zur nächsten
  * Vorschaugröße, „Info“ listet alles, was Android über die Kameras meldet.
@@ -88,6 +90,9 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         manager = getSystemService(CAMERA_SERVICE) as CameraManager
+        // Hintergrunddienst (Kamerastreams für HA) – aus der Activity gestartet
+        // darf er die Kamera auch im Hintergrund benutzen
+        YapaiaDienst.starten(this)
         oberflaecheBauen()
 
         val gelistet = try { manager.cameraIdList.toList() } catch (e: Exception) { emptyList() }
@@ -175,6 +180,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // Die Vorschau braucht die Kamera selbst: Dienst pausieren
+        YapaiaDienst.starten(this, YapaiaDienst.PAUSE)
         faden = HandlerThread("kamera").also { it.start(); hinter = Handler(it.looper) }
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             status.setText(R.string.keine_berechtigung)
@@ -190,6 +197,7 @@ class MainActivity : Activity() {
         faden?.quitSafely()
         faden = null
         hinter = null
+        YapaiaDienst.starten(this, YapaiaDienst.WEITER)
         super.onPause()
     }
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Yapaia Cam</string>
+    <string name="app_name">Yapaia</string>
     <string name="knopf_kamera">Kamera</string>
     <string name="knopf_aufloesung">Auflösung</string>
     <string name="knopf_suchlauf">Suchlauf</string>
@@ -24,11 +24,11 @@
     <string name="info_formate">Formate: %1$s</string>
     <string name="knopf_update">Update</string>
     <string name="update_suche">Suche Update …</string>
-    <string name="update_aktuell">Yapaia Cam %1$s ist aktuell.</string>
+    <string name="update_aktuell">Yapaia %1$s ist aktuell.</string>
     <string name="update_laedt">Lade Version %1$s …</string>
     <string name="update_fehler">Update fehlgeschlagen: %1$s</string>
     <string name="update_adresse">Adresse von Home Assistant (Ordner mit yapaia-cam.apk)</string>
-    <string name="info_kopf">Yapaia Cam %1$s · alte Kamera-Schnittstelle: %2$d Kameras</string>
+    <string name="info_kopf">Yapaia %1$s · alte Kamera-Schnittstelle: %2$d Kameras</string>
     <string name="knopf_senden">Senden</string>
     <string name="diagnose_start">Sende Diagnose …</string>
     <string name="diagnose_fertig">Diagnose gesendet (%1$d Apps).</string>
@@ -36,4 +36,13 @@
     <string name="knopf_eingang">Eingang</string>
     <string name="eingang_n">Eingang %1$d</string>
     <string name="eingang_fehler">Eingang %1$d nicht setzbar (%2$s)</string>
+    <string name="dienst_kanal">Hintergrunddienst</string>
+    <string name="dienst_text">Kamerastreams: http://%1$s:%2$d/</string>
+    <string name="platzhalter_eingang">Eingang %1$d</string>
+    <string name="platzhalter_anderer">Der Wandler zeigt gerade Eingang %1$d</string>
+    <string name="platzhalter_belegt">Kamera von anderer App belegt</string>
+    <string name="platzhalter_pause">Pause (Vorschau am Radio offen)</string>
+    <string name="platzhalter_kein_signal">Kein Signal</string>
+    <string name="platzhalter_warte">Warte auf Bild …</string>
+    <string name="platzhalter_standbild">Standbild von %1$s</string>
 </resources>

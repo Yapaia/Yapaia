@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Yapaia Cam</string>
+    <string name="app_name">Yapaia</string>
     <string name="knopf_kamera">Camera</string>
     <string name="knopf_aufloesung">Resolution</string>
     <string name="knopf_suchlauf">Auto search</string>
@@ -25,11 +25,11 @@
     <string name="info_formate">Formats: %1$s</string>
     <string name="knopf_update">Update</string>
     <string name="update_suche">Looking for an update …</string>
-    <string name="update_aktuell">Yapaia Cam %1$s is up to date.</string>
+    <string name="update_aktuell">Yapaia %1$s is up to date.</string>
     <string name="update_laedt">Downloading version %1$s …</string>
     <string name="update_fehler">Update failed: %1$s</string>
     <string name="update_adresse">Address of Home Assistant (folder with yapaia-cam.apk)</string>
-    <string name="info_kopf">Yapaia Cam %1$s · legacy camera API: %2$d cameras</string>
+    <string name="info_kopf">Yapaia %1$s · legacy camera API: %2$d cameras</string>
     <string name="knopf_senden">Send</string>
     <string name="diagnose_start">Sending diagnostics …</string>
     <string name="diagnose_fertig">Diagnostics sent (%1$d apps).</string>
@@ -37,4 +37,13 @@
     <string name="knopf_eingang">Input</string>
     <string name="eingang_n">input %1$d</string>
     <string name="eingang_fehler">input %1$d not settable (%2$s)</string>
+    <string name="dienst_kanal">Background service</string>
+    <string name="dienst_text">Camera streams: http://%1$s:%2$d/</string>
+    <string name="platzhalter_eingang">Input %1$d</string>
+    <string name="platzhalter_anderer">Converter is showing input %1$d</string>
+    <string name="platzhalter_belegt">Camera in use by another app</string>
+    <string name="platzhalter_pause">Paused (preview open on the radio)</string>
+    <string name="platzhalter_kein_signal">No signal</string>
+    <string name="platzhalter_warte">Waiting for picture …</string>
+    <string name="platzhalter_standbild">Still image from %1$s</string>
 </resources>
