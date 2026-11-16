@@ -191,7 +191,7 @@ test.describe('Navigation control end-to-end (E04-T5, Flow 2 + W-19)', () => {
       });
   });
 
-  test('Flow 2 (full): destination -> Navigation starten -> drive mode -> pause/resume -> stop -> Explore mode with route still visible', async ({
+  test('Flow 2 (full): destination -> Navigation starten -> drive mode -> pause/resume -> stop -> Explore mode, route cleared', async ({
     page,
   }) => {
     test.setTimeout(60_000);
@@ -260,7 +260,7 @@ test.describe('Navigation control end-to-end (E04-T5, Flow 2 + W-19)', () => {
     await expect.poll(() => navStatus(page), { timeout: 5_000 }).toBe('navigating');
     await expect(page.getByTestId('drive-resume-button')).toHaveCount(0);
 
-    // 5. Stop -> back to Explore mode; route stays drawn; nav/state idle
+    // 5. Stop -> back to Explore mode; route cleared from the map; nav/state idle
     // (destination null, per the E04-T5 plausibility requirement).
     await oeffneFahrtMenue(page);
     await page.getByTestId('drive-stop-button').click();
@@ -275,13 +275,11 @@ test.describe('Navigation control end-to-end (E04-T5, Flow 2 + W-19)', () => {
     // Explore mode: view mode restored (pitch back near 0, the prior mode).
     await expect.poll(() => readPitch(page), { timeout: 5_000 }).toBeLessThan(1);
 
-    // The route-planning UI reappears, STILL showing the same route.
-    await expect(page.getByTestId('destination-sheet')).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByTestId('route-summary-panel')).toBeVisible();
-    expect(
-      await page.evaluate(() => Boolean(window.__yapaiaMapController?.getMap()?.getLayer('route-main-accent'))),
-    ).toBe(true);
-    expect(await page.evaluate(() => window.__yapaiaRoutingStore?.getState().activeRouteId)).toBe(ROUTE.id);
+    // Nach dem Beenden verschwindet die Route von der Karte (Go 0.70.1,
+    // gemeldet: die blaue Linie blieb bis zum Neuladen stehen).
+    await expect(page.getByTestId('route-summary-panel')).toHaveCount(0, { timeout: 5_000 });
+    expect(await page.evaluate(() => window.__yapaiaRoutingStore?.getState().activeRouteId)).toBeNull();
+    expect(await page.evaluate(() => window.__yapaiaRoutingStore?.getState().routes.length)).toBe(0);
 
     expect(pageErrors).toEqual([]);
     expect(consoleErrors).toEqual([]);
