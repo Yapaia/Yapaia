@@ -10,7 +10,6 @@ import android.graphics.Color
 import android.graphics.ImageFormat
 import android.graphics.Paint
 import android.hardware.camera2.CameraCaptureSession
-import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.media.ImageReader
@@ -82,8 +81,6 @@ class KameraModul(private val ctx: Context) : Modul {
     // Zustand der Kamera (nur im Steuerfaden)
     private var geraet: CameraDevice? = null
     private var sitzung: CameraCaptureSession? = null
-    private var yuvLeser: ImageReader? = null
-    private var jpegLeser: ImageReader? = null
     @Volatile private var offenerEingang = -1
     private var wunsch = -1
     private var oeffnetSeit = 0L
@@ -235,18 +232,46 @@ class KameraModul(private val ctx: Context) : Modul {
         }
     }
 
+    /**
+     * Ströme der Sitzung, einstellbar über `/kamera/einstellen?stroeme=…`:
+     * Liste `art:BxH`, art = yuv | jpeg | priv; `*` hinten = Ziel der
+     * Daueranfrage. Bilder kommen aus dem ersten Ziel (yuv oder jpeg).
+     */
+    @Volatile private var stromListe = einstellungen.getString("stroeme", null) ?: STROEME
+
+    private val zusatz = mutableListOf<Any>()
+
     private fun sitzungStarten(d: CameraDevice, e: Int) {
-        val yuv = ImageReader.newInstance(VORSCHAU.width, VORSCHAU.height, ImageFormat.YUV_420_888, 3)
-        yuvLeser = yuv
-        yuv.setOnImageAvailableListener({ r -> bildDa(r, e) }, bildHandler)
-        // Wie die Hersteller-App: zusätzlich ein großer JPEG-Strom, der nie
-        // abgeholt wird – erst damit liefert der Wandler ein ganzes Bild.
-        val flaechen = mutableListOf(yuv.surface)
-        jpegGroesse()?.let {
-            val j = ImageReader.newInstance(it.width, it.height, ImageFormat.JPEG, 1)
-            jpegLeser = j
-            flaechen += j.surface
+        val flaechen = mutableListOf<android.view.Surface>()
+        val ziele = mutableListOf<android.view.Surface>()
+        var quelle: ImageReader? = null
+        for (eintrag in stromListe.split(',').map { it.trim() }.filter { it.isNotEmpty() }) {
+            val ziel = eintrag.endsWith("*")
+            val (art, g) = eintrag.trimEnd('*').split(':').let { it[0] to (it.getOrNull(1) ?: "720x600") }
+            val w = g.substringBefore('x').toIntOrNull() ?: 720
+            val h = g.substringAfter('x').toIntOrNull() ?: 600
+            val flaeche = when (art) {
+                "priv" -> {
+                    @Suppress("DEPRECATION")
+                    val t = if (android.os.Build.VERSION.SDK_INT >= 26) android.graphics.SurfaceTexture(false) else android.graphics.SurfaceTexture(0)
+                    t.setDefaultBufferSize(w, h)
+                    zusatz += t
+                    android.view.Surface(t).also { zusatz += it }
+                }
+                else -> {
+                    val r = ImageReader.newInstance(w, h, if (art == "jpeg") ImageFormat.JPEG else ImageFormat.YUV_420_888, if (ziel) 3 else 1)
+                    zusatz += r
+                    if (ziel && quelle == null) {
+                        quelle = r
+                        r.setOnImageAvailableListener({ rr -> bildDa(rr, e) }, bildHandler)
+                    }
+                    r.surface
+                }
+            }
+            flaechen += flaeche
+            if (ziel) ziele += flaeche
         }
+        if (ziele.isEmpty()) { fehler = "no target in $stromListe"; return }
         try {
             @Suppress("DEPRECATION")
             d.createCaptureSession(flaechen, object : CameraCaptureSession.StateCallback() {
@@ -255,14 +280,14 @@ class KameraModul(private val ctx: Context) : Modul {
                     sitzung = s
                     try {
                         val a = d.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                        a.addTarget(yuv.surface)
+                        ziele.forEach { a.addTarget(it) }
                         s.setRepeatingRequest(a.build(), null, steuer)
                     } catch (x: Exception) {
                         fehler = x.message
                     }
                 }
                 override fun onConfigureFailed(s: CameraCaptureSession) {
-                    fehler = "session"
+                    fehler = "session ($stromListe)"
                     schliessen()
                     wunsch = -1
                     pauseBis = SystemClock.elapsedRealtime() + 3000
@@ -273,27 +298,23 @@ class KameraModul(private val ctx: Context) : Modul {
         }
     }
 
-    private fun jpegGroesse(): Size? = try {
-        manager.getCameraCharacteristics(kameraId).get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-            ?.getOutputSizes(ImageFormat.JPEG)?.maxByOrNull { it.width * it.height }
-    } catch (x: Exception) {
-        null
-    }
-
     private fun schliessen() {
         try { sitzung?.close() } catch (_: Exception) {}
         try { geraet?.close() } catch (_: Exception) {}
         sitzung = null
         geraet = null
         offenerEingang = -1
-        val y = yuvLeser
-        val j = jpegLeser
-        yuvLeser = null
-        jpegLeser = null
+        val alt = zusatz.toList()
+        zusatz.clear()
         // Leser erst schließen, wenn der Bildfaden fertig ist
         bildHandler.post {
-            try { y?.close() } catch (_: Exception) {}
-            try { j?.close() } catch (_: Exception) {}
+            for (o in alt) try {
+                when (o) {
+                    is ImageReader -> o.close()
+                    is android.view.Surface -> o.release()
+                    is android.graphics.SurfaceTexture -> o.release()
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -305,6 +326,15 @@ class KameraModul(private val ctx: Context) : Modul {
             val n = ++bilderSeitOeffnen
             if (n <= 3 || offenerEingang != e) return
             val jetzt = SystemClock.elapsedRealtime()
+            if (img.format == ImageFormat.JPEG) {
+                // JPEG-Quelle (Versuch): Bild unverändert weitergeben
+                val b = img.planes[0].buffer
+                val j = ByteArray(b.remaining()).also { b.get(it) }
+                rohWunsch = false
+                rohBild = Bild(j, jetzt, 0)
+                synchronized(sperre) { bilder[e] = Bild(j, jetzt, ++bildNr); sperre.notifyAll() }
+                return
+            }
             if (rohWunsch) {
                 rohWunsch = false
                 val j = Bildwandler().umwandeln(img, Darstellung.ROH, false)
@@ -455,6 +485,11 @@ class KameraModul(private val ctx: Context) : Modul {
         )
         darstellung = neu
         einstellungen.edit().putString("darstellung", neu.json().toString()).apply()
+        p["stroeme"]?.let { st ->
+            stromListe = if (st == "standard") STROEME else st
+            einstellungen.edit().putString("stroeme", stromListe).apply()
+            steuer.post { schliessen(); wunsch = -1 }
+        }
         synchronized(sperre) { platzhalterSpeicher.clear() }
         antwort.text(200, neu.json().toString(2) + "\n", "application/json")
     }
@@ -545,13 +580,14 @@ class KameraModul(private val ctx: Context) : Modul {
             .put("letzte_suche_vor_s", if (letzteSuche > 0) (jetzt - letzteSuche) / 1000 else JSONObject.NULL)
             .put("fehler", fehler ?: JSONObject.NULL)
             .put("eingaenge", eing)
-            .put("darstellung", darstellung.json())
+            .put("darstellung", darstellung.json().put("stroeme", stromListe))
     }
 
     private fun iso(ms: Long) = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.ROOT).format(Date(ms))
 
     companion object {
         val VORSCHAU = Size(720, 600)
+        const val STROEME = "yuv:720x600*,priv:1920x4344"
         const val GRENZE = "yapaiarahmen"
         const val MAX_FPS = 15
         /** So lange bleibt die Kamera nach der letzten Anfrage offen. */
