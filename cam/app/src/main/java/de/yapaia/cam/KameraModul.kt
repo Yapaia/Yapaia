@@ -141,11 +141,27 @@ class KameraModul(private val ctx: Context) : Modul {
         }
     }
 
+    /**
+     * Welcher Strom bekommt den Wandler (unter [sperre])? Der zuletzt
+     * geöffnete – kommen mehrere fast gleichzeitig (ein Dashboard mit zwei
+     * Kameras), gewinnt der Eingang mit Vorrang (Standard: 3, Rückfahrkamera).
+     */
+    private fun stromWahl(): Int? {
+        val neuester = stroeme.maxByOrNull { it.beginn } ?: return null
+        val vorrang = this.vorrang
+        val gleichzeitig = stroeme.filter { neuester.beginn - it.beginn < GLEICHZEITIG_MS }
+        return gleichzeitig.minByOrNull { vorrang.indexOf(it.eingang + 1).let { i -> if (i < 0) 99 else i } }?.eingang
+            ?: neuester.eingang
+    }
+
+    @Volatile private var vorrang: List<Int> = (einstellungen.getString("vorrang", null) ?: "3")
+        .split(',').mapNotNull { it.trim().toIntOrNull() }
+
     /** Welcher Eingang soll offen sein? Läuft im Steuerfaden. */
     private fun steuern() {
         val jetzt = SystemClock.elapsedRealtime()
         if (jetzt - fpsZeit >= 1000) { fps = zaehler; zaehler = 0; fpsZeit = jetzt }
-        val stromEingang = synchronized(sperre) { stroeme.maxByOrNull { it.beginn }?.eingang }
+        val stromEingang = synchronized(sperre) { stromWahl() }
         if (stromEingang != null || (einzelWunsch >= 0 && jetzt - einzelWunschZeit < 6000)) suche = null
 
         // Signalsuche: wenn alles ruht, jeden Eingang kurz ansehen
@@ -354,7 +370,7 @@ class KameraModul(private val ctx: Context) : Modul {
 
     private fun einzelbild(e: Int, antwort: Antwort) {
         nachfrage()
-        val anderer = synchronized(sperre) { stroeme.maxByOrNull { it.beginn }?.eingang }
+        val anderer = synchronized(sperre) { stromWahl() }
         var b = synchronized(sperre) { frisch(e) }
         if (b == null && (anderer == null || anderer == e)) {
             val alt = synchronized(sperre) { bilder[e] }
@@ -446,6 +462,10 @@ class KameraModul(private val ctx: Context) : Modul {
         )
         darstellung = neu
         einstellungen.edit().putString("darstellung", neu.json().toString()).apply()
+        p["vorrang"]?.let { v ->
+            vorrang = v.split(',').mapNotNull { it.trim().toIntOrNull() }
+            einstellungen.edit().putString("vorrang", v).apply()
+        }
         synchronized(sperre) { platzhalterSpeicher.clear() }
         antwort.text(200, neu.json().toString(2) + "\n", "application/json")
     }
@@ -470,7 +490,7 @@ class KameraModul(private val ctx: Context) : Modul {
     /** Letztes Bild abgedunkelt mit Hinweis, oder ein grauer Platzhalter. */
     private fun platzhalter(e: Int): ByteArray {
         val (b, grund) = synchronized(sperre) {
-            val anderer = stroeme.maxByOrNull { it.beginn }?.eingang
+            val anderer = stromWahl()
             val g = when {
                 pausiert -> ctx.getString(R.string.platzhalter_pause)
                 belegt -> ctx.getString(R.string.platzhalter_belegt)
@@ -538,6 +558,7 @@ class KameraModul(private val ctx: Context) : Modul {
             .put("fehler", fehler ?: JSONObject.NULL)
             .put("eingaenge", eing)
             .put("darstellung", darstellung.json())
+            .put("vorrang", vorrang.joinToString(","))
     }
 
     private fun iso(ms: Long) = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.ROOT).format(Date(ms))
@@ -547,6 +568,7 @@ class KameraModul(private val ctx: Context) : Modul {
         val JPEG_GROESSE = Size(1920, 4344)
         const val GRENZE = "yapaiarahmen"
         const val MAX_FPS = 15
+        const val GLEICHZEITIG_MS = 4000L
         /** So lange bleibt die Kamera nach der letzten Anfrage offen. */
         const val OFFEN_HALTEN_MS = 20_000L
         /** Erst so lange nach der letzten Anfrage darf die Signalsuche laufen. */
