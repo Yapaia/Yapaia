@@ -2,6 +2,7 @@ package de.yapaia.cam
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.SurfaceTexture
@@ -64,6 +65,7 @@ class MainActivity : Activity() {
     private var schlechteSekunden = 0
 
     private val einstellungen by lazy { getSharedPreferences("wahl", MODE_PRIVATE) }
+    private val aktualisierung by lazy { Aktualisierung(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,10 +73,21 @@ class MainActivity : Activity() {
         manager = getSystemService(CAMERA_SERVICE) as CameraManager
         oberflaecheBauen()
 
-        kameras = try { manager.cameraIdList.toList() } catch (e: Exception) { emptyList() }
+        val gelistet = try { manager.cameraIdList.toList() } catch (e: Exception) { emptyList() }
+        // Manche Radios führen die Cinch-Kamera unter einer ID, die nicht in der Liste steht.
+        val versteckt = (0..9).map { it.toString() }.filter { id ->
+            id !in gelistet && try { manager.getCameraCharacteristics(id); true } catch (e: Exception) { false }
+        }
+        kameras = gelistet + versteckt
         val gewuenscht = intent.getStringExtra("kamera") ?: einstellungen.getString("kamera", null)
         kameraNr = kameras.indexOf(gewuenscht).coerceAtLeast(0)
         info.text = kameraInfo()
+        if (intent.action == Aktualisierung.AKTION) aktualisierung.ergebnis(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == Aktualisierung.AKTION) aktualisierung.ergebnis(intent)
     }
 
     private fun oberflaecheBauen() {
@@ -95,6 +108,9 @@ class MainActivity : Activity() {
             addView(knopf(R.string.knopf_suchlauf) { suchlaufStarten() })
             addView(knopf(R.string.knopf_info) {
                 infoRahmen.visibility = if (infoRahmen.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            })
+            addView(knopf(R.string.knopf_update) { aktualisierung.pruefenUndInstallieren() }.apply {
+                setOnLongClickListener { aktualisierung.adresseFragen(); true }
             })
             addView(status, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
@@ -366,7 +382,10 @@ class MainActivity : Activity() {
 
     private fun kameraInfo(): String {
         if (kameras.isEmpty()) return getString(R.string.keine_kamera)
-        return kameras.joinToString("\n\n") { id ->
+        @Suppress("DEPRECATION")
+        val alt = try { android.hardware.Camera.getNumberOfCameras() } catch (e: Exception) { -1 }
+        val version = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (e: Exception) { "?" }
+        return getString(R.string.info_kopf, version, alt) + "\n\n" + kameras.joinToString("\n\n") { id ->
             try {
                 val k = manager.getCameraCharacteristics(id)
                 val stufe = when (k.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)) {

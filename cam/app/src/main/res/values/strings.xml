@@ -23,4 +23,11 @@
     <string name="info_kamera">Camera %1$s: %2$s, level %3$s, orientation %4$d°</string>
     <string name="info_groessen">Preview: %1$s</string>
     <string name="info_formate">Formats: %1$s</string>
+    <string name="knopf_update">Update</string>
+    <string name="update_suche">Looking for an update …</string>
+    <string name="update_aktuell">Yapaia Cam %1$s is up to date.</string>
+    <string name="update_laedt">Downloading version %1$s …</string>
+    <string name="update_fehler">Update failed: %1$s</string>
+    <string name="update_adresse">Address of Home Assistant (folder with yapaia-cam.apk)</string>
+    <string name="info_kopf">Yapaia Cam %1$s · legacy camera API: %2$d cameras</string>
 </resources>

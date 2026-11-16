@@ -12,6 +12,8 @@ ohne https-Umweg.
   schwarz“ (Bilder kommen, sind aber dunkel – z. B. falsche Größe/Norm).
 - Tippen aufs Bild blendet die Leiste aus. Kamera und Auflösung werden gemerkt.
 - Start mit bestimmter Kamera: Intent-Extra `kamera` = Kamera-ID.
+- **Update** holt die neue Version aus Home Assistant (`/local/yapaia-cam.json`
+  und `.apk`); langes Drücken ändert die Adresse (Standard `http://192.168.8.235/local/`).
 
 Texte auf Deutsch und Englisch nach der Android-Sprache (`res/values*`).
 Design-Schemata kommen, sobald die App mit Home Assistant spricht (Stufe 2:

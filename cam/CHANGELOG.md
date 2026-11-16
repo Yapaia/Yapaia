@@ -1,5 +1,12 @@
 # Changelog – Yapaia Cam
 
+## 0.2.0
+
+- Knopf „Update“: holt die neue Version direkt aus Home Assistant
+  (`/local/yapaia-cam.json` + `.apk`); langes Drücken ändert die Adresse.
+- Probiert auch Kamera-IDs 0–9, die nicht in der Kameraliste stehen.
+- Info zeigt die App-Version und die Kameras der alten Kamera-Schnittstelle.
+
 ## 0.1.1
 
 - Startet mit 720×480 (bzw. 720×576/640×480) statt der größten gemeldeten

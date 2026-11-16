@@ -29,4 +29,9 @@ java -jar "$WERKZEUG" sign --ks "$SCHLUESSEL/yapaia-cam.p12" --ks-type PKCS12 \
   --ks-pass "file:$SCHLUESSEL/passwort.txt" --out "$TMP/yapaia-cam.apk" "$TMP/app-release-unsigned.apk"
 java -jar "$WERKZEUG" verify "$TMP/yapaia-cam.apk"
 cp "$TMP/yapaia-cam.apk" "$ZIEL"
+# Für den Update-Knopf der App: welche Version bereitliegt (aus dem Stand im Repo)
+GRADLE="$(dirname "$0")/app/build.gradle.kts"
+CODE=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' "$GRADLE")
+NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' "$GRADLE")
+printf '{"versionCode": %s, "versionName": "%s"}\n' "$CODE" "$NAME" > "${ZIEL%.apk}.json"
 echo "Fertig: $ZIEL (CI-Lauf $LAUF) – auf dem Radio: /local/yapaia-cam.apk"
