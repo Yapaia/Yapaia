@@ -1,4 +1,4 @@
-# Wasserstand – kapazitiver Füllstandssensor (ENTWURF, ungetestet)
+# Wasserstand – kapazitiver Füllstandssensor (ENTWURF: kompiliert mit ESPHome 2026.10, nicht am Gerät getestet)
 # Siehe README.md. Kalibrierung: Tank leer → „Leer übernehmen“, Tank voll →
 # „Voll übernehmen“. Zum Ausmessen der Rohwerte setup_mode auf true stellen.
 

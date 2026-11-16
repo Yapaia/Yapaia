@@ -11,7 +11,7 @@ Stand: **Konzept und Testplatine v1** (bestellfertig), noch nichts am Gerät gep
 |---|---|
 | `README.md` | Konzept, Dimensionierung, Recherche, nächste Schritte |
 | [`rechner.py`](rechner.py) | Rechner: Kapazität je Bahnbreite, Isolierdicke und Wasserhöhe |
-| [`waterlevel.yaml`](waterlevel.yaml) | ESPHome-Entwurf für ESP32-S3 (ungetestet) |
+| [`waterlevel.yaml`](waterlevel.yaml) | ESPHome-Entwurf für ESP32-S3 (kompiliert, nicht am Gerät getestet) |
 | [`pcb/testplatine/`](pcb/testplatine/) | Testplatine v1: sechs Bahnbreiten zum Ausmessen, Gerber zum Bestellen |
 
 ## Messprinzip
