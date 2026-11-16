@@ -1,10 +1,14 @@
 # Changelog – Yapaia Cam
 
+## 0.3.2
+
+- Darstellung per Extras einstellbar und gemerkt: `voll` (ganze Fläche),
+  `drehung` (Grad), `spiegeln` (senkrecht), `spiegelnx` (waagerecht).
+
 ## 0.3.1
 
 - Videowandler wie die Hersteller-App ansprechen: Vorschau 720×600 plus
   ein ungenutzter JPEG-Strom in voller Größe (sonst zwei gedrehte Hälften).
-- Extra `spiegeln` (true/false) kippt das Bild senkrecht; wird gemerkt.
 
 ## 0.3.0
 

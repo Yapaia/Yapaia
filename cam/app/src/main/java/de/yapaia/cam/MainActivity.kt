@@ -96,8 +96,7 @@ class MainActivity : Activity() {
             id !in gelistet && try { manager.getCameraCharacteristics(id); true } catch (e: Exception) { false }
         }
         kameras = gelistet + versteckt
-        if (intent.hasExtra("spiegeln")) einstellungen.edit().putBoolean("spiegeln", intent.getBooleanExtra("spiegeln", false)).apply()
-        bild.scaleY = if (einstellungen.getBoolean("spiegeln", false)) -1f else 1f
+        darstellungUebernehmen(intent)
         if (intent.hasExtra("eingang")) eingang = intent.getIntExtra("eingang", 2).coerceIn(0, 3)
         val gewuenscht = intent.getStringExtra("kamera") ?: einstellungen.getString("kamera", null)
             ?: if (hatEingaenge) "1" else null
@@ -106,8 +105,18 @@ class MainActivity : Activity() {
         if (intent.action == Aktualisierung.AKTION) aktualisierung.ergebnis(intent)
     }
 
+    /** Darstellung per Extras (zum Ausprobieren per ADB), wird gemerkt. */
+    private fun darstellungUebernehmen(i: Intent) {
+        val e = einstellungen.edit()
+        for (k in listOf("voll", "spiegeln", "spiegelnx")) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, false))
+        if (i.hasExtra("drehung")) e.putInt("drehung", i.getIntExtra("drehung", 0))
+        e.apply()
+        bildEinpassen()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        darstellungUebernehmen(intent)
         if (intent.action == Aktualisierung.AKTION) aktualisierung.ergebnis(intent)
     }
 
@@ -416,15 +425,29 @@ class MainActivity : Activity() {
         val bw = wurzel.width
         val bh = wurzel.height
         if (bw == 0 || bh == 0) return
+        val voll = einstellungen.getBoolean("voll", false)
         val faktor = minOf(bw.toFloat() / g.width, bh.toFloat() / g.height)
-        val w = (g.width * faktor).toInt()
-        val h = (g.height * faktor).toInt()
+        val w = if (voll) bw else (g.width * faktor).toInt()
+        val h = if (voll) bh else (g.height * faktor).toInt()
         val lp = bild.layoutParams as FrameLayout.LayoutParams
         if (lp.width != w || lp.height != h) {
             lp.width = w
             lp.height = h
             bild.layoutParams = lp
         }
+        // Drehen (um die Mitte, bei 90/270 auf die Fläche gestreckt) und spiegeln
+        val drehung = einstellungen.getInt("drehung", 0)
+        val cx = w / 2f
+        val cy = h / 2f
+        val m = android.graphics.Matrix()
+        if (drehung != 0) {
+            m.postRotate(drehung.toFloat(), cx, cy)
+            if (drehung % 180 != 0) m.postScale(w.toFloat() / h, h.toFloat() / w, cx, cy)
+        }
+        val sx = if (einstellungen.getBoolean("spiegelnx", false)) -1f else 1f
+        val sy = if (einstellungen.getBoolean("spiegeln", false)) -1f else 1f
+        m.postScale(sx, sy, cx, cy)
+        bild.setTransform(m)
     }
 
     // ── Auskunft ────────────────────────────────────────────────────────────
