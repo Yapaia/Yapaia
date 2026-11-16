@@ -548,7 +548,7 @@ class KameraModul(private val ctx: Context) : Modul {
             .put("darstellung", darstellung.json())
     }
 
-    private fun iso(ms: Long) = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ROOT).format(Date(ms))
+    private fun iso(ms: Long) = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.ROOT).format(Date(ms))
 
     companion object {
         val VORSCHAU = Size(720, 600)
