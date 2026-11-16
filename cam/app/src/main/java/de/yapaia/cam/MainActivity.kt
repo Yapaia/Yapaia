@@ -425,7 +425,7 @@ class MainActivity : Activity() {
         val bw = wurzel.width
         val bh = wurzel.height
         if (bw == 0 || bh == 0) return
-        val voll = einstellungen.getBoolean("voll", false)
+        val voll = einstellungen.getBoolean("voll", hatEingaenge)
         val faktor = minOf(bw.toFloat() / g.width, bh.toFloat() / g.height)
         val w = if (voll) bw else (g.width * faktor).toInt()
         val h = if (voll) bh else (g.height * faktor).toInt()
@@ -436,19 +436,19 @@ class MainActivity : Activity() {
             bild.layoutParams = lp
         }
         // Drehen (um die Mitte, bei 90/270 auf die Fläche gestreckt) und spiegeln
-        val drehung = einstellungen.getInt("drehung", 0)
+        val drehung = einstellungen.getInt("drehung", if (hatEingaenge) 90 else 0)
         val cx = w / 2f
         val cy = h / 2f
         val m = android.graphics.Matrix()
         // Der Videowandler liefert zwei Halbbilder in einem Puffer; nach der
         // Drehung durch Android liegen sie nebeneinander – nur die linke zeigen.
-        if (einstellungen.getBoolean("haelfte", false)) m.postScale(2f, 1f, 0f, 0f)
+        if (einstellungen.getBoolean("haelfte", hatEingaenge)) m.postScale(2f, 1f, 0f, 0f)
         if (drehung != 0) {
             m.postRotate(drehung.toFloat(), cx, cy)
             if (drehung % 180 != 0) m.postScale(w.toFloat() / h, h.toFloat() / w, cx, cy)
         }
         val sx = if (einstellungen.getBoolean("spiegelnx", false)) -1f else 1f
-        val sy = if (einstellungen.getBoolean("spiegeln", false)) -1f else 1f
+        val sy = if (einstellungen.getBoolean("spiegeln", hatEingaenge)) -1f else 1f
         m.postScale(sx, sy, cx, cy)
         bild.setTransform(m)
     }

@@ -1,19 +1,13 @@
 # Changelog – Yapaia Cam
 
-## 0.3.3
+## 0.4.0
 
-- Extra `haelfte`: nur eine der zwei Bildhälften zeigen (der Videowandler
-  liefert zwei Halbbilder in einem Puffer).
-
-## 0.3.2
-
-- Darstellung per Extras einstellbar und gemerkt: `voll` (ganze Fläche),
-  `drehung` (Grad), `spiegeln` (senkrecht), `spiegelnx` (waagerecht).
-
-## 0.3.1
-
-- Videowandler wie die Hersteller-App ansprechen: Vorschau 720×600 plus
-  ein ungenutzter JPEG-Strom in voller Größe (sonst zwei gedrehte Hälften).
+- **Rückfahrkamera läuft** (Eonon UX6K Pro Max / Witstek W19): Kamera 1,
+  Eingang 3. Wie die Hersteller-App: Vorschau 720×600 plus ungenutzter
+  JPEG-Strom; der Puffer enthält zwei Halbbilder, gezeigt wird eines – um 90°
+  gedreht, senkrecht gespiegelt, auf die ganze Fläche.
+- Darstellung per Extras änderbar und gemerkt: `voll`, `haelfte`, `drehung`,
+  `spiegeln`, `spiegelnx`.
 
 ## 0.3.0
 
