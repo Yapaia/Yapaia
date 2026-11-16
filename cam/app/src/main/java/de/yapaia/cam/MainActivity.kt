@@ -174,6 +174,10 @@ class MainActivity : Activity() {
     private fun oeffnen() {
         bild.surfaceTextureListener = texturHorcher
         if (kameras.isEmpty() || hinter == null) return
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            status.setText(R.string.keine_berechtigung)
+            return
+        }
         val id = kameras[kameraNr]
         fehlerText = null
         bilderZaehler = 0
