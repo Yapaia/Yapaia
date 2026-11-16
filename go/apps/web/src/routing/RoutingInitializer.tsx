@@ -8,6 +8,7 @@ import { useProfileStore } from '../profiles/store.js';
 import { useRoutingStore } from './store.js';
 import RouteLayer from './RouteLayer.js';
 import RouteRestorer from './RouteRestorer.js';
+import RouteAufraeumer from './RouteAufraeumer.js';
 import DestinationSelector from './DestinationSelector.js';
 import LangerDruckHinweis from './LangerDruckHinweis.js';
 import RoutingPanel from './RoutingPanel.js';
@@ -39,6 +40,8 @@ export default function RoutingInitializer(): React.ReactElement {
       {/* Holt die Route nach einem Neuladen zurueck, damit die blaue Linie
           nicht fehlt, waehrend die Fahrt weiterlaeuft. */}
       <RouteRestorer />
+      {/* Und räumt sie weg, sobald die Fahrt endet (beendet oder angekommen). */}
+      <RouteAufraeumer />
       <RouteLayer />
       {/* Baustellen und Sperrungen auf der Strecke. Fragt NUR, wenn es eine
           Route gibt, und nur bei einer Änderung der Autobahnen — nicht bei

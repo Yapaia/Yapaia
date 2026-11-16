@@ -65,6 +65,12 @@ function zahl(wert: number | null | undefined, stellen = 0): string {
 export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   const { navState, position } = zustand;
   const tempo = navState ? buildSpeedPayload(navState) : null;
+  // Nach der Ankunft bleibt `navState` stehen, bis die Route beendet wird --
+  // mit dem Tempo und der Hoehe des letzten Fahrtaugenblicks. Gemeldet: das
+  // Fahrzeug stand, die Anzeige zeigte weiter 31 km/h. Ab „arrived" gelten
+  // deshalb wieder die Werte vom GPS.
+  const angekommen = navState?.status === 'arrived';
+  const tempoKmh = (angekommen ? null : tempo?.speed_kmh) ?? tempoAusPosition(position);
   const schreibt: HaStateWrite[] = [];
 
   // ─── DAS TEMPOLIMIT OHNE ROUTE ──────────────────────────────────────────
@@ -116,7 +122,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // Wert aus `navState`, weil er auf die Route bezogen ist (und dieselbe
   // Quelle speist wie `speeding`). Das GPS springt nur ein, wo bisher
   // `unknown` stand.
-  dazu('sensor.yapaia_speed', zahl(tempo?.speed_kmh ?? tempoAusPosition(position)), 'Speed', {
+  dazu('sensor.yapaia_speed', zahl(tempoKmh), 'Speed', {
     unit_of_measurement: 'km/h',
     device_class: 'speed',
     state_class: 'measurement',
@@ -147,7 +153,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
   // auch ohne Route -- also kann jetzt auch OHNE Fahrt gewarnt werden.
   dazu(
     'binary_sensor.yapaia_speeding',
-    faehrtZuSchnell(tempo?.speed_kmh ?? tempoAusPosition(position), massgeblich.grenze)
+    faehrtZuSchnell(tempoKmh, massgeblich.grenze)
       ? 'on'
       : 'off',
     'Speeding',
@@ -227,7 +233,7 @@ export function buildHaStates(zustand: YapaiaZustand): HaStateWrite[] {
     },
   );
   // Die Hoehe ebenso -- aber nur bei einem 3D-Fix, siehe `ausPosition.ts`.
-  dazu('sensor.yapaia_altitude', zahl(navState?.altitude_m ?? hoeheAusPosition(position)), 'Altitude', {
+  dazu('sensor.yapaia_altitude', zahl((angekommen ? null : navState?.altitude_m) ?? hoeheAusPosition(position)), 'Altitude', {
     unit_of_measurement: 'm',
     device_class: 'distance',
     state_class: 'measurement',

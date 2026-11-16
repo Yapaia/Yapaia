@@ -288,6 +288,17 @@ describe('die Werte selbst', () => {
       expect(findeZustand(zustaende, 'sensor.yapaia_altitude')?.state).toBe('120');
     });
 
+    it('nach der Ankunft gilt wieder das GPS, nicht das eingefrorene Routentempo', () => {
+      // Gemeldet: das Fahrzeug stand am Ziel, die Anzeige zeigte weiter
+      // 31 km/h -- den letzten Wert vor der Ankunft.
+      const zustaende = buildHaStates({
+        navState: navState({ status: 'arrived', speed_kmh: 31.4, altitude_m: 300 }),
+        position: gps({ speed: 0, alt: 120 }),
+      });
+      expect(findeZustand(zustaende, 'sensor.yapaia_speed')?.state).toBe('0');
+      expect(findeZustand(zustaende, 'sensor.yapaia_altitude')?.state).toBe('120');
+    });
+
     it('Stillstand ist eine Null und kein fehlender Wert', () => {
       // Sonst zeigte das Display beim Halt „unbekannt" statt einer Null,
       // und aus einer Messung würde eine Lücke.
