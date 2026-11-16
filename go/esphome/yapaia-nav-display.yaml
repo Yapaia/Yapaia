@@ -430,6 +430,11 @@ font:
     id: font_xxl
     size: 50
     glyphs: "0123456789.,- kmM"
+  # Tempo ohne Route, als Tacho: nur Ziffern, darum klein im Flash.
+  - file: "gfonts://Roboto@700"
+    id: font_tacho
+    size: 80
+    glyphs: "0123456789"
   - file: "gfonts://Roboto@700"
     id: font_xl
     size: 40
@@ -986,10 +991,12 @@ display:
           // Datei Header einbinden, die sie bisher nicht braucht, und zwei
           // verschiedene Rundungen fuer dasselbe Tempo waeren ohnehin eine
           // Stelle, an der die beiden Ansichten auseinanderlaufen koennten.
-          it.printf(cx, cy - 18, id(font_l), id(c_text), TextAlign::CENTER,
+          // Gross wie ein Tacho (font_tacho, 80 px) -- gewuenscht, weil die
+          // Zahl in 26 px waehrend der Fahrt kaum ablesbar war.
+          it.printf(cx, cy - 14, id(font_tacho), id(c_text), TextAlign::CENTER,
                     "%d", (int) (id(yapaia_tempo).state + 0.5f));
-          it.print(cx, cy + 14, id(font_s), id(c_gedaempft), TextAlign::CENTER, "km/h");
-          it.print(cx, cy + 36, id(font_s), id(c_gedaempft), TextAlign::CENTER, text);
+          it.print(cx, cy + 40, id(font_m), id(c_gedaempft), TextAlign::CENTER, "km/h");
+          it.print(cx, cy + 64, id(font_s), id(c_gedaempft), TextAlign::CENTER, text);
           // Auch ohne Route kann man zu schnell sein; Yapaia kennt das Tempolimit
           // an der aktuellen Stelle. Der Ring steht daher auch hier.
           // meiste Zeit faehrt.
