@@ -104,14 +104,24 @@ class KameraModul(private val ctx: Context) : Modul {
     private var fpsZeit = 0L
     private var letzteKodierung = 0L
 
+    /**
+     * Fremde Apps erkennen: Die Hersteller-App (Rückwärtsgang) hat bei
+     * diesem Radio dieselbe Priorität wie wir – wer zuletzt öffnet, gewinnt.
+     * Deshalb nie öffnen, solange eine andere App die Kamera hat.
+     */
     private val verfuegbarkeit = object : CameraManager.AvailabilityCallback() {
         override fun onCameraAvailable(id: String) {
             if (id == kameraId && belegt) {
                 belegt = false
-                steuer.postDelayed({ steuern() }, 1000)
+                // kurz warten: bei einer Verdrängung folgt gleich „nicht verfügbar“
+                steuer.postDelayed({ steuern() }, 1500)
             }
         }
+        override fun onCameraUnavailable(id: String) {
+            if (id == kameraId && geraet == null && !wirOeffnen) belegt = true
+        }
     }
+    @Volatile private var wirOeffnen = false
 
     override fun starten() {
         manager.registerAvailabilityCallback(verfuegbarkeit, steuer)
@@ -215,6 +225,8 @@ class KameraModul(private val ctx: Context) : Modul {
     }
 
     private fun oeffnen(e: Int) {
+        // inzwischen fremd belegt? Dann auch den Eingang nicht umschalten.
+        if (belegt) { wunsch = -1; return }
         if (ctx.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             fehler = "CAMERA permission"
             return
@@ -224,8 +236,10 @@ class KameraModul(private val ctx: Context) : Modul {
         }
         bilderSeitOeffnen = 0
         try {
+            wirOeffnen = true
             manager.openCamera(kameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(d: CameraDevice) {
+                    wirOeffnen = false
                     if (wunsch != e) { d.close(); return }
                     geraet = d
                     offenerEingang = e
@@ -233,6 +247,7 @@ class KameraModul(private val ctx: Context) : Modul {
                     sitzungStarten(d)
                 }
                 override fun onDisconnected(d: CameraDevice) {
+                    wirOeffnen = false
                     // andere App (Rückwärtsgang, Vorschau) hat die Kamera genommen
                     d.close()
                     if (geraet == d) { geraet = null; offenerEingang = -1; wunsch = -1 }
@@ -240,6 +255,7 @@ class KameraModul(private val ctx: Context) : Modul {
                     fehler = "disconnected"
                 }
                 override fun onError(d: CameraDevice, code: Int) {
+                    wirOeffnen = false
                     d.close()
                     if (geraet == d || geraet == null) { geraet = null; offenerEingang = -1; wunsch = -1 }
                     fehler = "error $code"
@@ -248,6 +264,7 @@ class KameraModul(private val ctx: Context) : Modul {
                 }
             }, steuer)
         } catch (x: Exception) {
+            wirOeffnen = false
             fehler = x.message ?: x.javaClass.simpleName
             wunsch = -1
             pauseBis = SystemClock.elapsedRealtime() + 3000
