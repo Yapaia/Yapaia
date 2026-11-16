@@ -96,6 +96,8 @@ class MainActivity : Activity() {
             id !in gelistet && try { manager.getCameraCharacteristics(id); true } catch (e: Exception) { false }
         }
         kameras = gelistet + versteckt
+        if (intent.hasExtra("spiegeln")) einstellungen.edit().putBoolean("spiegeln", intent.getBooleanExtra("spiegeln", false)).apply()
+        bild.scaleY = if (einstellungen.getBoolean("spiegeln", false)) -1f else 1f
         if (intent.hasExtra("eingang")) eingang = intent.getIntExtra("eingang", 2).coerceIn(0, 3)
         val gewuenscht = intent.getStringExtra("kamera") ?: einstellungen.getString("kamera", null)
             ?: if (hatEingaenge) "1" else null
@@ -254,9 +256,21 @@ class MainActivity : Activity() {
         val groesse = groessen.getOrNull(groesseNr)
         if (groesse != null) textur.setDefaultBufferSize(groesse.width, groesse.height)
         val flaeche = Surface(textur)
+        // Wie die Hersteller-App: zusätzlich ein großer JPEG-Strom (wird nie
+        // abgeholt). Erst damit liefert der Videowandler ein ganzes, richtig
+        // liegendes Bild statt zweier gedrehter Hälften.
+        val flaechen = mutableListOf(flaeche)
+        if (hatEingaenge) {
+            val jpeg = jpegGroesse(d.id)
+            if (jpeg != null) {
+                leser?.close()
+                leser = android.media.ImageReader.newInstance(jpeg.width, jpeg.height, android.graphics.ImageFormat.JPEG, 2)
+                flaechen += leser!!.surface
+            }
+        }
         try {
             @Suppress("DEPRECATION")
-            d.createCaptureSession(listOf(flaeche), object : CameraCaptureSession.StateCallback() {
+            d.createCaptureSession(flaechen, object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(s: CameraCaptureSession) {
                     sitzung = s
                     try {
@@ -276,10 +290,21 @@ class MainActivity : Activity() {
         }
     }
 
+    private var leser: android.media.ImageReader? = null
+
+    private fun jpegGroesse(id: String): Size? = try {
+        manager.getCameraCharacteristics(id).get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+            ?.getOutputSizes(android.graphics.ImageFormat.JPEG)?.maxByOrNull { it.width * it.height }
+    } catch (e: Exception) {
+        null
+    }
+
     private fun schliessen() {
         try { sitzung?.close() } catch (_: Exception) {}
         try { geraet?.close() } catch (_: Exception) {}
         sitzung = null
+        try { leser?.close() } catch (_: Exception) {}
+        leser = null
         geraet = null
     }
 
@@ -321,7 +346,8 @@ class MainActivity : Activity() {
      * zwar, öffnet sie aber nicht (Fehler DEVICE).
      */
     private fun standardGroesse(): Int {
-        for (wunsch in listOf("720x480", "720x576", "640x480")) {
+        val wuensche = if (hatEingaenge) listOf("720x600", "720x480") else listOf("720x480", "720x576", "640x480")
+        for (wunsch in wuensche) {
             val i = groessen.indexOfFirst { it.toString() == wunsch }
             if (i >= 0) return i
         }

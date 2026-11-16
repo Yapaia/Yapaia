@@ -1,5 +1,11 @@
 # Changelog – Yapaia Cam
 
+## 0.3.1
+
+- Videowandler wie die Hersteller-App ansprechen: Vorschau 720×600 plus
+  ein ungenutzter JPEG-Strom in voller Größe (sonst zwei gedrehte Hälften).
+- Extra `spiegeln` (true/false) kippt das Bild senkrecht; wird gemerkt.
+
 ## 0.3.0
 
 - Rückfahrkamera: Bei Eonon/Witstek ist Kamera 1 ein Videowandler (TP9951)
