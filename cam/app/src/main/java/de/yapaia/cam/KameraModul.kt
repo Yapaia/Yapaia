@@ -93,6 +93,7 @@ class KameraModul(private val ctx: Context) : Modul {
     @Volatile private var einzelWunschZeit = 0L
     private var suche: MutableList<Int>? = null
     private var sucheSeit = 0L
+    private var sucheSeitWand = 0L
     private var letzteSuche = 0L
     @Volatile private var sucheAngefordert = true
 
@@ -153,16 +154,21 @@ class KameraModul(private val ctx: Context) : Modul {
             sucheAngefordert = false
             suche = (0 until anzahl).toMutableList()
             sucheSeit = jetzt
+            sucheSeitWand = System.currentTimeMillis()
         }
         suche?.let { s ->
             val e = s.firstOrNull()
             if (e == null) {
                 suche = null
                 letzteSuche = jetzt
-            } else if (offenerEingang == e && bilderSeitOeffnen >= 12 || jetzt - sucheSeit > 7000) {
-                if (offenerEingang != e || bilderSeitOeffnen == 0) synchronized(sperre) { signal[e] = false; geprueft[e] = System.currentTimeMillis() }
+            } else if (synchronized(sperre) { geprueft[e] } >= sucheSeitWand || jetzt - sucheSeit > 8000) {
+                // gemessen – oder keine Bilder: kein Signal
+                synchronized(sperre) {
+                    if (geprueft[e] < sucheSeitWand) { signal[e] = false; helligkeit[e] = 0.0; streuung[e] = 0.0; geprueft[e] = System.currentTimeMillis() }
+                }
                 s.removeAt(0)
                 sucheSeit = jetzt
+                sucheSeitWand = System.currentTimeMillis()
                 if (s.isEmpty()) { suche = null; letzteSuche = jetzt }
             }
         }
@@ -436,6 +442,7 @@ class KameraModul(private val ctx: Context) : Modul {
             spiegelnX = ja("spiegelnx", d.spiegelnX), spiegelnY = ja("spiegelny", d.spiegelnY),
             breite = zahl("breite", d.breite).coerceIn(64, 1920), hoehe = zahl("hoehe", d.hoehe).coerceIn(64, 1920),
             qualitaet = zahl("qualitaet", d.qualitaet).coerceIn(20, 100),
+            rand = Darstellung.randLesen(p["rand"], d.rand),
         )
         darstellung = neu
         einstellungen.edit().putString("darstellung", neu.json().toString()).apply()
@@ -450,6 +457,7 @@ class KameraModul(private val ctx: Context) : Modul {
             j.optInt("haelfte", s.haelfte), j.optInt("drehung", s.drehung),
             j.optBoolean("spiegelnx", s.spiegelnX), j.optBoolean("spiegelny", s.spiegelnY),
             j.optInt("breite", s.breite), j.optInt("hoehe", s.hoehe), j.optInt("qualitaet", s.qualitaet),
+            Darstellung.randLesen(j.optString("rand", ""), s.rand),
         )
     } catch (x: Exception) {
         Darstellung()

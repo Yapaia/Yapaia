@@ -35,22 +35,32 @@ data class Darstellung(
     val breite: Int = 720,
     val hoehe: Int = 480,
     val qualitaet: Int = 80,
+    /**
+     * Ränder der gewählten Hälfte abschneiden (Anteile 0–0.4): links, oben,
+     * rechts, unten. Beim TP9951 liegt rechts neben jedem Halbbild ein
+     * schwarzer Streifen (Spalten 344–375 von 720).
+     */
+    val rand: List<Double> = listOf(0.005, 0.0, 0.05, 0.0),
 ) {
     fun json(): JSONObject = JSONObject()
         .put("haelfte", haelfte).put("drehung", drehung)
         .put("spiegelnx", spiegelnX).put("spiegelny", spiegelnY)
         .put("breite", breite).put("hoehe", hoehe).put("qualitaet", qualitaet)
+        .put("rand", rand.joinToString(","))
 
     /** Ausgabe (u, v ∈ [0,1], oben links) → Stelle im Vorschaubild (oben links). */
     fun quelle(u: Double, v: Double): Pair<Double, Double> {
         val u1 = if (spiegelnX) 1 - u else u
         val v1 = if (spiegelnY) 1 - v else v
-        val (xc, yc) = when (((drehung % 360) + 360) % 360) {
+        val (x0, y0) = when (((drehung % 360) + 360) % 360) {
             90 -> Pair(v1, 1 - u1)
             180 -> Pair(1 - u1, 1 - v1)
             270 -> Pair(1 - v1, u1)
             else -> Pair(u1, v1)
         }
+        val r = { i: Int -> rand.getOrElse(i) { 0.0 }.coerceIn(0.0, 0.4) }
+        val xc = r(0) + x0 * (1 - r(0) - r(2))
+        val yc = r(1) + y0 * (1 - r(1) - r(3))
         return when (haelfte) {
             1 -> Pair(xc, yc / 2)
             2 -> Pair(xc, 0.5 + yc / 2)
@@ -62,7 +72,11 @@ data class Darstellung(
 
     companion object {
         /** Vorschaubild unverändert, für `/kamera/roh.jpg`. */
-        val ROH = Darstellung(haelfte = 0, drehung = 0, spiegelnY = false, breite = 720, hoehe = 600, qualitaet = 85)
+        val ROH = Darstellung(haelfte = 0, drehung = 0, spiegelnY = false, breite = 720, hoehe = 600, qualitaet = 85,
+            rand = listOf(0.0, 0.0, 0.0, 0.0))
+
+        fun randLesen(text: String?, alt: List<Double>): List<Double> =
+            text?.split(',')?.mapNotNull { it.trim().toDoubleOrNull() }?.takeIf { it.size == 4 } ?: alt
     }
 }
 
