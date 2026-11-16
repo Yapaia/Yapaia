@@ -1,5 +1,13 @@
 # Changelog – Yapaia Cam
 
+## 0.3.0
+
+- Rückfahrkamera: Bei Eonon/Witstek ist Kamera 1 ein Videowandler (TP9951)
+  mit vier Eingängen, umgeschaltet über
+  `/sys/kernel/mhl_camera_config/mhl_camera_input`. Neuer Knopf „Eingang“,
+  Start mit Kamera 1 / Eingang 3 (Rückfahrkamera), Extra `eingang` (0–3).
+- Gefunden per ADB: Eingang 2 = vorne, Eingang 3 = hinten, 1 und 4 leer.
+
 ## 0.2.1
 
 - Knopf „Senden“ (Entwicklung): schickt Paketliste, Systemeigenschaften,

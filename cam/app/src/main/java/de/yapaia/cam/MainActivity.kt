@@ -64,6 +64,19 @@ class MainActivity : Activity() {
     private var suchlauf = 0
     private var schlechteSekunden = 0
 
+    /**
+     * Eonon/Witstek-Radios: Kamera 1 ist ein Videowandler (TP9951) mit vier
+     * Eingängen, gewählt über eine Datei im Kernel. Geschrieben wird 0–3
+     * (der Kernel zählt intern +1). Im Wohnmobil: Eingang 2 = vorne,
+     * Eingang 3 = Rückfahrkamera. Kamera 0 bringt den Kameradienst zum Absturz.
+     */
+    private val eingangDatei = java.io.File("/sys/kernel/mhl_camera_config/mhl_camera_input")
+    private val hatEingaenge get() = eingangDatei.exists()
+    private var eingang: Int
+        get() = einstellungen.getInt("eingang", 2)
+        set(wert) { einstellungen.edit().putInt("eingang", wert).apply() }
+    private var eingangFehler: String? = null
+
     private val einstellungen by lazy { getSharedPreferences("wahl", MODE_PRIVATE) }
     private val aktualisierung by lazy { Aktualisierung(this) }
     // Empfänger auf dem Mini-PC: gleicher Rechner wie Home Assistant, Port 8765
@@ -83,7 +96,9 @@ class MainActivity : Activity() {
             id !in gelistet && try { manager.getCameraCharacteristics(id); true } catch (e: Exception) { false }
         }
         kameras = gelistet + versteckt
+        if (intent.hasExtra("eingang")) eingang = intent.getIntExtra("eingang", 2).coerceIn(0, 3)
         val gewuenscht = intent.getStringExtra("kamera") ?: einstellungen.getString("kamera", null)
+            ?: if (hatEingaenge) "1" else null
         kameraNr = kameras.indexOf(gewuenscht).coerceAtLeast(0)
         info.text = kameraInfo()
         if (intent.action == Aktualisierung.AKTION) aktualisierung.ergebnis(intent)
@@ -108,6 +123,7 @@ class MainActivity : Activity() {
             // halbdurchsichtig, damit man das Bild dahinter noch sieht
             setBackgroundColor(Color.argb(160, 0, 0, 0))
             addView(knopf(R.string.knopf_kamera) { naechsteKamera() })
+            if (hatEingaenge) addView(knopf(R.string.knopf_eingang) { naechsterEingang() })
             addView(knopf(R.string.knopf_aufloesung) { naechsteGroesse() })
             addView(knopf(R.string.knopf_suchlauf) { suchlaufStarten() })
             addView(knopf(R.string.knopf_info) {
@@ -204,6 +220,7 @@ class MainActivity : Activity() {
             return
         }
         val id = kameras[kameraNr]
+        if (hatEingaenge) eingangSetzen()
         fehlerText = null
         bilderZaehler = 0
         status.text = getString(R.string.status_oeffne, id)
@@ -276,6 +293,20 @@ class MainActivity : Activity() {
         starten()
     }
 
+    private fun eingangSetzen() {
+        eingangFehler = try {
+            eingangDatei.writeText(eingang.toString())
+            null
+        } catch (e: Exception) {
+            e.message ?: e.javaClass.simpleName
+        }
+    }
+
+    private fun naechsterEingang() {
+        eingang = (eingang + 1) % 4
+        eingangSetzen()
+    }
+
     private fun naechsteGroesse() {
         if (groessen.isEmpty()) return
         schliessen()
@@ -320,7 +351,12 @@ class MainActivity : Activity() {
                     istSchwarz() -> getString(R.string.status_schwarz, id, richtung, groesse, fps)
                     else -> { gut = true; getString(R.string.status_bild, id, richtung, groesse, fps) }
                 }
-                status.text = if (suchlauf > 0) getString(R.string.status_suchlauf, suchlauf, text) else text
+                val mitEingang = when {
+                    !hatEingaenge -> text
+                    eingangFehler != null -> text + " · " + getString(R.string.eingang_fehler, eingang + 1, eingangFehler)
+                    else -> text + " · " + getString(R.string.eingang_n, eingang + 1)
+                }
+                status.text = if (suchlauf > 0) getString(R.string.status_suchlauf, suchlauf, mitEingang) else mitEingang
             }
             if (suchlauf > 0) {
                 if (gut) {

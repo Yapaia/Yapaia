@@ -34,4 +34,7 @@
     <string name="diagnose_start">Sending diagnostics …</string>
     <string name="diagnose_fertig">Diagnostics sent (%1$d apps).</string>
     <string name="diagnose_fehler">Sending failed: %1$s</string>
+    <string name="knopf_eingang">Input</string>
+    <string name="eingang_n">input %1$d</string>
+    <string name="eingang_fehler">input %1$d not settable (%2$s)</string>
 </resources>
