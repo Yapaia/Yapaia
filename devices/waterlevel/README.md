@@ -5,13 +5,14 @@ einer langen Leiterplatte als Sonde. Die Sonde hängt im Tank, ihre Leiterbahnen
 sind nur durch den Lötstopplack (oder zusätzlich eine Beschichtung) vom Wasser
 getrennt. Der ESP32 misst die Kapazität über seinen Touch-Eingang.
 
-Stand: **Konzept und Dimensionierung**, noch keine Platine, nichts am Gerät geprüft.
+Stand: **Konzept und Testplatine v1** (bestellfertig), noch nichts am Gerät geprüft.
 
 | Datei | Inhalt |
 |---|---|
 | `README.md` | Konzept, Dimensionierung, Recherche, nächste Schritte |
 | [`rechner.py`](rechner.py) | Rechner: Kapazität je Bahnbreite, Isolierdicke und Wasserhöhe |
 | [`waterlevel.yaml`](waterlevel.yaml) | ESPHome-Entwurf für ESP32-S3 (ungetestet) |
+| [`pcb/testplatine/`](pcb/testplatine/) | Testplatine v1: sechs Bahnbreiten zum Ausmessen, Gerber zum Bestellen |
 
 ## Messprinzip
 
@@ -153,10 +154,9 @@ Erkenntnisse:
 
 ## Nächste Schritte
 
-1. **Test-Platine** (≤ 100 × 100 mm, billig): mehrere Messbahnen 0,15 / 0,2 /
-   0,3 / 0,5 mm × 80 mm mit GND-Streifen, je auf eigenem Anschluss. In einem
-   Messbecher mit ESP32-S3 Rohwerte über die Eintauchtiefe aufnehmen
-   (ESPHome `setup_mode`), dazu eine Hälfte mit Schrumpfschlauch.
+1. **Testplatine** bestellen und ausmessen – siehe
+   [`pcb/testplatine/`](pcb/testplatine/) (Bahnen 0,15 / 0,2 / 0,3 / 0,5 /
+   1,0 / 3,0 mm, zwei davon für den Schrumpfschlauch-Test).
 2. Bahnbreite und Variante festlegen, Rechner mit gemessener Kapazität/mm
    abgleichen.
 3. Sonde 500 mm in KiCad zeichnen (Ordner `pcb/`), mit Kopf für das ESP-Board.
