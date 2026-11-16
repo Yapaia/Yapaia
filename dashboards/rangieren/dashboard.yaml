@@ -48,3 +48,10 @@ views:
               - type: lock-commands
             features_position: bottom
             vertical: false
+          - type: button
+            name: Yapaia Cam installieren
+            icon: mdi:cellphone-arrow-down
+            show_state: false
+            tap_action:
+              action: url
+              url_path: /local/yapaia-cam.apk

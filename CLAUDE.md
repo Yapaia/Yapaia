@@ -17,6 +17,7 @@ Terminal); der Nutzer bedient die Session per Remote vom iPad (Claude-App).
 | `beat/` | Yapaia Beat – UKW/DAB+-Radio (Add-on in `beat/yapaia_beat/`) |
 | `vision/` | Yapaia Vision – analoge Kameras über USB-Grabber (Add-on in `vision/yapaia_vision/`) |
 | `satellite/` | Sprachsatellit ESP32 (ESPHome) |
+| `cam/` | Yapaia Cam – Android-App fürs Autoradio, zeigt dessen Kameras (APK aus CI, signiert mit `cam/signieren.sh`) |
 | `router/` | GL.iNet-Mobilfunk – Teil der Integration, kein Add-on |
 | `integration/custom_components/yapaia/` | zentrale HA-Integration „Yapaia“ (Tests: `integration/tests`) |
 | `dashboards/` | Karten und Dashboards, Einspielen mit `python3 dashboards/deploy.py` |

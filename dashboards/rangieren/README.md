@@ -40,3 +40,8 @@ python3 dashboards/deploy.py --dashboard rangieren
 
 Legt `/yapaia-rangieren` an (oder überschreibt dessen Konfiguration) und
 kopiert die Karten nach `/config/www/yapaia-dashboards/`.
+
+## Yapaia Cam installieren
+
+Der Knopf „Yapaia Cam installieren“ lädt `/local/yapaia-cam.apk` (siehe
+`cam/README.md`) – gedacht fürs Autoradio, damit man die Adresse nicht tippen muss.

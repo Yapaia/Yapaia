@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Yapaia Cam</string>
+    <string name="knopf_kamera">Camera</string>
+    <string name="knopf_aufloesung">Resolution</string>
+    <string name="knopf_info">Info</string>
+    <string name="keine_kamera">No camera found.</string>
+    <string name="keine_berechtigung">Camera permission missing – please allow it.</string>
+    <string name="richtung_vorne">front</string>
+    <string name="richtung_hinten">back</string>
+    <string name="richtung_extern">external</string>
+    <string name="richtung_unbekannt">unknown</string>
+    <!-- Kamera 0 (hinten) · 720×480 · 25 fps -->
+    <string name="status_bild">Camera %1$s (%2$s) · %3$s · %4$d fps</string>
+    <string name="status_schwarz">Camera %1$s (%2$s) · %3$s · %4$d fps · picture is black</string>
+    <string name="status_kein_bild">Camera %1$s (%2$s) · %3$s · no frames</string>
+    <string name="status_oeffne">Opening camera %1$s …</string>
+    <string name="fehler_oeffnen">Camera %1$s: error %2$s</string>
+    <string name="fehler_getrennt">Camera %1$s was disconnected</string>
+    <string name="fehler_sitzung">Camera %1$s: session failed for %2$s</string>
+    <string name="info_kamera">Camera %1$s: %2$s, level %3$s, orientation %4$d°</string>
+    <string name="info_groessen">Preview: %1$s</string>
+    <string name="info_formate">Formats: %1$s</string>
+</resources>
