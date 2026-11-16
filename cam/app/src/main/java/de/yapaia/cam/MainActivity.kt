@@ -108,7 +108,7 @@ class MainActivity : Activity() {
     /** Darstellung per Extras (zum Ausprobieren per ADB), wird gemerkt. */
     private fun darstellungUebernehmen(i: Intent) {
         val e = einstellungen.edit()
-        for (k in listOf("voll", "spiegeln", "spiegelnx")) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, false))
+        for (k in listOf("voll", "spiegeln", "spiegelnx", "haelfte")) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, false))
         if (i.hasExtra("drehung")) e.putInt("drehung", i.getIntExtra("drehung", 0))
         e.apply()
         bildEinpassen()
@@ -440,6 +440,9 @@ class MainActivity : Activity() {
         val cx = w / 2f
         val cy = h / 2f
         val m = android.graphics.Matrix()
+        // Der Videowandler liefert zwei Halbbilder in einem Puffer; nach der
+        // Drehung durch Android liegen sie nebeneinander – nur die linke zeigen.
+        if (einstellungen.getBoolean("haelfte", false)) m.postScale(2f, 1f, 0f, 0f)
         if (drehung != 0) {
             m.postRotate(drehung.toFloat(), cx, cy)
             if (drehung % 180 != 0) m.postScale(w.toFloat() / h, h.toFloat() / w, cx, cy)

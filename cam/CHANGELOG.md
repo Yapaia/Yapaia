@@ -1,5 +1,10 @@
 # Changelog – Yapaia Cam
 
+## 0.3.3
+
+- Extra `haelfte`: nur eine der zwei Bildhälften zeigen (der Videowandler
+  liefert zwei Halbbilder in einem Puffer).
+
 ## 0.3.2
 
 - Darstellung per Extras einstellbar und gemerkt: `voll` (ganze Fläche),
