@@ -43,6 +43,6 @@ kopiert die Karten nach `/config/www/yapaia-dashboards/`.
 
 ## Yapaia Cam installieren
 
-Der Link „Yapaia Cam installieren“ lädt `/local/yapaia-cam.apk?v=<Zeit>` (siehe
+Der Knopf „Yapaia Cam installieren“ öffnet `/local/yapaia-cam.html`; die Seite lädt `yapaia-cam.apk?v=<Version>` (siehe
 `cam/README.md`) – gedacht fürs Autoradio, damit man die Adresse nicht tippen muss.
-Das wechselnde `?v=` umgeht den Zwischenspeicher. Danach reicht der Knopf „Update“ in der App.
+Das `?v=` umgeht den Zwischenspeicher. Danach reicht der Knopf „Update“ in der App.
