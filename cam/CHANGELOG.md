@@ -1,5 +1,11 @@
 # Changelog – Yapaia Cam
 
+## 0.2.1
+
+- Knopf „Senden“ (Entwicklung): schickt Paketliste, Systemeigenschaften,
+  Videogeräte und die APKs der Kamera-Apps an den Mini-PC (Port 8765), um
+  herauszufinden, wie F-Cam die Cinch-Kamera einschaltet.
+
 ## 0.2.0
 
 - Knopf „Update“: holt die neue Version direkt aus Home Assistant

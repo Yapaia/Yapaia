@@ -29,4 +29,8 @@
     <string name="update_fehler">Update fehlgeschlagen: %1$s</string>
     <string name="update_adresse">Adresse von Home Assistant (Ordner mit yapaia-cam.apk)</string>
     <string name="info_kopf">Yapaia Cam %1$s · alte Kamera-Schnittstelle: %2$d Kameras</string>
+    <string name="knopf_senden">Senden</string>
+    <string name="diagnose_start">Sende Diagnose …</string>
+    <string name="diagnose_fertig">Diagnose gesendet (%1$d Apps).</string>
+    <string name="diagnose_fehler">Senden fehlgeschlagen: %1$s</string>
 </resources>

@@ -30,4 +30,8 @@
     <string name="update_fehler">Update failed: %1$s</string>
     <string name="update_adresse">Address of Home Assistant (folder with yapaia-cam.apk)</string>
     <string name="info_kopf">Yapaia Cam %1$s · legacy camera API: %2$d cameras</string>
+    <string name="knopf_senden">Send</string>
+    <string name="diagnose_start">Sending diagnostics …</string>
+    <string name="diagnose_fertig">Diagnostics sent (%1$d apps).</string>
+    <string name="diagnose_fehler">Sending failed: %1$s</string>
 </resources>

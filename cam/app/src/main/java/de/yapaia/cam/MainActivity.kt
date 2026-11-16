@@ -66,6 +66,10 @@ class MainActivity : Activity() {
 
     private val einstellungen by lazy { getSharedPreferences("wahl", MODE_PRIVATE) }
     private val aktualisierung by lazy { Aktualisierung(this) }
+    // Empfänger auf dem Mini-PC: gleicher Rechner wie Home Assistant, Port 8765
+    private val diagnose by lazy {
+        Diagnose(this) { android.net.Uri.parse(aktualisierung.adresse).host.let { "http://$it:8765/" } }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,6 +116,7 @@ class MainActivity : Activity() {
             addView(knopf(R.string.knopf_update) { aktualisierung.pruefenUndInstallieren() }.apply {
                 setOnLongClickListener { aktualisierung.adresseFragen(); true }
             })
+            addView(knopf(R.string.knopf_senden) { diagnose.senden() })
             addView(status, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         wurzel.addView(leiste, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP))
