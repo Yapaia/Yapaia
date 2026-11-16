@@ -48,3 +48,12 @@ views:
               - type: lock-commands
             features_position: bottom
             vertical: false
+          # Die Seite holt die aktuelle Version und lädt yapaia-cam.apk?v=<Version>
+          # (sonst liefert der Zwischenspeicher des Radios eine alte APK)
+          - type: button
+            name: Yapaia Cam installieren
+            icon: mdi:cellphone-arrow-down
+            show_state: false
+            tap_action:
+              action: url
+              url_path: /local/yapaia-cam.html

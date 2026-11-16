@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Yapaia Cam</string>
+    <string name="knopf_kamera">Kamera</string>
+    <string name="knopf_aufloesung">Auflösung</string>
+    <string name="knopf_suchlauf">Suchlauf</string>
+    <string name="knopf_info">Info</string>
+    <string name="keine_kamera">Keine Kamera gefunden.</string>
+    <string name="keine_berechtigung">Kamera-Berechtigung fehlt – bitte erlauben.</string>
+    <string name="richtung_vorne">vorne</string>
+    <string name="richtung_hinten">hinten</string>
+    <string name="richtung_extern">extern</string>
+    <string name="richtung_unbekannt">unbekannt</string>
+    <string name="status_bild">Kamera %1$s (%2$s) · %3$s · %4$d fps</string>
+    <string name="status_schwarz">Kamera %1$s (%2$s) · %3$s · %4$d fps · Bild ist schwarz</string>
+    <string name="status_kein_bild">Kamera %1$s (%2$s) · %3$s · keine Bilder</string>
+    <string name="status_suchlauf">Suchlauf (noch %1$d): %2$s</string>
+    <string name="status_oeffne">Öffne Kamera %1$s …</string>
+    <string name="fehler_oeffnen">Kamera %1$s: Fehler %2$s</string>
+    <string name="fehler_getrennt">Kamera %1$s wurde getrennt</string>
+    <string name="fehler_sitzung">Kamera %1$s: Sitzung mit %2$s fehlgeschlagen</string>
+    <string name="info_kamera">Kamera %1$s: %2$s, Stufe %3$s, Ausrichtung %4$d°</string>
+    <string name="info_groessen">Vorschau: %1$s</string>
+    <string name="info_formate">Formate: %1$s</string>
+    <string name="knopf_update">Update</string>
+    <string name="update_suche">Suche Update …</string>
+    <string name="update_aktuell">Yapaia Cam %1$s ist aktuell.</string>
+    <string name="update_laedt">Lade Version %1$s …</string>
+    <string name="update_fehler">Update fehlgeschlagen: %1$s</string>
+    <string name="update_adresse">Adresse von Home Assistant (Ordner mit yapaia-cam.apk)</string>
+    <string name="info_kopf">Yapaia Cam %1$s · alte Kamera-Schnittstelle: %2$d Kameras</string>
+    <string name="knopf_senden">Senden</string>
+    <string name="diagnose_start">Sende Diagnose …</string>
+    <string name="diagnose_fertig">Diagnose gesendet (%1$d Apps).</string>
+    <string name="diagnose_fehler">Senden fehlgeschlagen: %1$s</string>
+    <string name="knopf_eingang">Eingang</string>
+    <string name="eingang_n">Eingang %1$d</string>
+    <string name="eingang_fehler">Eingang %1$d nicht setzbar (%2$s)</string>
+</resources>
