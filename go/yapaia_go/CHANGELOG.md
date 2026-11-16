@@ -10,6 +10,13 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.70.1
+
+- **Tempo nach der Ankunft:** Nach „Ziel erreicht“ blieb die letzte
+  Geschwindigkeit stehen (gemeldet: Fahrzeug stand, Anzeige zeigte 31 km/h),
+  bis die Route beendet wurde. Ab der Ankunft gelten wieder Tempo und Höhe
+  vom GPS.
+
 ## 0.70.0
 
 - **Kartendarstellung wählbar:** In den Karten-Einstellungen (Abschnitt
