@@ -12,10 +12,55 @@ views:
       - type: grid
         column_span: 2
         cards:
+          # Kameras am Autoradio (Yapaia-App, MJPEG-Integration). Der Wandler
+          # zeigt nur einen Eingang gleichzeitig: die Rückfahrkamera hat
+          # Vorrang, die Frontkamera zeigt dann ihr letztes Bild.
           - type: custom:yapaia-kamera-card
             name: Rückfahrkamera
-            entity: camera.yapaia_vision_kamera_1
+            entity: camera.radio_ruckfahrkamera
             aspect_ratio: "3:2"
+            grid_options: { columns: 12 }
+          - type: custom:yapaia-kamera-card
+            name: Frontkamera
+            entity: camera.radio_frontkamera
+            aspect_ratio: "3:2"
+            grid_options: { columns: 12 }
+          # Freie Eingänge des Radios: nur, wenn dort ein Bild ankommt
+          - type: conditional
+            grid_options: { columns: 12 }
+            conditions:
+              - condition: state
+                entity: binary_sensor.radio_kamera_1_signal
+                state: "on"
+            card:
+              type: custom:yapaia-kamera-card
+              name: Kamera 1
+              entity: camera.radio_kamera_1
+              aspect_ratio: "3:2"
+          - type: conditional
+            grid_options: { columns: 12 }
+            conditions:
+              - condition: state
+                entity: binary_sensor.radio_kamera_4_signal
+                state: "on"
+            card:
+              type: custom:yapaia-kamera-card
+              name: Kamera 4
+              entity: camera.radio_kamera_4
+              aspect_ratio: "3:2"
+          # Ersatz: Rückfahrkamera über Yapaia Vision (EasyCAP am Mini-PC),
+          # nur wenn das Radio keine liefert (Radio aus, kein Signal)
+          - type: conditional
+            grid_options: { columns: 12 }
+            conditions:
+              - condition: state
+                entity: binary_sensor.radio_kamera_3_signal
+                state_not: "on"
+            card:
+              type: custom:yapaia-kamera-card
+              name: Rückfahrkamera (Vision)
+              entity: camera.yapaia_vision_kamera_1
+              aspect_ratio: "3:2"
           - type: custom:yapaia-reifen-card
             name: Reifendruck
             target_front: 4.5
@@ -51,7 +96,7 @@ views:
           # Die Seite holt die aktuelle Version und lädt yapaia-cam.apk?v=<Version>
           # (sonst liefert der Zwischenspeicher des Radios eine alte APK)
           - type: button
-            name: Yapaia Cam installieren
+            name: Yapaia-App installieren
             icon: mdi:cellphone-arrow-down
             show_state: false
             tap_action:

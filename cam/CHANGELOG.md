@@ -1,4 +1,23 @@
-# Changelog – Yapaia Cam
+# Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
+
+## 0.5.0
+
+- App heißt jetzt **Yapaia** (Paket `de.yapaia.cam` bleibt, Updates klappen).
+- **Hintergrunddienst** (Vordergrunddienst, startet beim Booten und nach
+  Updates) mit HTTP-Server auf Port 8080:
+  `/kamera/<1–4>.mjpg` (MJPEG), `/kamera/<1–4>.jpg` (Einzelbild),
+  `/status` (JSON, je Modul ein Abschnitt), `/kamera/roh.jpg`,
+  `/kamera/einstellen?…`, `/kamera/suchen`.
+- Bilder über SurfaceTexture + OpenGL (der HAL lehnt YUV-Leser ab bzw.
+  stürzt ab), Halbbild ausgeschnitten, gedreht, gespiegelt, 720×480, bis 15 fps.
+- Der Wandler zeigt nur einen Eingang: der zuletzt geöffnete Strom gewinnt,
+  bei gleichzeitigen Strömen Eingang 3 (Vorrang); die anderen bekommen ihr
+  letztes Bild abgedunkelt mit Hinweis. Signalsuche über alle Eingänge alle
+  10 min, wenn niemand zusieht.
+- Hat eine andere App die Kamera (Hersteller-Ansicht, Rückwärtsgang), wartet
+  der Dienst, bis sie frei ist; die Vorschau-Activity pausiert ihn.
+- Struktur für weitere Funktionen: `Modul` (Status-Abschnitt + Pfade),
+  `YapaiaDienst`, `WebServer`, `KameraModul`, `GlLeser`.
 
 ## 0.4.0
 

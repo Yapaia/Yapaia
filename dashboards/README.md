@@ -10,7 +10,7 @@ einen eigenen Ordner mit
 | Dashboard | Was es ist |
 |---|---|
 | [Cockpit Sport](cockpit-sport/) | Navigation, Radio und Fahrdaten im Stil eines Auto-Infotainments |
-| [Rangieren](rangieren/) | Parkmanöver: Rückfahrkamera, Nivellierung, Licht Dinette, Aufbautür |
+| [Rangieren](rangieren/) | Parkmanöver: Rückfahr- und Frontkamera (Autoradio), Nivellierung, Licht Dinette, Aufbautür |
 | [Stellplatz](stellplatz/) | Stellplatz/Camping: Heizung, Licht, Tür, Batterie, Gas, Wasser, Radio |
 | [Stellplatz Stil](stellplatz-stil/) | Dasselbe als eigene Karte in vier Ansichten: Kacheln (Retro-Camper), Magazin, Magazin mit Karten, Breitbild |
 

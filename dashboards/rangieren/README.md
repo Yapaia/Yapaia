@@ -1,6 +1,6 @@
 # Dashboard „Rangieren“
 
-Für Parkmanöver: links das Bild der Rückfahrkamera, darunter der Reifendruck;
+Für Parkmanöver: links Rückfahr- und Frontkamera des Autoradios, darunter der Reifendruck;
 rechts die Nivellierung (Wohnmobil von der Seite und von hinten, kippt mit der
 Neigung), darunter Licht Dinette (OUT2) und Aufbautür.
 
@@ -26,11 +26,43 @@ ab wann Werte als alt gelten.
 `camera.*`-Entität. Ohne Kamera oder ohne Bild steht ein Platzhalter da.
 Im Editor: Kamera, Seitenverhältnis, Bild spiegeln, Platzhaltertext.
 
-## Kamera
+## Kameras
 
-- Die Rückfahrkamera kommt von Yapaia Vision (`camera.yapaia_vision_kamera_1`).
-  Das Seitenverhältnis der Karte (`aspect_ratio`) passt man an die Norm der
-  Kamera an, z. B. `3:2` bei NTSC 720 × 480.
+Die Kameras hängen am Autoradio (Videowandler mit vier Eingängen) und kommen
+über die Yapaia-App (`cam/`, Port 8080) als MJPEG nach Home Assistant:
+
+| Entität | Eingang | Adresse |
+|---|---|---|
+| `camera.radio_ruckfahrkamera` („Radio Rückfahrkamera“) | 3 | `http://192.168.8.194:8080/kamera/3.mjpg` |
+| `camera.radio_frontkamera` („Radio Frontkamera“) | 2 | `…/kamera/2.mjpg` |
+| `camera.radio_kamera_1` („Radio Kamera 1“) | 1 (frei) | `…/kamera/1.mjpg` |
+| `camera.radio_kamera_4` („Radio Kamera 4“) | 4 (frei) | `…/kamera/4.mjpg` |
+
+Angelegt mit der eingebauten **MJPEG-Integration** (Einstellungen → Geräte &
+Dienste → Integration hinzufügen → MJPEG): Name, MJPEG-URL `…/<n>.mjpg`,
+Standbild-URL `…/<n>.jpg`, ohne Benutzer/Passwort.
+
+Ob an einem Eingang ein Bild ankommt, melden `binary_sensor.radio_kamera_<n>_signal`
+(command_line in `configuration.yaml`, liest `/status` alle 30 s):
+
+```yaml
+command_line:
+  - binary_sensor:
+      name: Radio Kamera 1 Signal
+      unique_id: yapaia_radio_kamera_1_signal
+      command: curl -s -m 4 http://192.168.8.194:8080/status
+      value_template: "{{ 'ON' if value_json.kamera.eingaenge[0].signal else 'OFF' }}"
+      scan_interval: 30
+  # … ebenso 2, 3, 4 (eingaenge[1] … [3])
+```
+
+Im Dashboard: Rückfahr- und Frontkamera nebeneinander. Der Wandler zeigt nur
+einen Eingang gleichzeitig – die Rückfahrkamera hat Vorrang, die Frontkamera
+zeigt dann ihr letztes Bild mit Hinweis. Kamera 1 und 4 erscheinen nur, wenn
+ihr Signal-Sensor `on` ist. Die frühere Karte auf `camera.yapaia_vision_kamera_1`
+(Yapaia Vision, EasyCAP am Mini-PC) bleibt als Ersatz: Sie erscheint nur,
+wenn das Radio keine Rückfahrkamera liefert (Radio aus, kein Signal).
+Seitenverhältnis `3:2` (die App liefert 720 × 480).
 
 ## Einspielen
 
@@ -41,8 +73,8 @@ python3 dashboards/deploy.py --dashboard rangieren
 Legt `/yapaia-rangieren` an (oder überschreibt dessen Konfiguration) und
 kopiert die Karten nach `/config/www/yapaia-dashboards/`.
 
-## Yapaia Cam installieren
+## Yapaia-App installieren
 
-Der Knopf „Yapaia Cam installieren“ öffnet `/local/yapaia-cam.html`; die Seite lädt `yapaia-cam.apk?v=<Version>` (siehe
+Der Knopf „Yapaia-App installieren“ öffnet `/local/yapaia-cam.html`; die Seite lädt `yapaia-cam.apk?v=<Version>` (siehe
 `cam/README.md`) – gedacht fürs Autoradio, damit man die Adresse nicht tippen muss.
 Das `?v=` umgeht den Zwischenspeicher. Danach reicht der Knopf „Update“ in der App.
