@@ -13,6 +13,7 @@ einen eigenen Ordner mit
 | [Rangieren](rangieren/) | Parkmanöver: Rückfahrkamera, Nivellierung, Licht Dinette, Aufbautür |
 | [Stellplatz](stellplatz/) | Stellplatz/Camping: Heizung, Licht, Tür, Batterie, Gas, Wasser, Radio |
 | [Stellplatz Stil](stellplatz-stil/) | Dasselbe als eigene Karte in vier Ansichten: Kacheln (Retro-Camper), Magazin, Magazin mit Karten, Breitbild |
+| [Reisetagebuch](reisetagebuch/) | Fahrten Tag für Tag: Strecke, Route, Verbrauch, Fahrstil, Länder |
 
 Texte folgen der Sprache von Home Assistant (Deutsch/Englisch), Farben und
 Schriften dem gewählten [Design-Schema](../docs/design-schemata.md).

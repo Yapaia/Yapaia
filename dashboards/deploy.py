@@ -37,6 +37,7 @@ KARTEN = {
     HIER / "rangieren" / "reifen-card.js": "yapaia-dashboards",
     HIER / "stellplatz" / "wlan-card.js": "yapaia-dashboards",
     HIER / "stellplatz-stil" / "stellplatz-card.js": "yapaia-dashboards",
+    HIER / "reisetagebuch" / "reisetagebuch-card.js": "yapaia-dashboards",
 }
 # Ordner → (url_path, Titel, Symbol) für `--dashboard`
 DASHBOARDS = {
@@ -44,6 +45,7 @@ DASHBOARDS = {
     "rangieren": ("yapaia-rangieren", "Rangieren", "mdi:car-brake-parking"),
     "stellplatz": ("yapaia-stellplatz", "Stellplatz", "mdi:caravan"),
     "stellplatz-stil": ("yapaia-stellplatz-stil", "Stellplatz Stil", "mdi:palette"),
+    "reisetagebuch": ("yapaia-reisetagebuch", "Reisetagebuch", "mdi:book-open-variant"),
 }
 
 

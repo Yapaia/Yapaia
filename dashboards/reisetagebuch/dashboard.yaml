@@ -1,0 +1,12 @@
+# Dashboard „Reisetagebuch“ – Rohkonfiguration
+# (Dashboard → ⋮ → Bearbeiten → ⋮ → Raw-Konfigurationseditor)
+# Einspielen geht auch mit: python3 dashboards/deploy.py --dashboard reisetagebuch
+title: Reisetagebuch
+views:
+  - title: Reisetagebuch
+    path: reisetagebuch
+    icon: mdi:book-open-variant
+    panel: true
+    cards:
+      - type: custom:yapaia-reisetagebuch-card
+        preis_l: 1.75

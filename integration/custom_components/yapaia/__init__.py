@@ -26,11 +26,12 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Einmal je Start: gemeinsames Design (design/) und Sprache (sprache.py)."""
-    from . import design, sprache
+    """Einmal je Start: gemeinsames Design (design/), Sprache (sprache.py), Reisetagebuch."""
+    from . import design, reisetagebuch, sprache
 
     await design.einrichten(hass)
     sprache.einrichten(hass)
+    await reisetagebuch.einrichten(hass)
     return True
 
 
