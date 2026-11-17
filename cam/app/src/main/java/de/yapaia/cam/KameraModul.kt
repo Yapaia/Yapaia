@@ -238,11 +238,14 @@ class KameraModul(private val ctx: Context) : Modul {
         }
         if (eingangDatei.exists()) {
             try { eingangDatei.writeText(e.toString()) } catch (x: Exception) { fehler = "input: ${x.message}" }
-            // Die Hersteller-App (com.wits.misc) setzt config_single manchmal auf 3 →
-            // gestreiftes Graubild. Vor jedem Öffnen auf 4 zurück.
+            // Videoformat des Wandlers (config_single) je Eingang, Standard 4 (mit 3
+            // zeigen die Rückkameras ein gestreiftes Graubild). Die Hersteller-App
+            // F-Cam öffnet die Frontkamera mit Eingang 2 und Format 3 – Versuche
+            // über /kamera/format?eingang=1..4&wert=N.
             try {
-                if (configDatei.exists() && configDatei.readText().trim() != "4") {
-                    configDatei.writeText("4")
+                val soll = format(e).toString()
+                if (configDatei.exists() && configDatei.readText().trim() != soll) {
+                    configDatei.writeText(soll)
                     configKorrigiert++
                 }
             } catch (x: Exception) { fehler = "config_single: ${x.message}" }
@@ -327,6 +330,9 @@ class KameraModul(private val ctx: Context) : Modul {
         }
     }
 
+    /** Videoformat (config_single) für Eingang [e] (0-basiert). */
+    private fun format(e: Int): Int = einstellungen.getInt("format_$e", 4)
+
     private fun schliessen() {
         try { sitzung?.close() } catch (_: Exception) {}
         try { geraet?.close() } catch (_: Exception) {}
@@ -387,6 +393,21 @@ class KameraModul(private val ctx: Context) : Modul {
                 live = e - 1
                 einstellungen.edit().putInt("live", live).apply()
                 steuer.post { steuern() }
+                antwort.text(200, status().toString(2) + "\n", "application/json")
+            }
+            "format" -> {
+                // /kamera/format?eingang=1..4&wert=0..9 (ohne wert: zurück auf Standard)
+                val e = anfrage.parameter["eingang"]?.toIntOrNull()?.minus(1)
+                val w = anfrage.parameter["wert"]?.toIntOrNull()
+                if (e == null || e !in 0 until anzahl || (w != null && w !in 0..9)) {
+                    antwort.text(400, "eingang=1..$anzahl&wert=0..9\n"); return true
+                }
+                einstellungen.edit().apply { if (w == null) remove("format_$e") else putInt("format_$e", w) }.apply()
+                steuer.post {
+                    // offen auf diesem Eingang: neu öffnen, damit das Format gilt
+                    if (offenerEingang == e) { schliessen(); bilder[e] = null }
+                    steuern()
+                }
                 antwort.text(200, status().toString(2) + "\n", "application/json")
             }
             "suchen" -> { sucheAngefordert = true; letzteNachfrage = 0; antwort.text(200, "ok\n") }
@@ -595,6 +616,7 @@ class KameraModul(private val ctx: Context) : Modul {
             eing.put(JSONObject()
                 .put("eingang", e + 1)
                 .put("signal", signal[e] ?: JSONObject.NULL)
+                .put("format", format(e))
                 .put("helligkeit", Math.round(helligkeit[e]))
                 .put("streuung", Math.round(streuung[e] * 10) / 10.0)
                 .put("geprueft", if (geprueft[e] > 0) iso(geprueft[e]) else JSONObject.NULL)

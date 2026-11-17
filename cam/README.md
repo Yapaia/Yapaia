@@ -17,6 +17,14 @@ Updates und beim Öffnen der App. HTTP auf Port **8080**:
 | `/kamera/roh.jpg` | nächstes Bild unverändert (720×600, beide Halbbilder) |
 | `/kamera/einstellen?…` | Darstellung: `haelfte` (0–4), `drehung`, `spiegelnx`, `spiegelny`, `breite`, `hoehe`, `qualitaet`, `rand=l,o,r,u`, `vorrang=3,2`, `standard` |
 | `/kamera/suchen` | Signalsuche anstoßen |
+| `/kamera/live?eingang=0–4` | Live-Eingang festlegen (0 = automatisch); `/kamera/live.mjpg` folgt ihm |
+| `/sensoren/…` | nur `/status` → `sensoren` (Zündung, Rückwärtsgang, Handbremse, Licht, Blinker, Spannung, Quelle, CAN, GPS, WLAN, Temperaturen, Lüfter, Lautstärke, Helligkeit) |
+| `/mikro/waehlen?mikro=bottom\|back`, `/mikro/messen`, `/mikro/dauer?an=1`, `/mikro/aufnahme.wav?s=3` | Mikrofone (ab 0.6.0) |
+| `/dlna/geraet.xml` (+ SCPD/SOAP unter `/dlna/avt\|rc\|cm`) | DLNA-Renderer für HA `dlna_dmr` |
+| `/player/spielen?url=…`, `/player/pause`, `/player/weiter`, `/player/stopp`, `/player/lautstaerke?wert=0–100` | Player direkt |
+| `/tasten/lernen?an=1`, `/tasten/benennen?code=&name=&abfangen=`, `/tasten/vergessen?code=` | Tasten |
+| `/audio/einstellen?loudness=&anhebung=&global=&audio_vol=&audio_output_gain=`, `/audio/werkswerte` | Lautstärke anheben (begrenzt) |
+| `/einstellen?ha=http://…:8123` | HA-Adresse für Webhooks (Standard `http://192.168.8.235`, HA hört hier auf Port 80) |
 
 **Ein Eingang zur Zeit:** Der TP9951 hat einen Decoder mit vier umschaltbaren
 Eingängen; umschalten geht nur bei geschlossener Kamera (sonst Fehler

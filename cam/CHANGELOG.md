@@ -1,5 +1,46 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.6.2
+
+- **Videoformat je Eingang:** `/kamera/format?eingang=1..4&wert=N` stellt
+  `config_single` für einen Eingang ein (Standard 4, ohne `wert` zurück).
+  Grund: Die Hersteller-App F-Cam öffnet die Frontkamera mit Eingang 2 und
+  Format 3. Der Status zeigt das Format je Eingang.
+
+## 0.6.1
+
+- **Rohwerte:** `/sensoren/roh` – alle lesbaren Dateien unter `/sys/class/wits/`
+  (misc, mcu, swc, tkey, version) und alle wits-/CAN-Eigenschaften (ohne
+  Geräte-IDs), dazu ein Änderungsprotokoll (letzte 40 Änderungen; in
+  `/status` die letzten 15). `/sensoren/vergessen` leert es.
+- Stumm im eigenen Player (Android-Stummschaltung wirkt am Radio nicht),
+  `/anzeige/dunkel|hell`, `mhl_camera_config_single` wird vor jedem Öffnen
+  auf 4 gesetzt, minSdk 28.
+
+## 0.6.0
+
+- **Live-Eingang wählbar:** `/kamera/live?eingang=1–4` (0 = automatisch) hält
+  den Wandler fest auf einem Eingang; `/kamera/live.mjpg` folgt der Auswahl.
+  `/status` → `kamera.live`, `kamera.aktiver_eingang`.
+- **Sensoren** (`/status` → `sensoren`): Zündung, Rückwärtsgang, Handbremse,
+  Licht, Blinker (Sysfs, 1 s), Bordspannung, Quelle, Vordergrund-App,
+  Audiofokus, CAN (Tür, Radar, Lenkwinkel), Lautstärke, Helligkeit, GPS, WLAN,
+  Temperaturen, Lüfter. Zündung/Rückwärtsgang sofort per Webhook
+  `yapaia_radio_zustand` an HA (plus Lebenszeichen jede Minute).
+- **Mikrofone** (`/mikro/…`): beide eingebauten Mikros wählbar, Pegel
+  (dBFS) auf Abruf oder laufend, Probeaufnahme `aufnahme.wav` (16 kHz mono).
+- **Player:** eigener DLNA-Renderer (`/dlna/geraet.xml`, SSDP) für HA
+  `dlna_dmr`; spielt HTTP-Streams/URLs, Lautstärke, Stumm, Pause, Stopp.
+  Direkt: `/player/spielen?url=…`.
+- **Tasten:** Bedienungshilfe „Yapaia-Tasten“ meldet jeden Druck (Code,
+  Name, kurz/lang, Quelle) per Webhook `yapaia_radio_taste`; Lernmodus,
+  Tasten benennen, optional abfangen (`/tasten/…`).
+- **Lautstärke anheben** (`/audio/…`): Loudness, App-Anhebung
+  (LoudnessEnhancer, auch global), MCU `audio_vol`/`audio_output_gain` in
+  begrenzten Schritten, „Werkswerte“. `audio_ch_gain` nur lesbar.
+- Webserver versteht POST/SOAP (Kopfzeilen, Körper); HA-Adresse
+  `/einstellen?ha=http://…:8123`.
+
 ## 0.5.0
 
 - App heißt jetzt **Yapaia** (Paket `de.yapaia.cam` bleibt, Updates klappen).
