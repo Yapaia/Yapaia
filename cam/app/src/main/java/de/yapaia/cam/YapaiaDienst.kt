@@ -33,7 +33,8 @@ class YapaiaDienst : Service() {
         vordergrund()
         val audio = AudioModul(this)
         val player = PlayerModul(this, audio)
-        module = listOf(KameraModul(this), SensorModul(this), MikroModul(this), audio, player, player.dlna, TastenModul(this))
+        module = listOf(KameraModul(this), SensorModul(this), MikroModul(this), audio, player, player.dlna, TastenModul(this),
+            SatellitModul(this))
         module.forEach { it.starten() }
         server = WebServer(PORT, ::bearbeiten).also { it.starten() }
         Log.i(WebServer.TAG, "Dienst läuft auf Port $PORT")

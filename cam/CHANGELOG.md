@@ -1,5 +1,16 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.7.0
+
+- **Sprachsatellit für Home Assistant (Wyoming, Port 10700):** HA verbindet
+  sich über die Integration „Wyoming Protocol“ (Zeroconf `_wyoming._tcp` oder
+  Host/Port von Hand). Das Radio streamt das hintere Mikro (16 kHz mono,
+  digitale Verstärkung, Rauschfilter von Android) und lässt HA ab dem
+  Weckwort arbeiten (openWakeWord in HA). Erkanntes Weckwort: kurzer Ton;
+  die Antwort kommt über die Radio-Lautsprecher.
+  `/assist/einstellen?an=&mikro=&verstaerkung=&rauschfilter=`, Status unter `assist`.
+  Die Mikro-Dauermessung pausiert, solange der Satellit streamt.
+
 ## 0.6.4
 
 - **Stereo-Test beider Mikros:** `/mikro/stereo?s=5[&maske=frontback|stereo][&quelle=…]`

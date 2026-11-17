@@ -174,6 +174,8 @@ class MikroModul(private val ctx: Context) : Modul {
         Thread({
             try {
                 while (dauer) {
+                    // Satellit (Assist) hat das Mikro: nicht dazwischen aufnehmen
+                    if (SatellitModul.aktiv) { Thread.sleep(2000); continue }
                     try {
                         messen(gewaehlt, 1000)
                         fehler = null
