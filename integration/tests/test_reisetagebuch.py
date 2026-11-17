@@ -44,7 +44,9 @@ def test_fahrt_mit_zuendung_und_auswertung() -> None:
         *[(t0 + i * 100, "kilometerstand", str(84000 + i)) for i in range(12)],
         *[(t0 + i * 100 + 50, "kilometerstand", str(6300000 + i)) for i in range(12)],
     ]
-    fahrt_abspielen(buch, t0, extra=extra)
+    ende = fahrt_abspielen(buch, t0, extra=extra)
+    assert fertig == []  # Zündung aus beendet nicht (Pause)
+    buch.pruefen(ende + 2800)
     assert len(fertig) == 1
     f = fertig[0]
     assert 12 < f["km_gps"] < 14
@@ -65,9 +67,9 @@ def test_ende_durch_stillstand_und_kurze_fahrten_verworfen() -> None:
     buch = Fahrtenbuch(fertig.append)
     for i in range(60):
         buch.ereignis(1000 + i * 10, "position", (47.0 + i * SCHRITT, 8.0))
-    buch.pruefen(1000 + 59 * 10 + 300)
+    buch.pruefen(1000 + 59 * 10 + 2600)
     assert fertig == []
-    buch.pruefen(1000 + 59 * 10 + 400)
+    buch.pruefen(1000 + 59 * 10 + 2800)
     assert len(fertig) == 1 and fertig[0]["quelle"] == "gps"
     # unter 1 km: weg
     for i in range(5):
@@ -92,7 +94,8 @@ def test_spaeter_verbrauch_wird_nachgetragen() -> None:
     fertig: list[dict[str, Any]] = []
     buch = Fahrtenbuch(fertig.append, hat_zuendung=True)
     ende = fahrt_abspielen(buch)
-    buch.ereignis(ende + 600, "verbrauch", "8.7")
+    buch.pruefen(ende + 2800)
+    buch.ereignis(ende + 3000, "verbrauch", "8.7")
     assert len(fertig) == 2 and fertig[-1]["verbrauch_l100"] == 8.7 and fertig[0]["start"] == fertig[1]["start"]
 
 
@@ -135,6 +138,7 @@ async def test_live_und_websocket(hass: HomeAssistant, hass_ws_client: Any) -> N
     hass.states.async_set("sensor.ort", "Liestal", timestamp=t0 + 595)
     hass.states.async_set("binary_sensor.zuendung", "off", timestamp=t0 + 600)
     await hass.async_block_till_done()
+    r.buch.pruefen(time.time())  # 45 min Stillstand vorbei
     await hass.async_block_till_done()
 
     await ws.send_json({"id": 3, "type": "yapaia/reisetagebuch/tage"})
@@ -161,3 +165,28 @@ def test_gps_zittern_im_stand_ist_keine_fahrt() -> None:
         assert buch.fahrt is None
     buch.abschliessen()
     assert fertig == []
+
+
+def test_pause_mit_motor_aus_bleibt_teil_der_fahrt() -> None:
+    fertig: list[dict[str, Any]] = []
+    buch = Fahrtenbuch(fertig.append, hat_zuendung=True)
+    buch.ereignis(990, "zuendung", "on")
+    buch.ereignis(991, "gang", "5")
+    for i in range(60):
+        buch.ereignis(1000 + i * 10, "position", (47.0 + i * SCHRITT, 8.0))
+    # 30 min Kaffeepause, Motor aus (1. Gang), GPS zittert am selben Ort
+    buch.ereignis(1600, "zuendung", "off")
+    buch.ereignis(1601, "gang", "1")
+    for i in range(180):
+        buch.ereignis(1610 + i * 10, "position", (47.0 + 59 * SCHRITT + (0.00005 if i % 2 else 0.0), 8.0))
+    buch.ereignis(3400, "zuendung", "on")
+    buch.ereignis(3401, "gang", "5")
+    for i in range(60):
+        buch.ereignis(3410 + i * 10, "position", (47.0 + (59 + i) * SCHRITT, 8.0))
+    assert fertig == []
+    buch.pruefen(3410 + 590 + 2800)
+    assert len(fertig) == 1
+    f = fertig[0]
+    assert 12 < f["km_gps"] < 14
+    assert 25 <= f["pause_min"] <= 35 and 18 <= f["fahr_min"] <= 22
+    assert f["gaenge_min"].get("1", 0) < 1

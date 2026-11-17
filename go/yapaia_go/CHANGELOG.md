@@ -10,6 +10,14 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.70.3
+
+- **Reisetagebuch – Pausen gehören zur Fahrt:** Bringt die Integration
+  Yapaia 0.9.1 mit. Eine Fahrt endet erst nach 45 Minuten Stillstand, nicht
+  mehr mit „Zündung aus“: eine Kaffee- oder Toilettenpause teilt die Reise
+  nicht mehr in zwei Fahrten. Die Fahrzeit zählt ohne Pausen, die Pausen
+  stehen daneben. Im Stand zählen weder Strecke (GPS-Zittern) noch Gang.
+
 ## 0.70.2
 
 - **Reisetagebuch:** Bringt die Integration Yapaia 0.9.0 mit. Sie zeichnet

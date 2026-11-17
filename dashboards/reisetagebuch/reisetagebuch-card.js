@@ -44,6 +44,7 @@ const TEXTE = {
     fahrzeug: "Fahrzeug",
     fahrten: "Fahrten",
     stand: "Standzeit",
+    pausen: "Pausen",
     gebremst: "× gebremst",
     geblinkt: "× geblinkt",
     grenze: "Grenze",
@@ -96,6 +97,7 @@ const TEXTE = {
     fahrzeug: "Vehicle",
     fahrten: "Trips",
     stand: "stopped",
+    pausen: "breaks",
     gebremst: "× braked",
     geblinkt: "× indicated",
     grenze: "Border",
@@ -375,8 +377,10 @@ class YapaiaReisetagebuchCard extends HTMLElement {
     const can = fs.filter((f) => f.quelle === "can");
     const kmVon = (f) => zahl(f.km_tacho) ?? zahl(f.km_gps) ?? 0;
     const km = summe(fs, kmVon);
-    const min = summe(fs, (f) => f.dauer_min);
+    // Fahrzeit ohne Pausen (ältere Fahrten ohne fahr_min: Dauer − Standzeit)
+    const min = summe(fs, (f) => zahl(f.fahr_min) ?? Math.max(0, (zahl(f.dauer_min) ?? 0) - (zahl(f.steh_min) ?? 0)));
     const steh = summe(fs, (f) => f.steh_min);
+    const pause = summe(fs, (f) => zahl(f.pause_min) ?? zahl(f.steh_min) ?? 0);
     const orte = fs.length ? [fs[0].von, ...fs.map((f) => f.nach)].filter((o, i, a) => o && o !== a[i - 1]) : [];
     const kmQuelle = fs.every((f) => zahl(f.km_tacho) !== null) ? t(h, "aus_tacho") : fs.some((f) => zahl(f.km_tacho) !== null) ? `${t(h, "aus_tacho")} / GPS` : t(h, "aus_gps");
 
@@ -442,7 +446,7 @@ class YapaiaReisetagebuchCard extends HTMLElement {
 
     return `
       <section class="karte"><div class="t">${t(h, "strecke")}</div><div class="gross">${nf(h, km)} km</div><div class="unter">${orte.map(esc).join(" → ")}</div><div class="hinweis">${kmQuelle}</div></section>
-      <section class="karte"><div class="t">${t(h, "zeit")}</div><div class="gross">${hm(min)}${min > 0 ? ` · ${nf(h, km / (min / 60))} km/h` : ""}</div><div class="unter">${t(h, "stand")} ${nf(h, steh)} min · ${t(h, "n_fahrten", { n: fs.length })}</div></section>
+      <section class="karte"><div class="t">${t(h, "zeit")}</div><div class="gross">${hm(min)}${min > 0 ? ` · ${nf(h, km / (min / 60))} km/h` : ""}</div><div class="unter">${t(h, "pausen")} ${hm(pause)} · ${t(h, "n_fahrten", { n: fs.length })}</div></section>
       <section class="karte"><div class="t">${t(h, "verbrauch")}</div>${verbr}</section>
       <section class="karte breit2"><div class="t">${t(h, "route")}</div>${this._routeSvg(h, fs)}</section>
       <section class="karte"><div class="t">${t(h, "stil")}</div>${stil}</section>

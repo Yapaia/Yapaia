@@ -170,7 +170,7 @@ class Reisetagebuch:
             for f in alle:
                 tag = self.daten["tage"].setdefault(f["start"][:10], {"km": 0.0, "min": 0, "fahrten": 0, "orte": []})
                 tag["km"] = round(tag["km"] + (f.get("km_tacho") or f["km_gps"]), 1)
-                tag["min"] += f["dauer_min"]
+                tag["min"] += f.get("fahr_min", f["dauer_min"])  # reine Fahrzeit ohne Pausen
                 tag["fahrten"] += 1
                 for o in (f.get("von"), f.get("nach")):
                     if o and (not tag["orte"] or tag["orte"][-1] != o):
