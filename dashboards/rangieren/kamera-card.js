@@ -8,7 +8,9 @@
  * Im Dashboard:
  *   type: custom:yapaia-kamera-card
  *   entity: camera.rueckfahrkamera   # optional
- * Alles lässt sich im grafischen Editor einstellen.
+ *   tap_action: { action: perform-action, perform_action: select.select_option, … }  # optional
+ *   aktiv: { entity: select.radio_kamera, state: Frontkamera }  # optional: Rahmen, wenn erfüllt
+ * Fast alles lässt sich im grafischen Editor einstellen (`aktiv` nur in YAML).
  */
 
 // Yapaia Design (docs/design-schemata.md); ohne die Integration gelten die HA-Farben
@@ -21,6 +23,8 @@ const STANDARD = {
   mirror: false,
   aspect_ratio: "16:9",
   placeholder: null, // ohne Angabe: TEXTE.ohne_kamera
+  tap_action: null, // HA-Aktion beim Antippen (z. B. diese Kamera groß zeigen)
+  aktiv: null, // { entity, state }: hervorheben, solange die Entität diesen Zustand hat
 };
 
 // Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
@@ -35,6 +39,7 @@ const TEXTE = {
     l_aspect_ratio: "Seitenverhältnis",
     l_mirror: "Bild spiegeln",
     l_placeholder: "Text ohne Kamera",
+    l_tap_action: "Beim Antippen",
     h_entity: "Leer lassen, solange die Kamera noch fehlt.",
     h_mirror: "Für Rückfahrkameras, die seitenverkehrt liefern.",
     nicht_vorhanden: "{entity} gibt es nicht",
@@ -50,6 +55,7 @@ const TEXTE = {
     l_aspect_ratio: "Aspect ratio",
     l_mirror: "Mirror image",
     l_placeholder: "Text without camera",
+    l_tap_action: "On tap",
     h_entity: "Leave empty while the camera is still missing.",
     h_mirror: "For rear cameras that deliver a mirrored image.",
     nicht_vorhanden: "{entity} does not exist",
@@ -84,9 +90,10 @@ class YapaiaKameraCard extends HTMLElement {
           ],
         },
         { name: "placeholder", selector: { text: {} } },
+        { name: "tap_action", selector: { ui_action: {} } },
       ],
       computeLabel: (s) => {
-        const k = { design: "l_design", name: "l_name", entity: "l_entity", aspect_ratio: "l_aspect_ratio", mirror: "l_mirror", placeholder: "l_placeholder" }[s.name];
+        const k = { design: "l_design", name: "l_name", entity: "l_entity", aspect_ratio: "l_aspect_ratio", mirror: "l_mirror", placeholder: "l_placeholder", tap_action: "l_tap_action" }[s.name];
         return k ? t(null, k) : undefined;
       },
       computeHelper: (s) => {
@@ -138,7 +145,9 @@ class YapaiaKameraCard extends HTMLElement {
     const token = st?.attributes?.access_token;
     const bereit = st && token && !["unavailable", "unknown"].includes(st.state);
     const yschema = window.YapaiaDesign?.waehle(this._hass, { wahl: this._config.design, quelle: DESIGN_QUELLE }) ?? null;
-    const key = JSON.stringify([yschema?.id, spracheVon(this._hass), c, bereit, token]);
+    const aktiv = !!(c.aktiv?.entity && this._hass?.states?.[c.aktiv.entity]?.state === String(c.aktiv.state));
+    const tippbar = !!(c.tap_action && c.tap_action.action !== "none");
+    const key = JSON.stringify([yschema?.id, spracheVon(this._hass), c, bereit, token, aktiv]);
     if (key === this._key || !this.isConnected) return;
     this._key = key;
 
@@ -164,12 +173,21 @@ class YapaiaKameraCard extends HTMLElement {
           gap:12px; color:#c8ccd2; text-align:center; padding:16px; font-size:16px;
           background: repeating-linear-gradient(135deg, #1b1d21 0 18px, #212429 18px 36px); }
         .platzhalter ha-icon { --mdc-icon-size:64px; opacity:.7; }
+        ha-card.tippbar { cursor:pointer; }
+        ha-card.aktiv { outline:3px solid var(--y-akzent, var(--primary-color)); outline-offset:-3px; }
       </style>
-      <ha-card>
+      <ha-card class="${tippbar ? "tippbar" : ""} ${aktiv ? "aktiv" : ""}">
         ${(c.name ?? t(this._hass, "titel")) ? `<h2>${c.name ?? t(this._hass, "titel")}</h2>` : ""}
         <div class="rahmen">${bild}</div>
       </ha-card>`;
-    window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector("ha-card"), yschema);
+    const karte = this.shadowRoot.querySelector("ha-card");
+    window.YapaiaDesign?.anwenden(karte, yschema);
+    if (tippbar) {
+      // HA führt die Aktion aus (wie bei eingebauten Karten)
+      karte.addEventListener("click", () => this.dispatchEvent(new CustomEvent("hass-action", {
+        detail: { config: this._config, action: "tap" }, bubbles: true, composed: true,
+      })));
+    }
   }
 }
 
