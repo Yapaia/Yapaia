@@ -46,4 +46,7 @@
     <string name="platzhalter_kein_signal">No signal</string>
     <string name="platzhalter_warte">Waiting for picture …</string>
     <string name="platzhalter_standbild">Still image from %1$s</string>
+    <string name="tasten_dienst">Yapaia buttons</string>
+    <string name="tasten_beschreibung">Reports every button press of the radio (panel, knob, steering wheel) to Home Assistant. Only buttons marked as \"intercept\" are taken away from the radio.</string>
+    <string name="warnung_mcu">Caution: MCU values (audio_vol, audio_output_gain) act directly on the amplifier. Only try at low volume; \"Factory values\" restores the original settings.</string>
 </resources>

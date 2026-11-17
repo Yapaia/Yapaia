@@ -63,7 +63,7 @@ class KameraModul(private val ctx: Context) : Modul {
     /** Ein Bild eines Eingangs. */
     class Bild(val jpeg: ByteArray, val zeit: Long, val nr: Long)
 
-    private class Strom(val eingang: Int, val beginn: Long)
+    private class Strom(@Volatile var eingang: Int, val beginn: Long)
 
     private val sperre = Object()
     // Alles unten nur unter [sperre] ändern.
@@ -96,6 +96,8 @@ class KameraModul(private val ctx: Context) : Modul {
     private var sucheSeitWand = 0L
     private var letzteSuche = 0L
     @Volatile private var sucheAngefordert = true
+    /** Fest gewählter Live-Eingang (0–3) oder -1 = automatisch (Ströme/Vorrang). */
+    @Volatile private var live = einstellungen.getInt("live", -1)
 
     // fps
     @Volatile private var bilderSeitOeffnen = 0
@@ -172,10 +174,10 @@ class KameraModul(private val ctx: Context) : Modul {
         val jetzt = SystemClock.elapsedRealtime()
         if (jetzt - fpsZeit >= 1000) { fps = zaehler; zaehler = 0; fpsZeit = jetzt }
         val stromEingang = synchronized(sperre) { stromWahl() }
-        if (stromEingang != null || (einzelWunsch >= 0 && jetzt - einzelWunschZeit < 6000)) suche = null
+        if (live >= 0 || stromEingang != null || (einzelWunsch >= 0 && jetzt - einzelWunschZeit < 6000)) suche = null
 
         // Signalsuche: wenn alles ruht, jeden Eingang kurz ansehen
-        val ruhig = stromEingang == null && jetzt - letzteNachfrage > RUHE_MS && einzelWunsch < 0
+        val ruhig = live < 0 && stromEingang == null && jetzt - letzteNachfrage > RUHE_MS && einzelWunsch < 0
         if (suche == null && ruhig && !pausiert && !belegt && (sucheAngefordert || jetzt - letzteSuche > SUCHE_ALLE)) {
             sucheAngefordert = false
             suche = (0 until anzahl).toMutableList()
@@ -202,6 +204,7 @@ class KameraModul(private val ctx: Context) : Modul {
 
         val ziel = when {
             pausiert || jetzt < pauseBis -> -1
+            live >= 0 -> live
             stromEingang != null -> stromEingang
             einzelWunsch >= 0 -> einzelWunsch
             suche != null -> suche!!.first()
@@ -358,20 +361,36 @@ class KameraModul(private val ctx: Context) : Modul {
     // ── HTTP ────────────────────────────────────────────────────────────────
 
     override fun bearbeiten(rest: String, anfrage: Anfrage, antwort: Antwort): Boolean {
-        val m = Regex("""(\d)\.(jpg|jpeg|mjpg|mjpeg)""").matchEntire(rest)
+        val m = Regex("""(\d|live)\.(jpg|jpeg|mjpg|mjpeg)""").matchEntire(rest)
         if (m != null) {
-            val e = m.groupValues[1].toInt() - 1
+            val e = if (m.groupValues[1] == "live") liveEingang() else m.groupValues[1].toInt() - 1
             if (e !in 0 until anzahl) return false
-            if (m.groupValues[2].startsWith("mj")) strom(e, antwort) else einzelbild(e, antwort)
+            if (m.groupValues[2].startsWith("mj")) strom(e, antwort, m.groupValues[1] == "live") else einzelbild(e, antwort)
             return true
         }
         when (rest) {
             "roh.jpg" -> roh(antwort)
+            "live" -> {
+                // /kamera/live?eingang=1..4, 0 = automatisch
+                val e = anfrage.parameter["eingang"]?.toIntOrNull()
+                if (e == null || e !in 0..anzahl) { antwort.text(400, "eingang=0..$anzahl\n"); return true }
+                live = e - 1
+                einstellungen.edit().putInt("live", live).apply()
+                steuer.post { steuern() }
+                antwort.text(200, status().toString(2) + "\n", "application/json")
+            }
             "suchen" -> { sucheAngefordert = true; letzteNachfrage = 0; antwort.text(200, "ok\n") }
             "einstellen" -> einstellen(anfrage, antwort)
             else -> return false
         }
         return true
+    }
+
+    /** Eingang für `live.mjpg`: der feste, sonst der offene, sonst der mit Vorrang. */
+    private fun liveEingang(): Int = when {
+        live >= 0 -> live
+        offenerEingang >= 0 -> offenerEingang
+        else -> ((vorrang.firstOrNull() ?: 3) - 1).coerceIn(0, anzahl - 1)
     }
 
     private fun nachfrage() {
@@ -403,7 +422,9 @@ class KameraModul(private val ctx: Context) : Modul {
         antwort.senden(200, "image/jpeg", b?.jpeg ?: platzhalter(e))
     }
 
-    private fun strom(e: Int, antwort: Antwort) {
+    /** MJPEG-Strom von Eingang [start]; mit [folgen] wechselt er mit dem Live-Eingang. */
+    private fun strom(start: Int, antwort: Antwort, folgen: Boolean = false) {
+        var e = start
         val s = Strom(e, SystemClock.elapsedRealtime())
         synchronized(sperre) { stroeme += s }
         nachfrage()
@@ -413,6 +434,11 @@ class KameraModul(private val ctx: Context) : Modul {
             var letzte = -1L
             var gesendet = 0L
             while (true) {
+                if (folgen && live >= 0 && live != e) {
+                    e = live
+                    synchronized(sperre) { s.eingang = e }
+                    letzte = -1L
+                }
                 val b = warten(e, letzte, 1000)
                 nachfrage()
                 val jetzt = SystemClock.elapsedRealtime()
@@ -567,6 +593,7 @@ class KameraModul(private val ctx: Context) : Modul {
         }
         JSONObject()
             .put("aktiver_eingang", if (offenerEingang >= 0) offenerEingang + 1 else JSONObject.NULL)
+            .put("live", if (live >= 0) live + 1 else 0)
             .put("fps", if (offenerEingang >= 0) fps else 0)
             .put("belegt", belegt)
             .put("pausiert", pausiert)

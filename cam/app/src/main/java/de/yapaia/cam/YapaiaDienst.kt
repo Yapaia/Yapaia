@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -30,7 +31,9 @@ class YapaiaDienst : Service() {
     override fun onCreate() {
         super.onCreate()
         vordergrund()
-        module = listOf(KameraModul(this))
+        val audio = AudioModul(this)
+        val player = PlayerModul(this, audio)
+        module = listOf(KameraModul(this), SensorModul(this), MikroModul(this), audio, player, player.dlna, TastenModul(this))
         module.forEach { it.starten() }
         server = WebServer(PORT, ::bearbeiten).also { it.starten() }
         Log.i(WebServer.TAG, "Dienst läuft auf Port $PORT")
@@ -56,7 +59,12 @@ class YapaiaDienst : Service() {
         val n = benachrichtigung()
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+                var typ = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                    typ = typ or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+                    typ = typ or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                startForeground(1, n, typ)
             } else {
                 startForeground(1, n)
             }
@@ -86,6 +94,10 @@ class YapaiaDienst : Service() {
     private fun bearbeiten(a: Anfrage, antwort: Antwort) {
         val teile = a.pfad.trim('/').split('/', limit = 2)
         when {
+            teile[0] == "einstellen" -> {
+                a.parameter["ha"]?.let { Melder.haSetzen(this, it) }
+                antwort.text(200, Melder.status(this).toString(2) + "\n", "application/json")
+            }
             teile[0] == "status" -> antwort.text(200, status().toString(2) + "\n", "application/json")
             teile[0] == "" -> antwort.text(200, startseite(), "text/html; charset=utf-8")
             else -> {
@@ -110,7 +122,10 @@ class YapaiaDienst : Service() {
     private fun startseite(): String {
         val links = (1..4).joinToString("") { "<li>$it: <a href=\"/kamera/$it.mjpg\">mjpg</a> · <a href=\"/kamera/$it.jpg\">jpg</a></li>" }
         return "<!doctype html><meta charset=utf-8><meta name=viewport content=\"width=device-width\">" +
-            "<title>Yapaia</title><h1>Yapaia</h1><p><a href=\"/status\">/status</a></p><ul>$links</ul>"
+            "<title>Yapaia</title><h1>Yapaia</h1><p><a href=\"/status\">/status</a> · " +
+            "<a href=\"/dlna/geraet.xml\">DLNA</a> · <a href=\"/mikro/aufnahme.wav?s=3\">mic 3 s</a></p>" +
+            "<ul>$links<li>live: <a href=\"/kamera/live.mjpg\">mjpg</a></li></ul>" +
+            "<p>${getString(R.string.warnung_mcu)}</p>"
     }
 
     private fun adressen(): List<String> = try {

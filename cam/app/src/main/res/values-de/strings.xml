@@ -45,4 +45,7 @@
     <string name="platzhalter_kein_signal">Kein Signal</string>
     <string name="platzhalter_warte">Warte auf Bild …</string>
     <string name="platzhalter_standbild">Standbild von %1$s</string>
+    <string name="tasten_dienst">Yapaia-Tasten</string>
+    <string name="tasten_beschreibung">Meldet jeden Tastendruck am Radio (Bedienfeld, Drehrad, Lenkrad) an Home Assistant. Nur Tasten mit „abfangen“ bekommt das Radio selbst nicht mehr.</string>
+    <string name="warnung_mcu">Achtung: MCU-Werte (audio_vol, audio_output_gain) wirken direkt auf die Endstufe. Nur bei kleiner Lautstärke probieren; „Werkswerte“ stellt den Ursprung wieder her.</string>
 </resources>

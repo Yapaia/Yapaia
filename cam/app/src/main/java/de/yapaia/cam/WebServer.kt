@@ -9,8 +9,16 @@ import java.net.Socket
 import java.net.SocketException
 import java.net.URLDecoder
 
-/** Eine HTTP-Anfrage (nur GET/HEAD, Kopfzeilen werden überlesen). */
-class Anfrage(val methode: String, val pfad: String, val parameter: Map<String, String>)
+/** Eine HTTP-Anfrage. [kopf] mit kleingeschriebenen Namen, [koerper] nur bei Content-Length. */
+class Anfrage(
+    val methode: String,
+    val pfad: String,
+    val parameter: Map<String, String>,
+    val kopf: Map<String, String> = emptyMap(),
+    val koerper: ByteArray = ByteArray(0),
+) {
+    val text: String get() = String(koerper, Charsets.UTF_8)
+}
 
 /** Antwort auf eine Anfrage; für Ströme (MJPEG) [kopf] + [strom]. */
 class Antwort(private val aus: OutputStream) {
@@ -19,21 +27,25 @@ class Antwort(private val aus: OutputStream) {
 
     val strom: OutputStream get() = aus
 
-    fun kopf(code: Int, typ: String, laenge: Int? = null) {
-        val text = when (code) { 200 -> "OK"; 404 -> "Not Found"; 503 -> "Service Unavailable"; else -> "Error" }
+    fun kopf(code: Int, typ: String, laenge: Int? = null, extra: Map<String, String> = emptyMap()) {
+        val text = when (code) {
+            200 -> "OK"; 400 -> "Bad Request"; 403 -> "Forbidden"; 404 -> "Not Found"; 412 -> "Precondition Failed"
+            500 -> "Internal Server Error"; 501 -> "Not Implemented"; 503 -> "Service Unavailable"; else -> "Error"
+        }
         val k = StringBuilder("HTTP/1.1 $code $text\r\n")
             .append("Content-Type: $typ\r\n")
             .append("Cache-Control: no-cache, no-store\r\n")
             .append("Access-Control-Allow-Origin: *\r\n")
             .append("Connection: close\r\n")
+        for ((n, w) in extra) k.append("$n: $w\r\n")
         if (laenge != null) k.append("Content-Length: $laenge\r\n")
         k.append("\r\n")
         aus.write(k.toString().toByteArray())
         gesendet = true
     }
 
-    fun senden(code: Int, typ: String, daten: ByteArray) {
-        kopf(code, typ, daten.size)
+    fun senden(code: Int, typ: String, daten: ByteArray, extra: Map<String, String> = emptyMap()) {
+        kopf(code, typ, daten.size, extra)
         aus.write(daten)
         aus.flush()
     }
@@ -82,11 +94,22 @@ class WebServer(private val port: Int, private val bearbeiter: (Anfrage, Antwort
         v.use {
             try {
                 v.soTimeout = 15000
-                val ein = v.getInputStream().bufferedReader(Charsets.ISO_8859_1)
-                val zeile = ein.readLine() ?: return
+                val ein = v.getInputStream().buffered()
+                val zeile = zeileLesen(ein) ?: return
+                val kopf = mutableMapOf<String, String>()
                 while (true) {
-                    val k = ein.readLine() ?: break
+                    val k = zeileLesen(ein) ?: break
                     if (k.isEmpty()) break
+                    val i = k.indexOf(':')
+                    if (i > 0) kopf[k.substring(0, i).trim().lowercase()] = k.substring(i + 1).trim()
+                }
+                val laenge = kopf["content-length"]?.toIntOrNull()?.coerceIn(0, MAX_KOERPER) ?: 0
+                val koerper = ByteArray(laenge)
+                var gelesen = 0
+                while (gelesen < laenge) {
+                    val n = ein.read(koerper, gelesen, laenge - gelesen)
+                    if (n < 0) break
+                    gelesen += n
                 }
                 v.soTimeout = 0
                 val teile = zeile.split(" ")
@@ -98,7 +121,7 @@ class WebServer(private val port: Int, private val bearbeiter: (Anfrage, Antwort
                 }
                 val antwort = Antwort(BufferedOutputStream(v.getOutputStream(), 64 * 1024))
                 try {
-                    bearbeiter(Anfrage(teile[0], pfad, parameter), antwort)
+                    bearbeiter(Anfrage(teile[0], pfad, parameter, kopf, koerper), antwort)
                 } catch (e: IOException) {
                     // Gegenstelle hat aufgelegt
                 } catch (e: Exception) {
@@ -111,9 +134,21 @@ class WebServer(private val port: Int, private val bearbeiter: (Anfrage, Antwort
         }
     }
 
+    /** Eine Zeile bis CRLF/LF (ISO-8859-1), null am Ende des Stroms. */
+    private fun zeileLesen(ein: java.io.InputStream): String? {
+        val b = StringBuilder()
+        while (true) {
+            val c = ein.read()
+            if (c < 0) return if (b.isEmpty()) null else b.toString()
+            if (c == '\n'.code) return b.toString().trimEnd('\r')
+            if (b.length < 8192) b.append(c.toChar())
+        }
+    }
+
     private fun dekodieren(s: String) = try { URLDecoder.decode(s, "UTF-8") } catch (e: Exception) { s }
 
     companion object {
         const val TAG = "Yapaia"
+        const val MAX_KOERPER = 256 * 1024
     }
 }
