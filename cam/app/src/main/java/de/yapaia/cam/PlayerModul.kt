@@ -383,7 +383,7 @@ object Dlna {
     private val iid = "InstanceID:in:A_ARG_TYPE_InstanceID"
 
     val dienste: Map<String, Pair<Map<String, List<Triple<String, String, String>>>, Map<String, String>>> = mapOf(
-        "avt" to (mapOf(
+        "avt" to Pair(mapOf(
             "SetAVTransportURI" to a(iid, "CurrentURI:in:AVTransportURI", "CurrentURIMetaData:in:AVTransportURIMetaData"),
             "Play" to a(iid, "Speed:in:TransportPlaySpeed"),
             "Pause" to a(iid), "Stop" to a(iid),
@@ -407,7 +407,7 @@ object Dlna {
             "CurrentRecordQualityMode" to "string", "PossiblePlaybackStorageMedia" to "string", "PossibleRecordStorageMedia" to "string",
             "PossibleRecordQualityModes" to "string", "LastChange" to "string",
         )),
-        "rc" to (mapOf(
+        "rc" to Pair(mapOf(
             "GetVolume" to a(iid, "Channel:in:A_ARG_TYPE_Channel", "CurrentVolume:out:Volume"),
             "SetVolume" to a(iid, "Channel:in:A_ARG_TYPE_Channel", "DesiredVolume:in:Volume"),
             "GetMute" to a(iid, "Channel:in:A_ARG_TYPE_Channel", "CurrentMute:out:Mute"),
@@ -418,7 +418,7 @@ object Dlna {
             "A_ARG_TYPE_InstanceID" to "ui4", "A_ARG_TYPE_Channel" to "string", "Volume" to "ui2", "Mute" to "boolean",
             "PresetNameList" to "string", "A_ARG_TYPE_PresetName" to "string", "LastChange" to "string",
         )),
-        "cm" to (mapOf(
+        "cm" to Pair(mapOf(
             "GetProtocolInfo" to a("Source:out:SourceProtocolInfo", "Sink:out:SinkProtocolInfo"),
             "GetCurrentConnectionIDs" to a("ConnectionIDs:out:CurrentConnectionIDs"),
             "GetCurrentConnectionInfo" to a("ConnectionID:in:A_ARG_TYPE_ConnectionID", "RcsID:out:A_ARG_TYPE_RcsID",
