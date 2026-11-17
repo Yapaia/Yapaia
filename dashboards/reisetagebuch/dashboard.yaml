@@ -9,4 +9,4 @@ views:
     panel: true
     cards:
       - type: custom:yapaia-reisetagebuch-card
-        preis_l: 1.75
+        preis_l: 2.40

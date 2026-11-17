@@ -10,14 +10,14 @@
  *
  * Im Dashboard:
  *   type: custom:yapaia-reisetagebuch-card
- *   preis_l: 1.75      # Dieselpreis €/l für die Kostenschätzung
+ *   preis_l: 2.40      # Dieselpreis €/l für die Kostenschätzung
  */
 
 // Yapaia Design (docs/design-schemata.md); ohne die Integration gelten die Rückfallfarben
 const DESIGN = import("/yapaia_design/yapaia-design.js").then(() => window.YapaiaDesign.bereit).catch(() => null);
 const DESIGN_QUELLE = null;
 
-const STANDARD = { design: "auto", preis_l: 1.75 };
+const STANDARD = { design: "auto", preis_l: 2.40 };
 const SPEICHER = "yapaia-reisetagebuch-tag";
 
 // Texte je Sprache (docs/sprachen.md): folgt der HA-Sprache, Deutsch oder sonst Englisch
