@@ -11,8 +11,8 @@ android {
         applicationId = "de.yapaia.cam"
         minSdk = 28
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.6.0"
+        versionCode = 12
+        versionName = "0.6.1"
     }
 
     // Signiert wird nicht hier, sondern auf dem Mini-PC (cam/signieren.sh):

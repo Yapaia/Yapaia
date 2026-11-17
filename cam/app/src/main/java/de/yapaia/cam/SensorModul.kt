@@ -27,6 +27,15 @@ import java.io.File
  */
 class SensorModul(private val ctx: Context) : Modul {
 
+    companion object {
+        val ROH_ORDNER = listOf("/sys/class/wits/misc", "/sys/class/wits/mcu", "/sys/class/wits/swc",
+            "/sys/class/wits/tkey", "/sys/class/wits/version")
+        /** Nicht übernehmen: Geräte-IDs, Dienststarts, Bootzeiten. */
+        val AUSLASSEN = listOf("init.svc", "ro.boottime", "persist.wits.imei", "persist.wits.ota.sn")
+        /** Ändern sich ständig – nicht ins Protokoll. */
+        val RAUSCHEN = listOf("wits.acc.on.time")
+    }
+
     override val name = "sensoren"
 
     private val faden = HandlerThread("sensoren").apply { start() }
@@ -40,6 +49,11 @@ class SensorModul(private val ctx: Context) : Modul {
     private var gemeldet: String? = null
     private var letzteMeldung = 0L
     private var runde = 0
+
+    // Rohwerte: alle lesbaren MCU-Dateien und wits-/CAN-Eigenschaften, mit Änderungsprotokoll
+    @Volatile private var roh = sortedMapOf<String, String>()
+    private val aenderungen = ArrayDeque<JSONObject>()
+    private var props = mapOf<String, String>()
 
     private val ortHoerer = object : LocationListener {
         override fun onLocationChanged(l: Location) { ort = l }
@@ -109,7 +123,48 @@ class SensorModul(private val ctx: Context) : Modul {
                 .put("rueckwaerts", mcu.opt("rueckwaerts"))
                 .put("handbremse", mcu.opt("handbremse")))
         }
+        if (runde % 2 == 0) props = Geraet.eigenschaften().filterKeys { k ->
+            (k.contains("wits") || k.startsWith("can.") || k.startsWith("vendor.can")) &&
+                AUSLASSEN.none { k.startsWith(it) || k.endsWith(it) }
+        }
         if (runde++ % 10 == 0) langsam = langsamMessen()
+        rohMessen()
+    }
+
+    private fun rohMessen() {
+        val neu = sortedMapOf<String, String>()
+        for (ordner in ROH_ORDNER) {
+            File(ordner).listFiles()?.filter { it.isFile && it.canRead() && it.name != "uevent" }?.forEach { f ->
+                val w = Geraet.lesen(f.path) ?: return@forEach
+                if (w.length <= 120) neu["sys:${f.parentFile?.name}/${f.name}"] = w
+            }
+        }
+        for ((k, v) in props) neu["prop:$k"] = v
+        val alt = roh
+        if (alt.isNotEmpty()) {
+            val zeit = System.currentTimeMillis() / 1000
+            for (k in (alt.keys + neu.keys)) {
+                if (alt[k] == neu[k] || RAUSCHEN.any { k.endsWith(it) }) continue
+                synchronized(aenderungen) {
+                    aenderungen.addFirst(JSONObject().put("zeit", zeit).put("wert", k)
+                        .put("alt", alt[k] ?: JSONObject.NULL).put("neu", neu[k] ?: JSONObject.NULL))
+                    while (aenderungen.size > 40) aenderungen.removeLast()
+                }
+            }
+        }
+        roh = neu
+    }
+
+    override fun bearbeiten(rest: String, anfrage: Anfrage, antwort: Antwort): Boolean {
+        when (rest) {
+            "roh" -> antwort.text(200, JSONObject()
+                .put("roh", JSONObject(roh as Map<*, *>))
+                .put("aenderungen", synchronized(aenderungen) { org.json.JSONArray(aenderungen.toList()) })
+                .toString(2) + "\n", "application/json")
+            "vergessen" -> { synchronized(aenderungen) { aenderungen.clear() }; antwort.text(200, "ok\n") }
+            else -> return false
+        }
+        return true
     }
 
     private fun langsamMessen(): JSONObject {
@@ -183,6 +238,7 @@ class SensorModul(private val ctx: Context) : Modul {
             .put("alter_s", (System.currentTimeMillis() - o.time) / 1000)
             .put("satelliten", satelliten ?: JSONObject.NULL))
         j.put("webhook", Melder.status(ctx))
+        j.put("aenderungen", synchronized(aenderungen) { org.json.JSONArray(aenderungen.take(15)) })
         return j
     }
 }
