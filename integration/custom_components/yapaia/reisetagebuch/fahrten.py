@@ -33,6 +33,7 @@ ROLLEN = {
     "bordspannung": "sensor V",
     "tank": "sensor Tankinhalt (roh, l oder %)",
     "verbrauch": "sensor Ø-Verbrauch l/100 km (Bordcomputer)",
+    "momentanverbrauch": "sensor l/100 km gerade jetzt (färbt die Route)",
     "land": "sensor Land",
     "ort": "sensor Ort",
     "adresse": "sensor Adresse",
@@ -146,7 +147,7 @@ class Fahrtenbuch:
             wert = gang_name(wert)
         elif rolle in ("zuendung", "tempomat", "blinker_links", "blinker_rechts", "bremse"):
             wert = an(wert)
-        elif rolle in ("drehzahl", "tempo", "aussentemperatur", "bordspannung", "tank", "verbrauch", "hoehe"):
+        elif rolle in ("drehzahl", "tempo", "aussentemperatur", "bordspannung", "tank", "verbrauch", "momentanverbrauch", "hoehe"):
             wert = zahl(wert)
         elif wert in UNGUELTIG:
             wert = None
@@ -223,7 +224,7 @@ class Fahrtenbuch:
                 f["letzte_bewegung"] = t if kmh >= START_KMH else f["letzte_bewegung"]
             f["_km_lauf"] = f["km_gps"]
         if t - f["_spur_t"] >= SPUR_ABSTAND:
-            f["spur"].append([round(lat, 5), round(lon, 5), 0 if luecke else round(min(kmh, 160))])
+            f["spur"].append(self._punkt(lat, lon, 0 if luecke else round(min(kmh, 160))))
             f["_spur_t"] = t
 
     # ---- Fahrt --------------------------------------------------------------
@@ -231,7 +232,7 @@ class Fahrtenbuch:
         w = self.werte
         f: dict[str, Any] = {
             "t_start": p[0], "letzte_bewegung": p[0], "km_gps": 0.0, "steh_s": 0.0,
-            "spur": [[round(p[1], 5), round(p[2], 5), 0]], "_spur_t": p[0], "_km_lauf": 0.0,
+            "spur": [self._punkt(p[1], p[2], 0)], "_spur_t": p[0], "_km_lauf": 0.0,
             "von": w.get("ort"), "von_adr": w.get("adresse"), "land_start": w.get("land"),
             "km_gruppen": [], "tank_start": w.get("tank"),
             "grenzen": [], "laender_km": {}, "_land": w.get("land"), "_land_km": 0.0,
@@ -243,6 +244,12 @@ class Fahrtenbuch:
                 self._minmax(f, rolle, w[rolle])
         self.fahrt = f
         return f
+
+    def _punkt(self, lat: float, lon: float, kmh: float) -> list[Any]:
+        """Spurpunkt [lat, lon, km/h, Höhe m, l/100 km]; Unbekanntes als None."""
+        h, mv = self.werte.get("hoehe"), self.werte.get("momentanverbrauch")
+        return [round(lat, 5), round(lon, 5), kmh, None if h is None else round(h),
+                None if mv is None else round(mv, 1)]
 
     @staticmethod
     def _km_gruppe(f: dict[str, Any], z: float) -> None:

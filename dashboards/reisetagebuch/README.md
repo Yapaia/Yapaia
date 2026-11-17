@@ -53,7 +53,7 @@ Code: `integration/custom_components/yapaia/reisetagebuch/`.
 
   Rollen: `position`, `zuendung`, `kilometerstand`, `tempo`, `drehzahl`, `gang`,
   `tempomat`, `bremse`, `blinker_links`, `blinker_rechts`, `aussentemperatur`,
-  `bordspannung`, `tank`, `verbrauch`, `land`, `ort`, `adresse`, `hoehe`.
+  `bordspannung`, `tank`, `verbrauch`, `momentanverbrauch`, `land`, `ort`, `adresse`, `hoehe`.
   Ohne `quellen` liefert der Befehl die aktuelle Einstellung.
 - **Nachtragen** aus dem Recorder (ersetzt die Fahrten im Zeitraum):
   `{"type": "yapaia/reisetagebuch/nachtragen", "start": "2026-11-14T00:00", "ende": "2026-11-17T13:00"}`

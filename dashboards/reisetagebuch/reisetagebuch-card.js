@@ -32,7 +32,11 @@ const TEXTE = {
     strecke: "Strecke",
     zeit: "Fahrzeit · Ø",
     verbrauch: "Verbrauch · Kosten",
-    route: "Route · gefärbt nach Tempo",
+    route: "Route",
+    farbe_tempo: "Tempo",
+    farbe_verbrauch: "Verbrauch",
+    farbe_hoehe: "Höhe",
+    keine_werte: "Für diesen Tag keine Werte aufgezeichnet",
     stil: "Fahrstil",
     tempomat: "Tempomat-Anteil",
     gaenge: "Gänge (Zeit)",
@@ -80,7 +84,11 @@ const TEXTE = {
     strecke: "Distance",
     zeit: "Driving time · avg",
     verbrauch: "Fuel · cost",
-    route: "Route · coloured by speed",
+    route: "Route",
+    farbe_tempo: "Speed",
+    farbe_verbrauch: "Fuel",
+    farbe_hoehe: "Altitude",
+    keine_werte: "No values recorded for this day",
     stil: "Driving style",
     tempomat: "Cruise control share",
     gaenge: "Gears (time)",
@@ -140,6 +148,16 @@ const paar = (v) => (Array.isArray(v) && v.length >= 2 && zahl(v[0]) !== null &&
 const summe = (liste, f) => liste.reduce((s, x) => s + (zahl(f(x)) ?? 0), 0);
 const LAND_KURZ = { Deutschland: "DE", Schweiz: "CH", Frankreich: "FR", Österreich: "AT", Italien: "IT", Germany: "DE", Switzerland: "CH", France: "FR", Austria: "AT", Italy: "IT" };
 
+// Spurpunkt: [lat, lon, km/h, Höhe m, l/100 km] – Höhe und Verbrauch können fehlen (null)
+const FARBMODI = ["tempo", "verbrauch", "hoehe"];
+const SPALTE = { tempo: 2, verbrauch: 4, hoehe: 3 };
+const VERBRAUCH_STUFEN = [6, 9, 12, 16];
+// Verlauf in Schemafarben (color-mix), niedrig → hoch
+const verlauf = (anteil) => {
+  const a = Math.max(0, Math.min(1, anteil));
+  if (a < 0.5) return `color-mix(in srgb, var(--y-akzent2, #ffd166) ${Math.round(a * 200)}%, var(--y-ok, #3ecf8e))`;
+  return `color-mix(in srgb, var(--y-fehler, #ff6b5e) ${Math.round((a - 0.5) * 200)}%, var(--y-akzent2, #ffd166))`;
+};
 const tempoFarbe = (v) => (v < 50 ? "var(--y-info, #7c3aed)" : v < 90 ? "var(--y-akzent, #c9895b)" : "var(--y-ok, #3ecf8e)");
 const GANG_FARBE = { 1: "#5aa9ff", 2: "#4a8fd6", 3: "#4876a8", 4: "#9a6f3c", 5: "#c98a3e", 6: "var(--y-akzent2, #ffd166)", N: "var(--y-rand, #343b4b)", R: "var(--y-fehler, #ff6b5e)" };
 
@@ -271,11 +289,24 @@ class YapaiaReisetagebuchCard extends HTMLElement {
     const ox = (W - (maxX - minX) * s) / 2, oy = (H - (maxY - minY) * s) / 2;
     const X = (p) => ((p[1] * k - minX) * s + ox).toFixed(1);
     const Y = (p) => ((-p[0] - minY) * s + oy).toFixed(1);
+    const hat = (m) => m === "tempo" || pts.some((p) => Array.isArray(p) && zahl(p[SPALTE[m]]) !== null);
+    // gewählte Färbung ohne Werte an diesem Tag: Tempo zeigen (Wahl bleibt gemerkt)
+    const modus = hat(this._farbmodus()) ? this._farbmodus() : "tempo";
+    const spalte = SPALTE[modus];
+    const werte = pts.map((p) => zahl(p[spalte])).filter((v) => v !== null);
+    const vmin = werte.length ? Math.min(...werte) : 0, vmax = werte.length ? Math.max(...werte) : 1;
+    const farbe = (p) => {
+      const v = zahl(p[spalte]);
+      if (modus === "tempo") return tempoFarbe(v ?? 0);
+      if (v === null) return "var(--y-rand, #343b4b)";
+      if (modus === "verbrauch") return verlauf(VERBRAUCH_STUFEN.filter((g) => v >= g).length / VERBRAUCH_STUFEN.length);
+      return verlauf((v - vmin) / (vmax - vmin || 1));
+    };
     let out = "";
     for (const f of mitSpur) {
       const sp = f.spur;
       for (let i = 0; i < sp.length - 1; i++) {
-        out += `<line x1="${X(sp[i])}" y1="${Y(sp[i])}" x2="${X(sp[i + 1])}" y2="${Y(sp[i + 1])}" stroke="${tempoFarbe(zahl(sp[i][2]) ?? 0)}" stroke-width="5" stroke-linecap="round"/>`;
+        out += `<line x1="${X(sp[i])}" y1="${Y(sp[i])}" x2="${X(sp[i + 1])}" y2="${Y(sp[i + 1])}" stroke="${farbe(sp[i])}" stroke-width="5" stroke-linecap="round"/>`;
       }
       for (const g of Array.isArray(f.grenzen) ? f.grenzen : []) {
         const pos = paar(g?.pos);
@@ -295,8 +326,41 @@ class YapaiaReisetagebuchCard extends HTMLElement {
     };
     out += lbl(a, mitSpur[0].von);
     if (Math.hypot(X(a) - X(e), Y(a) - Y(e)) > 40) out += lbl(e, mitSpur.at(-1).nach);
-    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t(h, "route"))}">${out}</svg>
-      <div class="legende"><span><i style="background:var(--y-info, #7c3aed)"></i>${t(h, "stadt")}</span><span><i style="background:var(--y-akzent, #c9895b)"></i>${t(h, "land")}</span><span><i style="background:var(--y-ok, #3ecf8e)"></i>${t(h, "bahn")}</span></div>`;
+    const knoepfe = `<div class="modi" role="group">${FARBMODI.map((m) =>
+      `<button class="modus${m === modus ? " an" : ""}" data-modus="${m}" ${hat(m) ? "" : "disabled"} aria-pressed="${m === modus}">${t(h, "farbe_" + m)}</button>`).join("")}</div>`;
+    const nf1 = (v) => Math.round(v).toLocaleString(h?.language === "en" ? "en-GB" : "de-DE");
+    const strich = (c, txt) => `<span><i style="background:${c}"></i>${txt}</span>`;
+    let legende;
+    if (modus === "tempo") {
+      legende = strich("var(--y-info, #7c3aed)", t(h, "stadt")) + strich("var(--y-akzent, #c9895b)", t(h, "land")) + strich("var(--y-ok, #3ecf8e)", t(h, "bahn"));
+    } else if (!werte.length) {
+      legende = `<span>${t(h, "keine_werte")}</span>`;
+    } else if (modus === "verbrauch") {
+      const g = VERBRAUCH_STUFEN;
+      legende = [`< ${g[0]}`, `${g[0]}–${g[1]}`, `${g[1]}–${g[2]}`, `${g[2]}–${g[3]}`, `> ${g[3]} l/100 km`]
+        .map((txt, i) => strich(verlauf(i / g.length), txt)).join("");
+    } else {
+      legende = strich(verlauf(0), `${nf1(vmin)} m`) + strich(verlauf(0.5), `${nf1((vmin + vmax) / 2)} m`) + strich(verlauf(1), `${nf1(vmax)} m`);
+    }
+    return `${knoepfe}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t(h, "route"))}">${out}</svg>
+      <div class="legende">${legende}</div>`;
+  }
+
+  _farbmodus() {
+    if (!this._modus) {
+      let m = null;
+      try { m = localStorage.getItem(SPEICHER + "-farbe"); } catch (e) { /* ohne Speicher */ }
+      this._modus = FARBMODI.includes(m) ? m : "tempo";
+    }
+    return this._modus;
+  }
+
+  _setzeModus(m) {
+    if (!FARBMODI.includes(m) || m === this._modus) return;
+    this._modus = m;
+    try { localStorage.setItem(SPEICHER + "-farbe", m); } catch (e) { /* ohne Speicher */ }
+    this._key = null;
+    this._render();
   }
 
   _gaengeBalken(h, g) {
@@ -445,6 +509,11 @@ class YapaiaReisetagebuchCard extends HTMLElement {
         .fahrten { width:100%; border-collapse:collapse; font-size:14px; }
         .fahrten td { padding:6px 4px; border-top:1px solid var(--y-rand, #343b4b); }
         .fahrten td.z { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .modi { display:inline-flex; gap:0; margin-bottom:8px; border:1px solid var(--y-rand, #343b4b); border-radius:var(--y-radius-klein, 6px); overflow:hidden; }
+        .modi .modus { background:transparent; color:var(--y-text-gedaempft, #a9adb8); border:0; border-radius:0; min-height:36px; padding:0 14px; font-size:14px; cursor:pointer; min-width:0; }
+        .modi .modus + .modus { border-left:1px solid var(--y-rand, #343b4b); }
+        .modi .modus.an { background:var(--y-akzent, #c9895b); color:var(--y-akzent-text, #0a0d14); }
+        .modi .modus:disabled { opacity:.35; cursor:default; }
         .legende { display:flex; gap:14px; font-size:13px; color:var(--y-text-gedaempft, #a9adb8); flex-wrap:wrap; margin-top:6px; }
         .legende i { display:inline-block; width:14px; height:4px; border-radius:2px; margin-right:5px; vertical-align:middle; }
         .hinweis { font-size:12px; color:var(--y-text-gedaempft, #a9adb8); margin-top:6px; }
@@ -461,6 +530,7 @@ class YapaiaReisetagebuchCard extends HTMLElement {
       </ha-card>`;
     this.shadowRoot.getElementById("zurueck")?.addEventListener("click", () => this._blaettern(-1));
     this.shadowRoot.getElementById("vor")?.addEventListener("click", () => this._blaettern(1));
+    this.shadowRoot.querySelectorAll("button[data-modus]").forEach((b) => b.addEventListener("click", () => this._setzeModus(b.dataset.modus)));
     window.YapaiaDesign?.anwenden(this.shadowRoot.querySelector("ha-card"), yschema);
   }
 }

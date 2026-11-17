@@ -39,6 +39,7 @@ def test_fahrt_mit_zuendung_und_auswertung() -> None:
         (t0 + 900, "blinker_rechts", "on"),
         (t0 + 400, "drehzahl", "2500"), (t0 + 500, "drehzahl", "unknown"),
         (t0 + 600, "land", "Schweiz"),
+        (t0 - 3, "hoehe", "300"), (t0 + 400, "momentanverbrauch", "9.5"),
         # Kilometerstand mit Lesefehlern (zu große Werte)
         *[(t0 + i * 100, "kilometerstand", str(84000 + i)) for i in range(12)],
         *[(t0 + i * 100 + 50, "kilometerstand", str(6300000 + i)) for i in range(12)],
@@ -55,6 +56,8 @@ def test_fahrt_mit_zuendung_und_auswertung() -> None:
     assert f["grenzen"][0]["von"] == "Deutschland" and f["grenzen"][0]["nach"] == "Schweiz"
     assert set(f["laender"]) == {"Deutschland", "Schweiz"}
     assert len(f["spur"]) > 50
+    assert all(len(p) == 5 and p[3] == 300 for p in f["spur"])
+    assert f["spur"][0][4] is None and f["spur"][-1][4] == 9.5
 
 
 def test_ende_durch_stillstand_und_kurze_fahrten_verworfen() -> None:
