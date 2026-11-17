@@ -1,5 +1,13 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.7.2
+
+- **DAB-Steuerung:** Die App verbindet sich mit dem Mediendienst von
+  DABdream (wie Android Auto) und liest Sender, Titel und Senderliste.
+  `/dab/befehl?aktion=play|pause|weiter|zurueck|starten`,
+  `/dab/sender?name=…`, Status unter `dab`. In HA wird daraus der
+  Mediaplayer „Radio DAB“.
+
 ## 0.7.1
 
 - **Assist hört dich ganz:** Das hintere Mikro schneidet über die normale
