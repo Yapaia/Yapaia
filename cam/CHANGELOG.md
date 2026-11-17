@@ -1,5 +1,11 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.7.5
+
+- **Assist: Fehlerton.** Hat HA nach dem Weckwort nichts verstanden, kommt
+  ein tiefer, absteigender Doppelton statt Stille; danach wird die Musik
+  wieder laut.
+
 ## 0.7.4
 
 - **Assist lauter:** Die Antwort läuft jetzt über den Musik-Kanal (gleicher

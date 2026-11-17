@@ -244,7 +244,11 @@ class SatellitModul(private val ctx: Context) : Modul {
             "audio-start" -> spurOeffnen(d.optInt("rate", 22050), d.optInt("width", 2), d.optInt("channels", 1))
             "audio-chunk" -> if (nutz != null) spurSchreiben(d, nutz)
             "audio-stop" -> { spurBeenden(); senden("played"); fokusFreigeben(); zustand = "wartet auf Weckwort" }
-            "error" -> { fehler = "HA: ${d.optString("text")}"; fokusFreigeben(); zustand = "wartet auf Weckwort" }
+            "error" -> {
+                fehler = "HA: ${d.optString("text")}"; zustand = "wartet auf Weckwort"
+                // hörbare Rückmeldung (z. B. nichts verstanden), dann Musik wieder laut
+                Thread({ ton(fehlerTon = true); fokusFreigeben() }, "assist-ton").start()
+            }
             else -> {}
         }
     }
@@ -432,13 +436,13 @@ class SatellitModul(private val ctx: Context) : Modul {
         s.release()
     }
 
-    /** Kurzer Doppelton: Weckwort erkannt. */
-    private fun ton() {
+    /** Kurzer Doppelton: Weckwort erkannt (aufwärts) bzw. Fehler (abwärts, tiefer). */
+    private fun ton(fehlerTon: Boolean = false) {
         val rate = 22050
         val n = rate * 18 / 100
         val p = ShortArray(n)
         for (i in 0 until n) {
-            val f = if (i < n / 2) 880.0 else 1320.0
+            val f = if (fehlerTon) (if (i < n / 2) 523.0 else 349.0) else (if (i < n / 2) 880.0 else 1320.0)
             val huelle = minOf(1.0, minOf(i, n - i) / (rate * 0.01))
             p[i] = (sin(2 * PI * f * i / rate) * 9000 * huelle).toInt().toShort()
         }
