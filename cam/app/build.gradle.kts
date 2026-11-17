@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "de.yapaia.cam"
-        minSdk = 23
+        minSdk = 28
         targetSdk = 35
         versionCode = 11
         versionName = "0.6.0"

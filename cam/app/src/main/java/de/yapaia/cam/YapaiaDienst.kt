@@ -98,6 +98,9 @@ class YapaiaDienst : Service() {
                 a.parameter["ha"]?.let { Melder.haSetzen(this, it) }
                 antwort.text(200, Melder.status(this).toString(2) + "\n", "application/json")
             }
+            a.pfad == "/anzeige/dunkel" -> { android.os.Handler(mainLooper).post { Dunkel.an(this) }; antwort.text(200, "dunkel\n") }
+            a.pfad == "/anzeige/hell" -> { Dunkel.aus(); antwort.text(200, "hell\n") }
+            teile[0] == "anzeige" -> antwort.text(200, (if (Dunkel.offen != null) "dunkel" else "hell") + "\n")
             teile[0] == "status" -> antwort.text(200, status().toString(2) + "\n", "application/json")
             teile[0] == "" -> antwort.text(200, startseite(), "text/html; charset=utf-8")
             else -> {

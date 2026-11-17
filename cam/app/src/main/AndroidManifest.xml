@@ -51,6 +51,12 @@
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity
+            android:name=".Dunkel"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
         <service
             android:name=".YapaiaDienst"
             android:exported="false"

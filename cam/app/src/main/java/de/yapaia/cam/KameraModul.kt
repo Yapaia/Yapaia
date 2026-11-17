@@ -53,6 +53,8 @@ class KameraModul(private val ctx: Context) : Modul {
     private val steuer = Handler(steuerFaden.looper)
     private val einstellungen = ctx.getSharedPreferences("dienst_kamera", Context.MODE_PRIVATE)
     private val eingangDatei = File("/sys/kernel/mhl_camera_config/mhl_camera_input")
+    private val configDatei = File("/sys/kernel/mhl_camera_config/mhl_camera_config_single")
+    @Volatile private var configKorrigiert = 0
     private val kameraId = "1"
     private val anzahl get() = if (eingangDatei.exists()) 4 else 1
     private val gl = GlLeser(VORSCHAU.width, VORSCHAU.height, object : GlLeser.Abholer {
@@ -236,6 +238,14 @@ class KameraModul(private val ctx: Context) : Modul {
         }
         if (eingangDatei.exists()) {
             try { eingangDatei.writeText(e.toString()) } catch (x: Exception) { fehler = "input: ${x.message}" }
+            // Die Hersteller-App (com.wits.misc) setzt config_single manchmal auf 3 →
+            // gestreiftes Graubild. Vor jedem Öffnen auf 4 zurück.
+            try {
+                if (configDatei.exists() && configDatei.readText().trim() != "4") {
+                    configDatei.writeText("4")
+                    configKorrigiert++
+                }
+            } catch (x: Exception) { fehler = "config_single: ${x.message}" }
         }
         bilderSeitOeffnen = 0
         try {
@@ -594,6 +604,7 @@ class KameraModul(private val ctx: Context) : Modul {
         JSONObject()
             .put("aktiver_eingang", if (offenerEingang >= 0) offenerEingang + 1 else JSONObject.NULL)
             .put("live", if (live >= 0) live + 1 else 0)
+            .put("config_single_korrigiert", configKorrigiert)
             .put("fps", if (offenerEingang >= 0) fps else 0)
             .put("belegt", belegt)
             .put("pausiert", pausiert)
