@@ -14,7 +14,7 @@ import java.util.concurrent.Executors
  * Die HA-Adresse lässt sich mit `/einstellen?ha=http://…:8123` ändern.
  */
 object Melder {
-    const val HA_STANDARD = "http://192.168.8.235:8123"
+    const val HA_STANDARD = "http://192.168.8.235"
 
     private val faden = Executors.newSingleThreadExecutor()
     @Volatile private var ha: String? = null

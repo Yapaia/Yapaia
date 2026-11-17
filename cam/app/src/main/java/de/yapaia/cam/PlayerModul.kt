@@ -104,6 +104,7 @@ class PlayerModul(private val ctx: Context, private val audioModul: AudioModul) 
             if (spieler !== it) return@setOnPreparedListener
             dauerMs = maxOf(0, it.duration)
             anhebungSetzen(audioModul.anhebung)
+            if (stummApp) it.setVolume(0f, 0f)
             it.start()
             zustand = "PLAYING"
         }
@@ -180,7 +181,17 @@ class PlayerModul(private val ctx: Context, private val audioModul: AudioModul) 
         audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(prozent.coerceIn(0, 100) * max / 100f), 0)
     }
 
-    private fun stumm() = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+    /** Stumm nur im eigenen Player (Android-Stummschaltung wirkt am Radio nicht). */
+    @Volatile private var stummApp = einstellungen.getBoolean("stumm", false)
+
+    private fun stumm() = stummApp
+
+    private fun stummSetzen(an: Boolean) {
+        stummApp = an
+        einstellungen.edit().putBoolean("stumm", an).apply()
+        val v = if (an) 0f else 1f
+        try { spieler?.setVolume(v, v) } catch (_: Exception) {}
+    }
 
     private fun <T> imFaden(f: () -> T): T {
         val ergebnis = java.util.concurrent.FutureTask(f)
@@ -198,6 +209,7 @@ class PlayerModul(private val ctx: Context, private val audioModul: AudioModul) 
             "weiter" -> imFaden { spielen() }
             "stopp" -> imFaden { stopp() }
             "lautstaerke" -> p["wert"]?.toIntOrNull()?.let { lautstaerkeSetzen(it) }
+            "stumm" -> imFaden { stummSetzen(p["an"] == "1" || p["an"] == "true") }
             else -> return false
         }
         antwort.text(200, status().toString(2) + "\n", "application/json")
@@ -274,7 +286,7 @@ class PlayerModul(private val ctx: Context, private val audioModul: AudioModul) 
                     "GetVolume" -> mapOf("CurrentVolume" to lautstaerke().toString())
                     "SetVolume" -> { lautstaerkeSetzen(arg("DesiredVolume").toIntOrNull() ?: lautstaerke()); emptyMap() }
                     "GetMute" -> mapOf("CurrentMute" to (if (stumm()) "1" else "0"))
-                    "SetMute" -> { audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, if (arg("DesiredMute") in listOf("1", "true")) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE, 0); emptyMap() }
+                    "SetMute" -> { stummSetzen(arg("DesiredMute") in listOf("1", "true")); emptyMap() }
                     "ListPresets" -> mapOf("CurrentPresetNameList" to "FactoryDefaults")
                     "SelectPreset" -> emptyMap()
                     "GetProtocolInfo" -> mapOf("Source" to "", "Sink" to Dlna.SINK)
