@@ -1,5 +1,14 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.7.1
+
+- **Assist hört dich ganz:** Das hintere Mikro schneidet über die normale
+  Aufnahmeart alles Leise auf exakt Null ab (in Ruhe 98 %), Sätze kamen
+  zerhackt bei Whisper an („Wischberg.“). Der Satellit nimmt jetzt über die
+  Aufnahmeart „Camcorder“ auf – gleiches Mikro, ohne dieses Tor. Einstellbar
+  mit `quelle=` (camcorder, mic, erkennung, unprocessed, gespraech).
+  Android-Rauschfilter standardmäßig aus.
+
 ## 0.7.0
 
 - **Sprachsatellit für Home Assistant (Wyoming, Port 10700):** HA verbindet

@@ -35,7 +35,7 @@ import kotlin.math.sin
  * (TTS) spielt es über die Lautsprecher des Radios; beim erkannten Weckwort
  * kommt ein kurzer Ton.
  *
- * - `/assist/einstellen?an=1&mikro=back&verstaerkung=4&rauschfilter=1`
+ * - `/assist/einstellen?an=1&mikro=back&quelle=camcorder&verstaerkung=4&rauschfilter=0`
  * - `/status` → `assist`: verbunden, streamt, letzter Text, Pegel
  *
  * Protokoll: eine JSON-Kopfzeile je Ereignis (`type`, `data_length`,
@@ -51,7 +51,10 @@ class SatellitModul(private val ctx: Context) : Modul {
     @Volatile private var an = einstellungen.getBoolean("an", true)
     @Volatile private var mikro = einstellungen.getString("mikro", "back") ?: "back"
     @Volatile private var verstaerkung = einstellungen.getFloat("verstaerkung", 4f)
-    @Volatile private var rauschfilter = einstellungen.getBoolean("rauschfilter", true)
+    @Volatile private var rauschfilter = einstellungen.getBoolean("rauschfilter", false)
+    /** Aufnahmeart: `camcorder` nimmt das hintere Mikro ohne das harte Rauschtor,
+     *  das `mic` dort hat (in Ruhe 98 % exakte Nullen → Sprache zerhackt). */
+    @Volatile private var quelle = einstellungen.getString("quelle", "camcorder") ?: "camcorder"
 
     @Volatile private var server: ServerSocket? = null
     @Volatile private var verbindung: Socket? = null
@@ -279,7 +282,14 @@ class SatellitModul(private val ctx: Context) : Modul {
         var agc: AutomaticGainControl? = null
         try {
             val min = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-            r = AudioRecord(MediaRecorder.AudioSource.MIC, RATE, AudioFormat.CHANNEL_IN_MONO,
+            val src = when (quelle) {
+                "mic" -> MediaRecorder.AudioSource.MIC
+                "erkennung" -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+                "unprocessed" -> MediaRecorder.AudioSource.UNPROCESSED
+                "gespraech" -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                else -> MediaRecorder.AudioSource.CAMCORDER
+            }
+            r = AudioRecord(src, RATE, AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, maxOf(min, RATE))
             audio.getDevices(AudioManager.GET_DEVICES_INPUTS)
                 .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC && it.address == mikro }
@@ -405,6 +415,7 @@ class SatellitModul(private val ctx: Context) : Modul {
         p["mikro"]?.let { mikro = it; e.putString("mikro", it) }
         p["verstaerkung"]?.toFloatOrNull()?.let { verstaerkung = it.coerceIn(0.5f, 16f); e.putFloat("verstaerkung", verstaerkung) }
         p["rauschfilter"]?.let { rauschfilter = it == "1" || it == "true"; e.putBoolean("rauschfilter", rauschfilter) }
+        p["quelle"]?.let { quelle = it; e.putString("quelle", it) }
         p["an"]?.let {
             an = it == "1" || it == "true"
             e.putBoolean("an", an)
@@ -412,7 +423,7 @@ class SatellitModul(private val ctx: Context) : Modul {
         }
         e.apply()
         // Mikro-Einstellungen gelten beim nächsten Start des Streams: neu starten
-        if (streamt && (p.containsKey("mikro") || p.containsKey("rauschfilter"))) {
+        if (streamt && (p.containsKey("mikro") || p.containsKey("rauschfilter") || p.containsKey("quelle"))) {
             streamt = false
             Thread({ Thread.sleep(300); if (aus != null) streamStarten() }, "assist-neu").start()
         }
@@ -428,6 +439,7 @@ class SatellitModul(private val ctx: Context) : Modul {
         .put("mikro", mikro)
         .put("verstaerkung", verstaerkung.toDouble())
         .put("rauschfilter", rauschfilter)
+        .put("quelle", quelle)
         .put("pegel_db", pegelDb)
         .put("weckwoerter", weckwoerter)
         .put("letzter_text", letzterText ?: JSONObject.NULL)
