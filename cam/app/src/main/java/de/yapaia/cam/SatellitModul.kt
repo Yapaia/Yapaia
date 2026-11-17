@@ -72,6 +72,8 @@ class SatellitModul(private val ctx: Context) : Modul {
 
     // Wiedergabe (TTS)
     private var spur: AudioTrack? = null
+    private var spurFrames = 0L          // geschriebene Frames
+    private var spurBytesProFrame = 2
 
     override fun starten() {
         if (an) serverStarten()
@@ -355,21 +357,31 @@ class SatellitModul(private val ctx: Context) : Modul {
             .setBufferSizeInBytes(maxOf(min, rate * breite * kanaele / 2))
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build().also { it.play() }
+        spurFrames = 0
+        spurBytesProFrame = breite * kanaele
     }
 
     private fun spurSchreiben(d: JSONObject, nutz: ByteArray) {
         if (spur == null) spurOeffnen(d.optInt("rate", 22050), d.optInt("width", 2), d.optInt("channels", 1))
-        try { spur?.write(nutz, 0, nutz.size) } catch (e: Exception) { fehler = "Wiedergabe: $e" }
+        try {
+            val n = spur?.write(nutz, 0, nutz.size) ?: 0
+            if (n > 0) spurFrames += n / spurBytesProFrame
+        } catch (e: Exception) { fehler = "Wiedergabe: $e" }
     }
 
     private fun spurBeenden() {
         val s = spur ?: return
         spur = null
         try {
-            // bis zum Ende abspielen lassen
+            // 300 ms Stille hinterher, damit auch der Verstärker das Ende ausspielt
+            val stille = ByteArray(s.sampleRate * spurBytesProFrame * 3 / 10)
+            val n = s.write(stille, 0, stille.size)
+            if (n > 0) spurFrames += n / spurBytesProFrame
+            // warten, bis wirklich alles abgespielt ist (stop() + release() schneidet sonst ab)
+            val bis = System.currentTimeMillis() + 15_000
+            while (System.currentTimeMillis() < bis &&
+                (s.playbackHeadPosition.toLong() and 0xffffffffL) < spurFrames) Thread.sleep(20)
             s.stop()
-            var warten = 0
-            while (s.playState == AudioTrack.PLAYSTATE_PLAYING && warten < 100) { Thread.sleep(20); warten++ }
         } catch (_: Exception) {}
         s.release()
     }

@@ -1,5 +1,11 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.7.3
+
+- **Assist-Antwort ganz:** Das Ende der Antwort wurde abgeschnitten, weil die
+  Wiedergabe beim letzten Datenpaket schon freigegeben wurde. Jetzt wartet
+  sie, bis alles abgespielt ist (plus 300 ms Stille).
+
 ## 0.7.2
 
 - **DAB-Steuerung:** Die App verbindet sich mit dem Mediendienst von
