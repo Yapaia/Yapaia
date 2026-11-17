@@ -1,5 +1,10 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.6.3
+
+- **Frontkamera:** Eingang 1 öffnet jetzt standardmäßig mit Format 3; dort
+  hängt die Frontkamera. Die Rückkameras an Eingang 2 und 3 bleiben bei 4.
+
 ## 0.6.2
 
 - **Videoformat je Eingang:** `/kamera/format?eingang=1..4&wert=N` stellt

@@ -238,10 +238,10 @@ class KameraModul(private val ctx: Context) : Modul {
         }
         if (eingangDatei.exists()) {
             try { eingangDatei.writeText(e.toString()) } catch (x: Exception) { fehler = "input: ${x.message}" }
-            // Videoformat des Wandlers (config_single) je Eingang, Standard 4 (mit 3
-            // zeigen die Rückkameras ein gestreiftes Graubild). Die Hersteller-App
-            // F-Cam öffnet die Frontkamera mit Eingang 2 und Format 3 – Versuche
-            // über /kamera/format?eingang=1..4&wert=N.
+            // Videoformat des Wandlers (config_single) je Eingang: Eingang 1 (Front)
+            // braucht 3 (mit 4 schwarz), die Rückkameras 4 (mit 3 gestreiftes
+            // Graubild). So öffnet auch die Hersteller-App F-Cam die Front.
+            // Ändern über /kamera/format?eingang=1..4&wert=N.
             try {
                 val soll = format(e).toString()
                 if (configDatei.exists() && configDatei.readText().trim() != soll) {
@@ -331,7 +331,7 @@ class KameraModul(private val ctx: Context) : Modul {
     }
 
     /** Videoformat (config_single) für Eingang [e] (0-basiert). */
-    private fun format(e: Int): Int = einstellungen.getInt("format_$e", 4)
+    private fun format(e: Int): Int = einstellungen.getInt("format_$e", if (e == 0) 3 else 4)
 
     private fun schliessen() {
         try { sitzung?.close() } catch (_: Exception) {}
