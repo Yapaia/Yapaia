@@ -1,5 +1,12 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.6.4
+
+- **Stereo-Test beider Mikros:** `/mikro/stereo?s=5[&maske=frontback|stereo][&quelle=…]`
+  nimmt zwei Kanäle gleichzeitig auf und meldet Pegel je Kanal, Korrelation
+  und Pegel der Differenz; die Aufnahme liegt unter `/mikro/stereo.wav`.
+  Während der Aufnahme pausiert die Dauermessung.
+
 ## 0.6.3
 
 - **Frontkamera:** Eingang 1 öffnet jetzt standardmäßig mit Format 3; dort
