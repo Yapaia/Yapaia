@@ -35,7 +35,7 @@ import kotlin.math.sin
  * (TTS) spielt es über die Lautsprecher des Radios; beim erkannten Weckwort
  * kommt ein kurzer Ton.
  *
- * - `/assist/einstellen?an=1&mikro=back&quelle=camcorder&verstaerkung=4&rauschfilter=0`
+ * - `/assist/einstellen?an=1&mikro=back&quelle=camcorder&verstaerkung=4&rauschfilter=0&antwort_laut=2.5&ducken=1`
  * - `/status` → `assist`: verbunden, streamt, letzter Text, Pegel
  *
  * Protokoll: eine JSON-Kopfzeile je Ereignis (`type`, `data_length`,
@@ -52,6 +52,11 @@ class SatellitModul(private val ctx: Context) : Modul {
     @Volatile private var mikro = einstellungen.getString("mikro", "back") ?: "back"
     @Volatile private var verstaerkung = einstellungen.getFloat("verstaerkung", 4f)
     @Volatile private var rauschfilter = einstellungen.getBoolean("rauschfilter", false)
+    /** Digitale Verstärkung der Antwort (TTS); Musik/DAB liegt sonst deutlich darüber. */
+    @Volatile private var antwortLaut = einstellungen.getFloat("antwort_laut", 2.5f)
+    /** Andere Wiedergabe (DAB) ab dem Weckwort leiser, bis die Antwort fertig ist. */
+    @Volatile private var ducken = einstellungen.getBoolean("ducken", true)
+    private var fokus: android.media.AudioFocusRequest? = null
     /** Aufnahmeart: `camcorder` nimmt das hintere Mikro ohne das harte Rauschtor,
      *  das `mic` dort hat (in Ruhe 98 % exakte Nullen → Sprache zerhackt). */
     @Volatile private var quelle = einstellungen.getString("quelle", "camcorder") ?: "camcorder"
@@ -231,15 +236,15 @@ class SatellitModul(private val ctx: Context) : Modul {
             "ping" -> senden("pong", JSONObject().put("text", d.optString("text")))
             "run-satellite" -> streamStarten()
             "pause-satellite" -> { streamt = false; zustand = "pausiert" }
-            "detection" -> { weckwoerter++; zustand = "hört zu"; Thread({ ton() }, "assist-ton").start() }
+            "detection" -> { weckwoerter++; zustand = "hört zu"; fokusHolen(); Thread({ ton() }, "assist-ton").start() }
             "voice-started" -> zustand = "hört zu"
             "voice-stopped" -> zustand = "denkt nach"
             "transcript" -> letzterText = d.optString("text")
             "synthesize" -> letzteAntwort = d.optString("text")
             "audio-start" -> spurOeffnen(d.optInt("rate", 22050), d.optInt("width", 2), d.optInt("channels", 1))
             "audio-chunk" -> if (nutz != null) spurSchreiben(d, nutz)
-            "audio-stop" -> { spurBeenden(); senden("played"); zustand = "wartet auf Weckwort" }
-            "error" -> { fehler = "HA: ${d.optString("text")}"; zustand = "wartet auf Weckwort" }
+            "audio-stop" -> { spurBeenden(); senden("played"); fokusFreigeben(); zustand = "wartet auf Weckwort" }
+            "error" -> { fehler = "HA: ${d.optString("text")}"; fokusFreigeben(); zustand = "wartet auf Weckwort" }
             else -> {}
         }
     }
@@ -341,6 +346,28 @@ class SatellitModul(private val ctx: Context) : Modul {
 
     private fun format() = JSONObject().put("rate", RATE).put("width", 2).put("channels", 1)
 
+    // ── Audiofokus: DAB/Musik leiser, solange Assist zuhört und spricht ─────
+
+    private fun fokusHolen() {
+        if (!ducken || fokus != null) return
+        try {
+            val f = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .build()
+            audio.requestAudioFocus(f)
+            fokus = f
+            // Sicherheitsnetz: nach 30 s wieder freigeben, falls keine Antwort kommt
+            Thread({ Thread.sleep(30_000); if (fokus === f) fokusFreigeben() }, "assist-fokus").start()
+        } catch (e: Exception) { fehler = "Fokus: $e" }
+    }
+
+    private fun fokusFreigeben() {
+        val f = fokus ?: return
+        fokus = null
+        try { audio.abandonAudioFocusRequest(f) } catch (_: Exception) {}
+    }
+
     // ── Wiedergabe ──────────────────────────────────────────────────────────
 
     private fun spurOeffnen(rate: Int, breite: Int, kanaele: Int) {
@@ -351,7 +378,8 @@ class SatellitModul(private val ctx: Context) : Modul {
         val min = AudioTrack.getMinBufferSize(rate, kanal, enc)
         spur = AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                // Musik-Kanal: gleiche Lautstärke wie DAB/Player (USAGE_ASSISTANT war deutlich leiser)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             .setAudioFormat(AudioFormat.Builder().setSampleRate(rate).setChannelMask(kanal).setEncoding(enc).build())
             .setBufferSizeInBytes(maxOf(min, rate * breite * kanaele / 2))
@@ -364,6 +392,17 @@ class SatellitModul(private val ctx: Context) : Modul {
     private fun spurSchreiben(d: JSONObject, nutz: ByteArray) {
         if (spur == null) spurOeffnen(d.optInt("rate", 22050), d.optInt("width", 2), d.optInt("channels", 1))
         try {
+            val g = antwortLaut
+            if (g != 1f && spurBytesProFrame % 2 == 0) {
+                // 16 Bit little endian verstärken, mit Begrenzung
+                var i = 0
+                while (i + 1 < nutz.size) {
+                    val v = ((nutz[i].toInt() and 0xff) or (nutz[i + 1].toInt() shl 8)).toShort()
+                    val w = (v * g).toInt().coerceIn(-32768, 32767)
+                    nutz[i] = (w and 0xff).toByte(); nutz[i + 1] = ((w shr 8) and 0xff).toByte()
+                    i += 2
+                }
+            }
             val n = spur?.write(nutz, 0, nutz.size) ?: 0
             if (n > 0) spurFrames += n / spurBytesProFrame
         } catch (e: Exception) { fehler = "Wiedergabe: $e" }
@@ -428,6 +467,8 @@ class SatellitModul(private val ctx: Context) : Modul {
         p["verstaerkung"]?.toFloatOrNull()?.let { verstaerkung = it.coerceIn(0.5f, 16f); e.putFloat("verstaerkung", verstaerkung) }
         p["rauschfilter"]?.let { rauschfilter = it == "1" || it == "true"; e.putBoolean("rauschfilter", rauschfilter) }
         p["quelle"]?.let { quelle = it; e.putString("quelle", it) }
+        p["antwort_laut"]?.toFloatOrNull()?.let { antwortLaut = it.coerceIn(0.5f, 8f); e.putFloat("antwort_laut", antwortLaut) }
+        p["ducken"]?.let { ducken = it == "1" || it == "true"; e.putBoolean("ducken", ducken) }
         p["an"]?.let {
             an = it == "1" || it == "true"
             e.putBoolean("an", an)
@@ -452,6 +493,8 @@ class SatellitModul(private val ctx: Context) : Modul {
         .put("verstaerkung", verstaerkung.toDouble())
         .put("rauschfilter", rauschfilter)
         .put("quelle", quelle)
+        .put("antwort_laut", antwortLaut.toDouble())
+        .put("ducken", ducken)
         .put("pegel_db", pegelDb)
         .put("weckwoerter", weckwoerter)
         .put("letzter_text", letzterText ?: JSONObject.NULL)

@@ -1,5 +1,12 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.7.4
+
+- **Assist lauter:** Die Antwort läuft jetzt über den Musik-Kanal (gleicher
+  Lautstärkeregler wie DAB) und wird digital verstärkt (`antwort_laut`,
+  Standard 2,5). Ab dem Weckwort wird DAB/Musik leiser gedreht, bis die
+  Antwort fertig ist (`ducken=1`) – hilft auch der Spracherkennung.
+
 ## 0.7.3
 
 - **Assist-Antwort ganz:** Das Ende der Antwort wurde abgeschnitten, weil die
