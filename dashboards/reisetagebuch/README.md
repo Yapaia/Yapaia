@@ -24,7 +24,7 @@ am einfachsten mit `python3 dashboards/deploy.py --dashboard reisetagebuch`.
 ```yaml
 type: custom:yapaia-reisetagebuch-card
 design: auto     # auto = Gesamt-Schema, sonst Schema-ID
-preis_l: 1.75    # Dieselpreis €/l für die Kostenschätzung
+preis_l: 2.40    # Dieselpreis €/l für die Kostenschätzung
 ```
 
 Texte folgen der Sprache von Home Assistant (Deutsch/Englisch), Farben und
@@ -35,7 +35,8 @@ Schriften dem [Design-Schema](../../docs/design-schemata.md).
 Code: `integration/custom_components/yapaia/reisetagebuch/`.
 
 - Eine Fahrt beginnt, sobald sich das Fahrzeug mehr als 100 m mit über
-  8 km/h bewegt. Sie endet mit „Zündung aus“ oder nach 6 Minuten Stillstand.
+  8 km/h bewegt. Sie endet erst nach 45 Minuten Stillstand, damit Pausen
+  (Motor aus) Teil der Fahrt bleiben. Die Fahrzeit zählt ohne Stehzeiten.
   Fahrten unter 1 km zählen nicht.
 - Gespeichert wird dauerhaft in `.storage/yapaia.reisetagebuch*`, ein Speicher
   je Monat. Die Recorder-Historie reicht dafür nicht.

@@ -8,7 +8,9 @@ Eingang sind Ereignisse `(zeit, rolle, wert)` in zeitlicher Reihenfolge:
 
 Eine Fahrt beginnt mit der ersten Bewegung (über 8 km/h, sobald 100 m
 erreicht sind) und endet, wenn
-die Zündung ausgeht oder sich das Fahrzeug 6 Minuten nicht bewegt hat.
+sich das Fahrzeug 45 Minuten nicht bewegt hat – eine Kaffeepause mit Motor
+aus bleibt Teil der Fahrt. Die Zündung verhindert nur, dass bei „aus“ eine
+Fahrt beginnt. Stehzeiten zählen nicht zur Fahrzeit (`fahr_min`, `pause_min`).
 Fahrten unter 1 km werden verworfen (Rangieren, GPS-Sprünge).
 """
 
@@ -44,7 +46,7 @@ START_KMH = 8.0          # ab diesem Tempo gilt: fährt
 STEH_KMH = 3.0           # darunter: steht
 MAX_KMH = 180.0          # darüber: GPS-Sprung
 MAX_LUECKE = 120.0       # s; größere Lücken zählen nicht als Strecke
-STILLSTAND_ENDE = 360.0  # s ohne Bewegung → Fahrt zu Ende
+STILLSTAND_ENDE = 2700.0  # s ohne Bewegung → Fahrt zu Ende (45 min: Pausen gehören dazu)
 SPUR_ABSTAND = 5.0       # s zwischen zwei gespeicherten Spurpunkten
 START_STRECKE = 0.1      # km vom ersten bewegten Punkt, bis eine Fahrt beginnt
 START_FENSTER = 120.0    # s, in denen diese Strecke erreicht sein muss
@@ -159,8 +161,6 @@ class Fahrtenbuch:
             self._zeit_buchen(f, t)
             self._auswerten(f, t, rolle, alt, wert)
         self.werte[rolle] = wert
-        if rolle == "zuendung" and wert is False and f is not None:
-            self._beenden(f["letzte_bewegung"])
 
     def _nachtragen(self, t: float, rolle: str, wert: Any) -> None:
         """Späte Werte zur zuletzt fertigen Fahrt; geänderte Fahrt erneut melden."""
@@ -216,11 +216,15 @@ class Fahrtenbuch:
             d = entfernung_km((k[1], k[2]), (lat, lon))
             dt = t - k[0]
             kmh = d / dt * 3600
+        self._zeit_buchen(f, t)
+        f["_bewegt"] = not luecke and kmh >= STEH_KMH
         if not luecke:
-            f["km_gps"] += d
+            if kmh >= STEH_KMH:  # im Stand ist jede „Strecke“ nur GPS-Zittern
+                f["km_gps"] += d
             if kmh < STEH_KMH:
                 f["steh_s"] += dt
             else:
+                f["fahr_s"] = f.get("fahr_s", 0.0) + dt
                 f["letzte_bewegung"] = t if kmh >= START_KMH else f["letzte_bewegung"]
             f["_km_lauf"] = f["km_gps"]
         if t - f["_spur_t"] >= SPUR_ABSTAND:
@@ -282,7 +286,7 @@ class Fahrtenbuch:
         if dt <= 0:
             return
         g = self.werte.get("gang")
-        if g is not None:
+        if g is not None and f.get("_bewegt", True):  # im Stand (Pause) zählt kein Gang
             f["gaenge_s"][g] = f["gaenge_s"].get(g, 0.0) + dt
         if self.werte.get("tempomat"):
             f["tempomat_s"] += dt
@@ -329,6 +333,8 @@ class Fahrtenbuch:
             "dauer_min": round(dauer / 60), "km_gps": round(f["km_gps"], 1),
             "von": f["von"], "nach": w.get("ort"), "von_adr": f["von_adr"], "nach_adr": w.get("adresse"),
             "steh_min": round(f["steh_s"] / 60), "land_start": f["land_start"],
+            "fahr_min": round(f.get("fahr_s", 0.0) / 60),
+            "pause_min": round(max(0.0, dauer - f.get("fahr_s", 0.0)) / 60),
             "spur": f["spur"], "quelle": "gps",
         }
         if "hoehe" in f["max"]:
@@ -359,7 +365,7 @@ class Fahrtenbuch:
         if f["gaenge_s"]:
             aus["gaenge_min"] = {k: round(v / 60, 1) for k, v in sorted(f["gaenge_s"].items())}
         if "tempomat" in w:
-            aus["tempomat_anteil"] = round(f["tempomat_s"] / dauer, 3)
+            aus["tempomat_anteil"] = round(min(1.0, f["tempomat_s"] / max(60.0, f.get("fahr_s", 0.0) or dauer)), 3)
         if "bremse" in w:
             aus["bremsungen"] = f["bremsungen"]
         if "blinker_links" in w or "blinker_rechts" in w:
