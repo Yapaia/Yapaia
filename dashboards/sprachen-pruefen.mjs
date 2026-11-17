@@ -16,6 +16,7 @@ const KARTEN = [
   'dashboards/rangieren/nivellierung-card.js',
   'dashboards/rangieren/reifen-card.js',
   'dashboards/rangieren/kamera-card.js',
+  'dashboards/reisetagebuch/reisetagebuch-card.js',
   'integration/custom_components/yapaia/beat/www/yapaia-beat-card.js',
   'go/yapaia_go/lovelace/yapaia-map-card.js',
   // Oberflächen der Add-ons (Protokoll §8b)

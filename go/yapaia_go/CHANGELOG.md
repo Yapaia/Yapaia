@@ -10,6 +10,14 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.70.2
+
+- **Reisetagebuch:** Bringt die Integration Yapaia 0.9.0 mit. Sie zeichnet
+  jede Fahrt automatisch auf (Strecke, Zeit, Route, Länder und, wenn ein
+  CAN-Bus-Adapter eingerichtet ist, Verbrauch, Gänge, Tempomat, Bremsungen).
+  Ansehen kann man das im neuen Dashboard „Reisetagebuch“, Seite für Seite
+  je Tag. Nach dem Update Home Assistant einmal neu starten.
+
 ## 0.70.1
 
 - **Tempo nach der Ankunft:** Nach „Ziel erreicht“ blieb die letzte
