@@ -172,6 +172,34 @@ osmium export --overwrite --geometry-types=point,linestring,polygon -f geojsonse
 osmium export --overwrite --geometry-types=point,linestring,polygon -f geojsonseq -o "$WORK_DIR/named.geojsonseq" "$WORK_DIR/named.osm.pbf"
 osmium export --overwrite --geometry-types=point,linestring,polygon -f geojsonseq -o "$WORK_DIR/addresses.geojsonseq" "$WORK_DIR/addresses.osm.pbf"
 
+# --- Laendergrenzen (seit Go 0.70.4) ---------------------------------------
+# admin_level=2 als FLAECHEN fuer die Landbestimmung aus GPS (siehe
+# apps/core/src/search/lite/grenzen.ts). Aus dem VOLLEN Extrakt, nicht aus der
+# Vorauswahl. osmium baut nur VOLLSTAENDIGE Relationen zu Flaechen: ein
+# Landesextrakt liefert sein Land, Europa alle. Scheitert der Schritt, wird
+# ohne Grenzen weitergebaut -- die Suche haengt nicht daran.
+GRENZ_ARGS=()
+if osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/grenzen.osm.pbf" "$PBF" r/admin_level=2 \
+  && osmium export --overwrite --geometry-types=polygon -f geojsonseq \
+       -o "$WORK_DIR/grenzen.geojsonseq" "$WORK_DIR/grenzen.osm.pbf"; then
+  GRENZ_ARGS=(--grenzen "$WORK_DIR/grenzen.geojsonseq")
+else
+  echo "Hinweis: Laendergrenzen konnten nicht extrahiert werden -- Index ohne Grenzen." >&2
+fi
+rm -f "$WORK_DIR/grenzen.osm.pbf"
+
+# ─── NODE-HEAP: AUS DEM VORHANDENEN SPEICHER (seit 0.70.4) ────────────────
+# Das Werkzeug haelt Orte, Strassen und Sonderziele beim Einlesen komplett im
+# Heap. Nodes Standard-Heap (~4 GB) reicht fuer ein Land, nicht fuer Europa
+# (51 Mio. Eintraege, gemessen ~28 GB) -- dann bricht V8 mit „heap out of
+# memory" ab. Genommen werden 75 % des Arbeitsspeichers (osmium ist in diesem
+# Schritt schon fertig), mindestens 4 GB. Wer NODE_OPTIONS mit
+# --max-old-space-size selbst setzt, gewinnt.
+if [[ "${NODE_OPTIONS:-}" != *max-old-space-size* ]]; then
+  NODE_HEAP_MB="$("$REPO_ROOT/yapaia_go/rootfs/usr/bin/yapaia-heap-mb" 75 4096)"
+  export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=$NODE_HEAP_MB"
+  echo "Node-Heap fuer den Indexbau automatisch gewaehlt: ${NODE_HEAP_MB} MB"
+fi
 echo "== Baue lite_search.db (tsx-CLI, atomarer Swap nach $OUT_DB) =="
 (
   cd "$REPO_ROOT"
@@ -181,6 +209,7 @@ echo "== Baue lite_search.db (tsx-CLI, atomarer Swap nach $OUT_DB) =="
     --pois "$WORK_DIR/pois.geojsonseq" \
     --named "$WORK_DIR/named.geojsonseq" \
     --addresses "$WORK_DIR/addresses.geojsonseq" \
+    "${GRENZ_ARGS[@]}" \
     --out "$OUT_DB" \
     --region "$REGION_ID"
 )

@@ -10,6 +10,28 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.70.4
+
+- **Neuer Sensor „Land“ (Ländergrenzen aus GPS):** Der Suchindex bekommt beim
+  NÄCHSTEN Bau („Suche bauen“ bzw. Kartenserver-Paket) die Ländergrenzen als
+  kompakte Flächen mit. Go bestimmt daraus das Land an der Position –
+  `sensor.yapaia_go_land` (Name), Attribut `land_code` (ISO, z. B. `CH`).
+  Auch „Ort“/„Adresse“ nennen dann das Land der Position statt der Region des
+  nächsten Hauses. Gedacht für den SIM-Wechsel an der Grenze. Bestehende
+  Indizes ohne Grenzen verhalten sich wie bisher.
+- **Kachelbau Europa – „No space left“:** planetiler legt seine
+  Zwischenstände (Europa: ~175 GB) jetzt ins Arbeitsverzeichnis des Baus
+  (`--tmpdir`), also dorthin, wo auch die Platzprüfung misst – nicht mehr
+  nach `data/tmp` im Container.
+- **Suchindex Europa – „JavaScript heap out of memory“:** Der Node-Heap für
+  „Suche bauen“ richtet sich jetzt nach dem Arbeitsspeicher (75 %), statt bei
+  ~4 GB abzubrechen. Eigenes `NODE_OPTIONS=--max-old-space-size=…` gewinnt.
+- **Kartenserver-Adresse:** Wer die volle Katalog-Adresse (`…/v1/katalog`)
+  einfügt, bekommt kein 404 mehr – Go schneidet sie auf die Basisadresse
+  zurück. Das Feld erklärt das jetzt (de/en).
+- **Hinweis „Standortzugriff verweigert“** erscheint nicht mehr, solange eine
+  Server-Quelle (gpsd, Companion App) aktuelle Positionen liefert.
+
 ## 0.70.3
 
 - **Reisetagebuch – Pausen gehören zur Fahrt:** Bringt die Integration

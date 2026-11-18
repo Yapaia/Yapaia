@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# yapaia-heap-mb <prozent> <min_mb> [max_mb]
+#
+# Gibt eine Heap-Groesse in MB aus, abgeleitet aus dem tatsaechlich
+# vorhandenen Arbeitsspeicher (/proc/meminfo): <prozent> % von MemTotal,
+# mindestens <min_mb>, hoechstens <max_mb> (0 oder weggelassen = ohne Deckel).
+# Ist MemTotal nicht lesbar, kommt <min_mb> heraus.
+#
+# Eine Stelle fuer die Rechnung, die zuerst nur im planetiler-Wrapper stand
+# (yapaia-build-pmtiles) und seit Go 0.70.4 auch den Node-Heap des
+# Lite-Suchindex bestimmt (yapaia-build-lite-index): Europa brauchte dort
+# ~28 GB, Nodes Standard-Heap (~4 GB) brach mit V8-OOM ab.
+#
+# MEMINFO_FILE ueberschreibt /proc/meminfo (fuer Tests).
+set -euo pipefail
+
+PROZENT="${1:?Aufruf: yapaia-heap-mb <prozent> <min_mb> [max_mb]}"
+MIN_MB="${2:?Aufruf: yapaia-heap-mb <prozent> <min_mb> [max_mb]}"
+MAX_MB="${3:-0}"
+
+MEM_TOTAL_KB="$(awk '/^MemTotal:/ {print $2}' "${MEMINFO_FILE:-/proc/meminfo}" 2>/dev/null || true)"
+if [ -z "${MEM_TOTAL_KB:-}" ] || [ "$MEM_TOTAL_KB" -le 0 ] 2>/dev/null; then
+  echo "$MIN_MB"
+  exit 0
+fi
+HEAP_MB=$(( MEM_TOTAL_KB / 1024 * PROZENT / 100 ))
+[ "$HEAP_MB" -lt "$MIN_MB" ] && HEAP_MB="$MIN_MB"
+if [ "$MAX_MB" -gt 0 ] && [ "$HEAP_MB" -gt "$MAX_MB" ]; then HEAP_MB="$MAX_MB"; fi
+echo "$HEAP_MB"

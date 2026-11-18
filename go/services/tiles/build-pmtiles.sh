@@ -384,7 +384,8 @@ free_mb() { df -Pm "$1" 2>/dev/null | awk 'NR==2 {print $4}'; }
 INPUT_MB=$(( $(stat -c %s "$INPUT_FILE") / 1024 / 1024 ))
 NEED_MB=$(( INPUT_MB * PMTILES_DISK_FACTOR + PMTILES_DISK_MARGIN_MB ))
 
-# Zwei Dateisysteme koennen betroffen sein: das Arbeitsverzeichnis und das
+# Zwei Dateisysteme koennen betroffen sein: das Arbeitsverzeichnis (dort
+# liegen auch planetilers Zwischenstaende, `--tmpdir` unten) und das
 # Ziel. Im Add-on liegen beide auf /share (der Wrapper setzt TMPDIR dorthin) --
 # dann ist es dasselbe und die Pruefung laeuft doppelt, was nicht schadet.
 DISK_OK=1
@@ -433,7 +434,14 @@ OUT_NAME="out.pmtiles"
 #
 # Der Extrakt liegt seit 0.10.2 NEBEN den gemeinsamen Basisdaten und nicht
 # mehr im Arbeitsverzeichnis (siehe oben), faellt also unter %SOURCES%.
-DEFAULT_ARGS="--osm-path=%INPUT% --output=/data/$OUT_NAME --force --nodemap-type=sortedtable --download --download_dir=%SOURCES%"
+# `--tmpdir=/data/tmp` (seit Go 0.70.4): planetilers Zwischenstaende -- beim
+# Europa-Bau ~175 GB -- landen sonst in `data/tmp` RELATIV ZUM AKTUELLEN
+# VERZEICHNIS. Im JAR-Modus ist das irgendwo (Kartenserver: /opt/kartenserver
+# in der Container-Schicht) und lief mit „No space left" voll. So liegen sie in
+# $WORK_DIR -- im JAR-Modus durch die /data-Umschreibung unten, im
+# Docker-Modus durch das Mount -- und damit genau dort, wo die Platzpruefung
+# oben misst.
+DEFAULT_ARGS="--osm-path=%INPUT% --output=/data/$OUT_NAME --tmpdir=/data/tmp --force --nodemap-type=sortedtable --download --download_dir=%SOURCES%"
 RAW_ARGS="${PLANETILER_ARGS:-$DEFAULT_ARGS}"
 RAW_ARGS="${RAW_ARGS//%OUTPUT%//data/$OUT_NAME}"
 # Wortweise aufsplitten: die Argumente sind kontrollierte, leerzeichenfreie

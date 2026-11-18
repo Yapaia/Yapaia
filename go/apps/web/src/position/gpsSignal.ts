@@ -144,3 +144,21 @@ export function useGpsSignalState(): GpsSignalState {
     standingStill: wasStandingStill({ latest, previous }),
   });
 }
+
+/**
+ * Liefert gerade eine SERVER-Quelle (gpsd, Companion App über `ha_tracker`, …)
+ * aktuelle Positionen? Dann sind Fehler der Browser-Geolocation („Permission
+ * denied" auf dem iPad, unsicherer Kontext) belanglos: die Karte hat ihre
+ * Position, und ein Warnhinweis, der trotzdem stehen bleibt, lehrt nur, ihn
+ * zu übersehen (Rückmeldung zu Go 0.70.3).
+ *
+ * „Aktuell" heißt: Signal `live` oder `standstill` — ein stehendes Fahrzeug
+ * liefert seltener, ist aber nicht ohne Quelle.
+ */
+export function serverQuelleLiefert(
+  signal: GpsSignalState,
+  source: string | null | undefined,
+): boolean {
+  if (!source || source === 'browser') return false;
+  return signal === 'live' || signal === 'standstill';
+}

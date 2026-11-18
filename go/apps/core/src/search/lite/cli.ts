@@ -13,6 +13,7 @@
  *   tsx src/search/lite/cli.ts --places places.geojsonseq --streets streets.geojsonseq \
  *                              --pois pois.geojsonseq --out data/lite-search/lite_search.db \
  *                              [--named named.geojsonseq] [--addresses addresses.geojsonseq]
+ *                              [--grenzen grenzen.geojsonseq]
  *
  * Run via `services/valhalla/build-lite-index.sh`, never invoked directly
  * by the app itself.
@@ -38,6 +39,7 @@ import {
   type NormalizedRecord,
 } from './extract.js';
 import { appendAddresses, buildLiteIndexFile } from './buildIndex.js';
+import { appendGrenzen } from './grenzen.js';
 import { namedOsmiumFilters, osmiumFilters } from './poiCategories.js';
 import { appendAll } from '@yapaia/shared';
 import { PlaceLocator, type PlacePoint } from './placeLocator.js';
@@ -52,6 +54,8 @@ interface CliArgs {
   named?: string;
   /** Hausadressen -- seit 0.39.0. */
   addresses?: string;
+  /** Ländergrenzen (admin_level=2) als Flächen -- seit Go 0.70.4, siehe grenzen.ts. */
+  grenzen?: string;
   out: string;
   /** Nur fuer die Auskunft im Index (`meta`): aus welcher Region er stammt.
    *  Es gibt EINEN Index fuer alle Regionen -- ohne diese Angabe sieht
@@ -68,12 +72,13 @@ function parseArgs(argv: string[]): CliArgs {
     else if (arg === '--pois') args.pois = argv[++i];
     else if (arg === '--named') args.named = argv[++i];
     else if (arg === '--addresses') args.addresses = argv[++i];
+    else if (arg === '--grenzen') args.grenzen = argv[++i];
     else if (arg === '--out') args.out = argv[++i];
     else if (arg === '--region') args.region = argv[++i];
   }
   if (!args.out) {
     throw new Error(
-      'Usage: cli.ts --places <geojsonseq> --streets <geojsonseq> --pois <geojsonseq> [--named <geojsonseq>] [--addresses <geojsonseq>] ' +
+      'Usage: cli.ts --places <geojsonseq> --streets <geojsonseq> --pois <geojsonseq> [--named <geojsonseq>] [--addresses <geojsonseq>] [--grenzen <geojsonseq>] ' +
         '--out <lite_search.db path> [--region <id>]',
     );
   }
@@ -98,6 +103,15 @@ async function readNormalizedFile(
   }
 
   return { records, skipped, total };
+}
+
+/** GeoJSON-Zeilen einzeln (Grenzen: wenige, aber grosse Zeilen). */
+async function* readFeatures(path: string): AsyncGenerator<unknown> {
+  const rl = createInterface({ input: createReadStream(path, { encoding: 'utf8' }), crlfDelay: Infinity });
+  for await (const line of rl) {
+    const feature = parseGeoJsonSeqLine(line);
+    if (feature) yield feature;
+  }
 }
 
 /** Adressen Zeile fuer Zeile -- nie alle auf einmal im Speicher. */
@@ -214,6 +228,10 @@ export async function runCli(argv: string[]): Promise<void> {
     if (args.addresses) {
       const n = await appendAddresses(tmpPath, readAddresses(args.addresses));
       console.warn(`Hausnummern: ${n} uebernommen aus ${args.addresses}`);
+    }
+    if (args.grenzen) {
+      const n = await appendGrenzen(tmpPath, readFeatures(args.grenzen));
+      console.warn(`Laendergrenzen: ${n} Flaechen uebernommen aus ${args.grenzen}`);
     }
     // Gebaut wurde ohne Journal und ohne Plattensync (bauModus in
     // buildIndex.ts). Deshalb hier EINMAL auf die Platte schreiben, bevor die

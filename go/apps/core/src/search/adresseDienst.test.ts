@@ -36,6 +36,19 @@ describe('zuAdresse', () => {
     });
     expect(zuAdresse({ ...treffer, region: null }).land).toBeNull();
   });
+
+  it('das Land aus den Grenzen gewinnt gegen die Region (Basel: Haus in DE-Index, Wagen in CH)', () => {
+    expect(zuAdresse(treffer, 'CH').land_code).toBe('CH');
+    expect(zuAdresse({ ...treffer, region: 'europe' }, 'FR').land_code).toBe('FR');
+  });
+});
+
+describe('AdressDienst mit Ländergrenzen', () => {
+  it('fragt die Grenzen der Quelle und meldet deren Land', () => {
+    const { d } = dienst({ landBei: () => 'CH' });
+    d.melde({ lat: 47.56, lon: 7.59 });
+    expect(d.aktuell()?.land_code).toBe('CH');
+  });
 });
 
 describe('AdressDienst', () => {

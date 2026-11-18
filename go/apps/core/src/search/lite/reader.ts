@@ -11,6 +11,7 @@ import { faltung } from './faltung.js';
 import { korrigiere, type Korrektur } from './tippfehler.js';
 import { nummernSchluessel, strassenSchluessel } from './buildIndex.js';
 import { GEO_INDEX } from './geoIndex.js';
+import { leseGrenzen, type Grenze } from './grenzen.js';
 
 export interface HausnummerTreffer {
   street: string;
@@ -256,6 +257,7 @@ export class LiteIndexReader {
   /** Hat dieser Index die Hausnummern-Tabelle (seit 0.39.0)? */
   private hatAdressen: boolean | undefined;
   private hatWortliste: boolean | undefined;
+  private grenzenCache: { db: Database.Database; grenzen: Grenze[] } | null = null;
 
   constructor(private readonly dbPath: string) {}
 
@@ -569,6 +571,16 @@ export class LiteIndexReader {
   }
 
   /** Ob `adresseBei` hier schnell genug ist: mit Index, oder ein kleiner Index. */
+  /**
+   * Die Ländergrenzen dieses Index (Tabelle `grenzen`, seit Go 0.70.4) --
+   * leer bei älteren Indizes. Einmal je geöffneter Datei gelesen.
+   */
+  grenzen(): Grenze[] {
+    const db = this.open();
+    if (this.grenzenCache?.db !== db) this.grenzenCache = { db, grenzen: leseGrenzen(db) };
+    return this.grenzenCache.grenzen;
+  }
+
   rueckwaertsTauglich(): boolean {
     if (this.hatGeoIndex()) return true;
     const anzahl = Number(this.meta('record_count'));

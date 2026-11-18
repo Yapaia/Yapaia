@@ -29,6 +29,8 @@ export interface Adresse {
 export interface AdressQuelle {
   adresseBei(lat: number, lon: number): (AdressTreffer & { region: string | null }) | null;
   ohneGeoIndex(): string[];
+  /** Land aus den Ländergrenzen des Index (ISO-Code), seit Go 0.70.4. */
+  landBei?(lat: number, lon: number): string | null;
 }
 
 export interface AdressDienstDeps {
@@ -74,9 +76,16 @@ function landName(code: string | null): string | null {
   }
 }
 
-/** Treffer aus dem Index → Sensorwerte. */
-export function zuAdresse(t: AdressTreffer & { region: string | null }): Adresse {
-  const land_code = t.region ? (LAND[t.region] ?? null) : null;
+/**
+ * Treffer aus dem Index → Sensorwerte.
+ *
+ * `landAusGrenze` (ISO-Code aus den Ländergrenzen, grenzen.ts) gewinnt gegen
+ * die Region des Index: die Region sagt nur, aus welchem Extrakt das nächste
+ * Haus stammt -- an der Grenze oder mit einem Europa-Index ist das falsch bzw.
+ * gar nichts. Ältere Indizes ohne Grenzen fallen auf die Region zurück.
+ */
+export function zuAdresse(t: AdressTreffer & { region: string | null }, landAusGrenze: string | null = null): Adresse {
+  const land_code = landAusGrenze ?? (t.region ? (LAND[t.region] ?? null) : null);
   const strasse = [t.strasse, t.hausnummer].filter(Boolean).join(' ');
   const ort = [t.plz, t.ort].filter(Boolean).join(' ');
   return {
@@ -129,9 +138,10 @@ export class AdressDienst {
     this.letzteAbfrage = { ...hier, zeit: this.jetzt() };
     try {
       const t = this.deps.quelle.adresseBei(hier.lat, hier.lon);
+      const iso = this.deps.quelle.landBei?.(hier.lat, hier.lon) ?? null;
       // Nichts gefunden (kein tauglicher Index): den alten Stand behalten,
       // aber bald wieder fragen -- ein Index kann gerade entstehen.
-      if (t) this.stand = zuAdresse(t);
+      if (t) this.stand = zuAdresse(t, iso);
       else this.letzteAbfrage = null;
     } catch (err) {
       this.deps.logger.warn('Adresse nicht bestimmbar', { error: (err as Error).message });

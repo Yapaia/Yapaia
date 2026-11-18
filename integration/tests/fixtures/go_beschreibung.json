@@ -155,6 +155,18 @@
       ]
     },
     {
+      "schluessel": "land",
+      "plattform": "sensor",
+      "name": {
+        "de": "Land",
+        "en": "Country"
+      },
+      "symbol": "mdi:flag",
+      "attribute": [
+        "land_code"
+      ]
+    },
+    {
       "schluessel": "sprache",
       "plattform": "sensor",
       "name": {

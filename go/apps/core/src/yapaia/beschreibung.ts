@@ -136,6 +136,16 @@ export const ENTITAETEN: readonly Entitaet[] = [
     attribute: ['land', 'land_code'],
   },
   {
+    // Das Land an der Position (seit Go 0.70.4): aus den Ländergrenzen im
+    // Suchindex, wo vorhanden, sonst aus der Region. Gedacht u. a. für den
+    // SIM-Wechsel am Router an der Grenze -- `land_code` ist der ISO-Code.
+    schluessel: 'land',
+    plattform: 'sensor',
+    name: { de: 'Land', en: 'Country' },
+    symbol: 'mdi:flag',
+    attribute: ['land_code'],
+  },
+  {
     // Sprache von Go (Einstellung `language`, von der Integration aus der
     // HA-Sprache gesetzt) -- für Geräte ohne eigene Verbindung zur
     // HA-Sprache, etwa die ESPHome-Navi-Anzeige

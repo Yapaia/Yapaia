@@ -90,6 +90,7 @@ export default function KartenserverSection({
           className="mt-0.5 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-flaeche dark:bg-slate-900 px-2 py-1 text-sm"
           data-testid="kartenserver-url"
         />
+        <span className="mt-0.5 block text-slate-500 dark:text-slate-400">{t('ksAdresseHinweis')}</span>
       </label>
       <label className="block mt-2 text-xs">
         Token

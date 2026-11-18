@@ -39,6 +39,7 @@ export const T = texte(
     ksText:
       'Fertige Pakete (Karte, Suche, Routing) von deinem eigenen Yapaia-Kartenserver laden statt hier zu bauen.',
     ksAdresse: 'Adresse',
+    ksAdresseHinweis: 'Nur die Basisadresse, z. B. https://karten.example.org – „/v1/katalog“ hängt Go selbst an.',
     ksTokenGesetzt: 'hinterlegt – leer lassen zum Behalten',
     ksTokenLeer: 'Download-Token vom Kartenserver',
     pruefe: 'Prüfe…',
@@ -129,6 +130,7 @@ export const T = texte(
     ksText:
       'Load ready-made packs (map, search, routing) from your own Yapaia map server instead of building them here.',
     ksAdresse: 'Address',
+    ksAdresseHinweis: 'Base address only, e.g. https://karten.example.org – Go appends “/v1/katalog” itself.',
     ksTokenGesetzt: 'stored – leave empty to keep',
     ksTokenLeer: 'Download token from the map server',
     pruefe: 'Checking…',
