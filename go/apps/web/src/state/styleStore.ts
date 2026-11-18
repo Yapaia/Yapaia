@@ -7,10 +7,13 @@
  */
 
 import { create } from 'zustand';
+import { useSprache } from '../i18n/index.js';
 import { labelGroesse, parseAbgeschaltet, POI_SCHLUESSEL } from '@yapaia/shared';
 import {
   DEFAULT_STYLE_ID,
   DEFAULT_STYLE_OPTIONS,
+  kachelSprache,
+  type KachelSprache,
   type StyleLabelScale,
   type StyleLang,
   type StyleOptions,
@@ -19,7 +22,18 @@ import {
 
 const STYLE_OPTIONS_KEY = 'yapaia.styleOptions';
 
-const VALID_LANG: readonly StyleLang[] = ['name', 'name_de', 'name_en'];
+const VALID_LANG: readonly StyleLang[] = ['auto', 'name', 'name_de', 'name_en'];
+
+/**
+ * ─── „ORIGINAL" AUS DER ZEIT VOR „AUTOMATISCH" ──────────────────────────────
+ * Bis 0.70.4 war `name` die Vorgabe, und jede Änderung an Größe oder
+ * Sonderzielen schrieb die ganze Optionsmenge -- samt `lang: 'name'` -- in
+ * den Browser. Ein gespeichertes `name` sagt deshalb nicht, dass jemand
+ * „Original" gewählt hat. Ohne diese Marke bekäme fast jeder Bestandsnutzer
+ * die neue Vorgabe nie zu sehen. Mit ihr gilt: altes `name` → `auto`;
+ * was ab 0.70.5 gespeichert wird, trägt die Marke und bleibt, wie es ist.
+ */
+const LANG_FASSUNG = 2;
 
 /**
  * Wer vor 0.3.7 „Deutsch" oder „English" gewaehlt hat, hat `name:de` bzw.
@@ -76,7 +90,9 @@ function aktiverStil(thema: StilThema, hell: string, dunkel: string): string {
  */
 export function normalizeStoredOptions(parsed: Partial<StyleOptions>): StyleOptions {
   const storedLang = parsed.lang ?? '';
-  const lang = LANG_ALIASES[storedLang] ?? storedLang;
+  const aliased = LANG_ALIASES[storedLang] ?? storedLang;
+  const fassung = (parsed as { langFassung?: unknown }).langFassung;
+  const lang = aliased === 'name' && fassung !== LANG_FASSUNG ? 'auto' : aliased;
   return {
     lang: (VALID_LANG as readonly string[]).includes(lang)
       ? (lang as StyleLang)
@@ -115,6 +131,11 @@ function readInitialOptions(): StyleOptions {
   } catch {
     return DEFAULT_STYLE_OPTIONS;
   }
+}
+
+/** Optionen speichern -- immer mit der Marke, siehe `LANG_FASSUNG`. */
+function speichereOptionen(options: StyleOptions): void {
+  persist(STYLE_OPTIONS_KEY, JSON.stringify({ ...options, langFassung: LANG_FASSUNG }));
 }
 
 function persist(key: string, value: string): void {
@@ -234,7 +255,7 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
   setLang: (lang) => {
     const options = { ...get().options, lang };
     set({ options });
-    persist(STYLE_OPTIONS_KEY, JSON.stringify(options));
+    speichereOptionen(options);
   },
 
   setLabelScale: (roh) => {
@@ -242,13 +263,13 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
     if (labelScale === get().options.labelScale) return;
     const options = { ...get().options, labelScale };
     set({ options });
-    persist(STYLE_OPTIONS_KEY, JSON.stringify(options));
+    speichereOptionen(options);
   },
 
   setPoi: (poi) => {
     const options = { ...get().options, poi };
     set({ options });
-    persist(STYLE_OPTIONS_KEY, JSON.stringify(options));
+    speichereOptionen(options);
   },
 
   setPoiKategorie: (schluessel, an) => {
@@ -260,13 +281,13 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
     // verschiedene Stil-Adressen und damit zwei Abrufe statt einem.
     const options = { ...get().options, poiAus: parseAbgeschaltet(naechste.join(',')) };
     set({ options });
-    persist(STYLE_OPTIONS_KEY, JSON.stringify(options));
+    speichereOptionen(options);
   },
 
   setPoiAus: (poiAus) => {
     const options = { ...get().options, poiAus: parseAbgeschaltet(poiAus.join(',')) };
     set({ options });
-    persist(STYLE_OPTIONS_KEY, JSON.stringify(options));
+    speichereOptionen(options);
   },
 
   poiChips: leseChips(),
@@ -286,6 +307,11 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
     set({ chipFilter: parseAbgeschaltet(chipFilter.join(',')) });
   },
 }));
+
+/** Das Kachelfeld, das die Karte gerade beschriftet (`auto` aufgelöst). */
+export function beschriftungsFeld(): KachelSprache {
+  return kachelSprache(useStyleStore.getState().options.lang, useSprache.getState().sprache);
+}
 
 declare global {
   interface Window {

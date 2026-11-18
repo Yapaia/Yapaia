@@ -10,6 +10,15 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.70.5
+
+- **Kartenbeschriftung in der Sprache von Home Assistant:** Neue Wahl
+  „Automatisch (Sprache von Home Assistant)“ im Stil-Menü (Darstellung →
+  Sprache), jetzt die Vorgabe. Deutsch → deutsche Namen, Englisch → englische,
+  wo es keine Übersetzung gibt, bleibt der Ortsname. Wer bisher nichts gewählt
+  hatte, bekommt automatisch die neue Vorgabe; eine ausdrückliche Wahl
+  („Original“, „Deutsch“, „English“) bleibt erhalten.
+
 ## 0.70.4
 
 - **Neuer Sensor „Land“ (Ländergrenzen aus GPS):** Der Suchindex bekommt beim

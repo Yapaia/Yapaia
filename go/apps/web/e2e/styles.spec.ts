@@ -394,6 +394,7 @@ test.describe('style options', () => {
       labelScale: string;
       poi: string;
       poiAus: string[];
+      langFassung: number;
     };
     // `poiAus` steht seit 0.17.0 mit im Gespeicherten. Die Zusicherung
     // bleibt bewusst ein `toEqual` ueber die GANZE Menge: sie soll auch
@@ -404,6 +405,8 @@ test.describe('style options', () => {
       labelScale: '1.2',
       poi: 'off',
       poiAus: [],
+      // Seit 0.70.5: unterscheidet ein gewähltes „Original" von der alten Vorgabe.
+      langFassung: 2,
     });
 
     await page.reload();
