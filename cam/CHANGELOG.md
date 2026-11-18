@@ -1,5 +1,11 @@
 # Changelog – Yapaia (App fürs Autoradio, früher „Yapaia Cam“)
 
+## 0.7.6
+
+- **Kamera ruckelt nicht mehr:** Die Bildgrenze lag bei 15 fps, die Kamera
+  liefert ~25. Dadurch kam mal jedes zweite, mal jedes dritte Bild
+  (80/120 ms im Wechsel). Grenze jetzt 30 fps, also alle Bilder gleichmäßig.
+
 ## 0.7.5
 
 - **Assist: Fehlerton.** Hat HA nach dem Weckwort nichts verstanden, kommt

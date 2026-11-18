@@ -644,7 +644,7 @@ class KameraModul(private val ctx: Context) : Modul {
         val VORSCHAU = Size(720, 600)
         val JPEG_GROESSE = Size(1920, 4344)
         const val GRENZE = "yapaiarahmen"
-        const val MAX_FPS = 15
+        const val MAX_FPS = 30
         const val GLEICHZEITIG_MS = 4000L
         /** So lange bleibt die Kamera nach der letzten Anfrage offen. */
         const val OFFEN_HALTEN_MS = 20_000L
