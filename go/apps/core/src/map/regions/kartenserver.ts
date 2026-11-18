@@ -64,12 +64,28 @@ export function istKartenserverEintrag(e: CatalogEntry): e is KartenserverEintra
   return (e as Partial<KartenserverEintrag>).quelle === 'kartenserver';
 }
 
+/**
+ * Die Basisadresse des Kartenservers: ohne abschliessende `/`, `/v1/katalog`
+ * oder `/v1`. Go haengt `/v1/katalog` selbst an -- wer die volle Katalog-URL
+ * einfuegt (so steht sie in der Antwort des Servers als `katalogUrl`), bekam
+ * sonst `/v1/katalog/v1/katalog` und ein 404 (Rueckmeldung zu Go 0.70.3).
+ */
+export function basisAdresse(url: string): string {
+  return url
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/v1(\/katalog)?$/i, '')
+    .replace(/\/+$/, '');
+}
+
 /** Die gespeicherte Verbindung, oder `null`, wenn keine eingerichtet ist. */
 export function verbindungAus(wert: unknown): KartenserverVerbindung | null {
   if (!wert || typeof wert !== 'object') return null;
   const { url, token } = wert as Record<string, unknown>;
   if (typeof url !== 'string' || !/^https?:\/\/\S+$/.test(url.trim())) return null;
-  return { url: url.trim().replace(/\/+$/, ''), token: typeof token === 'string' ? token.trim() : '' };
+  const basis = basisAdresse(url);
+  if (!/^https?:\/\/[^/\s]+/.test(basis)) return null;
+  return { url: basis, token: typeof token === 'string' ? token.trim() : '' };
 }
 
 const ID = /^[a-z0-9][a-z0-9_-]{0,62}$/;

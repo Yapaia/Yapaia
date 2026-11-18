@@ -431,6 +431,73 @@ Skript bereits vorhanden und müssen nicht neu gebaut werden.
 
 ---
 
+## B-07 🟡 Lite-Suchindex streamend bauen
+
+**Status:** zurückgestellt am 2026-11-18 (Go 0.70.4).
+**Betrifft:** `apps/core/src/search/lite/cli.ts` (`readNormalizedFile`), `buildIndex.ts`.
+
+### Was fehlt
+
+Orte, Straßen, Sonderziele und Benanntes werden komplett in ein Array gelesen,
+dann mit Ortsbezug versehen (`fillLocalities`) und erst danach geschrieben.
+Europa (51 Mio. Einträge) brauchte ~28 GB Heap.
+
+### Was stattdessen gilt
+
+`yapaia-build-lite-index` setzt den Node-Heap seit 0.70.4 auf 75 % des RAM
+(`yapaia-heap-mb`), ein eigenes `NODE_OPTIONS` gewinnt. Für ein Land reicht das
+auf jedem Gerät; Europa geht nur mit entsprechend RAM (Kartenserver/PC).
+
+### Warum zurückgestellt
+
+Streamen ist nicht klein: `fillLocalities` braucht ALLE Orte, bevor die erste
+Straße geschrieben werden kann, und `buildLiteIndexFile` baut Wortliste und
+Ranking über alle Datensätze. Sauber wäre: Orte zuerst (klein) einlesen, dann
+Straßen/POIs zeilenweise mit Ortsbezug in Paketen schreiben (wie
+`appendAddresses`), Wortliste danach per SQL.
+
+### Wie es wieder aufgegriffen wird
+
+Sobald Europa auf einem Gerät mit < 32 GB gebaut werden soll.
+
+---
+
+## B-08 🟡 Land aus GPS – Reste
+
+**Status:** Kern umgesetzt in Go 0.70.4; Reste offen.
+
+### Was umgesetzt ist
+
+* Bau: `yapaia-build-lite-index` (und `services/valhalla/build-lite-index.sh`)
+  ziehen `r/admin_level=2` aus dem vollen Extrakt, `osmium export` macht
+  Flächen daraus, `cli.ts --grenzen` legt sie vereinfacht (~30 m, 5 Stellen)
+  in die Tabelle `grenzen` des Suchindex (`search/lite/grenzen.ts`).
+* Laufzeit: `LiteBackend.landBei` → `AdressDienst` (alle 15 s / 40 m) →
+  Sensor `land` mit Attribut `land_code` (Protokoll unverändert, generische
+  Entität; Fixture `integration/tests/fixtures/go_beschreibung.json`).
+* Kartenkacheln: die `boundary`-Ebene war schon immer drin (planetiler
+  OpenMapTiles-Profil, keine Ebene ausgeschlossen) und wird gezeichnet
+  (`baseLayers.ts`, admin_level ≤ 4, gestrichelt).
+
+### Was fehlt
+
+* **Nicht am echten Extrakt geprüft:** osmium lief in dieser Sitzung nicht
+  (Bau erst beim nächsten „Suche bauen“). Prüfen: Meldung
+  „Laendergrenzen: N Flaechen“ im Bau-Log, `SELECT iso FROM grenzen`.
+* Ein **Landesextrakt** enthält nur das eigene Land (Nachbarrelationen sind
+  unvollständig). Jenseits der Grenze ist `land_code` dann `null` bzw. fällt auf
+  die Region zurück, solange kein Index des Nachbarlands installiert ist.
+  Mit Europa-Index oder installierten Nachbarländern ist es eindeutig.
+* **Kartenserver** `werkzeuge/europa-bau/bau.sh` (Map-server) baut die Suche mit
+  eigenen Schritten nach – dort den Grenzen-Schritt ergänzen. Der Serverbau über
+  `/usr/bin/yapaia-build-lite-index` bekommt ihn automatisch mit dem Go-Image.
+* **HA-Automation** „Router: SIM nach Land“ auf `state_attr('sensor.yapaia_go_land',
+  'land_code')` umstellen (MCC als Rückfall).
+* Optional: Landesgrenze (admin_level 2) in der Karte kräftiger zeichnen als
+  Bundesländer – war beim Basel-Test schlecht zu erkennen.
+
+---
+
 ## Wie diese Datei gepflegt wird
 
 * Ein Eintrag verschwindet erst, wenn die Arbeit **getan** ist — nicht, wenn

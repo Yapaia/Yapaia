@@ -400,6 +400,35 @@ describe('build-pmtiles.sh — planetiler-Aufruf', () => {
     expect(argv).not.toContain('/data/');
   });
 
+  /**
+   * Rueckmeldung Europa-Bau (Go 0.70.4): ohne `--tmpdir` legt planetiler seine
+   * Zwischenstaende nach `data/tmp` relativ zum aktuellen Verzeichnis -- im
+   * Kartenserver-Container auf die Overlay-Schicht, „No space left".
+   */
+  it('JAR-Modus: --tmpdir zeigt ins Arbeitsverzeichnis unter TMPDIR, nicht nach /data', () => {
+    const pbf = writeFakePbf();
+    const jar = join(work, 'planetiler.jar');
+    writeFileSync(jar, 'nicht wirklich ein jar');
+    installJavaStub();
+    const tmpRoot = join(work, 'grosse-platte');
+    mkdirSync(tmpRoot, { recursive: true });
+    const result = run([pbf], { PLANETILER_JAR: jar, TMPDIR: tmpRoot });
+    expect(result.status).toBe(0);
+    const argv = readFileSync(join(work, 'java-argv.txt'), 'utf-8').split('\n');
+    const tmpArg = argv.find((a) => a.startsWith('--tmpdir='));
+    expect(tmpArg).toBeDefined();
+    expect(tmpArg!.startsWith(`--tmpdir=${tmpRoot}/yapaia-pmtiles-`)).toBe(true);
+    expect(tmpArg!.endsWith('/tmp')).toBe(true);
+  });
+
+  it('Docker-Modus: --tmpdir=/data/tmp liegt im gemounteten Arbeitsverzeichnis', () => {
+    const pbf = writeFakePbf();
+    const result = run([pbf]);
+    expect(result.status).toBe(0);
+    const argv = readFileSync(join(work, 'docker-argv.txt'), 'utf-8').split('\n');
+    expect(argv).toContain('--tmpdir=/data/tmp');
+  });
+
   it('PLANETILER_JAR ohne vorhandene Datei bricht mit klarer Meldung ab', () => {
     const pbf = writeFakePbf();
     const result = run([pbf], { PLANETILER_JAR: join(work, 'fehlt.jar') });
@@ -650,6 +679,7 @@ describe('build-pmtiles.sh — atomarer Swap (W-17)', () => {
       writeFileSync(
         df,
         `#!/usr/bin/env bash\n` +
+          `[ -n "\${STUB_LOG_DF:-}" ] && printf '%s\\n' "\${@: -1}" >> "\$STUB_LOG_DF"\n` +
           `echo "Filesystem 1M-blocks Used Available Use% Mounted on"\n` +
           `echo "/dev/stub 100000 1 ${freeMb} 1% /"\n`,
       );
@@ -715,6 +745,31 @@ describe('build-pmtiles.sh — atomarer Swap (W-17)', () => {
         PMTILES_DISK_MARGIN_MB: '0',
       });
       expect(relaxed.status, 'mit Faktor 1 muesste es durchlaufen').toBe(0);
+    });
+
+    /**
+     * Rueckmeldung Europa-Bau (Go 0.70.4): planetiler schrieb seine ~175 GB
+     * Zwischenstaende nach `data/tmp` relativ zum aktuellen Verzeichnis --
+     * NICHT dorthin, wo diese Pruefung misst. Jetzt zeigt `--tmpdir` in das
+     * Arbeitsverzeichnis, und genau das muss df gefragt worden sein.
+     */
+    it('misst dasselbe Verzeichnis, in das planetiler seine Zwischenstaende legt', () => {
+      const pbf = writeFakePbf();
+      const jar = join(work, 'planetiler.jar');
+      writeFileSync(jar, 'nicht wirklich ein jar');
+      const dfLog = join(work, 'df-argv.txt');
+      const result = run([pbf], {
+        PATH: makeBinWithDf(500_000),
+        PLANETILER_JAR: jar,
+        STUB_LOG_DF: dfLog,
+      });
+      expect(result.status).toBe(0);
+      const argv = readFileSync(join(work, 'java-argv.txt'), 'utf-8').split('\n');
+      const tmpArg = argv.find((a) => a.startsWith('--tmpdir='));
+      expect(tmpArg, 'planetiler bekommt ein --tmpdir').toBeDefined();
+      const tmpDir = tmpArg!.slice('--tmpdir='.length);
+      const gemessen = readFileSync(dfLog, 'utf-8').split('\n').filter(Boolean);
+      expect(gemessen.some((d) => tmpDir === `${d}/tmp`)).toBe(true);
     });
 
     /** Eine Pruefung, die nicht messen KANN, darf keinen Bau verhindern. */

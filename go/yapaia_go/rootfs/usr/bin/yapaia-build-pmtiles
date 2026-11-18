@@ -80,17 +80,11 @@ export TILES_DIR="${TILES_DIR:-/share/yapaia/tiles}"
 # Bei 16 GB sind das rund 6,4 GB Heap und knapp 10 GB fuer Cache und den Rest.
 #
 # Wer es genau wissen will, setzt PLANETILER_XMX selbst -- das gewinnt.
+# Die Rechnung steht seit 0.70.4 in `yapaia-heap-mb` (auch fuer den Node-Heap
+# des Lite-Suchindex genutzt).
 if [ -z "${PLANETILER_XMX:-}" ]; then
-  MEM_TOTAL_KB="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)"
-  if [ "${MEM_TOTAL_KB:-0}" -gt 0 ]; then
-    XMX_MB=$(( MEM_TOTAL_KB / 1024 * 40 / 100 ))
-    [ "$XMX_MB" -lt 2048 ] && XMX_MB=2048
-    [ "$XMX_MB" -gt 8192 ] && XMX_MB=8192
-    PLANETILER_XMX="${XMX_MB}m"
-  else
-    PLANETILER_XMX="2g"
-  fi
-  echo "Heap fuer planetiler automatisch gewaehlt: $PLANETILER_XMX (RAM: $(( ${MEM_TOTAL_KB:-0} / 1024 )) MB)"
+  PLANETILER_XMX="$(yapaia-heap-mb 40 2048 8192)m"
+  echo "Heap fuer planetiler automatisch gewaehlt: $PLANETILER_XMX"
 fi
 export PLANETILER_XMX
 

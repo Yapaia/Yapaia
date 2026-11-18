@@ -12,6 +12,8 @@ import React, { useState } from 'react';
 import { useT } from '../i18n/index.js';
 import { T } from './texte.js';
 import type { BrowserSourceState, BrowserSourceError } from './browserSource';
+import { serverQuelleLiefert, useGpsSignalState } from './gpsSignal';
+import { usePositionStore } from './positionStore';
 
 interface GeolocationHintsProps {
   sourceState: BrowserSourceState;
@@ -22,6 +24,14 @@ export default function GeolocationHints({
 }: GeolocationHintsProps): React.ReactElement | null {
   const t = useT(T);
   const [visible, setVisible] = useState(true);
+  const signal = useGpsSignalState();
+  const quelle = usePositionStore((s) => s.lastRealPosition?.source ?? null);
+
+  // Kommen Positionen von einer Server-Quelle, ist der Browser-Fehler
+  // belanglos -- Hinweis ausblenden (siehe serverQuelleLiefert).
+  if (serverQuelleLiefert(signal, quelle)) {
+    return null;
+  }
 
   if (sourceState.status !== 'error' || !sourceState.error || !visible) {
     return null;

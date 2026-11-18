@@ -131,6 +131,14 @@ describe('Katalog vom Kartenserver', () => {
     await expect(holeKatalog({ url: 'http://127.0.0.1:1', token: TOKEN })).rejects.toThrow(/nicht erreichbar/);
   });
 
+  it('schneidet eine eingefuegte Katalog-URL auf die Basisadresse zurueck', () => {
+    expect(verbindungAus({ url: 'https://karten.example.org/v1/katalog' })?.url).toBe('https://karten.example.org');
+    expect(verbindungAus({ url: 'https://karten.example.org/v1/katalog/' })?.url).toBe('https://karten.example.org');
+    expect(verbindungAus({ url: 'https://karten.example.org/v1' })?.url).toBe('https://karten.example.org');
+    expect(verbindungAus({ url: 'https://example.org/karten/v1/katalog' })?.url).toBe('https://example.org/karten');
+    expect(verbindungAus({ url: 'https://karten.example.org//' })?.url).toBe('https://karten.example.org');
+  });
+
   it('entpackt nur tiles/ und build-info.json', () => {
     expect(erlaubterArchivpfad('tiles/valhalla.json')).toBe(true);
     expect(erlaubterArchivpfad('build-info.json')).toBe(true);

@@ -23,6 +23,7 @@ import { LiteIndexReader, splitQueryTerms, type AdressTreffer, type SuchKasten }
 import { listLiteSearchDbFiles } from './paths.js';
 import { haversineKm, rankLiteCandidates, type LiteCandidate } from './ranking.js';
 import type { Korrektur } from './tippfehler.js';
+import { landBei } from './grenzen.js';
 
 const noopLogger: SearchLogger = { info: () => {}, warn: () => {}, error: () => {} };
 
@@ -210,6 +211,29 @@ export class LiteBackend implements GeocoderBackend {
       }
     }
     return best;
+  }
+
+  /**
+   * Das Land an einer Stelle (ISO-Code) aus den Ländergrenzen der Indizes
+   * (grenzen.ts, seit Go 0.70.4); `null`, wenn keiner Grenzen hat oder die
+   * Stelle in keinem bekannten Land liegt. Wirft nie.
+   */
+  landBei(lat: number, lon: number): string | null {
+    let readers: LiteIndexReader[];
+    try {
+      readers = this.getReaders();
+    } catch {
+      return null;
+    }
+    for (const r of readers) {
+      try {
+        const iso = landBei(r.grenzen(), lat, lon);
+        if (iso) return iso;
+      } catch (err) {
+        this.logger.warn('Laendergrenzen nicht lesbar', { error: (err as Error).message });
+      }
+    }
+    return null;
   }
 
   /** Indexdateien ohne Koordinaten-Index (geoIndex.ts legt ihn nach). */

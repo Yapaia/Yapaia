@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  serverQuelleLiefert,
   deriveSignalState,
   lostThresholdForSource,
   GPS_SIGNAL_LOST_THRESHOLD_MS,
@@ -149,5 +150,20 @@ describe('lostThresholdForSource', () => {
     expect(lostThresholdForSource('ha_tracker')).toBe(INTERVAL_SOURCE_LOST_THRESHOLD_MS);
     expect(lostThresholdForSource('gpsd')).toBe(GPS_SIGNAL_LOST_THRESHOLD_MS);
     expect(lostThresholdForSource(null)).toBe(GPS_SIGNAL_LOST_THRESHOLD_MS);
+  });
+});
+
+describe('serverQuelleLiefert (Browser-Hinweis ausblenden)', () => {
+  it('gpsd oder Companion App mit aktuellem Signal: Hinweis weg', () => {
+    expect(serverQuelleLiefert('live', 'gpsd')).toBe(true);
+    expect(serverQuelleLiefert('live', 'ha_tracker')).toBe(true);
+    expect(serverQuelleLiefert('standstill', 'ha_tracker')).toBe(true);
+  });
+
+  it('Browser als Quelle, keine Quelle oder Signal verloren: Hinweis bleibt', () => {
+    expect(serverQuelleLiefert('live', 'browser')).toBe(false);
+    expect(serverQuelleLiefert('live', null)).toBe(false);
+    expect(serverQuelleLiefert('lost', 'gpsd')).toBe(false);
+    expect(serverQuelleLiefert('acquiring', 'gpsd')).toBe(false);
   });
 });
