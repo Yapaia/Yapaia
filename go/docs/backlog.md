@@ -498,6 +498,45 @@ Sobald Europa auf einem Gerät mit < 32 GB gebaut werden soll.
 
 ---
 
+## B-09 🟡 Fahrzeug-Beschränkungen – Warnung beim Fahren
+
+**Status:** Bau + Kartenebene in Go 0.71.0; Warnung folgt als eigene Stufe (0.72.0).
+
+### Was umgesetzt ist (0.71.0)
+
+* Bau: beide Index-Skripte ziehen `nw/maxheight…maxaxleload` (Liste aus
+  `cli.ts --print-beschraenkung-filters`) aus dem vollen Extrakt; `osmium export
+  --add-unique-id=type_id`; `cli.ts --beschraenkungen` legt Tabelle
+  `beschraenkungen` an (Art, Wert in m/t, Punkt/Wegmitte, Rahmen, vereinfachte
+  Linie ~10 m, OSM-Id; Index auf `min_lat`). Parser: `search/lite/beschraenkungen.ts`
+  (Dezimalkomma, cm, Fuß/Zoll, kg/lbs/st; `default`/`none`/… → ignoriert; je Art
+  der kleinste plausible Wert, `:forward`/`:backward` mitgenommen).
+* Kern: `GET /api/v1/map/beschraenkungen?bbox=w,s,o,n[&linien=1]` (max. 2°×2°,
+  4000 Treffer, `mitTabelle` = 0 bei alten Indizes).
+* Web: Ebene `map/beschraenkungen/` ab Zoom 12, Schild mit Wert, rot (Token
+  `--y-fehler`) wenn das aktive Profil die Grenze überschreitet; Schalter im
+  Stil-Menü unter „Sonderziele“.
+
+### Was fehlt
+
+* **Warnung beim Fahren** (Stufe 0.72.0): auf der Route (Linien gegen
+  `Route.geometry`, Abstand aus `navState.distance_remaining_m`) bzw. in
+  Fahrtrichtung (`position.heading`) die nächste überschrittene Grenze → Banner
+  „In 300 m Durchfahrtshöhe 3,2 m“ (de/en) + Ansage über `sageAn`; ggf.
+  HA-Ereignis `beschraenkung_voraus` (Protokoll §5, Integration mitziehen).
+* **Nicht am echten Extrakt geprüft** (osmium fehlt in der Sitzung): Bau-Log
+  „Fahrzeug-Beschraenkungen: N“, `SELECT art, count(*) FROM beschraenkungen GROUP BY art`.
+* **Kartenserver** `werkzeuge/europa-bau/bau.sh` (Map-server): Schritt ergänzen
+  wie bei den Grenzen.
+* Achslast steht nicht im Fahrzeugprofil → wird gezeigt, nie hervorgehoben.
+* `hgv=no`/`motor_vehicle=no` und bedingte Grenzen (`maxweight:conditional`,
+  Zusatzschilder) sind nicht berücksichtigt; Richtung (`:forward`/`:backward`)
+  wird nicht unterschieden (kleinster Wert gilt).
+* Sehr lange Wege (> ~5 km Nord-Süd) werden nur gefunden, wenn ihr Südende
+  nahe am Ausschnitt liegt (`BESCHRAENKUNG_RAND_GRAD`).
+
+---
+
 ## Wie diese Datei gepflegt wird
 
 * Ein Eintrag verschwindet erst, wenn die Arbeit **getan** ist — nicht, wenn

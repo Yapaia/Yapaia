@@ -42,6 +42,7 @@ import ViewModeButton from './ViewModeButton';
 import ReCenterButton from './ReCenterButton';
 import UebersichtButton from './UebersichtButton';
 import SonderzieleLayer from './SonderzieleLayer.js';
+import BeschraenkungenLayer from './beschraenkungen/BeschraenkungenLayer.js';
 import PerfOverlay from '../perf/PerfOverlay';
 import { startPerfWatchdog } from '../perf/perfWatchdog';
 
@@ -561,6 +562,7 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
               montiert und nicht bei den Routing-Ebenen: sie haengen an keiner
               Route, sondern nur an der Karte. */}
           <SonderzieleLayer />
+          <BeschraenkungenLayer />
           <CompassButton />
           <ViewModeButton />
           <ReCenterButton />

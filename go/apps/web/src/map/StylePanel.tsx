@@ -11,6 +11,7 @@
 
 import { useT } from '../i18n/index.js';
 import { T } from './texte.js';
+import { useBeschraenkungenStore } from './beschraenkungen/store.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { POI_AUSWAHL } from '@yapaia/shared';
 import { poiName } from '../i18n/texte.js';
@@ -72,6 +73,28 @@ const POI_OPTIONS: Array<{ value: StylePoiDensity; label: 'poiVoll' | 'poiReduzi
  * Fehler, an dem „reduzierte POIs" monatelang keinen Supermarkt zeigte:
  * zwei Listen, eine davon still abgedriftet.
  */
+/** Ebene „Fahrzeug-Beschränkungen" an/aus (seit 0.71.0). */
+function BeschraenkungenSchalter(): React.ReactElement {
+  const t = useT(T);
+  const an = useBeschraenkungenStore((s) => s.sichtbar);
+  const setSichtbar = useBeschraenkungenStore((s) => s.setSichtbar);
+  return (
+    <label className="mt-2 flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={an}
+        onChange={(e) => setSichtbar(e.target.checked)}
+        data-testid="ebene-beschraenkungen"
+        className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
+      />
+      <span className="text-xs">
+        {t('ebeneBeschraenkungen')}
+        <span className="block text-slate-500 dark:text-slate-400">{t('ebeneBeschraenkungenHilfe')}</span>
+      </span>
+    </label>
+  );
+}
+
 function SonderzielSchalter(): React.ReactElement {
   const t = useT(T);
   const poiAus = useStyleStore((state) => state.options.poiAus);
@@ -376,6 +399,7 @@ export default function StylePanel({
               einzige, was danach aussah, und es war die falsche Antwort. */}
             <FaltAbschnitt titel={t('abschnittSonderziele')} offen={false} id="sonderziele">
               <SonderzielSchalter />
+              <BeschraenkungenSchalter />
             </FaltAbschnitt>
 
             {/* ─── GERAET: WAS MAN EINMAL IM LEBEN EINSTELLT ─────────────────

@@ -14,6 +14,7 @@
  *                              --pois pois.geojsonseq --out data/lite-search/lite_search.db \
  *                              [--named named.geojsonseq] [--addresses addresses.geojsonseq]
  *                              [--grenzen grenzen.geojsonseq]
+ *                              [--beschraenkungen beschraenkungen.geojsonseq]
  *
  * Run via `services/valhalla/build-lite-index.sh`, never invoked directly
  * by the app itself.
@@ -40,6 +41,7 @@ import {
 } from './extract.js';
 import { appendAddresses, buildLiteIndexFile } from './buildIndex.js';
 import { appendGrenzen } from './grenzen.js';
+import { ALLE_BESCHRAENKUNG_TAGS, appendBeschraenkungen } from './beschraenkungen.js';
 import { namedOsmiumFilters, osmiumFilters } from './poiCategories.js';
 import { appendAll } from '@yapaia/shared';
 import { PlaceLocator, type PlacePoint } from './placeLocator.js';
@@ -56,6 +58,8 @@ interface CliArgs {
   addresses?: string;
   /** Ländergrenzen (admin_level=2) als Flächen -- seit Go 0.70.4, siehe grenzen.ts. */
   grenzen?: string;
+  /** Fahrzeug-Beschränkungen (maxheight, maxweight, …) -- seit Go 0.71.0, siehe beschraenkungen.ts. */
+  beschraenkungen?: string;
   out: string;
   /** Nur fuer die Auskunft im Index (`meta`): aus welcher Region er stammt.
    *  Es gibt EINEN Index fuer alle Regionen -- ohne diese Angabe sieht
@@ -73,12 +77,13 @@ function parseArgs(argv: string[]): CliArgs {
     else if (arg === '--named') args.named = argv[++i];
     else if (arg === '--addresses') args.addresses = argv[++i];
     else if (arg === '--grenzen') args.grenzen = argv[++i];
+    else if (arg === '--beschraenkungen') args.beschraenkungen = argv[++i];
     else if (arg === '--out') args.out = argv[++i];
     else if (arg === '--region') args.region = argv[++i];
   }
   if (!args.out) {
     throw new Error(
-      'Usage: cli.ts --places <geojsonseq> --streets <geojsonseq> --pois <geojsonseq> [--named <geojsonseq>] [--addresses <geojsonseq>] [--grenzen <geojsonseq>] ' +
+      'Usage: cli.ts --places <geojsonseq> --streets <geojsonseq> --pois <geojsonseq> [--named <geojsonseq>] [--addresses <geojsonseq>] [--grenzen <geojsonseq>] [--beschraenkungen <geojsonseq>] ' +
         '--out <lite_search.db path> [--region <id>]',
     );
   }
@@ -161,6 +166,14 @@ export async function runCli(argv: string[]): Promise<void> {
     }
     return;
   }
+  // Die osmium-Ausdrücke für die Beschränkungen -- aus derselben Liste, die
+  // der Normalisierer liest (beschraenkungen.ts), aus demselben Grund wie oben.
+  if (argv.includes('--print-beschraenkung-filters')) {
+    for (const tag of ALLE_BESCHRAENKUNG_TAGS) {
+      console.log(`nw/${tag}`);
+    }
+    return;
+  }
   if (argv.includes('--print-named-filters')) {
     for (const filter of namedOsmiumFilters()) {
       console.log(filter);
@@ -232,6 +245,10 @@ export async function runCli(argv: string[]): Promise<void> {
     if (args.grenzen) {
       const n = await appendGrenzen(tmpPath, readFeatures(args.grenzen));
       console.warn(`Laendergrenzen: ${n} Flaechen uebernommen aus ${args.grenzen}`);
+    }
+    if (args.beschraenkungen) {
+      const n = await appendBeschraenkungen(tmpPath, readFeatures(args.beschraenkungen));
+      console.warn(`Fahrzeug-Beschraenkungen: ${n} uebernommen aus ${args.beschraenkungen}`);
     }
     // Gebaut wurde ohne Journal und ohne Plattensync (bauModus in
     // buildIndex.ts). Deshalb hier EINMAL auf die Platte schreiben, bevor die

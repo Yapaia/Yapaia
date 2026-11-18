@@ -188,6 +188,24 @@ else
 fi
 rm -f "$WORK_DIR/grenzen.osm.pbf"
 
+# --- Fahrzeug-Beschraenkungen (seit Go 0.71.0) ------------------------------
+# maxheight, maxweight, maxwidth, maxlength, maxaxleload an Wegen und Knoten,
+# fuer die Kartenebene und die Warnung beim Fahren (siehe
+# apps/core/src/search/lite/beschraenkungen.ts). Die osmium-Ausdruecke liefert
+# das Werkzeug selbst. Aus dem VOLLEN Extrakt, weil die Wege ihre Knoten
+# brauchen. Scheitert der Schritt, wird ohne Beschraenkungen weitergebaut.
+BESCHR_ARGS=()
+mapfile -t BESCHR_FILTERS < <(pnpm --silent --filter @yapaia/core exec tsx src/search/lite/cli.ts --print-beschraenkung-filters || true)
+if [ "${#BESCHR_FILTERS[@]}" -gt 0 ] \
+  && osmium tags-filter --overwrite "${LZ4[@]}" -o "$WORK_DIR/beschraenkungen.osm.pbf" "$PBF" "${BESCHR_FILTERS[@]}" \
+  && osmium export --overwrite --geometry-types=point,linestring --add-unique-id=type_id -f geojsonseq \
+       -o "$WORK_DIR/beschraenkungen.geojsonseq" "$WORK_DIR/beschraenkungen.osm.pbf"; then
+  BESCHR_ARGS=(--beschraenkungen "$WORK_DIR/beschraenkungen.geojsonseq")
+else
+  echo "Hinweis: Fahrzeug-Beschraenkungen konnten nicht extrahiert werden -- Index ohne Beschraenkungen." >&2
+fi
+rm -f "$WORK_DIR/beschraenkungen.osm.pbf"
+
 # ─── NODE-HEAP: AUS DEM VORHANDENEN SPEICHER (seit 0.70.4) ────────────────
 # Das Werkzeug haelt Orte, Strassen und Sonderziele beim Einlesen komplett im
 # Heap. Nodes Standard-Heap (~4 GB) reicht fuer ein Land, nicht fuer Europa
@@ -210,6 +228,7 @@ echo "== Baue lite_search.db (tsx-CLI, atomarer Swap nach $OUT_DB) =="
     --named "$WORK_DIR/named.geojsonseq" \
     --addresses "$WORK_DIR/addresses.geojsonseq" \
     "${GRENZ_ARGS[@]}" \
+    "${BESCHR_ARGS[@]}" \
     --out "$OUT_DB" \
     --region "$REGION_ID"
 )

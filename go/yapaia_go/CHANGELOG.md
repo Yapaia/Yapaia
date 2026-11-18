@@ -10,6 +10,19 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.71.0
+
+- **Fahrzeug-Beschränkungen auf der Karte:** Durchfahrtshöhe, Gewicht,
+  Breite, Länge und Achslast aus OpenStreetMap erscheinen ab Zoom 12 als
+  Schild mit Wert („H 3,2 m“, „7,5 t“). Passt das aktive Fahrzeug nicht
+  durch, ist das Schild rot hervorgehoben. Ein-/ausschaltbar im Stil-Menü
+  unter „Sonderziele“.
+- **Dafür muss die Suche neu gebaut werden** („Suche bauen“ bzw. neues
+  Kartenserver-Paket): die Beschränkungen kommen beim Bau als eigene Tabelle
+  in den Suchindex. Ältere Indizes funktionieren weiter, zeigen aber keine
+  Schilder.
+- Die Warnung beim Fahren folgt in einer nächsten Version.
+
 ## 0.70.5
 
 - **Kartenbeschriftung in der Sprache von Home Assistant:** Neue Wahl
