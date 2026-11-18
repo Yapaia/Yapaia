@@ -10,6 +10,17 @@ steht die Meldung dabei, damit man sie wiedererkennt.
 
 ---
 
+## 0.72.0
+
+- **Warnung vor Fahrzeug-Beschränkungen beim Fahren:** Liegt voraus eine
+  Durchfahrtshöhe, ein Gewicht, eine Breite oder Länge, die das aktive
+  Fahrzeug überschreitet, erscheint ein roter Hinweis mit Entfernung
+  („In 300 m Durchfahrtshöhe 3,2 m“) und Go sagt ihn einmal an (wie die
+  Navigationsansagen, auch über Beat). Mit Route wird die Route geprüft
+  (bis 1,5 km voraus), ohne Route ab etwa 15 km/h die Fahrtrichtung (600 m).
+  Antippen blendet den Hinweis aus.
+- Braucht wie die Kartenschilder einen Suchindex ab Go 0.71.0.
+
 ## 0.71.0
 
 - **Fahrzeug-Beschränkungen auf der Karte:** Durchfahrtshöhe, Gewicht,

@@ -15,6 +15,7 @@ import RoutingPanel from './RoutingPanel.js';
 import VerkehrListe from '../online/VerkehrListe.js';
 import VerkehrLayer from '../online/VerkehrLayer.js';
 import VerkehrHinweis from '../online/VerkehrHinweis.js';
+import BeschraenkungWarnung from '../drive/BeschraenkungWarnung.js';
 
 export default function RoutingInitializer(): React.ReactElement {
   const profileCount = useProfileStore((state) => state.profiles.length);
@@ -52,6 +53,7 @@ export default function RoutingInitializer(): React.ReactElement {
           alter Stand, Meldungen ohne Ort. Ohne ihn sähe eine unvollständige
           Karte aus wie eine leere Strecke. */}
       <VerkehrHinweis />
+      <BeschraenkungWarnung />
       <VerkehrListe />
       <DestinationSelector />
       {/* Sagt, warum ein kurzer Tipper nichts tut. Ohne ihn sähe die neue
