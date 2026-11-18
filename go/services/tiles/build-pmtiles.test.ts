@@ -679,7 +679,7 @@ describe('build-pmtiles.sh — atomarer Swap (W-17)', () => {
       writeFileSync(
         df,
         `#!/usr/bin/env bash\n` +
-          `[ -n "\${STUB_LOG_DF:-}" ] && printf '%s\\n' "\${@: -1}" >> "\$STUB_LOG_DF"\n` +
+          `[ -n "\${STUB_LOG_DF:-}" ] && printf '%s\\n' "\${@: -1}" >> "$STUB_LOG_DF"\n` +
           `echo "Filesystem 1M-blocks Used Available Use% Mounted on"\n` +
           `echo "/dev/stub 100000 1 ${freeMb} 1% /"\n`,
       );
