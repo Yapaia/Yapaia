@@ -33,7 +33,7 @@ import type { Map as MapLibreMap, MapMouseEvent, PointLike } from 'maplibre-gl';
 import { useMapStore } from '../state/mapStore.js';
 import { useProfileStore } from '../profiles/store.js';
 import { useRoutingStore } from './store.js';
-import { useStyleStore } from '../state/styleStore.js';
+import { beschriftungsFeld } from '../state/styleStore.js';
 import { resolvePlaceName } from '../map/placeName.js';
 import { buildAvoidSquare } from './exclusionGeometry.js';
 import { mapTapIntent, ROUTE_TAP_RADIUS_PX, type Geste } from './mapTapIntent.js';
@@ -86,7 +86,7 @@ function pickOrtAtPoint(map: MapLibreMap, e: MapMouseEvent): boolean {
   if (layers.length === 0) return false;
   const treffer = map.queryRenderedFeatures(tapBox(e), { layers })[0];
   if (!treffer) return false;
-  const lang = useStyleStore.getState().options.lang;
+  const lang = beschriftungsFeld();
   const g = treffer.geometry;
   const punkt =
     g.type === 'Point'
@@ -202,7 +202,7 @@ export default function DestinationSelector(): null {
       // wie beim Startpunkt: ein Zustand, in dem jeder weitere Tipper still
       // eine Station anhaengt, waere aus der Karte heraus nicht erkennbar.
       if (intent.kind === 'set-waypoint') {
-        const wpLang = useStyleStore.getState().options.lang;
+        const wpLang = beschriftungsFeld();
         useRoutingStore.getState().addWaypoint(
           point,
           resolvePlaceName({
@@ -224,7 +224,7 @@ export default function DestinationSelector(): null {
       // weitere Klick still den Start verschiebt, statt ein Ziel zu setzen,
       // waere aus der Karte heraus nicht erkennbar.
       if (intent.kind === 'set-origin') {
-        const startLang = useStyleStore.getState().options.lang;
+        const startLang = beschriftungsFeld();
         setStartPoint(
           point,
           resolvePlaceName({
@@ -242,7 +242,7 @@ export default function DestinationSelector(): null {
       // aber keine Auskunft darüber, wohin die Fahrt geht. Findet sich kein
       // Name nah genug, bleibt es bei den Koordinaten; ein erfundener Name
       // wäre schlimmer, weil man ihm glauben würde.
-      const lang = useStyleStore.getState().options.lang;
+      const lang = beschriftungsFeld();
       setDestination(
         point,
         resolvePlaceName({ map, point, preferredLang: lang === 'name' ? undefined : lang }),

@@ -34,8 +34,9 @@ Eine eigene Sprache je Modul gibt es nicht.
 Dashboards sowie die Oberflächen von Go, Beat und Vision. Der Go-Kern übersetzt
 seine Meldungen (`apps/core/src/i18n.ts`, je Bereich `texte.ts`), versteht
 Sprachbefehle auf Deutsch und Englisch und meldet seine Sprache als Sensor
-`sprache` (für die ESPHome-Navi-Anzeige). Die Kartenbeschriftung ist im
-Stil-Menü wählbar (`name_en` steckt in den Kacheln).
+`sprache` (für die ESPHome-Navi-Anzeige). Die Kartenbeschriftung folgt
+ab Go 0.70.5 standardmäßig derselben Sprache („Automatisch“: `name_de` bzw.
+`name_en` aus den Kacheln) und ist im Stil-Menü fest wählbar.
 
 Auch die ESPHome-Anzeigen (Navi-Anzeige, M5 Dial) folgen dem Sensor `sprache`
 von Go, und Vision schickt seine Meldungen in der gemerkten Sprache.

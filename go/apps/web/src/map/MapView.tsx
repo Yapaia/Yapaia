@@ -1,4 +1,4 @@
-import { useT } from '../i18n/index.js';
+import { useSprache, useT } from '../i18n/index.js';
 import { T } from './texte.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 // ─── NAMENSRAUM STATT STANDARD-EXPORT ─────────────────────────────────────
@@ -17,6 +17,7 @@ import {
   fetchStyle,
   buildFallbackStyle,
   applyDegradationCaps,
+  kachelSprache,
   type StyleOptions,
 } from './styleClient';
 import { applyStyle, trackCoreStyle } from './styleSwitch';
@@ -159,12 +160,16 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
   const gespeicherteOptionen = useStyleStore((state) => state.options);
   const chipFilter = useStyleStore((state) => state.chipFilter);
   // Ein aktiver Chip in der Kopfzeile filtert, ohne die Einstellung zu ändern.
+  // „Automatisch" wird hier zum Kachelfeld: ein Sprachwechsel in Home
+  // Assistant ändert damit `styleKey` und holt den Stil neu.
+  const sprache = useSprache((s) => s.sprache);
   const userStyleOptions = useMemo(
     () => ({
       ...gespeicherteOptionen,
+      lang: kachelSprache(gespeicherteOptionen.lang, sprache),
       poiAus: wirksamesPoiAus(gespeicherteOptionen.poiAus, chipFilter),
     }),
-    [gespeicherteOptionen, chipFilter]
+    [gespeicherteOptionen, chipFilter, sprache]
   );
   // Transient performance-degradation caps (E01-T6). These clamp the effective
   // render options DOWN from the user's persisted choice under low FPS; they
@@ -229,7 +234,10 @@ export default function MapView({ chrome = true }: MapViewProps = {}): React.Rea
       const { styleId: initialStyleId, options: userOptions } = useStyleStore.getState();
       const { poiCap: initialPoiCap, labelScaleCap: initialLabelScaleCap } =
         useDegradationStore.getState();
-      const initialOptions = applyDegradationCaps(userOptions, {
+      const initialOptions = applyDegradationCaps({
+        ...userOptions,
+        lang: kachelSprache(userOptions.lang, useSprache.getState().sprache),
+      }, {
         poi: initialPoiCap,
         labelScale: initialLabelScaleCap,
       });

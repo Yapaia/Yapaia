@@ -10,11 +10,28 @@
 
 import type { StyleSpecification } from 'maplibre-gl';
 import { alsPoiParameter, labelGroesse } from '@yapaia/shared';
+import { useSprache } from '../i18n/index.js';
 
 /** Siehe `apps/core/src/map/styles/options.ts`: unsere Kacheln fuehren
  *  `name`, `name_de` und `name_en` — `name:de` gibt es dort NICHT, und die
  *  Wahl „Deutsch" liess deshalb bis 0.3.6 jede Beschriftung verschwinden. */
-export type StyleLang = 'name' | 'name_de' | 'name_en';
+export type StyleLang = 'auto' | KachelSprache;
+/** Das Feld, das wirklich in den Kacheln steht und an den Kern geht.
+ *  `auto` (seit 0.70.5) ist nur eine Wahl im Browser: es folgt der Sprache
+ *  von Home Assistant (`useSprache`, docs/sprachen.md). */
+export type KachelSprache = 'name' | 'name_de' | 'name_en';
+
+/**
+ * Macht aus der Wahl das Kachelfeld: `auto` folgt der Oberflächensprache
+ * (de → `name_de`, en → `name_en`), eine ausdrückliche Wahl bleibt, was sie
+ * ist. `name_de`/`name_en` fallen schon im Kachelprofil auf `name` zurück
+ * (`apps/core/src/map/styles/options.ts`), eine Straße ohne Übersetzung
+ * verliert ihren Namen also nicht.
+ */
+export function kachelSprache(lang: StyleLang, sprache: 'de' | 'en'): KachelSprache {
+  if (lang !== 'auto') return lang;
+  return sprache === 'de' ? 'name_de' : 'name_en';
+}
 /** `0.8` bis `2.0` in Zehnteln, als Zeichenkette (`labelGroesse` in `@yapaia/shared`). */
 export type StyleLabelScale = string;
 export type StylePoiDensity = 'full' | 'reduced' | 'off';
@@ -46,7 +63,8 @@ export interface StyleSummary {
 export const DEFAULT_STYLE_ID = 'yapaia-light';
 
 export const DEFAULT_STYLE_OPTIONS: StyleOptions = {
-  lang: 'name',
+  // Seit 0.70.5: Beschriftung in der Sprache von Home Assistant.
+  lang: 'auto',
   labelScale: '1.0',
   poi: 'full',
   // Alles an. Wer nichts einstellt, sieht alles -- das ist der Zustand, in
@@ -144,7 +162,9 @@ export async function fetchStyle(
   region?: string,
 ): Promise<StyleSpecification | null> {
   const params = new URLSearchParams({
-    lang: options.lang,
+    // `auto` kennt der Kern nicht -- aufgelöst wird vorher (MapView); hier nur
+    // zur Sicherheit, damit nie `?lang=auto` hinausgeht.
+    lang: kachelSprache(options.lang, useSprache.getState().sprache),
     labelScale: options.labelScale,
     poi: options.poi,
   });

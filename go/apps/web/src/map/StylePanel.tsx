@@ -46,7 +46,8 @@ const DARSTELLUNG_OPTIONS: Array<{
   { value: 'leicht', label: 'darstellungLeicht', hilfe: 'darstellungLeichtHilfe' },
 ];
 
-const LANG_OPTIONS: Array<{ value: StyleLang; label: 'langOriginal' | null; text?: string }> = [
+const LANG_OPTIONS: Array<{ value: StyleLang; label: 'langAuto' | 'langOriginal' | null; text?: string }> = [
+  { value: 'auto', label: 'langAuto' },
   { value: 'name', label: 'langOriginal' },
   { value: 'name_de', label: null, text: 'Deutsch' },
   { value: 'name_en', label: null, text: 'English' },

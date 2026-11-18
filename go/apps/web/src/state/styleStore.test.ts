@@ -8,8 +8,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useStyleStore, normalizeStoredOptions } from './styleStore';
-import { DEFAULT_STYLE_ID, DEFAULT_STYLE_OPTIONS } from '../map/styleClient';
+import { useStyleStore, normalizeStoredOptions, beschriftungsFeld } from './styleStore';
+import { useSprache } from '../i18n/index.js';
+import { DEFAULT_STYLE_ID, DEFAULT_STYLE_OPTIONS, kachelSprache } from '../map/styleClient';
 
 describe('styleStore', () => {
   beforeEach(() => {
@@ -19,7 +20,7 @@ describe('styleStore', () => {
   it('starts with the default style id and options', () => {
     expect(useStyleStore.getState().styleId).toBe('yapaia-light');
     expect(useStyleStore.getState().options).toEqual({
-      lang: 'name',
+      lang: 'auto',
       labelScale: '1.0',
       poi: 'full',
       poiAus: [],
@@ -45,13 +46,13 @@ describe('styleStore', () => {
   it('setLabelScale updates only the labelScale option', () => {
     useStyleStore.getState().setLabelScale('1.2');
     expect(useStyleStore.getState().options.labelScale).toBe('1.2');
-    expect(useStyleStore.getState().options.lang).toBe('name');
+    expect(useStyleStore.getState().options.lang).toBe('auto');
   });
 
   it('setPoi updates only the poi option', () => {
     useStyleStore.getState().setPoi('reduced');
     expect(useStyleStore.getState().options.poi).toBe('reduced');
-    expect(useStyleStore.getState().options.lang).toBe('name');
+    expect(useStyleStore.getState().options.lang).toBe('auto');
   });
 
   it('setStyleId does not throw when window/localStorage is unavailable (Node test env)', () => {
@@ -92,5 +93,36 @@ describe('styleStore', () => {
     expect(normalizeStoredOptions({ lang: 'name:fr' as never, poi: 'viele' as never })).toEqual(
       DEFAULT_STYLE_OPTIONS,
     );
+  });
+
+  // ─── AUTOMATISCH (0.70.5) ──────────────────────────────────────────────────
+  it('„Automatisch" folgt der Sprache von Home Assistant', () => {
+    expect(kachelSprache('auto', 'de')).toBe('name_de');
+    expect(kachelSprache('auto', 'en')).toBe('name_en');
+    // Eine ausdrückliche Wahl gewinnt immer.
+    expect(kachelSprache('name', 'de')).toBe('name');
+    expect(kachelSprache('name_en', 'de')).toBe('name_en');
+  });
+
+  it('beschriftungsFeld löst „Automatisch" mit der aktuellen Sprache auf', () => {
+    const vorher = useSprache.getState().sprache;
+    useSprache.getState().setzen('en');
+    expect(beschriftungsFeld()).toBe('name_en');
+    useSprache.getState().setzen('de');
+    expect(beschriftungsFeld()).toBe('name_de');
+    useStyleStore.getState().setLang('name');
+    expect(beschriftungsFeld()).toBe('name');
+    useSprache.getState().setzen(vorher);
+  });
+
+  it('ein vor 0.70.5 gespeichertes „Original" wird zu „Automatisch"', () => {
+    // Bis 0.70.4 stand `name` als Vorgabe in jeder gespeicherten Menge.
+    expect(normalizeStoredOptions({ lang: 'name' }).lang).toBe('auto');
+  });
+
+  it('ein ab 0.70.5 gewähltes „Original" bleibt erhalten', () => {
+    expect(normalizeStoredOptions({ lang: 'name', langFassung: 2 } as never).lang).toBe('name');
+    expect(normalizeStoredOptions({ lang: 'auto', langFassung: 2 } as never).lang).toBe('auto');
+    expect(normalizeStoredOptions({ lang: 'name_de' }).lang).toBe('name_de');
   });
 });
