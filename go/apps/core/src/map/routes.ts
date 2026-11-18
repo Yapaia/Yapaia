@@ -31,6 +31,7 @@ import { collectBuildStatus } from './buildStatus.js';
 import { readLiteIndexMeta } from '../search/lite/reader.js';
 import { resolveLiteSearchDir } from '../search/lite/paths.js';
 import { alsGeoJson, leseSonderziele } from './sonderziele/ausIndex.js';
+import { beschraenkungenGeoJson, beschraenkungenIn, parseBbox } from './beschraenkungen.js';
 import { regionsPlugin } from './regions/routes.js';
 import { SettingsService } from '../settings/service.js';
 import { Buffer } from 'node:buffer';
@@ -284,6 +285,18 @@ export const mapPlugin: FastifyPluginAsync = async (fastify) => {
   // es keine" und „konnte nicht nachsehen" auf der Karte gleich aus.
   fastify.get('/api/v1/map/sonderziele', async (_request, reply) => {
     return reply.code(200).send(alsGeoJson(leseSonderziele()));
+  });
+
+  // GET /api/v1/map/beschraenkungen?bbox=w,s,o,n[&linien=1] -- Durchfahrtshöhe,
+  // Gewicht, Breite, Länge, Achslast aus dem Suchindex (seit 0.71.0), für
+  // die Kartenebene und die Warnung beim Fahren. Nur für einen Ausschnitt;
+  // `mitTabelle: 0` heißt: kein Index hat sie -- Suche neu bauen.
+  fastify.get<{ Querystring: { bbox?: string; linien?: string } }>('/api/v1/map/beschraenkungen', async (request, reply) => {
+    const bbox = parseBbox(request.query.bbox);
+    if (!bbox) {
+      return reply.code(400).send(createErrorResponse('INVALID_BBOX', 'bbox=w,s,o,n (höchstens 2° × 2°)'));
+    }
+    return reply.code(200).send(beschraenkungenGeoJson(beschraenkungenIn(bbox), request.query.linien === '1'));
   });
 
   // GET /api/v1/map/satellit/:z/:x/:y.jpg -- Satellitenkacheln, vom Kern

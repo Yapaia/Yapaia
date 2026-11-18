@@ -283,3 +283,10 @@ bauen darauf auf.
 - **Verifikations-Timer:** CI-Status via `mcp__github__actions_list` (branch-Filter) +
   `get_job_logs failed_only`. Große list-Antworten laufen ins Token-Limit → in Datei
   gespeichert, mit `jq` auslesen (`.workflow_runs[0]`).
+
+## Fahrzeug-Beschränkungen (2026-11-18)
+
+- **0.71.0:** Tabelle `beschraenkungen` im Lite-Index (beide Bau-Skripte, `cli.ts --beschraenkungen`),
+  Endpunkt `/api/v1/map/beschraenkungen?bbox=`, Kartenebene `web/src/map/beschraenkungen/`.
+- **Offen → 0.72.0:** Warnung beim Fahren (Route + Fahrtrichtung), Details und Restliste in
+  `docs/backlog.md` B-09. Bau mit echtem osmium noch nicht geprüft.
