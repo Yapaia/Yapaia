@@ -500,7 +500,7 @@ Sobald Europa auf einem Gerät mit < 32 GB gebaut werden soll.
 
 ## B-09 🟡 Fahrzeug-Beschränkungen – Warnung beim Fahren
 
-**Status:** Bau + Kartenebene in Go 0.71.0; Warnung folgt als eigene Stufe (0.72.0).
+**Status:** Bau + Kartenebene in Go 0.71.0, Warnung beim Fahren in 0.72.0; Reste offen.
 
 ### Was umgesetzt ist (0.71.0)
 
@@ -519,11 +519,15 @@ Sobald Europa auf einem Gerät mit < 32 GB gebaut werden soll.
 
 ### Was fehlt
 
-* **Warnung beim Fahren** (Stufe 0.72.0): auf der Route (Linien gegen
-  `Route.geometry`, Abstand aus `navState.distance_remaining_m`) bzw. in
-  Fahrtrichtung (`position.heading`) die nächste überschrittene Grenze → Banner
-  „In 300 m Durchfahrtshöhe 3,2 m“ (de/en) + Ansage über `sageAn`; ggf.
-  HA-Ereignis `beschraenkung_voraus` (Protokoll §5, Integration mitziehen).
+* **Umgesetzt in 0.72.0:** `web/src/drive/BeschraenkungWarnung.tsx` +
+  `beschraenkungVoraus.ts` – Route (1,5 km, Knoten ≤ 20 m, Wege nur parallel ≤ 35°)
+  bzw. freie Fahrt ab 4,2 m/s im Korridor ±25 m / 600 m; Banner + einmalige Ansage
+  über `sageAn` (Priorität `hinweis`).
+* **Offen:** kein HA-Ereignis (`beschraenkung_voraus`) – die Erkennung läuft im
+  Browser; dafür bräuchte es einen Meldeweg Web → Kern → Protokoll §5 (Integration
+  mitziehen). Ohne geöffnete Go-Oberfläche gibt es also keine Warnung.
+* **Nicht im Wohnmobil erprobt:** Schwellen (Abstand, Winkel, Weiten) sind
+  geschätzt; Fehlwarnungen an Kreuzungen/Brücken beobachten.
 * **Nicht am echten Extrakt geprüft** (osmium fehlt in der Sitzung): Bau-Log
   „Fahrzeug-Beschraenkungen: N“, `SELECT art, count(*) FROM beschraenkungen GROUP BY art`.
 * **Kartenserver** `werkzeuge/europa-bau/bau.sh` (Map-server): Schritt ergänzen
