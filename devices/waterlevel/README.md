@@ -5,14 +5,14 @@ einer langen Leiterplatte als Sonde. Die Sonde hängt im Tank, ihre Leiterbahnen
 sind nur durch den Lötstopplack (oder zusätzlich eine Beschichtung) vom Wasser
 getrennt. Der ESP32 misst die Kapazität über seinen Touch-Eingang.
 
-Stand: **Konzept und Testplatine v1** (bestellfertig), noch nichts am Gerät geprüft.
+Stand: **Konzept und Testplatine v2 mit XIAO ESP32S3** (bestellfertig), noch nichts am Gerät geprüft.
 
 | Datei | Inhalt |
 |---|---|
 | `README.md` | Konzept, Dimensionierung, Recherche, nächste Schritte |
 | [`rechner.py`](rechner.py) | Rechner: Kapazität je Bahnbreite, Isolierdicke und Wasserhöhe |
 | [`waterlevel.yaml`](waterlevel.yaml) | ESPHome-Entwurf für ESP32-S3 (kompiliert, nicht am Gerät getestet) |
-| [`pcb/testplatine/`](pcb/testplatine/) | Testplatine v1: sechs Bahnbreiten zum Ausmessen, Gerber zum Bestellen |
+| [`pcb/testplatine/`](pcb/testplatine/) | Testplatine v2: sechs Bahnbreiten zum Ausmessen, XIAO ESP32S3 direkt drauf, Gerber zum Bestellen |
 
 ## Messprinzip
 
@@ -133,6 +133,9 @@ Erkenntnisse:
   mit der Kapazität, hat einen Schirm-/Wasserschutz-Kanal (Shield). Von ESPHome
   unterstützt. *Grenzwerte für große Kapazitäten konnte ich in der Doku nicht
   finden – deshalb Test-Platine zuerst.*
+  Board: **Seeed XIAO ESP32S3** – klein, Belegung eindeutig dokumentiert,
+  D0–D5 und D8–D10 sind Touch-Eingänge (GPIO1–9); sitzt direkt auf der
+  Testplatine.
 - Klassischer ESP32: geht auch (10 Touch-Kanäle), Zählwert sinkt mit 1/C;
   über die Messdauer lässt sich die Auflösung erhöhen.
 - **ESP32-C3/C6 haben keine Touch-Eingänge** (z. B. das Board der Tür) – nicht geeignet.

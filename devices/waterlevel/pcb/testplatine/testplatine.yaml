@@ -1,5 +1,5 @@
 # Testplatine Wasserstand – Rohwerte aller Kanäle nach Home Assistant (ESP32-S3)
-# Verdrahtung: J1 Pin 1/9 = GND, Pin 2..8 = S1..S7 -> GPIO1..GPIO7.
+# Board: Seeed XIAO ESP32S3 direkt auf der Testplatine. S1..S6 = D0..D5 = GPIO1..6, S7 = D8 = GPIO7.
 # Rohwerte steigen beim S3 mit der Kapazität. setup_mode loggt zusätzlich alle Werte.
 
 esphome:
@@ -7,7 +7,7 @@ esphome:
   friendly_name: Wasserstand Test
 
 esp32:
-  board: esp32-s3-devkitc-1
+  board: seeed_xiao_esp32s3
   framework:
     type: esp-idf
 

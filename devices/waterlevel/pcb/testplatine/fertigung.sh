@@ -1,7 +1,7 @@
 #!/bin/sh
 # Erzeugt Platine, Fertigungsdaten (Gerber + Bohrdaten als ZIP) und Vorschau-SVGs.
 # Braucht KiCad 7 (pcbnew-Python und kicad-cli).
-set -e
+set -eu
 cd "$(dirname "$0")"
 python3 erzeuge.py
 rm -rf fertigung && mkdir -p fertigung/gerber
