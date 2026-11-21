@@ -1,0 +1,143 @@
+# Testplatine Wasserstand – Rohwerte aller Kanäle nach Home Assistant (ESP32-S3)
+# Board: Seeed XIAO ESP32S3 direkt auf der Testplatine. S1..S6 = D0..D5 = GPIO1..6, S7 = D8 = GPIO7.
+# Rohwerte steigen beim S3 mit der Kapazität. setup_mode loggt zusätzlich alle Werte.
+
+esphome:
+  name: waterlevel-test
+  friendly_name: Wasserstand Test
+
+esp32:
+  board: seeed_xiao_esp32s3
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret waterlevel_api_key
+
+ota:
+  - platform: esphome
+    password: !secret waterlevel_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Waterlevel Test Hotspot"
+    password: !secret waterlevel_ap_password
+
+captive_portal:
+
+esp32_touch:
+  setup_mode: true
+
+binary_sensor:
+  - platform: esp32_touch
+    id: touch_s1
+    internal: true
+    pin: GPIO1
+    threshold: 4000000
+  - platform: esp32_touch
+    id: touch_s2
+    internal: true
+    pin: GPIO2
+    threshold: 4000000
+  - platform: esp32_touch
+    id: touch_s3
+    internal: true
+    pin: GPIO3
+    threshold: 4000000
+  - platform: esp32_touch
+    id: touch_s4
+    internal: true
+    pin: GPIO4
+    threshold: 4000000
+  - platform: esp32_touch
+    id: touch_s5
+    internal: true
+    pin: GPIO5
+    threshold: 4000000
+  - platform: esp32_touch
+    id: touch_s6
+    internal: true
+    pin: GPIO6
+    threshold: 4000000
+  - platform: esp32_touch
+    id: touch_s7
+    internal: true
+    pin: GPIO7
+    threshold: 4000000
+
+sensor:
+  - platform: template
+    name: "Rohwert S1 (0,15 mm)"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: return id(touch_s1).get_value();
+    filters:
+      - median:
+          window_size: 5
+          send_every: 2
+  - platform: template
+    name: "Rohwert S2 (0,2 mm)"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: return id(touch_s2).get_value();
+    filters:
+      - median:
+          window_size: 5
+          send_every: 2
+  - platform: template
+    name: "Rohwert S3 (0,3 mm)"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: return id(touch_s3).get_value();
+    filters:
+      - median:
+          window_size: 5
+          send_every: 2
+  - platform: template
+    name: "Rohwert S4 (0,5 mm)"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: return id(touch_s4).get_value();
+    filters:
+      - median:
+          window_size: 5
+          send_every: 2
+  - platform: template
+    name: "Rohwert S5 (1,0 mm)"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: return id(touch_s5).get_value();
+    filters:
+      - median:
+          window_size: 5
+          send_every: 2
+  - platform: template
+    name: "Rohwert S6 (3,0 mm)"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: return id(touch_s6).get_value();
+    filters:
+      - median:
+          window_size: 5
+          send_every: 2
+  - platform: template
+    name: "Rohwert S7 (leer)"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: return id(touch_s7).get_value();
+    filters:
+      - median:
+          window_size: 5
+          send_every: 2
