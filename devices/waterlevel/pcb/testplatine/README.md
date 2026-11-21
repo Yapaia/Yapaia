@@ -52,13 +52,30 @@ wie die Messbahn; das kostet dort ca. 18 % Signal (ist eingerechnet).
 ## Bestellen
 
 Fertigungsdaten: [`fertigung/testplatine-gerber.zip`](fertigung/testplatine-gerber.zip)
-(Gerber + Bohrdaten), so z. B. bei JLCPCB hochladen:
+(Gerber + Bohrdaten, ohne X2-Erweiterungen, wie JLCPCB es empfiehlt). Die ZIP
+**unverändert** hochladen – nicht entpacken. Mit einem unabhängigen Gerber-Viewer
+(gerbv) geprüft: Umriss, Schlitze, Bohrungen und Lagen stimmen.
 
-- 2 Lagen, 1,6 mm, 100 × 100 mm, 1 oz Kupfer
-- Lötstopplack: grün (Standard; andere Farben haben andere Lackdicken – für
-  den Vergleich mit der späteren Sonde dieselbe Farbe nehmen)
-- Oberfläche: HASL bleifrei oder ENIG
-- Die Schlitze zwischen den Fingern sind im Umriss (Edge.Cuts) enthalten.
+Einstellungen bei JLCPCB (sonst Standard lassen):
+
+| Option | Wert |
+|---|---|
+| Base Material | FR-4 |
+| Layers | 2 |
+| Dimension | 100 × 100 mm (wird erkannt) |
+| PCB Qty | 5 (Minimum) |
+| PCB Thickness | 1.6 mm |
+| PCB Color | Green (für den Vergleich mit der späteren Sonde dieselbe Farbe nehmen – andere Farben haben andere Lackdicken) |
+| Silkscreen | White |
+| Surface Finish | HASL (lead free) |
+| Outer Copper Weight | 1 oz |
+| Via Covering | Tented |
+| Mark on PCB / Remove Order Number | egal; die Nummer stört nicht |
+| PCB Assembly | **nein** (wir löten selbst) |
+
+Die Schlitze zwischen den Fingern sind im Umriss enthalten, dafür ist keine
+Zusatzoption nötig. Kleinste Werte: Bahn 0,15 mm, Abstand 0,3 mm, Bohrung
+0,3 mm – alles im Standard von JLCPCB.
 
 Neu erzeugen (KiCad 7): `./fertigung.sh` – baut `testplatine.kicad_pcb` aus
 `erzeuge.py` und exportiert Gerber, Bohrdaten und Vorschau. Die Maße stehen
