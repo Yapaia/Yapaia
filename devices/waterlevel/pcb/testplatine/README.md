@@ -22,25 +22,26 @@ gleichzeitig gemessen.
 
 ## Aufbau
 
-- **Kopf** (oben, 35 mm, bleibt trocken): XIAO ESP32S3 (U1, Bauteilseite
+- **Kopf** (oben, 39,5 mm, bleibt trocken): XIAO ESP32S3 (U1, Bauteilseite
   oben, USB-C zeigt nach links über die Platinenkante), Serienwiderstände
-  R1–R7 (0805, 510 Ω) direkt an den Pins, zwei M3-Löcher zum Aufhängen.
+  R1–R7 (510 Ω, **bedrahtet**, stehend im 2,54-mm-Raster, versetzt in zwei
+  Reihen) direkt an den Pins, zwei M3-Löcher zum Aufhängen.
   Rückseite: GND als Gitter (wie von Espressif empfohlen).
-- **Finger** (65 mm lang, 14 mm breit): mittig die Messbahn, links und rechts
+- **Finger** (60 mm lang, 14 mm breit): mittig die Messbahn, links und rechts
   GND-Streifen (Vorder- und Rückseite, 1,5 mm Abstand zur Messbahn). Unter der
   Messbahn ist kein Kupfer. Alles unter Lötstopplack, im nassen Bereich keine
   Durchkontaktierungen, Kupfer endet 3 mm vor der Unterkante.
 - **Skala** auf der Rückseite: Striche alle 1 cm, 0 = unteres Ende der Messbahn
-  (Messbahn reicht bis 6 cm).
+  (Messbahn reicht bis 5,5 cm).
 
-| Kanal | XIAO-Pin | GPIO | Bahnbreite | Isolierung | erwartet bei 6 cm (Lack 10 / 20 / 30 µm) |
+| Kanal | XIAO-Pin | GPIO | Bahnbreite | Isolierung | erwartet bei 5,5 cm (Lack 10 / 20 / 30 µm) |
 |---|---|---|---|---|---|
-| S1 | D0 | 1 | 0,15 mm | Lack | 30 / 15 / 10 pF |
-| S2 | D1 | 2 | 0,2 mm | Lack | 40 / 20 / 13 pF |
-| S3 | D2 | 3 | 0,3 mm | Lack | 59 / 30 / 20 pF |
-| S4 | D3 | 4 | 0,5 mm | Lack | 97 / 49 / 33 pF |
-| S5 | D4 | 5 | 1,0 mm | Lack, danach Schrumpfschlauch | 188 / 94 / 63 pF (mit Schlauch ≈ 4 pF) |
-| S6 | D5 | 6 | 3,0 mm | Lack, danach Schrumpfschlauch | 496 / 248 / 165 pF (mit Schlauch ≈ 10 pF) |
+| S1 | D0 | 1 | 0,15 mm | Lack | 28 / 14 / 9 pF |
+| S2 | D1 | 2 | 0,2 mm | Lack | 37 / 18 / 12 pF |
+| S3 | D2 | 3 | 0,3 mm | Lack | 55 / 27 / 18 pF |
+| S4 | D3 | 4 | 0,5 mm | Lack | 90 / 45 / 30 pF |
+| S5 | D4 | 5 | 1,0 mm | Lack, danach Schrumpfschlauch | 174 / 87 / 58 pF (mit Schlauch ≈ 3,5 pF) |
+| S6 | D5 | 6 | 3,0 mm | Lack, danach Schrumpfschlauch | 459 / 230 / 153 pF (mit Schlauch ≈ 9 pF) |
 | S7 | D8 | 7 | – (endet im Kopf) | – | nur Grundkapazität, Bezug für Drift |
 | GND | GND | | | | |
 
@@ -66,7 +67,9 @@ offenen Enden der Messbahnen (gewollt: Elektroden).
 
 ## Bestücken und Anschließen
 
-1. R1–R7: 510 Ω (0805).
+1. R1–R7: 510 Ω, bedrahtet (z. B. Metallschicht 0,25 W, Bauform 0207).
+   **Stehend** einbauen: Körper auf das Pad mit dem Kreis im Bestückungsdruck,
+   den anderen Draht oben umbiegen und ins Nachbarloch. Keine SMD-Teile.
 2. XIAO ESP32S3 mit zwei 7-poligen Stiftleisten einlöten (oder Buchsenleisten,
    dann ist er wiederverwendbar). Bauteilseite nach oben, USB-C nach links –
    Pin D0 ist das eckige Pad, so steht es auch im Bestückungsdruck.
@@ -79,7 +82,7 @@ offenen Enden der Messbahnen (gewollt: Elektroden).
 
 1. **Trocken**: Rohwerte S1–S7 notieren (Grundwert).
 2. In ein Gefäß mit **Leitungswasser** (z. B. hoher Messbecher, ≥ 11 cm breit)
-   bis höchstens zur 6-cm-Marke (Kopf bleibt trocken!) in Schritten von 1 cm eintauchen, je 30 s warten, Rohwerte notieren
+   bis höchstens zur 5-cm-Marke (Kopf bleibt trocken!) in Schritten von 1 cm eintauchen, je 30 s warten, Rohwerte notieren
    (in HA als Verlauf). Erwartung: linear mit der Tiefe.
 3. Rauschen bei fester Tiefe über 1 min ansehen (Signal/Rauschen > 5:1 je cm?).
 4. Herausziehen: wie schnell geht der Wert auf den Grundwert zurück (Wasserfilm)?

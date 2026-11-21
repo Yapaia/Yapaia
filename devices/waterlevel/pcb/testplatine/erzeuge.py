@@ -18,7 +18,7 @@ FP_LIB = "/usr/share/kicad/footprints"
 
 # ---------------------------------------------------------------- Parameter
 BREITE, HOEHE = 100.0, 100.0
-KOPF = 35.0                 # Kopfhöhe (trocken, mit ESP), darunter beginnen die Finger
+KOPF = 39.5                 # Kopfhöhe (trocken, mit ESP), darunter beginnen die Finger
 FINGER_B = 14.0             # Fingerbreite
 SCHLITZ = 2.6               # Schlitz zwischen den Fingern
 RAND_CU = 0.6               # Kupferabstand zur Platinenkante
@@ -224,8 +224,12 @@ for nr in (1, 14):
 
 
 def widerstand(ref, x, y, name, drehung=90):
-    """510 Ohm (0805) zwischen XIAO-Pin und Messbahn; liefert (Pin-Seite, Bahn-Seite)."""
-    r = bauteil("Resistor_SMD", "R_0805_2012Metric", ref, x, y, drehung=drehung, wert="510")
+    """510 Ohm (bedrahtet, stehend, Raster 2,54) zwischen XIAO-Pin und Messbahn.
+
+    (x, y) ist das Pad unter dem Widerstandskörper. Liefert (Pin-Seite, Bahn-Seite).
+    """
+    r = bauteil("Resistor_THT", "R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical",
+                ref, x, y, drehung=drehung, wert="510")
     r.Reference().SetVisible(False)
     key = (lambda p: p.GetPosition().y) if drehung == 90 else (lambda p: p.GetPosition().x)
     pads = sorted(r.Pads(), key=key)
@@ -235,14 +239,15 @@ def widerstand(ref, x, y, name, drehung=90):
 
 
 # Messkanäle: Pin -> Widerstand (senkrecht darunter) -> Spur nach rechts -> Finger.
-# Höhere Kanäle biegen weiter oben ab, so kreuzt sich nichts.
-R_Y = 23.0
+# Die stehenden Widerstände sind 2,5 mm dick, deshalb versetzt in zwei Reihen
+# (gerade/ungerade Kanäle). Höhere Kanäle biegen weiter oben ab, so kreuzt sich nichts.
+R_Y = (24.84, 30.0)           # Körper-Pad Reihe A / Reihe B (Draht-Pad 2,54 mm darüber)
 for i, (name, breite, hinweis) in enumerate(KANAELE):
     x_p, y_p = xiao_pos(KANAL_PIN[name])
-    p_pin, p_bahn = widerstand(f"R{i+1}", x_p, R_Y, name)
+    p_pin, p_bahn = widerstand(f"R{i+1}", x_p, R_Y[i % 2], name)
     spur((x_p, y_p), p_pin, ZULEITUNG, pcbnew.F_Cu, f"{name}_PIN")
     x_f = finger_x[i] + FINGER_B / 2
-    spur_y = 25.5 + 1.2 * (n - 1 - i)
+    spur_y = 31.5 + 1.0 * (n - 1 - i)
     spur(p_bahn, (x_p, spur_y), ZULEITUNG, pcbnew.F_Cu, name)
     spur((x_p, spur_y), (x_f, spur_y), ZULEITUNG, pcbnew.F_Cu, name)
     spur((x_f, spur_y), (x_f, MESS_OBEN), ZULEITUNG, pcbnew.F_Cu, name)
@@ -251,10 +256,10 @@ for i, (name, breite, hinweis) in enumerate(KANAELE):
 
 # Leerkanal S7 (D8/GPIO7, obere Reihe): nach oben, Widerstand, endet im Kopf
 x7, y7 = xiao_pos(KANAL_PIN[LEERKANAL])
-p_pin, p_bahn = widerstand("R7", 26.0, 1.5, LEERKANAL, drehung=0)
-spur((x7, y7), (x7, 1.5), ZULEITUNG, pcbnew.F_Cu, f"{LEERKANAL}_PIN")
-spur((x7, 1.5), p_pin, ZULEITUNG, pcbnew.F_Cu, f"{LEERKANAL}_PIN")
-spur(p_bahn, (44.0, 1.5), ZULEITUNG, pcbnew.F_Cu, LEERKANAL)
+p_pin, p_bahn = widerstand("R7", 26.0, 2.0, LEERKANAL, drehung=0)
+spur((x7, y7), (x7, 2.0), ZULEITUNG, pcbnew.F_Cu, f"{LEERKANAL}_PIN")
+spur((x7, 2.0), p_pin, ZULEITUNG, pcbnew.F_Cu, f"{LEERKANAL}_PIN")
+spur(p_bahn, (44.0, 2.0), ZULEITUNG, pcbnew.F_Cu, LEERKANAL)
 text("S7 leer", 38.0, 3.0, 0.8)
 
 # GND im Kopf: Rückseite als schraffierte Zone, Leiste verbindet über THT-Pads
@@ -306,7 +311,7 @@ text("Yapaia Wasserstand", 75.0, 12.0, 1.2)
 text("Testplatine v2 (XIAO ESP32S3)", 75.0, 14.5, 1.0)
 text("Skala: cm ab Bahnende. B = mit Schrumpfschlauch", 60.0, 18.0, 0.8, pcbnew.B_SilkS)
 text("Kopf bleibt trocken", 60.0, 21.0, 0.8, pcbnew.B_SilkS)
-text("R1-R7: 510 Ohm 0805", 75.0, 6.0, 0.8, pcbnew.B_SilkS)
+text("R1-R7: 510 Ohm, bedrahtet, stehend", 75.0, 6.0, 0.8, pcbnew.B_SilkS)
 
 # ---------------------------------------------------------------- Zonen füllen, speichern
 ziel = os.path.join(HIER, "testplatine.kicad_pcb")
